@@ -4,7 +4,7 @@
 > **Database:** PostgreSQL 15+  
 > **ORM:** Prisma 5.x  
 > **Date:** 2026-05-11  
-> **Status:** Draft — for Phase 1 review  
+> **Status:** Locked for MVP implementation — changes require ADR  
 
 ---
 
@@ -471,7 +471,7 @@ model Invitation {
   invitedById String
   role        WorkspaceRole
   invitedEmail String?
-  token       String        @unique
+  tokenHash   String        @unique
   expiresAt   DateTime
   usedById    String?
   usedAt      DateTime?
@@ -755,7 +755,7 @@ else → effective = explicitChannelRole (or MEMBER if public member)
 | AuditLog | `[workspaceId, createdAt]` | B-tree | Workspace audit queries. |
 | AuditLog | `[entityType, entityId]` | B-tree | Entity-centric forensics. |
 | AuditLog | `[actorId, createdAt]` | B-tree | User action history. |
-| Invitation | `token` | Unique | Invite link validation. |
+| Invitation | `tokenHash` | Unique | SHA-256 of raw token. Raw token never stored. |
 | Notification | `[userId, isRead, createdAt]` | B-tree | Unread bell queries. |
 | ReadReceipt | `[messageId, userId]` | Unique | One read receipt per user per message. |
 | ReadReceipt | `[channelId, userId, readAt]` | B-tree | Channel read status aggregation. |

@@ -134,15 +134,3 @@
 **Consequences:**
 - One-directional cursor pagination is simpler to implement.
 - "Load older messages" can be simulated by changing sort order or using date filters.
-
-**Context:** `scope.md` §2.4 requires `@username` mentions. Legacy lets-chat had `username` field.
-
-**Decision:**
-- Add `username String @unique` to `User` model.
-- Used for mentions and optional login (email remains primary).
-- Regex: `/^[a-zA-Z0-9_-]+$/`.
-- Required at registration.
-
-**Consequences:**
-- One additional field in User.
-- Mention parser looks for `@username` pattern.

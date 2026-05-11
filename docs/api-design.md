@@ -15,7 +15,7 @@
 3. **Soft delete is implicit.** `DELETE` requests set `deletedAt`. There is no hard-delete endpoint for business entities in MVP.
 4. **Cursor pagination** on list endpoints (`cursor` + `limit`). No `skip`/`offset`.
 5. **Idempotency keys** are not required in MVP. Retry safety is handled by client-side deduplication.
-6. **Request/response bodies are camelCase.** Database columns are snake_case in Prisma/PostgreSQL, but API layer maps to camelCase for JSON.
+6. **Request/response bodies are camelCase.** Prisma models also use camelCase for consistency.
 7. **File uploads use presigned URLs.** No `multipart/form-data` upload endpoints. Client requests a presigned URL, uploads directly to S3/MinIO, then references the `attachmentId` in message creation.
 
 ---

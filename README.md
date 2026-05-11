@@ -6,7 +6,7 @@
 
 ## Overview
 
-This project is a ground-up rebuild of the archived **lets-chat** application (~9.8k ⭐), transforming a 2014-era Node/MongoDB/jQuery codebase into a production-ready, secure team collaboration platform using modern best practices.
+This project is a ground-up rebuild of the archived **lets-chat** application (~9.8k ⭐), transforming a 2014-era Node/MongoDB/jQuery codebase into a production-oriented, secure team collaboration platform using modern best practices.
 
 **Original:** Node 0.10.x + Express.oi + Mongoose + MongoDB + Nunjucks  
 **Modern:** Node 20 + NestJS + Prisma + PostgreSQL + Redis + Next.js 14 + Socket.io 4
