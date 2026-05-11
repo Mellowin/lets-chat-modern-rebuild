@@ -5,13 +5,15 @@
   "description": "Modern rebuild of lets-chat — secure team collaboration platform",
   "scripts": {
     "build": "pnpm -r build",
-    "dev": "pnpm -r dev",
+    "dev": "pnpm --parallel --filter api --filter web dev",
+    "dev:api": "pnpm --filter api start:dev",
+    "dev:web": "pnpm --filter web dev",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
-    "db:generate": "pnpm --filter database generate",
-    "db:migrate": "pnpm --filter database migrate",
-    "db:studio": "pnpm --filter database studio",
-    "db:seed": "pnpm --filter database seed"
+    "db:generate": "pnpm --filter @lets-chat/database generate",
+    "db:migrate": "pnpm --filter @lets-chat/database migrate",
+    "db:studio": "pnpm --filter @lets-chat/database studio",
+    "db:seed": "pnpm --filter @lets-chat/database seed"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

@@ -134,3 +134,22 @@
 **Consequences:**
 - One-directional cursor pagination is simpler to implement.
 - "Load older messages" can be simulated by changing sort order or using date filters.
+
+---
+
+## D9. Framework Versions — Updated During Bootstrap
+
+**Context:** `scope.md` and `architecture.md` originally specified NestJS 10 / Next.js 14 / TypeScript 5.4. CLI scaffolding installed newer versions.
+
+**Decision:**
+- Keep the **newer versions** installed by CLI:
+  - NestJS 11 (was 10)
+  - Next.js 16 + React 19 (was 14 + 18)
+  - TypeScript 5.7 (was 5.4)
+  - Prisma 5.14 (was 5.x)
+- Update all documentation (`README.md`, `architecture.md`) to match actual versions.
+- Rationale: newer versions are stable, LTS-aligned, and avoid technical debt from day one.
+
+**Consequences:**
+- Docs must be kept in sync with `package.json` files.
+- React 19 may have minor breaking changes vs 18; shadcn/ui components must be verified.

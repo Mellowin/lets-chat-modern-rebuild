@@ -9,7 +9,7 @@
 This project is a ground-up rebuild of the archived **lets-chat** application (~9.8k ⭐), transforming a 2014-era Node/MongoDB/jQuery codebase into a production-oriented, secure team collaboration platform using modern best practices.
 
 **Original:** Node 0.10.x + Express.oi + Mongoose + MongoDB + Nunjucks  
-**Modern:** Node 20 + NestJS + Prisma + PostgreSQL + Redis + Next.js 14 + Socket.io 4
+**Modern:** Node 20 + NestJS 11 + Prisma 5.14 + PostgreSQL 15 + Redis 7 + Next.js 16 + React 19 + Socket.io 4
 
 ---
 
@@ -32,10 +32,10 @@ This project is a ground-up rebuild of the archived **lets-chat** application (~
 
 | Layer | Technology |
 |-------|-----------|
-| **Backend** | NestJS 10, TypeScript 5.4 |
-| **Frontend** | Next.js 14 (App Router), Tailwind CSS, shadcn/ui |
+| **Backend** | NestJS 11, TypeScript 5.7 |
+| **Frontend** | Next.js 16 (App Router), Tailwind CSS 4, shadcn/ui |
 | **Database** | PostgreSQL 15 |
-| **ORM** | Prisma 5 |
+| **ORM** | Prisma 5.14 |
 | **Cache / PubSub** | Redis 7 |
 | **Real-Time** | Socket.io 4 + Redis Adapter |
 | **Queue** | Bull (Redis-backed) |
