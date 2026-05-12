@@ -1,3 +1,7 @@
+/**
+ * Prisma singleton for scripts, CLI tools, seeds and migrations.
+ * In NestJS applications, inject PrismaService instead.
+ */
 import { PrismaClient } from '@prisma/client';
 
 const globalForPrisma = globalThis as unknown as {
