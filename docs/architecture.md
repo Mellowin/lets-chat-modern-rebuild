@@ -29,8 +29,8 @@ All business logic is **workspace-scoped**. Cross-workspace data access is forbi
 ```
 lets-chat-modern-rebuild/
 ├── apps/
-│   ├── api/              # NestJS 10 backend
-│   └── web/              # Next.js 14 frontend (App Router)
+│   ├── api/              # NestJS 11 backend
+│   └── web/              # Next.js 16 + React 19 frontend (App Router)
 ├── packages/
 │   ├── database/         # Prisma schema + generated client
 │   └── shared/           # Shared TypeScript types, DTOs, enums
@@ -125,7 +125,7 @@ Socket.io 4 with Redis adapter.
 | **Auth** | Handshake JWT validation only; no session state |
 | **Rooms** | `user:<id>`, `workspace:<id>`, `channel:<id>` |
 | **Broadcasts** | Message events, channel events, presence events, typing |
-| **Client events** | `message:create`, `message:read`, `reaction:toggle`, `typing:start/stop`, `channel:join/leave` |
+| **Client events** | `message:read`, `typing:start/stop`, `channel:join/leave` |
 | **No replay** | Missed events fetched via REST cursor pagination on reconnect |
 
 ---
@@ -183,13 +183,13 @@ Socket.io 4 with Redis adapter.
 |-------|-----------|---------|
 | Runtime | Node.js | 20 LTS |
 | Backend Framework | NestJS | 10 |
-| Language | TypeScript | 5.4 |
-| ORM | Prisma | 5 |
+| Language | TypeScript | 5.7+ |
+| ORM | Prisma | 5.14+ |
 | Database | PostgreSQL | 15 |
 | Cache / PubSub | Redis | 7 |
 | Real-Time | Socket.io | 4 |
 | Frontend | Next.js | 14 (App Router) |
-| Styling | Tailwind CSS | 3 |
+| Styling | Tailwind CSS | 4 |
 | Components | shadcn/ui | — |
 | Object Storage | MinIO (dev) / S3 (prod) | — |
 | Testing | Jest, Playwright | — |
