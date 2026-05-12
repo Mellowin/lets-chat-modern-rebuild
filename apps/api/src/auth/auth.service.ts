@@ -3,7 +3,7 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { User } from '@lets-chat/database';
+import { Prisma, User } from '@lets-chat/database';
 import { UsersRepository } from '../users/users.repository';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
@@ -48,11 +48,23 @@ export class AuthService {
     }
 
     const passwordHash = await this.password.hashPassword(input.password);
-    const user = await this.users.createUser({
-      email: input.email,
-      username: input.username,
-      passwordHash,
-    });
+
+    let user: User;
+    try {
+      user = await this.users.createUser({
+        email: input.email,
+        username: input.username,
+        passwordHash,
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('Email or username already in use');
+      }
+      throw error;
+    }
 
     const safeUser = this.toSafeUser(user);
     const payload: JwtPayload = { sub: user.id, email: user.email };
