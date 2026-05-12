@@ -298,7 +298,7 @@ io.to('channel:uuid').emit('message:created', {
 });
 ```
 
-**REST trigger:** `POST /api/v1/channels/:channelId/messages` (see `api-design.md` §7.1).
+**REST trigger:** `POST /api/v1/channels/:channelId/messages` (see `api-design.md` §7.9).
 
 **Thread rule:** if `parentId` is provided, it must point to a message with `parentId IS NULL` (top-level only). Service layer rejects nested replies (Decision D4).
 
@@ -311,7 +311,7 @@ After a successful REST `PATCH /api/v1/messages/:messageId`, the server broadcas
 io.to('channel:uuid').emit('message:updated', { message });
 ```
 
-**REST trigger:** `PATCH /api/v1/messages/:messageId` (see `api-design.md` §7.3).
+**REST trigger:** `PATCH /api/v1/messages/:messageId` (see `api-design.md` §7.12).
 
 **Permission:** `@IsMessageAuthor()` + 15-minute window enforced in service layer. Admins cannot edit; they moderate via `DELETE /api/v1/messages/:messageId` (soft-delete).
 
@@ -327,7 +327,7 @@ io.to('channel:uuid').emit('message:deleted', {
 });
 ```
 
-**REST trigger:** `DELETE /api/v1/messages/:messageId` (see `api-design.md` §7.4).
+**REST trigger:** `DELETE /api/v1/messages/:messageId` (see `api-design.md` §7.13).
 
 **Permission:** service layer via `PermissionService.can()`:
 - Author can delete their own message (anytime).
@@ -346,30 +346,21 @@ io.to('channel:uuid').emit('message:created', {
 
 **Thread view query:** client fetches replies via REST `GET /api/v1/channels/:id/messages?parentId=...` or listens to `message:created` and filters client-side.
 
-### 4.5 Reaction Toggle
+### 4.5 Reaction Toggled (Broadcast)
 
-Idempotent: add if absent, remove (soft delete) if present.
+Idempotent toggle via REST. After a successful `POST /api/v1/messages/:messageId/reactions`, the server broadcasts the updated reaction state.
 
 ```typescript
-// Client → Server
-socket.emit('reaction:toggle', {
-  messageId: 'msg-uuid',
-  emoji: '👍'
-});
-
-// Server → Client
-socket.emit('reaction:toggled', {
+// Server → channel
+io.to('channel:uuid').emit('reaction:toggled', {
   messageId: 'msg-uuid',
   emoji: '👍',
   userId: 'user-uuid',
   count: 3
 });
-
-// Server → channel
-io.to('channel:uuid').emit('reaction:toggled', { messageId, emoji, userId, count });
 ```
 
-**Permission:** `CanAccessChannel`. Rate limit: 20 toggles / 10 sec.
+**REST trigger:** `POST /api/v1/messages/:messageId/reactions` (see `api-design.md` §7.15).
 
 ### 4.6 Typing Indicators
 
@@ -420,8 +411,7 @@ socket.emit('message:read', {
 | `message:created` | Server → broadcast | `{ message }` | REST `POST /channels/:channelId/messages` |
 | `message:updated` | Server → broadcast | `{ message }` | REST `PATCH /messages/:messageId` |
 | `message:deleted` | Server → broadcast | `{ messageId, deletedAt }` | REST `DELETE /messages/:messageId` |
-| `reaction:toggle` | Client → Server | `{ messageId, emoji }` | `CanAccessChannel` |
-| `reaction:toggled` | Server → broadcast | `{ messageId, emoji, userId, count }` | Channel members |
+| `reaction:toggled` | Server → broadcast | `{ messageId, emoji, userId, count }` | REST `POST /messages/:messageId/reactions` |
 | `typing:start` | Client → Server | `{ channelId }` | `CanAccessChannel` |
 | `typing:stop` | Client → Server | `{ channelId }` | `CanAccessChannel` |
 | `typing:start` | Server → broadcast | `{ userId, channelId }` | Channel members (except sender) |
@@ -555,7 +545,6 @@ Socket events are rate-limited separately from HTTP. Redis-backed sliding window
 |------------|-------|--------|
 | `typing:start` / `typing:stop` | 1 | 3 sec |
 | `channel:join` | 10 | 60 sec |
-| `reaction:toggle` | 20 | 10 sec |
 | `presence:sync` | 1 | 5 sec |
 | `message:read` | 10 | 10 sec |
 
