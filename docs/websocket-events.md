@@ -254,9 +254,12 @@ Socket.io rooms are named after entities:
 |-----------|-----------|------------|
 | `user:<id>` | User's own socket | Direct notifications |
 | `workspace:<id>` | All workspace members | Workspace-wide events |
-| `channel:<id>` | Channel members only | Channel messages, typing, presence |
+| `channel:<id>` | Users allowed by `CanAccessChannel` | Channel messages, typing, presence |
+| | | *Public channel* = active `WorkspaceMember`; |
+| | | *Private channel* = explicit `ChannelMember`; |
+| | | *Moderation override* = workspace `OWNER`/`ADMIN` (audit-logged). |
 
-**Critical rule:** for private channels, `io.to('channel:<id>')` must never emit to users who are not explicit members (except workspace `OWNER`/`ADMIN` moderation override). Server tracks room membership via `socket.rooms`; manual broadcast loops are forbidden.
+**Critical rule:** for private channels, `io.to('channel:<id>')` must never emit to users who are not explicit `ChannelMember`, except workspace `OWNER`/`ADMIN` moderation override (audit-logged as `channel:moderation_override_used`). Server tracks room membership via `socket.rooms`; manual broadcast loops are forbidden.
 
 ### 3.6 Events Summary (Part 2)
 
