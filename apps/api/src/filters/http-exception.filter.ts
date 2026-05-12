@@ -4,8 +4,8 @@ import {
   ArgumentsHost,
   HttpException,
   HttpStatus,
-  Logger,
 } from '@nestjs/common';
+import { PinoLogger } from 'nestjs-pino';
 import { Request, Response } from 'express';
 
 interface ErrorResponse {
@@ -20,7 +20,9 @@ interface ErrorResponse {
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
-  private readonly logger = new Logger(HttpExceptionFilter.name);
+  constructor(private readonly logger: PinoLogger) {
+    this.logger.setContext(HttpExceptionFilter.name);
+  }
 
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
@@ -60,7 +62,14 @@ export class HttpExceptionFilter implements ExceptionFilter {
           requestId,
           path,
           statusCode,
-          exception,
+          err:
+            exception instanceof Error
+              ? {
+                  name: exception.name,
+                  message: exception.message,
+                  stack: exception.stack,
+                }
+              : exception,
         },
         'Unhandled exception',
       );
