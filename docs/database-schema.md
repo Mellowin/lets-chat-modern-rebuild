@@ -28,7 +28,7 @@
 | `ChannelRole` | `OWNER`, `ADMIN`, `MEMBER` | `ChannelMember.role` | Effective role = `max(workspaceRole, channelRole)`. |
 | `NotificationType` | `MENTION`, `THREAD_REPLY`, `CHANNEL_INVITE`, `SYSTEM` | `Notification.type` | Extensible enum for in-app bell. |
 | `StorageBackend` | `LOCAL`, `S3`, `MINIO` | `Attachment.storageBackend` | Local for dev; S3/MinIO for prod. |
-| `AuditAction` | `CREATE`, `UPDATE`, `DELETE`, `MODERATION_OVERRIDE_USED`, `LOGIN`, `LOGOUT`, `INVITE_ACCEPT` | `AuditLog.action` | Extendable string enum. |
+| `AuditAction` | Documented string constants (not Prisma enum) | `AuditLog.action` | Namespaced string constants to avoid enum migrations. |
 
 ---
 
@@ -385,7 +385,7 @@ Append-only. No FK on `entityId` because references are polymorphic.
 model AuditLog {
   id String @id @default(uuid()) @db.Uuid
   actorId     String?     @db.Uuid
-  action      AuditAction
+  action      String
   entityType  String
   entityId    String      @db.Uuid
   workspaceId String?     @db.Uuid
@@ -411,7 +411,7 @@ model AuditLog {
 |-------|------|-------------|-------|-------|
 | `id` | UUID | PK | - | - |
 | `actorId` | UUID | FK -> User.id, nullable | B-tree | Null for system actions. |
-| `action` | Enum | NOT NULL | B-tree | See enum `AuditAction`. |
+| `action` | String | NOT NULL | B-tree | Namespaced constant, e.g. `channel:moderation_override_used`. |
 | `entityType` | String | NOT NULL | B-tree composite | E.g. `Message`, `Channel`, `Workspace`. |
 | `entityId` | UUID | NOT NULL | B-tree composite | Polymorphic ref; not a foreign key. |
 | `workspaceId` | UUID | FK, nullable | B-tree composite | For workspace-scoped filtering. |
@@ -649,9 +649,30 @@ Every `CREATE`, `UPDATE`, `DELETE` on business entities is logged.
 | `CREATE` | Workspace, Channel, Message, Reaction, Attachment | `{ after: object }` |
 | `UPDATE` | Workspace, Channel, Message | `{ before: object, after: object }` |
 | `DELETE` (soft) | All soft-deletable | `{ reason: "user_action", deletedAt: "..." }` |
-| `MODERATION_OVERRIDE_USED` | Channel, Message | `{ overrideReason: "admin_delete", actorRole: "ADMIN" }` |
+| `channel:moderation_override_used` | Channel, Message | `{ overrideReason: "admin_delete", actorRole: "ADMIN" }` |
 | `LOGIN` / `LOGOUT` | User | `{ ipAddress, userAgent }` |
 | `INVITE_ACCEPT` | Invitation | `{ inviteId: "...", role: "MEMBER" }` |
+
+**Known MVP action constants (namespaced strings, not Prisma enum):**
+
+```typescript
+// packages/shared/src/constants/audit-actions.ts
+export const AuditActions = {
+  WORKSPACE_CREATE: 'workspace:create',
+  WORKSPACE_UPDATE: 'workspace:update',
+  WORKSPACE_DELETE: 'workspace:delete',
+  CHANNEL_CREATE: 'channel:create',
+  CHANNEL_UPDATE: 'channel:update',
+  CHANNEL_DELETE: 'channel:delete',
+  CHANNEL_MODERATION_OVERRIDE_USED: 'channel:moderation_override_used',
+  MESSAGE_CREATE: 'message:create',
+  MESSAGE_UPDATE: 'message:update',
+  MESSAGE_DELETE: 'message:delete',
+  AUTH_LOGIN: 'auth:login',
+  AUTH_LOGOUT: 'auth:logout',
+  INVITE_ACCEPT: 'invite:accept',
+} as const;
+```
 
 ### 6.2 Write Path
 Audit rows are written by a centralized `AuditService`, not by controllers directly. The service is called at the end of successful transactions (after-commit hook or explicit call in service layer).
