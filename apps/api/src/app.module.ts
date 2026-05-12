@@ -1,7 +1,10 @@
 import { Module } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
+import { LoggerModule } from 'nestjs-pino';
 import { DatabaseModule } from '@lets-chat/database';
 import { envValidationSchema } from './config/env.validation';
+import { RequestIdInterceptor } from './logger/request-id.interceptor';
 import { HealthModule } from './health/health.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -16,10 +19,23 @@ import { AppService } from './app.service';
         abortEarly: false,
       },
     }),
+    LoggerModule.forRoot({
+      pinoHttp: {
+        genReqId: (req) =>
+          (req.headers['x-request-id'] as string) || crypto.randomUUID(),
+        customProps: (req) => ({ requestId: req.id }),
+      },
+    }),
     DatabaseModule,
     HealthModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: RequestIdInterceptor,
+    },
+  ],
 })
 export class AppModule {}
