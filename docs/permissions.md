@@ -3,7 +3,7 @@
 > **Project:** lets-chat Modern Rebuild — Secure Team Collaboration Platform  
 > **Scope:** MVP (v1.0)  
 > **Date:** 2026-05-11  
-> **Status:** Draft — locked after database-schema.md review  
+> **Status:** Locked for MVP implementation — changes require ADR  
 
 ---
 
@@ -64,10 +64,10 @@ Evaluated against **effective channel role** (workspace role + explicit channel 
 | `channel:read` | Y | Y | Y* | *Public: all workspace members. Private: explicit members only. |
 | `channel:join` | Y | Y | Y* | *Public: auto-join. Private: requires invite or approval. |
 | `channel:create` | Y | Y | Y | Workspace-level gate (see 2.1). |
-| `channel:update` | All | All | Own | Rename, description. `type` and `slug` are immutable in MVP (see `decisions.md` D6). |
-| `channel:archive` | All | All | Own | Soft-delete channel (`deletedAt`). |
-| `channel:members:add` | All | All | Own | Add workspace members to channel. |
-| `channel:members:remove` | All | All | Own | Remove members from channel. Cannot remove workspace OWNER. |
+| `channel:update` | All | All | N | Rename, description. `type` and `slug` are immutable in MVP (see `decisions.md` D6). Creator is covered by OWNER column via explicit `ChannelMember` record. |
+| `channel:archive` | All | All | N | Soft-delete channel (`deletedAt`). Creator is covered by OWNER column via explicit `ChannelMember` record. |
+| `channel:members:add` | All | All | N | Add workspace members to channel. |
+| `channel:members:remove` | All | All | N | Remove members from channel. Cannot remove workspace OWNER. |
 | `channel:members:list` | All | All | Y | Private: members only. Public: all workspace members. |
 | `channel:typing:send` | Y | Y | Y | Send typing indicator events. |
 
@@ -77,7 +77,7 @@ Evaluated against **effective channel role** (workspace role + explicit channel 
 |------------|:-----:|:-----:|:------:|-------|
 | `message:create` | Y | Y | Y | Must pass `channel:read`. |
 | `message:read` | Y | Y | Y | Must pass `channel:read`. |
-| `message:update` | All | All | Self | Self = author only. 15-minute edit window enforced in service layer. Admins can moderate via soft delete, not edit. |
+| `message:update` | Self | Self | Self | Self = author only. 15-minute edit window enforced in service layer. Admins moderate via `message:delete` soft-delete, not edit. |
 | `message:delete` | All | All | Self | Soft delete (`deletedAt`). Preserves audit trail. |
 | `message:react` | Y | Y | Y | Toggle emoji reaction on any message in readable channel. |
 | `message:thread:reply` | Y | Y | Y | Reply to any message in readable channel. |
@@ -162,7 +162,8 @@ A workspace OWNER outranks a channel OWNER for destructive actions:
 - A user cannot change their own workspace role.
 
 ### 4.3 Last Admin Protection
-- A workspace must retain at least one OWNER. API rejects deletion/transfer if it would leave the workspace ownerless.
+- A workspace must retain at least one OWNER. API rejects ownership transfer, role demotion, or leave actions if they would leave the workspace ownerless.
+- Workspace archive is allowed for OWNER and does not remove ownership records.
 - A channel should retain at least one explicit OWNER. If the last channel OWNER is removed, workspace OWNER/ADMIN becomes the de facto channel OWNER.
 
 ### 4.4 Message Edit Window
@@ -196,9 +197,9 @@ All authorization logic is implemented as NestJS guards and custom decorators. C
 | `@RequireWorkspaceRole(...roles: WorkspaceRole[])` | Enforce minimum workspace role on route handler. | `@RequireWorkspaceRole('OWNER', 'ADMIN')` |
 | `@RequireChannelRole(...roles: ChannelRole[])` | Enforce minimum effective channel role. Requires `channelId` param or body field. | `@RequireChannelRole('OWNER', 'ADMIN')` |
 | `@IsWorkspaceMember()` | Allow any workspace member (MEMBER+). Lightweight check before channel-specific logic. | `@IsWorkspaceMember()` |
-| `@IsChannelMember()` | Allow only explicit channel members (public or private). Used for read access gates. | `@IsChannelMember()` |
+| `@IsChannelMember()` | Checks explicit `ChannelMember` only. Not primary read gate for public channels. Use for private membership or explicit role operations. | `@IsChannelMember()` |
 | `@IsMessageAuthor()` | Allow only the original message author. Used for edit/delete endpoints. | `@IsMessageAuthor()` |
-| `@CanAccessChannel()` | Composite guard: checks workspace membership + channel visibility (public/private) + explicit membership. Primary gate for channel-scoped routes. | `@CanAccessChannel()` |
+| `@CanAccessChannel()` | Composite guard: workspace membership + channel visibility (public/private) + explicit membership OR workspace OWNER/ADMIN moderation override for private channels. Primary gate for channel-scoped routes. | `@CanAccessChannel()` |
 | `@SkipAuth()` | Bypass auth for public health/docs endpoints. | `@SkipAuth()` |
 
 ### 5.2 Guards
@@ -209,19 +210,21 @@ All authorization logic is implemented as NestJS guards and custom decorators. C
 | `ChannelRoleGuard` | `CanActivate` | Reads `channelId`, computes effective channel role via `PermissionService`, checks against decorator roles. |
 | `ChannelMembershipGuard` | `CanActivate` | Verifies user has a `ChannelMember` record (explicit) or channel is public. |
 | `MessageAuthorGuard` | `CanActivate` | Reads `messageId`, verifies `message.authorId === user.id`. |
-| `ChannelAccessGuard` | `CanActivate` | Composite: `WorkspaceMembershipGuard` + (`PublicChannelGuard` OR `ChannelMembershipGuard`). |
+| `ChannelAccessGuard` | `CanActivate` | Composite: `WorkspaceMembershipGuard` + (`PublicChannelGuard` OR `ChannelMembershipGuard` OR `ModerationOverrideGuard` for workspace OWNER/ADMIN on private channels). If override path is used, write AuditLog action `channel:moderation_override_used`. |
 | `RateLimitGuard` | `CanActivate` | Redis-backed sliding window rate limiter. Separate from role guards. |
 
 ### 5.3 Permission Service Interface (Pseudo-TypeScript)
 
 ```typescript
 // services/permission.service.ts
+type EffectiveChannelRole = ChannelRole | 'NONE';
+
 class PermissionService {
   getWorkspaceRole(userId: string, workspaceId: string): Promise<WorkspaceRole | null>;
 
   getExplicitChannelRole(userId: string, channelId: string): Promise<ChannelRole | null>;
 
-  getEffectiveChannelRole(userId: string, channelId: string): Promise<ChannelRole>;
+  getEffectiveChannelRole(userId: string, channelId: string): Promise<EffectiveChannelRole>;
 
   can(userId: string, permission: Permission, context: PermissionContext): Promise<boolean>;
 
