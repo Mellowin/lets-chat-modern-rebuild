@@ -6,11 +6,12 @@ import { TokenService } from './token.service';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtAccessGuard } from './guards/jwt-access.guard';
+import { RefreshTokensRepository } from './refresh-tokens.repository';
 
 @Module({
   imports: [JwtModule.register({}), UsersModule],
   controllers: [AuthController],
-  providers: [PasswordService, TokenService, AuthService, JwtAccessGuard],
-  exports: [PasswordService, TokenService, AuthService, JwtAccessGuard],
+  providers: [PasswordService, TokenService, AuthService, JwtAccessGuard, RefreshTokensRepository],
+  exports: [PasswordService, TokenService, AuthService, JwtAccessGuard, RefreshTokensRepository],
 })
 export class AuthModule {}

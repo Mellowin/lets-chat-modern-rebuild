@@ -3,10 +3,14 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Prisma, User } from '@lets-chat/database';
+import { createHash } from 'crypto';
+import ms from 'ms';
 import { UsersRepository } from '../users/users.repository';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
+import { RefreshTokensRepository } from './refresh-tokens.repository';
 import { JwtPayload } from './jwt-payload.type';
 
 type SafeUser = Omit<User, 'passwordHash'>;
@@ -41,6 +45,8 @@ export class AuthService {
     private readonly users: UsersRepository,
     private readonly password: PasswordService,
     private readonly token: TokenService,
+    private readonly refreshTokens: RefreshTokensRepository,
+    private readonly config: ConfigService,
   ) {}
 
   async register(input: RegisterInput): Promise<AuthResult> {
@@ -81,6 +87,8 @@ export class AuthService {
       this.token.signRefreshToken(payload),
     ]);
 
+    await this.persistRefreshToken(user.id, refreshToken);
+
     return { user: authUser, accessToken, refreshToken };
   }
 
@@ -92,6 +100,8 @@ export class AuthService {
       this.token.signAccessToken(payload),
       this.token.signRefreshToken(payload),
     ]);
+
+    await this.persistRefreshToken(user.id, refreshToken);
 
     const authUser = this.toAuthUserResponse(user);
     return { user: authUser, accessToken, refreshToken };
@@ -126,5 +136,24 @@ export class AuthService {
       username: user.username,
       createdAt: user.createdAt,
     };
+  }
+
+  private hashRefreshToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
+  }
+
+  private getRefreshExpiryDate(): Date {
+    const expiresIn = this.config.getOrThrow<string>('JWT_REFRESH_EXPIRES_IN');
+    const msValue = ms(expiresIn as ms.StringValue);
+    if (typeof msValue !== 'number') {
+      throw new Error(`Invalid JWT_REFRESH_EXPIRES_IN: ${expiresIn}`);
+    }
+    return new Date(Date.now() + msValue);
+  }
+
+  private async persistRefreshToken(userId: string, token: string): Promise<void> {
+    const tokenHash = this.hashRefreshToken(token);
+    const expiresAt = this.getRefreshExpiryDate();
+    await this.refreshTokens.createToken({ userId, tokenHash, expiresAt });
   }
 }
