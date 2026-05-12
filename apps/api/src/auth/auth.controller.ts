@@ -1,8 +1,9 @@
-import { Controller, Post, Body, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Body, HttpCode, UseGuards } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiBody,
+  ApiBearerAuth,
   ApiCreatedResponse,
   ApiOkResponse,
   ApiConflictResponse,
@@ -10,8 +11,11 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
+import type { AuthUserResponse } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { JwtAccessGuard } from './guards/jwt-access.guard';
+import { CurrentUser } from './decorators/current-user.decorator';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -37,5 +41,15 @@ export class AuthController {
   @ApiBadRequestResponse({ description: 'Validation failed' })
   async login(@Body() dto: LoginDto) {
     return this.auth.login(dto);
+  }
+
+  @Get('me')
+  @UseGuards(JwtAccessGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current authenticated user' })
+  @ApiOkResponse({ description: 'Current user returned successfully' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async me(@CurrentUser() user: AuthUserResponse): Promise<AuthUserResponse> {
+    return user;
   }
 }
