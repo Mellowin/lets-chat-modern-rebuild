@@ -208,7 +208,7 @@ All authorization logic is implemented as NestJS guards and custom decorators. C
 |-------------|-----------|-------|
 | `WorkspaceRoleGuard` | `CanActivate` | Reads `workspaceId` from params/body, fetches user’s workspace role from `WorkspaceMember`, checks against decorator roles. |
 | `ChannelRoleGuard` | `CanActivate` | Reads `channelId`, computes effective channel role via `PermissionService`, checks against decorator roles. |
-| `ChannelMembershipGuard` | `CanActivate` | Verifies user has a `ChannelMember` record (explicit) or channel is public. |
+| `ChannelMembershipGuard` | `CanActivate` | Verifies user has an explicit `ChannelMember` record. Does not grant public-channel access by itself; public access is handled by `PublicChannelGuard` and combined in `ChannelAccessGuard`. |
 | `MessageAuthorGuard` | `CanActivate` | Reads `messageId`, verifies `message.authorId === user.id`. |
 | `ChannelAccessGuard` | `CanActivate` | Composite: `WorkspaceMembershipGuard` + (`PublicChannelGuard` OR `ChannelMembershipGuard` OR `ModerationOverrideGuard` for workspace OWNER/ADMIN on private channels). If override path is used, write AuditLog action `channel:moderation_override_used`. |
 | `RateLimitGuard` | `CanActivate` | Redis-backed sliding window rate limiter. Separate from role guards. |
