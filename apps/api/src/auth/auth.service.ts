@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma, User } from '@lets-chat/database';
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import ms from 'ms';
 import { UsersRepository } from '../users/users.repository';
 import { PasswordService } from './password.service';
@@ -80,7 +80,7 @@ export class AuthService {
     }
 
     const authUser = this.toAuthUserResponse(user);
-    const payload: JwtPayload = { sub: user.id, email: user.email };
+    const payload: JwtPayload = { sub: user.id, email: user.email, jti: randomUUID() };
 
     const [accessToken, refreshToken] = await Promise.all([
       this.token.signAccessToken(payload),
@@ -94,7 +94,7 @@ export class AuthService {
 
   async login(input: LoginInput): Promise<AuthResult> {
     const user = await this.validateUserCredentials(input.email, input.password);
-    const payload: JwtPayload = { sub: user.id, email: user.email };
+    const payload: JwtPayload = { sub: user.id, email: user.email, jti: randomUUID() };
 
     const [accessToken, refreshToken] = await Promise.all([
       this.token.signAccessToken(payload),
@@ -105,6 +105,39 @@ export class AuthService {
 
     const authUser = this.toAuthUserResponse(user);
     return { user: authUser, accessToken, refreshToken };
+  }
+
+  async refresh(refreshToken: string): Promise<AuthResult> {
+    let payload: JwtPayload;
+    try {
+      payload = await this.token.verifyRefreshToken(refreshToken);
+    } catch {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+
+    const tokenHash = this.hashRefreshToken(refreshToken);
+    const existing = await this.refreshTokens.findActiveByHash(tokenHash);
+    if (!existing) {
+      throw new UnauthorizedException('Refresh token not found or revoked');
+    }
+
+    const user = await this.users.findById(payload.sub);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    await this.refreshTokens.revokeToken(tokenHash);
+
+    const newPayload: JwtPayload = { sub: user.id, email: user.email, jti: randomUUID() };
+    const [accessToken, newRefreshToken] = await Promise.all([
+      this.token.signAccessToken(newPayload),
+      this.token.signRefreshToken(newPayload),
+    ]);
+
+    await this.persistRefreshToken(user.id, newRefreshToken);
+
+    const authUser = this.toAuthUserResponse(user);
+    return { user: authUser, accessToken, refreshToken: newRefreshToken };
   }
 
   private async validateUserCredentials(
