@@ -93,7 +93,61 @@ Body:
 | Invalid email format | `400 Bad Request` — Validation failed |
 | Extra field in body | `400 Bad Request` — Validation failed |
 
-### 4. API Documentation (Swagger)
+### 4. Get Current User
+
+**GET** `/api/v1/auth/me`
+
+Headers:
+
+```
+Authorization: Bearer <accessToken>
+```
+
+| Scenario | Expected |
+|----------|----------|
+| Valid token | `200 OK` + `{ id, email, username, createdAt }` |
+| Missing token | `401 Unauthorized` — Access token missing |
+| Invalid token | `401 Unauthorized` — Invalid or expired access token |
+
+### 5. Refresh Token
+
+**POST** `/api/v1/auth/refresh`
+
+Body:
+
+```json
+{
+  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+| Scenario | Expected |
+|----------|----------|
+| Valid refresh token | `200 OK` + user object, new accessToken, new refreshToken |
+| Reuse old refresh token | `401 Unauthorized` — Refresh token not found or revoked |
+| Invalid refresh token | `401 Unauthorized` — Invalid or expired refresh token |
+| Short/missing token | `400 Bad Request` — Validation failed |
+
+### 6. Logout
+
+**POST** `/api/v1/auth/logout`
+
+Body:
+
+```json
+{
+  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+| Scenario | Expected |
+|----------|----------|
+| Valid logout | `200 OK` + `{ success: true }` |
+| Refresh after logout | `401 Unauthorized` — Refresh token not found or revoked |
+| Repeated logout | `200 OK` + `{ success: true }` |
+| Short/missing token | `400 Bad Request` — Validation failed |
+
+### 7. API Documentation (Swagger)
 
 Open: http://localhost:3001/api/docs
 
