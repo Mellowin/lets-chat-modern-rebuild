@@ -7,6 +7,9 @@ export class CreateWorkspaceDto {
   @IsString()
   @MinLength(2)
   @MaxLength(80)
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   name: string;
 
   @ApiProperty({ example: 'my-workspace' })
@@ -16,6 +19,8 @@ export class CreateWorkspaceDto {
   @Matches(/^[a-z0-9-]+$/, {
     message: 'Slug can only contain lowercase letters, numbers and hyphens',
   })
-  @Transform(({ value }) => value.trim().toLowerCase())
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
   slug: string;
 }
