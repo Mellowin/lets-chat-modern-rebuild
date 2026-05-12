@@ -174,7 +174,7 @@ A workspace OWNER outranks a channel OWNER for destructive actions:
 ### 4.5 Soft Delete vs Hard Delete
 - All user-facing deletions are soft (`deletedAt` timestamp).
 - Hard deletes are reserved for post-MVP account-erasure workflows.
-- Soft-deleted messages remain readable in audit logs and return `"deleted": true` in API.
+- Soft-deleted messages remain readable in audit logs; API exposes `deletedAt` to indicate deletion state.
 - Soft-deleted channels are hidden from lists but accessible via direct URL for admins.
 
 ### 4.6 Audit Log Immutability

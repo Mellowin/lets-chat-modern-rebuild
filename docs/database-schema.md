@@ -253,7 +253,7 @@ model Message {
 
   @@index([channelId, createdAt, id])
   @@index([parentId, createdAt])
-  // Note: GIN index on searchVector is added via raw migration (see Section7.2)
+  // Note: GIN index on searchVector is added via raw migration (see Section 7.2)
 }
 ```
 
@@ -265,7 +265,7 @@ model Message {
 | `parentId` | UUID | FK -> Message.id, nullable | B-tree composite | Self-reference for threads. |
 | `content` | String | NOT NULL | - | Max length 4000 enforced in app. |
 | `editedAt` | DateTime | - | - | Set on first edit; null if never edited. |
-| `searchVector` | `tsvector` | Generated | GIN | See Section8. Prisma `Unsupported` type; managed via raw migration. |
+| `searchVector` | `tsvector` | Generated | GIN | See Section 7. Prisma `Unsupported` type; managed via raw migration. |
 | `deletedAt` | DateTime | - | B-tree | Soft delete. |
 
 **Why no separate `Thread` table:** A thread is a temporal view of messages sharing a `parentId`. Adding a `Thread` table would require synchronizing two write paths (message insert + thread upsert) with no benefit for MVP scope. The `parentId` pattern is used by Slack, Discord, and Mastodon.
