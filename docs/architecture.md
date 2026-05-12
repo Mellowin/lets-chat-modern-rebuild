@@ -147,7 +147,7 @@ Socket.io 4 with Redis adapter.
 1. Client sends `GET /search/messages?query=...&workspaceId=...`
 2. Server uses PostgreSQL `tsvector` GIN index on `Message.content`
 3. Results ranked by `ts_rank`, cursor-paginated
-4. Channel-scoped filtering optional
+4. **Search results are filtered to `CanAccessChannel`-approved channels only.** If `channelId` is provided, validate `CanAccessChannel(channelId)`. If `channelId` is omitted, search only across channels the user can read. Private channel override requires workspace `OWNER`/`ADMIN` and `AuditLog` action `channel:moderation_override_used`.
 
 **No Elasticsearch / Algolia in MVP.** PostgreSQL full-text search is sufficient for MVP message volume.
 
@@ -169,9 +169,10 @@ Socket.io 4 with Redis adapter.
 | **Email delivery (SMTP)** | Out of scope per `scope.md` §3 | Nodemailer / Resend integration |
 | **OAuth / SSO** | MVP is local auth only | Passport strategies |
 | **Voice / Video** | Not in original lets-chat | WebRTC integration |
-| **Message forwarding** | Not in scope | Simple `message:forward` event |
+| **Message forwarding** | Not in scope | Post-MVP REST endpoint + broadcast if needed |
 | **Scheduled messages** | Not in scope | Cron + message queue |
-| **Backward pagination** | Complexity deferred | Reverse cursor support |
+| **Complex bidirectional pagination / reverse scroll optimization** | Deferred | Reverse infinite-scroll with `before` + `after` cursors |
+| **Basic "load older messages" via `before` cursor** | — | MVP — cursor pagination supports `before` natively |
 | **Message edit history UI** | Stored in DB, no UI | Diff renderer in frontend |
 | **Server-side event replay** | Client fetches via REST on reconnect | Event buffer / message log |
 
@@ -182,13 +183,13 @@ Socket.io 4 with Redis adapter.
 | Layer | Technology | Version |
 |-------|-----------|---------|
 | Runtime | Node.js | 20 LTS |
-| Backend Framework | NestJS | 10 |
+| Backend Framework | NestJS | 11 |
 | Language | TypeScript | 5.7+ |
 | ORM | Prisma | 5.14+ |
 | Database | PostgreSQL | 15 |
 | Cache / PubSub | Redis | 7 |
 | Real-Time | Socket.io | 4 |
-| Frontend | Next.js | 14 (App Router) |
+| Frontend | Next.js + React | Next.js 16 + React 19 (App Router) |
 | Styling | Tailwind CSS | 4 |
 | Components | shadcn/ui | — |
 | Object Storage | MinIO (dev) / S3 (prod) | — |
