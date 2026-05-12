@@ -425,7 +425,11 @@ socket.emit('message:read', {
 
 ## 5. Part 4 — Presence Events
 
-Presence tracks who is currently online in the app and who is viewing a specific channel. It is **not** the same as channel membership (`channel:user_joined` is membership; `presence:channel_joined` is viewing).
+Presence tracks who is currently online in the app and who is actively viewing a channel.
+
+`channel:user_joined` means the user joined the Socket.io channel room after `CanAccessChannel` validation; it is not the same as explicit `ChannelMember` membership.
+
+`presence:channel_joined` means the user is actively viewing the channel.
 
 ### 5.1 Storage
 
