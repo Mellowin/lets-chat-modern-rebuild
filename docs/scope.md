@@ -2,7 +2,7 @@
 
 > **Project:** lets-chat Modern Rebuild  
 > **Version:** MVP (v1.0)  
-> **Target Timeline:** 5–6 weeks (35–40h/week)  
+> **Target Timeline:** initial estimate 6–8+ weeks; tracked in roadmap.md  
 > **Date:** 2026-05-11  
 > **Status:** 🔒 LOCKED — No additions without ADR
 
@@ -10,7 +10,7 @@
 
 ## 1. Philosophy
 
-This MVP aims to rebuild the core `lets-chat` experience on a modern, production-ready stack. We prioritize **security**, **auditability**, and **team collaboration** over novelty. Every feature must answer: *"Does this exist in lets-chat or fill a critical modern gap?"*
+This MVP aims to rebuild the core `lets-chat` experience on a modern, production-oriented stack. We prioritize **security**, **auditability**, and **team collaboration** over novelty. Every feature must answer: *"Does this exist in lets-chat or fill a critical modern gap?"*
 
 **Scope Rule:** If it's not listed here, it's v2. No exceptions.
 
@@ -25,15 +25,15 @@ This MVP aims to rebuild the core `lets-chat` experience on a modern, production
 | JWT access + refresh tokens | 15min access / 7d refresh, HTTP-only cookies | Modern replacement for session+token |
 | Role-based access control | `OWNER`, `ADMIN`, `MEMBER` per workspace | Extension of lets-chat's flat permission model |
 | Permission guards | Decorator-based (`@RequireRole`, `@CanAccess`) | NestJS best practice |
-| Rate limiting | 100 req/min general, 5 req/min auth endpoints | Fills critical security gap |
+| Rate limiting | Configured per endpoint; exact limits in `api-design.md` | Fills critical security gap |
 | Auth throttling | Exponential backoff on failed logins (from legacy) | Preserve proven security mechanism |
-| Profile management | Display name, avatar (Gravatar or upload) | UX baseline |
+| Profile management | Display name, avatarUrl or Gravatar; avatar upload is v2 | UX baseline |
 
 ### 2.2 Workspaces
 | Feature | Detail | Rationale |
 |---------|--------|-----------|
 | Workspace creation | Name, slug, description | New: multi-tenancy (lets-chat was single-tenant) |
-| Workspace membership | Invite by email, join via link | Team onboarding |
+| Workspace membership | Invite via generated link/token; optional `invitedEmail` restriction; no email delivery in MVP | Team onboarding |
 | Workspace roles | Owner, Admin, Member | Hierarchical permissions |
 | Workspace settings | Name, slug, archive | Manageability |
 
@@ -59,7 +59,7 @@ This MVP aims to rebuild the core `lets-chat` experience on a modern, production
 | Typing indicators | `typing:start` / `typing:stop` events | UX polish |
 | Mentions | `@username`, `@channel`, `@here` | From lets-chat |
 | Message search | PostgreSQL `tsvector` + GIN index | Modern replacement for MongoDB text search |
-| Link previews | OG metadata extraction | UX polish |
+
 
 ### 2.5 Threads (Replies)
 | Feature | Detail | Rationale |
@@ -98,7 +98,7 @@ This MVP aims to rebuild the core `lets-chat` experience on a modern, production
 | Audit log table | Who did what, when | Critical for enterprise/security |
 | Logged actions | CREATE/UPDATE/DELETE on messages, channels, workspaces | Compliance baseline |
 | Immutable log | Append-only, no user deletion | Audit integrity |
-| Soft delete everywhere | `deletedAt` timestamp, not `DELETE` | Recovery + audit |
+| Soft delete for business entities | `deletedAt` on Workspace, Channel, Message, Attachment, Invitation, Notification | Recovery + audit |
 
 ### 2.10 Search
 | Feature | Detail | Rationale |
@@ -152,6 +152,7 @@ This MVP aims to rebuild the core `lets-chat` experience on a modern, production
 | **Data export** | Compliance v2 feature | Medium |
 | **Webhooks** | Integration v2 feature | Medium |
 | **Slash commands** | Bot ecosystem v2 | Low |
+| **Link previews / URL unfurling** | Server-side metadata fetching, sanitization, caching, abuse protection | Medium |
 
 ---
 
@@ -161,17 +162,18 @@ This MVP aims to rebuild the core `lets-chat` experience on a modern, production
 - PostgreSQL 15+ only (no MongoDB fallback)
 - Prisma ORM with type-safe queries
 - Migrations managed by Prisma Migrate
-- Soft delete via `deletedAt` nullable timestamp on ALL entities
+- Soft delete via `deletedAt` on business entities: Workspace, Channel, Message, Attachment, Invitation, Notification
 - Audit log is append-only (no updates, no deletes)
+- `ReadReceipt` has no `deletedAt` (event/fact entity, per Decision D5)
 
 ### 4.2 API Constraints
 - RESTful JSON API (no GraphQL for MVP)
 - Version prefix: `/api/v1/`
 - WebSocket events for real-time only (not primary transport)
-- Rate limiting: 100 req/min authenticated, 20 req/min unauthenticated
+- Rate limiting: configured per endpoint; see `api-design.md` for exact limits
 
 ### 4.3 Frontend Constraints
-- Next.js 14 App Router
+- Next.js 16 App Router + React 19
 - TypeScript throughout
 - Tailwind CSS for styling
 - shadcn/ui component base
@@ -200,7 +202,11 @@ The MVP is considered complete when ALL of the following are true:
 - [ ] User can upload files (presigned URLs)
 - [ ] User can search messages with full-text search
 - [ ] Admin can view audit log
-- [ ] All soft-deleted items retain history
+- [ ] All soft-deleted business entities retain history
+- [ ] Rate limits are applied to auth, message, search and upload endpoints
+- [ ] Mention creates an in-app notification
+- [ ] Read receipts are stored for messages
+- [ ] Seed script creates demo workspace, users, channels and messages
 - [ ] API has Swagger docs
 - [ ] Docker Compose spins up full stack
 - [ ] At least 5 critical-path E2E tests pass
