@@ -11,18 +11,18 @@ import { JwtPayload } from './jwt-payload.type';
 
 type SafeUser = Omit<User, 'passwordHash'>;
 
-interface RegisterInput {
+export interface RegisterInput {
   email: string;
   username: string;
   password: string;
 }
 
-interface LoginInput {
+export interface LoginInput {
   email: string;
   password: string;
 }
 
-interface AuthResult {
+export interface AuthResult {
   user: SafeUser;
   accessToken: string;
   refreshToken: string;
