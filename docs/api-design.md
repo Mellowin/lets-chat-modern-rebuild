@@ -516,7 +516,7 @@ POST /invites/accept
 | `/workspaces/:workspaceId/invites` | POST | Bearer | `OWNER/ADMIN` | Create invite |
 | `/workspaces/:workspaceId/invites` | GET | Bearer | `OWNER/ADMIN` | List invites |
 | `/workspaces/:workspaceId/invites/:inviteId` | DELETE | Bearer | `OWNER/ADMIN` | Revoke invite |
-| `/invites/:token/accept` | POST | Bearer | — | Accept invite |
+| `/invites/accept` | POST | Bearer | — | Accept invite |
 
 ---
 
