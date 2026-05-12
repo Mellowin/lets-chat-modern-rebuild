@@ -2,8 +2,8 @@
   "name": "@lets-chat/database",
   "version": "0.0.1",
   "private": true,
-  "main": "./dist/client.js",
-  "types": "./dist/client.d.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc",
     "generate": "prisma generate",
@@ -14,6 +14,7 @@
     "db:push": "prisma db push"
   },
   "dependencies": {
+    "@nestjs/common": "^11.0.1",
     "@prisma/client": "^5.14.0"
   },
   "devDependencies": {
