@@ -10,6 +10,7 @@ import { HttpExceptionFilter } from './filters/http-exception.filter';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { HealthModule } from './health/health.module';
+import { WorkspacesModule } from './workspaces/workspaces.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -33,6 +34,7 @@ import { AppController } from './app.controller';
     AuthModule,
     UsersModule,
     HealthModule,
+    WorkspacesModule,
   ],
   controllers: [AppController],
   providers: [
