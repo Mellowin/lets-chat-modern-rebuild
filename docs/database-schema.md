@@ -2,7 +2,7 @@
 
 > **Project:** Secure Team Collaboration Platform  
 > **Database:** PostgreSQL 15+  
-> **ORM:** Prisma 5.x  
+> **ORM:** Prisma 5.14+  
 > **Date:** 2026-05-11  
 > **Status:** Locked for MVP implementation - changes require ADR  
 
@@ -28,7 +28,7 @@
 | `ChannelRole` | `OWNER`, `ADMIN`, `MEMBER` | `ChannelMember.role` | Effective role = `max(workspaceRole, channelRole)`. |
 | `NotificationType` | `MENTION`, `THREAD_REPLY`, `CHANNEL_INVITE`, `SYSTEM` | `Notification.type` | Extensible enum for in-app bell. |
 | `StorageBackend` | `LOCAL`, `S3`, `MINIO` | `Attachment.storageBackend` | Local for dev; S3/MinIO for prod. |
-| `AuditAction` | `CREATE`, `UPDATE`, `DELETE`, `MODERATION_OVERRIDE`, `LOGIN`, `LOGOUT`, `INVITE_ACCEPT` | `AuditLog.action` | Extendable string enum. |
+| `AuditAction` | `CREATE`, `UPDATE`, `DELETE`, `MODERATION_OVERRIDE_USED`, `LOGIN`, `LOGOUT`, `INVITE_ACCEPT` | `AuditLog.action` | Extendable string enum. |
 
 ---
 
@@ -649,7 +649,7 @@ Every `CREATE`, `UPDATE`, `DELETE` on business entities is logged.
 | `CREATE` | Workspace, Channel, Message, Reaction, Attachment | `{ after: object }` |
 | `UPDATE` | Workspace, Channel, Message | `{ before: object, after: object }` |
 | `DELETE` (soft) | All soft-deletable | `{ reason: "user_action", deletedAt: "..." }` |
-| `MODERATION_OVERRIDE` | Channel, Message | `{ overrideReason: "admin_delete", actorRole: "ADMIN" }` |
+| `MODERATION_OVERRIDE_USED` | Channel, Message | `{ overrideReason: "admin_delete", actorRole: "ADMIN" }` |
 | `LOGIN` / `LOGOUT` | User | `{ ipAddress, userAgent }` |
 | `INVITE_ACCEPT` | Invitation | `{ inviteId: "...", role: "MEMBER" }` |
 

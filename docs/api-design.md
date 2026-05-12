@@ -819,7 +819,7 @@ DELETE /messages/:messageId
 
 **Broadcast:** `message:deleted` to `channel:<id>` room.
 
-**Note:** Admin moderation is audit-logged (`action: MODERATION_OVERRIDE`).
+**Note:** Admin moderation is audit-logged (`action: channel:moderation_override_used`).
 
 ---
 

@@ -347,7 +347,7 @@ io.to('channel:uuid').emit('message:created', {
 });
 ```
 
-**Thread view query:** client fetches replies via REST `GET /api/v1/channels/:id/messages?parentId=...` or listens to `message:created` and filters client-side.
+**Thread view query:** client fetches replies via REST `GET /api/v1/channels/:channelId/messages?parentId=...` or listens to `message:created` and filters client-side.
 
 ### 4.5 Reaction Toggled (Broadcast)
 
