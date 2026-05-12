@@ -135,7 +135,7 @@ Socket.io 4 with Redis adapter.
 1. Client requests presigned URL via `POST /attachments/presigned-url`
 2. Server creates `Attachment` row (`messageId = null`), generates presigned URL
 3. Client PUTs file directly to MinIO/S3
-4. Client includes `attachmentIds` in `POST /channels/:id/messages`
+4. Client includes `attachmentIds` in `POST /channels/:channelId/messages`
 5. Server links attachments to message on creation
 
 **No multipart upload through the API.** Max file size enforced at presigned URL generation.
@@ -158,7 +158,7 @@ Socket.io 4 with Redis adapter.
 1. `AuditInterceptor` captures every mutating REST request
 2. Writes to `AuditLog` table: actor, action, entity type, entity ID, metadata, IP, timestamp
 3. **Append-only.** No updates, no deletes, no soft delete.
-4. Readable only by workspace `OWNER` / `ADMIN` via `GET /workspaces/:id/audit-logs`
+4. Readable only by workspace `OWNER` / `ADMIN` via `GET /workspaces/:workspaceId/audit-logs`
 
 ---
 
