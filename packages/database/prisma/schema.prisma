@@ -1,6 +1,3 @@
-// This is a placeholder schema.
-// Full schema will be generated from docs/database-schema.md in the next phase.
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,13 +7,350 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  username     String   @unique
-  passwordHash String
-  displayName  String?
-  avatarUrl    String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+// ── Enums ───────────────────────────────────────────────────────────
+
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  MEMBER
 }
+
+enum ChannelType {
+  PUBLIC
+  PRIVATE
+}
+
+enum ChannelRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum NotificationType {
+  MENTION
+  THREAD_REPLY
+  CHANNEL_INVITE
+  SYSTEM
+}
+
+enum StorageBackend {
+  LOCAL
+  S3
+  MINIO
+}
+
+// ── Models ──────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(uuid()) @db.Uuid
+  email         String
+  username      String
+  passwordHash  String
+  displayName   String?
+  avatarUrl     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  // Relations
+  ownedWorkspaces       Workspace[]
+  workspaceMemberships  WorkspaceMember[]
+  channelMemberships    ChannelMember[]
+  createdChannels       Channel[]
+  messages              Message[]
+  reactions             Reaction[]
+  attachments           Attachment[]
+  sentInvitations       Invitation[]  @relation("InvitationSentBy")
+  acceptedInvitations   Invitation[]  @relation("InvitationAcceptedBy")
+  notifications         Notification[]
+  readReceipts          ReadReceipt[]
+  refreshTokens         RefreshToken[]
+  auditLogs             AuditLog[]    @relation("AuditLogActor")
+  messageEdits          MessageEdit[]
+
+  @@index([email])
+  @@index([username])
+}
+
+model Workspace {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String
+  slug        String    @unique
+  description String?
+  ownerId     String    @db.Uuid
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  // Relations
+  owner       User            @relation(fields: [ownerId], references: [id])
+  members     WorkspaceMember[]
+  channels    Channel[]
+  auditLogs     AuditLog[]
+  invitations   Invitation[]
+  notifications Notification[]
+
+}
+
+model WorkspaceMember {
+  id          String        @id @default(uuid()) @db.Uuid
+  workspaceId String        @db.Uuid
+  userId      String        @db.Uuid
+  role        WorkspaceRole @default(MEMBER)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  deletedAt   DateTime?
+
+  // Relations
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@index([workspaceId, userId])
+  @@index([workspaceId, role])
+}
+
+model Channel {
+  id          String      @id @default(uuid()) @db.Uuid
+  workspaceId String      @db.Uuid
+  name        String
+  slug        String
+  description String?
+  type        ChannelType @default(PUBLIC)
+  createdById String      @db.Uuid
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  deletedAt   DateTime?
+
+  // Relations
+  workspace     Workspace       @relation(fields: [workspaceId], references: [id])
+  createdBy     User            @relation(fields: [createdById], references: [id])
+  members       ChannelMember[]
+  messages      Message[]
+  auditLogs     AuditLog[]
+  notifications Notification[]
+
+  @@unique([workspaceId, slug])
+  @@index([workspaceId, deletedAt])
+}
+
+model ChannelMember {
+  id        String      @id @default(uuid()) @db.Uuid
+  channelId String      @db.Uuid
+  userId    String      @db.Uuid
+  role      ChannelRole
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  deletedAt DateTime?
+
+  // Relations
+  channel Channel @relation(fields: [channelId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@index([channelId, userId])
+  @@index([channelId, role])
+}
+
+model Message {
+  id           String                   @id @default(uuid()) @db.Uuid
+  channelId    String                   @db.Uuid
+  authorId     String                   @db.Uuid
+  parentId     String?                  @db.Uuid
+  content      String
+  editedAt     DateTime?
+  searchVector Unsupported("tsvector")?
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+  deletedAt    DateTime?
+
+  // Relations
+  channel      Channel       @relation(fields: [channelId], references: [id])
+  author       User          @relation(fields: [authorId], references: [id])
+  parent       Message?      @relation("ThreadReplies", fields: [parentId], references: [id])
+  replies      Message[]     @relation("ThreadReplies")
+  reactions    Reaction[]
+  attachments  Attachment[]
+  edits        MessageEdit[]
+  readReceipts ReadReceipt[]
+
+  @@index([channelId, createdAt, id])
+  @@index([parentId, createdAt])
+  // Note: GIN index on searchVector is added via raw migration (see database-schema.md §7.2)
+}
+
+model MessageEdit {
+  id         String   @id @default(uuid()) @db.Uuid
+  messageId  String   @db.Uuid
+  oldContent String
+  newContent String
+  editedById String   @db.Uuid
+  createdAt  DateTime @default(now())
+
+  // Relations
+  message  Message @relation(fields: [messageId], references: [id])
+  editedBy User    @relation(fields: [editedById], references: [id])
+
+  @@index([messageId, createdAt])
+}
+
+model Reaction {
+  id        String    @id @default(uuid()) @db.Uuid
+  messageId String    @db.Uuid
+  userId    String    @db.Uuid
+  emoji     String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  // Relations
+  message Message @relation(fields: [messageId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@index([messageId, userId, emoji])
+  @@index([messageId, deletedAt])
+}
+
+model Attachment {
+  id             String         @id @default(uuid()) @db.Uuid
+  messageId      String?        @db.Uuid
+  filename       String
+  originalName   String
+  mimeType       String
+  size           Int
+  storageKey     String         @unique
+  storageBackend StorageBackend
+  createdById    String         @db.Uuid
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  deletedAt      DateTime?
+
+  // Relations
+  message   Message? @relation(fields: [messageId], references: [id])
+  createdBy User     @relation(fields: [createdById], references: [id])
+
+}
+
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  actorId     String?  @db.Uuid
+  action      String
+  entityType  String
+  entityId    String   @db.Uuid
+  workspaceId String?  @db.Uuid
+  channelId   String?  @db.Uuid
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  actor     User?      @relation("AuditLogActor", fields: [actorId], references: [id])
+  workspace Workspace? @relation(fields: [workspaceId], references: [id])
+  channel   Channel?   @relation(fields: [channelId], references: [id])
+
+  @@index([workspaceId, createdAt])
+  @@index([entityType, entityId])
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([tokenHash])
+}
+
+model Invitation {
+  id           String        @id @default(uuid()) @db.Uuid
+  workspaceId  String        @db.Uuid
+  invitedById  String        @db.Uuid
+  role         WorkspaceRole @default(MEMBER)
+  invitedEmail String?
+  tokenHash    String        @unique
+  expiresAt    DateTime
+  usedById     String?       @db.Uuid
+  usedAt       DateTime?
+  createdAt    DateTime      @default(now())
+  deletedAt    DateTime?
+
+  // Relations
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  invitedBy User      @relation("InvitationSentBy", fields: [invitedById], references: [id])
+  usedBy    User?     @relation("InvitationAcceptedBy", fields: [usedById], references: [id])
+
+  @@index([workspaceId, createdAt])
+}
+
+model Notification {
+  id          String           @id @default(uuid()) @db.Uuid
+  userId      String           @db.Uuid
+  type        NotificationType
+  title       String
+  body        String
+  entityType  String?
+  entityId    String?          @db.Uuid
+  workspaceId String?          @db.Uuid
+  channelId   String?          @db.Uuid
+  isRead      Boolean          @default(false)
+  readAt      DateTime?
+  createdAt   DateTime         @default(now())
+  deletedAt   DateTime?
+
+  // Relations
+  user      User      @relation(fields: [userId], references: [id])
+  workspace Workspace? @relation(fields: [workspaceId], references: [id])
+  channel   Channel?  @relation(fields: [channelId], references: [id])
+
+  @@index([userId, isRead, createdAt])
+  @@index([userId, createdAt])
+}
+
+model ReadReceipt {
+  id        String   @id @default(uuid()) @db.Uuid
+  messageId String   @db.Uuid
+  userId    String   @db.Uuid
+  channelId String   @db.Uuid
+  readAt    DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  // Relations
+  message Message @relation(fields: [messageId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@unique([messageId, userId])
+  @@index([channelId, userId, readAt])
+}
+
+// ── Raw SQL Migrations (run via prisma migrate dev --create-only) ───
+//
+// D1. Case-insensitive unique indexes for email and username:
+//     CREATE UNIQUE INDEX idx_user_email_lower ON "User" (LOWER(email));
+//     CREATE UNIQUE INDEX idx_user_username_lower ON "User" (LOWER(username));
+//
+// D2. Partial unique indexes for soft-deletable junction tables:
+//     CREATE UNIQUE INDEX idx_workspace_member_active
+//       ON "WorkspaceMember" ("workspaceId", "userId") WHERE "deletedAt" IS NULL;
+//     CREATE UNIQUE INDEX idx_channel_member_active
+//       ON "ChannelMember" ("channelId", "userId") WHERE "deletedAt" IS NULL;
+//     CREATE UNIQUE INDEX idx_reaction_active
+//       ON "Reaction" ("messageId", "userId", "emoji") WHERE "deletedAt" IS NULL;
+//
+// D3. Single active OWNER per workspace:
+//     CREATE UNIQUE INDEX idx_workspace_owner_unique
+//       ON "WorkspaceMember" ("workspaceId") WHERE role = 'OWNER' AND "deletedAt" IS NULL;
+//
+// D4. Full-text search generated column + GIN index:
+//     ALTER TABLE "Message" ADD COLUMN "searchVector" tsvector
+//       GENERATED ALWAYS AS (to_tsvector('simple', content)) STORED;
+//     CREATE INDEX idx_message_search ON "Message" USING GIN ("searchVector");
