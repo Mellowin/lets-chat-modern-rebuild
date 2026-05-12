@@ -7,6 +7,7 @@ import { envValidationSchema } from './config/env.validation';
 import { RequestIdInterceptor } from './logger/request-id.interceptor';
 import { normalizeRequestId } from './logger/request-id.util';
 import { HttpExceptionFilter } from './filters/http-exception.filter';
+import { AuthModule } from './auth/auth.module';
 import { HealthModule } from './health/health.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -29,6 +30,7 @@ import { AppService } from './app.service';
       },
     }),
     DatabaseModule,
+    AuthModule,
     HealthModule,
   ],
   controllers: [AppController],
