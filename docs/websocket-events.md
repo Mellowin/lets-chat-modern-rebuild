@@ -181,7 +181,7 @@ socket.emit('error:channel', {
 **Broadcast on successful join:**
 
 ```typescript
-// Server → all members in channel:<id> (including joiner)
+// Server → channel room users (including joiner)
 io.to('channel:uuid').emit('channel:user_joined', {
   userId: 'user-uuid',
   channelId: 'channel-uuid'
@@ -269,10 +269,10 @@ Socket.io rooms are named after entities:
 | `channel:joined` | Server → Client | `{ channel }` | — |
 | `channel:leave` | Client → Server | `{ channelId }` | Member of channel |
 | `channel:left` | Server → Client | `{ channelId }` | — |
-| `channel:user_joined` | Server → broadcast | `{ userId, channelId }` | Channel members |
-| `channel:user_left` | Server → broadcast | `{ userId, channelId }` | Channel members |
-| `channel:updated` | Server → broadcast | `{ channel }` | Channel members |
-| `channel:archived` | Server → broadcast | `{ channelId }` | Channel members |
+| `channel:user_joined` | Server → broadcast | `{ userId, channelId }` | CanAccessChannel-approved room |
+| `channel:user_left` | Server → broadcast | `{ userId, channelId }` | CanAccessChannel-approved room |
+| `channel:updated` | Server → broadcast | `{ channel }` | CanAccessChannel-approved room |
+| `channel:archived` | Server → broadcast | `{ channelId }` | CanAccessChannel-approved room |
 | `workspace:subscribe` | Client → Server | `{ workspaceId }` | `IsWorkspaceMember` |
 | `workspace:subscribed` | Server → Client | `{ workspaceId }` | — |
 | `workspace:member_joined` | Server → broadcast | `{ userId, role }` | Workspace members |
@@ -287,7 +287,7 @@ Socket.io rooms are named after entities:
 After a successful REST `POST /api/v1/channels/:channelId/messages`, the server broadcasts the new message to the channel room.
 
 ```typescript
-// Server → all members in channel
+// Server → channel room users
 io.to('channel:uuid').emit('message:created', {
   message: {
     id: 'msg-uuid',
@@ -310,7 +310,7 @@ io.to('channel:uuid').emit('message:created', {
 After a successful REST `PATCH /api/v1/messages/:messageId`, the server broadcasts the updated message to the channel room.
 
 ```typescript
-// Server → all members in channel
+// Server → channel room users
 io.to('channel:uuid').emit('message:updated', { message });
 ```
 
@@ -323,7 +323,7 @@ io.to('channel:uuid').emit('message:updated', { message });
 After a successful REST `DELETE /api/v1/messages/:messageId` (soft-delete), the server broadcasts the deletion to the channel room.
 
 ```typescript
-// Server → all members in channel
+// Server → channel room users
 io.to('channel:uuid').emit('message:deleted', {
   messageId: 'msg-uuid',
   deletedAt: '2026-05-11T12:05:00Z'
@@ -417,8 +417,8 @@ socket.emit('message:read', {
 | `reaction:toggled` | Server → broadcast | `{ messageId, emoji, userId, count }` | REST `POST /messages/:messageId/reactions` |
 | `typing:start` | Client → Server | `{ channelId }` | `CanAccessChannel` |
 | `typing:stop` | Client → Server | `{ channelId }` | `CanAccessChannel` |
-| `typing:start` | Server → broadcast | `{ userId, channelId }` | Channel members (except sender) |
-| `typing:stop` | Server → broadcast | `{ userId, channelId }` | Channel members (except sender) |
+| `typing:start` | Server → broadcast | `{ userId, channelId }` | CanAccessChannel-approved room (except sender) |
+| `typing:stop` | Server → broadcast | `{ userId, channelId }` | CanAccessChannel-approved room (except sender) |
 | `message:read` | Client → Server | `{ channelId, messageIds[] }` | `CanAccessChannel` |
 
 ---
