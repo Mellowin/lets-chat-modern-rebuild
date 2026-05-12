@@ -22,8 +22,15 @@ export interface LoginInput {
   password: string;
 }
 
+export interface AuthUserResponse {
+  id: string;
+  email: string;
+  username: string;
+  createdAt: Date;
+}
+
 export interface AuthResult {
-  user: SafeUser;
+  user: AuthUserResponse;
   accessToken: string;
   refreshToken: string;
 }
@@ -66,7 +73,7 @@ export class AuthService {
       throw error;
     }
 
-    const safeUser = this.toSafeUser(user);
+    const authUser = this.toAuthUserResponse(user);
     const payload: JwtPayload = { sub: user.id, email: user.email };
 
     const [accessToken, refreshToken] = await Promise.all([
@@ -74,7 +81,7 @@ export class AuthService {
       this.token.signRefreshToken(payload),
     ]);
 
-    return { user: safeUser, accessToken, refreshToken };
+    return { user: authUser, accessToken, refreshToken };
   }
 
   async login(input: LoginInput): Promise<AuthResult> {
@@ -86,7 +93,8 @@ export class AuthService {
       this.token.signRefreshToken(payload),
     ]);
 
-    return { user, accessToken, refreshToken };
+    const authUser = this.toAuthUserResponse(user);
+    return { user: authUser, accessToken, refreshToken };
   }
 
   private async validateUserCredentials(
@@ -109,5 +117,14 @@ export class AuthService {
   private toSafeUser(user: User): SafeUser {
     const { passwordHash: _pw, ...safe } = user;
     return safe;
+  }
+
+  private toAuthUserResponse(user: User | SafeUser): AuthUserResponse {
+    return {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      createdAt: user.createdAt,
+    };
   }
 }
