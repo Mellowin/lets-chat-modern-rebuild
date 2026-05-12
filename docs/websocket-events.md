@@ -176,7 +176,7 @@ socket.emit('error:channel', {
 **Access rules (from `permissions.md`):**
 - **Public channel:** any workspace member can join (`IsWorkspaceMember`).
 - **Private channel:** explicit `ChannelMember` record required (`IsChannelMember`).
-- **Moderation override:** workspace `OWNER` / `ADMIN` can join any channel. Usage is audit-logged (`action: MODERATION_OVERRIDE`).
+- **Moderation override:** workspace `OWNER` / `ADMIN` can join any channel. Usage is audit-logged (`action: channel:moderation_override_used`).
 
 **Broadcast on successful join:**
 
@@ -279,21 +279,13 @@ Socket.io rooms are named after entities:
 
 ## 4. Part 3 — Message, Thread, Reaction & Typing Events
 
-### 4.1 Message Create
+### 4.1 Message Created (Broadcast)
 
-Client sends a message. Server persists via REST (or directly in WS handler), then broadcasts to the channel room.
+After a successful REST `POST /api/v1/channels/:channelId/messages`, the server broadcasts the new message to the channel room.
 
 ```typescript
-// Client → Server
-socket.emit('message:create', {
-  channelId: 'channel-uuid',
-  content: 'Hello team',
-  parentId: null,           // null for top-level; thread reply if set
-  attachmentIds: ['uuid']   // optional; attachments created via presigned URLs before message
-});
-
-// Server → Client (ack / confirmation)
-socket.emit('message:created', {
+// Server → all members in channel
+io.to('channel:uuid').emit('message:created', {
   message: {
     id: 'msg-uuid',
     channelId: 'channel-uuid',
@@ -304,68 +296,49 @@ socket.emit('message:created', {
     attachments: [{ id, filename, url }]
   }
 });
-
-// Server → all members in channel
-io.to('channel:uuid').emit('message:created', { message });
 ```
 
-**Permission:** `CanAccessChannel`.
+**REST trigger:** `POST /api/v1/channels/:channelId/messages` (see `api-design.md` §7.1).
 
 **Thread rule:** if `parentId` is provided, it must point to a message with `parentId IS NULL` (top-level only). Service layer rejects nested replies (Decision D4).
 
-### 4.2 Message Update (Edit)
+### 4.2 Message Updated (Broadcast)
 
-Only the original author may edit, within 15 minutes of `createdAt`. Edit history is stored in `MessageEdit` table (`database-schema.md` §3.7).
+After a successful REST `PATCH /api/v1/messages/:messageId`, the server broadcasts the updated message to the channel room.
 
 ```typescript
-// Client → Server
-socket.emit('message:update', {
-  messageId: 'msg-uuid',
-  content: 'Hello team (edited)'
-});
-
-// Server → Client
-socket.emit('message:updated', { message });
-
-// Server → channel
+// Server → all members in channel
 io.to('channel:uuid').emit('message:updated', { message });
 ```
 
-**Permission:** `@IsMessageAuthor()` + 15-minute window enforced in service layer. Admins cannot edit; they soft-delete (`message:delete`).
+**REST trigger:** `PATCH /api/v1/messages/:messageId` (see `api-design.md` §7.3).
 
-### 4.3 Message Delete (Soft)
+**Permission:** `@IsMessageAuthor()` + 15-minute window enforced in service layer. Admins cannot edit; they moderate via `DELETE /api/v1/messages/:messageId` (soft-delete).
+
+### 4.3 Message Deleted (Broadcast)
+
+After a successful REST `DELETE /api/v1/messages/:messageId` (soft-delete), the server broadcasts the deletion to the channel room.
 
 ```typescript
-// Client → Server
-socket.emit('message:delete', { messageId: 'msg-uuid' });
-
-// Server → Client
-socket.emit('message:deleted', {
+// Server → all members in channel
+io.to('channel:uuid').emit('message:deleted', {
   messageId: 'msg-uuid',
   deletedAt: '2026-05-11T12:05:00Z'
 });
-
-// Server → channel
-io.to('channel:uuid').emit('message:deleted', { messageId, deletedAt });
 ```
+
+**REST trigger:** `DELETE /api/v1/messages/:messageId` (see `api-design.md` §7.4).
 
 **Permission:** service layer via `PermissionService.can()`:
 - Author can delete their own message (anytime).
 - Channel `OWNER` / `ADMIN` can moderate-delete any message (audit-logged).
 
-### 4.4 Thread Reply
+### 4.4 Thread Reply (Broadcast)
 
-A thread reply is a `message:create` with `parentId` set. No separate `thread:` namespace.
+A thread reply is created via REST `POST /api/v1/channels/:channelId/messages` with `parentId` set. No separate `thread:` namespace. The server broadcasts via the same `message:created` event.
 
 ```typescript
-// Client → Server
-socket.emit('message:create', {
-  channelId: 'channel-uuid',
-  content: 'This is a reply',
-  parentId: 'parent-msg-uuid'
-});
-
-// Broadcast goes to channel:<id> room; clients filter by parentId locally
+// Server → channel
 io.to('channel:uuid').emit('message:created', {
   message: { id, channelId, authorId, content, parentId: 'parent-msg-uuid', createdAt }
 });
@@ -442,14 +415,11 @@ socket.emit('message:read', {
 
 ### 4.8 Events Summary (Part 3)
 
-| Event | Direction | Payload | Permission Gate |
-|-------|-----------|---------|-----------------|
-| `message:create` | Client → Server | `{ channelId, content, parentId?, attachmentIds? }` | `CanAccessChannel` |
-| `message:created` | Server → broadcast | `{ message }` | Channel members |
-| `message:update` | Client → Server | `{ messageId, content }` | `@IsMessageAuthor()` (15 min) |
-| `message:updated` | Server → broadcast | `{ message }` | Channel members |
-| `message:delete` | Client → Server | `{ messageId }` | Author or channel OWNER/ADMIN |
-| `message:deleted` | Server → broadcast | `{ messageId, deletedAt }` | Channel members |
+| Event | Direction | Payload | Trigger / Permission Gate |
+|-------|-----------|---------|---------------------------|
+| `message:created` | Server → broadcast | `{ message }` | REST `POST /channels/:channelId/messages` |
+| `message:updated` | Server → broadcast | `{ message }` | REST `PATCH /messages/:messageId` |
+| `message:deleted` | Server → broadcast | `{ messageId, deletedAt }` | REST `DELETE /messages/:messageId` |
 | `reaction:toggle` | Client → Server | `{ messageId, emoji }` | `CanAccessChannel` |
 | `reaction:toggled` | Server → broadcast | `{ messageId, emoji, userId, count }` | Channel members |
 | `typing:start` | Client → Server | `{ channelId }` | `CanAccessChannel` |
@@ -540,7 +510,7 @@ socket.emit('presence:synced', {
 
 | Rule | Example | Counter-example |
 |------|---------|-----------------|
-| Domain prefix + colon + action | `message:create` | ❌ `messageCreate` |
+| Domain prefix + colon + action | `typing:start` | ❌ `typingStart` |
 | Use present tense for actions | `channel:join` | ❌ `channel:joined` |
 | Past tense only for broadcast confirmations | `message:created` (broadcast) | — |
 | Error events prefix with `error:` | `error:auth` | ❌ `authError` |
@@ -583,7 +553,6 @@ Socket events are rate-limited separately from HTTP. Redis-backed sliding window
 
 | Event Type | Limit | Window |
 |------------|-------|--------|
-| `message:create` | 30 | 10 sec |
 | `typing:start` / `typing:stop` | 1 | 3 sec |
 | `channel:join` | 10 | 60 sec |
 | `reaction:toggle` | 20 | 10 sec |
