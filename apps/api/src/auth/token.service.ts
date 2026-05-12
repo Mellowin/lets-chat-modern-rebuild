@@ -12,27 +12,27 @@ export class TokenService {
 
   async signAccessToken(payload: JwtPayload): Promise<string> {
     return this.jwt.signAsync(payload, {
-      secret: this.config.get<string>('JWT_ACCESS_SECRET'),
-      expiresIn: this.config.get<string>('JWT_ACCESS_EXPIRES_IN', '15m') as `${number}m`,
+      secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET'),
+      expiresIn: this.config.getOrThrow('JWT_ACCESS_EXPIRES_IN'),
     });
   }
 
   async signRefreshToken(payload: JwtPayload): Promise<string> {
     return this.jwt.signAsync(payload, {
-      secret: this.config.get<string>('JWT_REFRESH_SECRET'),
-      expiresIn: this.config.get<string>('JWT_REFRESH_EXPIRES_IN', '7d') as `${number}d`,
+      secret: this.config.getOrThrow<string>('JWT_REFRESH_SECRET'),
+      expiresIn: this.config.getOrThrow('JWT_REFRESH_EXPIRES_IN'),
     });
   }
 
   async verifyAccessToken(token: string): Promise<JwtPayload> {
     return this.jwt.verifyAsync<JwtPayload>(token, {
-      secret: this.config.get<string>('JWT_ACCESS_SECRET'),
+      secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET'),
     });
   }
 
   async verifyRefreshToken(token: string): Promise<JwtPayload> {
     return this.jwt.verifyAsync<JwtPayload>(token, {
-      secret: this.config.get<string>('JWT_REFRESH_SECRET'),
+      secret: this.config.getOrThrow<string>('JWT_REFRESH_SECRET'),
     });
   }
 }
