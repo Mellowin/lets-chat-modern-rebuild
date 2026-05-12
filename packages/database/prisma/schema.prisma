@@ -128,6 +128,7 @@ model Channel {
   messages      Message[]
   auditLogs     AuditLog[]
   notifications Notification[]
+  readReceipts  ReadReceipt[]
 
   @@unique([workspaceId, slug])
   @@index([workspaceId, deletedAt])
@@ -157,7 +158,6 @@ model Message {
   parentId     String?                  @db.Uuid
   content      String
   editedAt     DateTime?
-  searchVector Unsupported("tsvector")?
   createdAt    DateTime                 @default(now())
   updatedAt    DateTime                 @updatedAt
   deletedAt    DateTime?
@@ -262,13 +262,11 @@ model RefreshToken {
   ipAddress String?
   userAgent String?
   createdAt DateTime  @default(now())
-  deletedAt DateTime?
 
   // Relations
   user User @relation(fields: [userId], references: [id])
 
   @@index([userId, createdAt])
-  @@index([tokenHash])
 }
 
 model Invitation {
@@ -327,6 +325,7 @@ model ReadReceipt {
   // Relations
   message Message @relation(fields: [messageId], references: [id])
   user    User    @relation(fields: [userId], references: [id])
+  channel Channel @relation(fields: [channelId], references: [id])
 
   @@unique([messageId, userId])
   @@index([channelId, userId, readAt])
@@ -354,3 +353,4 @@ model ReadReceipt {
 //     ALTER TABLE "Message" ADD COLUMN "searchVector" tsvector
 //       GENERATED ALWAYS AS (to_tsvector('simple', content)) STORED;
 //     CREATE INDEX idx_message_search ON "Message" USING GIN ("searchVector");
+//     Note: searchVector is NOT in the Prisma model; added only via raw migration.
