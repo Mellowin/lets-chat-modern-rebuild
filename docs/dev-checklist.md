@@ -30,9 +30,9 @@ pnpm --filter api start:dev
 
 ### 1. Health Check
 
-Open: http://localhost:3001/api/v1/health
+**GET** `/api/v1/health`
 
-Expected response:
+Expected: `200 OK`
 
 ```json
 {
@@ -49,7 +49,51 @@ Expected response:
 - `database: "ok"` — PostgreSQL connection works.
 - `database: "error"` — check PostgreSQL container (`docker compose ps`) and DATABASE_URL in `.env`.
 
-### 2. API Documentation (Swagger)
+### 2. Register
+
+**POST** `/api/v1/auth/register`
+
+Body:
+
+```json
+{
+  "email": "user@example.com",
+  "username": "john_doe",
+  "password": "SecurePass123!"
+}
+```
+
+| Scenario | Expected |
+|----------|----------|
+| Valid data | `201 Created` + user object, accessToken, refreshToken |
+| Duplicate email | `409 Conflict` — Email or username already in use |
+| Duplicate username | `409 Conflict` — Email or username already in use |
+| Invalid email format | `400 Bad Request` — Validation failed |
+| Short password (< 8) | `400 Bad Request` — Validation failed |
+| Extra field in body | `400 Bad Request` — Validation failed |
+
+### 3. Login
+
+**POST** `/api/v1/auth/login`
+
+Body:
+
+```json
+{
+  "email": "user@example.com",
+  "password": "SecurePass123!"
+}
+```
+
+| Scenario | Expected |
+|----------|----------|
+| Valid credentials | `200 OK` + user object, accessToken, refreshToken |
+| Wrong password | `401 Unauthorized` — Invalid credentials |
+| Unknown email | `401 Unauthorized` — Invalid credentials |
+| Invalid email format | `400 Bad Request` — Validation failed |
+| Extra field in body | `400 Bad Request` — Validation failed |
+
+### 4. API Documentation (Swagger)
 
 Open: http://localhost:3001/api/docs
 
