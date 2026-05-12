@@ -197,7 +197,7 @@ socket.emit('channel:leave', { channelId: 'uuid' });
 // Server → Client (ack)
 socket.emit('channel:left', { channelId: 'uuid' });
 
-// Server → remaining members in channel
+// Server → remaining channel room users
 io.to('channel:uuid').emit('channel:user_left', {
   userId: 'user-uuid',
   channelId: 'channel-uuid'
@@ -267,7 +267,7 @@ Socket.io rooms are named after entities:
 |-------|-----------|---------|-----------------|
 | `channel:join` | Client → Server | `{ channelId }` | `CanAccessChannel` |
 | `channel:joined` | Server → Client | `{ channel }` | — |
-| `channel:leave` | Client → Server | `{ channelId }` | Member of channel |
+| `channel:leave` | Client → Server | `{ channelId }` | Currently joined channel room |
 | `channel:left` | Server → Client | `{ channelId }` | — |
 | `channel:user_joined` | Server → broadcast | `{ userId, channelId }` | CanAccessChannel-approved room |
 | `channel:user_left` | Server → broadcast | `{ userId, channelId }` | CanAccessChannel-approved room |
@@ -351,7 +351,7 @@ io.to('channel:uuid').emit('message:created', {
 
 ### 4.5 Reaction Toggled (Broadcast)
 
-Idempotent toggle via REST. After a successful `POST /api/v1/messages/:messageId/reactions`, the server broadcasts the updated reaction state.
+Reaction toggle via REST. After a successful `POST /api/v1/messages/:messageId/reactions`, the server broadcasts the updated reaction state.
 
 ```typescript
 // Server → channel
@@ -374,7 +374,7 @@ Lightweight ephemeral events. Not persisted.
 socket.emit('typing:start', { channelId: 'channel-uuid' });
 socket.emit('typing:stop', { channelId: 'channel-uuid' });
 
-// Server → channel members (excluding sender)
+// Server → channel room users (excluding sender)
 socket.to('channel:uuid').emit('typing:start', {
   userId: 'user-uuid',
   channelId: 'channel-uuid'
@@ -401,7 +401,7 @@ socket.emit('message:read', {
   messageIds: ['msg-1', 'msg-2', 'msg-3']
 });
 
-// Optional: broadcast "seen by" to channel members (MVP — skip broadcast to reduce noise)
+// Optional: broadcast "seen by" to channel room users (MVP — skip broadcast to reduce noise)
 // Server stores in DB only
 ```
 
