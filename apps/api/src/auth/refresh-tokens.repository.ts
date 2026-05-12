@@ -25,11 +25,16 @@ export class RefreshTokensRepository {
     });
   }
 
-  async revokeToken(tokenHash: string) {
-    return this.prisma.refreshToken.updateMany({
-      where: { tokenHash },
+  async consumeActiveToken(tokenHash: string): Promise<number> {
+    const result = await this.prisma.refreshToken.updateMany({
+      where: {
+        tokenHash,
+        revokedAt: null,
+        expiresAt: { gt: new Date() },
+      },
       data: { revokedAt: new Date() },
     });
+    return result.count;
   }
 
   async findActiveByHash(tokenHash: string) {

@@ -116,8 +116,8 @@ export class AuthService {
     }
 
     const tokenHash = this.hashRefreshToken(refreshToken);
-    const existing = await this.refreshTokens.findActiveByHash(tokenHash);
-    if (!existing) {
+    const consumed = await this.refreshTokens.consumeActiveToken(tokenHash);
+    if (consumed !== 1) {
       throw new UnauthorizedException('Refresh token not found or revoked');
     }
 
@@ -125,8 +125,6 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
-
-    await this.refreshTokens.revokeToken(tokenHash);
 
     const newPayload: JwtPayload = { sub: user.id, email: user.email, jti: randomUUID() };
     const [accessToken, newRefreshToken] = await Promise.all([
