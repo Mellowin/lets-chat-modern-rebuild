@@ -1,10 +1,10 @@
-﻿# Database Schema Specification
+# Database Schema Specification
 
 > **Project:** Secure Team Collaboration Platform  
 > **Database:** PostgreSQL 15+  
 > **ORM:** Prisma 5.x  
 > **Date:** 2026-05-11  
-> **Status:** Locked for MVP implementation вЂ” changes require ADR  
+> **Status:** Locked for MVP implementation - changes require ADR  
 
 ---
 
@@ -70,15 +70,15 @@ model User {
 
 | Field | Type | Constraints | Index | Notes |
 |-------|------|-------------|-------|-------|
-| `id` | UUID | PK | вЂ” | вЂ” |
+| `id` | UUID | PK | - | - |
 | `email` | String | NOT NULL | B-tree index | Lowercased in app layer; unique enforced via partial index `idx_user_email_lower`. |
 | `username` | String | NOT NULL | B-tree index | Regex: `^[a-zA-Z0-9_-]+$`. Case-insensitive unique enforced via partial index `idx_user_username_lower`. Used for mentions and login. |
-| `passwordHash` | String | NOT NULL | вЂ” | Bcrypt output. |
-| `displayName` | String | вЂ” | вЂ” | Defaults to email prefix if empty. |
-| `avatarUrl` | String | вЂ” | вЂ” | Gravatar or uploaded file URL. |
-| `createdAt` | DateTime | NOT NULL | B-tree | вЂ” |
-| `updatedAt` | DateTime | NOT NULL | вЂ” | Auto-updated by Prisma. |
-| `deletedAt` | DateTime | вЂ” | B-tree | Soft delete. `IS NULL` filter on all queries by default. |
+| `passwordHash` | String | NOT NULL | - | Bcrypt output. |
+| `displayName` | String | - | - | Defaults to email prefix if empty. |
+| `avatarUrl` | String | - | - | Gravatar or uploaded file URL. |
+| `createdAt` | DateTime | NOT NULL | B-tree | - |
+| `updatedAt` | DateTime | NOT NULL | - | Auto-updated by Prisma. |
+| `deletedAt` | DateTime | - | B-tree | Soft delete. `IS NULL` filter on all queries by default. |
 
 ---
 
@@ -106,12 +106,12 @@ model Workspace {
 
 | Field | Type | Constraints | Index | Notes |
 |-------|------|-------------|-------|-------|
-| `id` | UUID | PK | вЂ” | вЂ” |
-| `name` | String | NOT NULL | вЂ” | Display name. |
+| `id` | UUID | PK | - | - |
+| `name` | String | NOT NULL | - | Display name. |
 | `slug` | String | Unique, NOT NULL | B-tree unique | URL-friendly. Regexp: `^[a-z0-9-]+$`. |
-| `description` | String | вЂ” | вЂ” | вЂ” |
-| `ownerId` | UUID | FK в†’ User.id, NOT NULL | B-tree | Transferable. |
-| `deletedAt` | DateTime | вЂ” | B-tree | Soft delete. |
+| `description` | String | - | - | - |
+| `ownerId` | UUID | FK -> User.id, NOT NULL | B-tree | Transferable. |
+| `deletedAt` | DateTime | - | B-tree | Soft delete. |
 
 **Note on `slug` uniqueness:** Global unique in MVP. If soft-deleted workspaces must free slugs, handle via app-layer suffix or post-MVP partial unique index.
 
@@ -126,7 +126,7 @@ model WorkspaceMember {
   id String @id @default(uuid()) @db.Uuid
   workspaceId String    @db.Uuid
   userId      String    @db.Uuid
-  role        WorkspaceRole
+  role        WorkspaceRole @default(MEMBER)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   deletedAt   DateTime?
@@ -142,11 +142,11 @@ model WorkspaceMember {
 
 | Field | Type | Constraints | Index | Notes |
 |-------|------|-------------|-------|-------|
-| `id` | UUID | PK | вЂ” | вЂ” |
+| `id` | UUID | PK | - | - |
 | `workspaceId` | UUID | FK, NOT NULL | B-tree composite | Part of partial unique index `idx_workspace_member_active`. |
-| `userId` | UUID | FK, NOT NULL | B-tree composite | вЂ” |
+| `userId` | UUID | FK, NOT NULL | B-tree composite | - |
 | `role` | Enum | NOT NULL | B-tree | `OWNER`, `ADMIN`, `MEMBER`. |
-| `deletedAt` | DateTime | вЂ” | B-tree | Soft delete preserves membership history. |
+| `deletedAt` | DateTime | - | B-tree | Soft delete preserves membership history. |
 
 ---
 
@@ -159,7 +159,7 @@ model Channel {
   name        String
   slug        String
   description String?
-  type        ChannelType
+  type        ChannelType @default(PUBLIC)
   createdById String      @db.Uuid
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
@@ -180,13 +180,13 @@ model Channel {
 
 | Field | Type | Constraints | Index | Notes |
 |-------|------|-------------|-------|-------|
-| `id` | UUID | PK | вЂ” | вЂ” |
+| `id` | UUID | PK | - | - |
 | `workspaceId` | UUID | FK, NOT NULL | B-tree composite | Part of `@@unique([workspaceId, slug])`. |
-| `name` | String | NOT NULL | вЂ” | Display name. |
+| `name` | String | NOT NULL | - | Display name. |
 | `slug` | String | NOT NULL | B-tree composite | Unique per workspace. |
-| `type` | Enum | NOT NULL, DEFAULT `PUBLIC` | вЂ” | `PUBLIC` or `PRIVATE`. Immutable in MVP (see `decisions.md` D6). |
-| `createdById` | UUID | FK в†’ User.id, NOT NULL | B-tree | Creator gets explicit `OWNER` in `ChannelMember`. |
-| `deletedAt` | DateTime | вЂ” | B-tree | Soft delete. |
+| `type` | Enum | NOT NULL, DEFAULT `PUBLIC` | - | `PUBLIC` or `PRIVATE`. Immutable in MVP (see `decisions.md` D6). |
+| `createdById` | UUID | FK -> User.id, NOT NULL | B-tree | Creator gets explicit `OWNER` in `ChannelMember`. |
+| `deletedAt` | DateTime | - | B-tree | Soft delete. |
 
 ---
 
@@ -215,11 +215,11 @@ model ChannelMember {
 
 | Field | Type | Constraints | Index | Notes |
 |-------|------|-------------|-------|-------|
-| `id` | UUID | PK | вЂ” | вЂ” |
+| `id` | UUID | PK | - | - |
 | `channelId` | UUID | FK, NOT NULL | B-tree composite | Part of partial unique index `idx_channel_member_active`. |
-| `userId` | UUID | FK, NOT NULL | B-tree composite | вЂ” |
+| `userId` | UUID | FK, NOT NULL | B-tree composite | - |
 | `role` | Enum | NOT NULL | B-tree | `OWNER`, `ADMIN`, `MEMBER`. |
-| `deletedAt` | DateTime | вЂ” | B-tree | Soft delete preserves join history. |
+| `deletedAt` | DateTime | - | B-tree | Soft delete preserves join history. |
 
 ---
 
@@ -253,20 +253,20 @@ model Message {
 
   @@index([channelId, createdAt, id])
   @@index([parentId, createdAt])
-  // Note: GIN index on searchVector is added via raw migration (see В§7.2)
+  // Note: GIN index on searchVector is added via raw migration (see Section7.2)
 }
 ```
 
 | Field | Type | Constraints | Index | Notes |
 |-------|------|-------------|-------|-------|
-| `id` | UUID | PK | вЂ” | вЂ” |
+| `id` | UUID | PK | - | - |
 | `channelId` | UUID | FK, NOT NULL | B-tree composite | Part of cursor-pagination index. |
-| `authorId` | UUID | FK в†’ User.id, NOT NULL | B-tree | Soft-deleted users still referenced (no cascade). |
-| `parentId` | UUID | FK в†’ Message.id, nullable | B-tree composite | Self-reference for threads. |
-| `content` | String | NOT NULL | вЂ” | Max length 4000 enforced in app. |
-| `editedAt` | DateTime | вЂ” | вЂ” | Set on first edit; null if never edited. |
-| `searchVector` | `tsvector` | Generated | GIN | See В§8. Prisma `Unsupported` type; managed via raw migration. |
-| `deletedAt` | DateTime | вЂ” | B-tree | Soft delete. |
+| `authorId` | UUID | FK -> User.id, NOT NULL | B-tree | Soft-deleted users still referenced (no cascade). |
+| `parentId` | UUID | FK -> Message.id, nullable | B-tree composite | Self-reference for threads. |
+| `content` | String | NOT NULL | - | Max length 4000 enforced in app. |
+| `editedAt` | DateTime | - | - | Set on first edit; null if never edited. |
+| `searchVector` | `tsvector` | Generated | GIN | See Section8. Prisma `Unsupported` type; managed via raw migration. |
+| `deletedAt` | DateTime | - | B-tree | Soft delete. |
 
 **Why no separate `Thread` table:** A thread is a temporal view of messages sharing a `parentId`. Adding a `Thread` table would require synchronizing two write paths (message insert + thread upsert) with no benefit for MVP scope. The `parentId` pattern is used by Slack, Discord, and Mastodon.
 
@@ -274,7 +274,7 @@ model Message {
 
 ### 3.7 MessageEdit
 
-Append-only edit history. Required per locked `scope.md` В§2.4.
+Append-only edit history. Required per locked `scope.md` Section2.4.
 
 ```prisma
 model MessageEdit {
@@ -295,12 +295,12 @@ model MessageEdit {
 
 | Field | Type | Constraints | Index | Notes |
 |-------|------|-------------|-------|-------|
-| `id` | UUID | PK | вЂ” | вЂ” |
-| `messageId` | UUID | FK, NOT NULL | B-tree composite | вЂ” |
-| `oldContent` | String | NOT NULL | вЂ” | Snapshot before edit. |
-| `newContent` | String | NOT NULL | вЂ” | Snapshot after edit. |
-| `editedById` | UUID | FK в†’ User.id, NOT NULL | B-tree | Usually equals message.authorId; stored for audit. |
-| `createdAt` | DateTime | NOT NULL | B-tree | вЂ” |
+| `id` | UUID | PK | - | - |
+| `messageId` | UUID | FK, NOT NULL | B-tree composite | - |
+| `oldContent` | String | NOT NULL | - | Snapshot before edit. |
+| `newContent` | String | NOT NULL | - | Snapshot after edit. |
+| `editedById` | UUID | FK -> User.id, NOT NULL | B-tree | Usually equals message.authorId; stored for audit. |
+| `createdAt` | DateTime | NOT NULL | B-tree | - |
 
 **No `deletedAt`**: edit history is immutable audit data.
 
@@ -329,11 +329,11 @@ model Reaction {
 
 | Field | Type | Constraints | Index | Notes |
 |-------|------|-------------|-------|-------|
-| `id` | UUID | PK | вЂ” | вЂ” |
+| `id` | UUID | PK | - | - |
 | `messageId` | UUID | FK, NOT NULL | B-tree composite | Part of partial unique index `idx_reaction_active`. |
-| `userId` | UUID | FK, NOT NULL | B-tree composite | вЂ” |
+| `userId` | UUID | FK, NOT NULL | B-tree composite | - |
 | `emoji` | String | NOT NULL | B-tree composite | Unicode emoji string. |
-| `deletedAt` | DateTime | вЂ” | B-tree | Toggle = soft-delete + re-create if needed. |
+| `deletedAt` | DateTime | - | B-tree | Toggle = soft-delete + re-create if needed. |
 
 ---
 
@@ -364,16 +364,16 @@ model Attachment {
 
 | Field | Type | Constraints | Index | Notes |
 |-------|------|-------------|-------|-------|
-| `id` | UUID | PK | вЂ” | вЂ” |
+| `id` | UUID | PK | - | - |
 | `messageId` | UUID | FK, nullable | B-tree | Nullable because upload may precede message creation. |
-| `filename` | String | NOT NULL | вЂ” | Server-generated UUID + ext. |
-| `originalName` | String | NOT NULL | вЂ” | Original client filename for display. |
-| `mimeType` | String | NOT NULL | вЂ” | Whitelist enforced in app. |
-| `size` | Int | NOT NULL | вЂ” | Bytes. Max 10MB enforced in app. |
+| `filename` | String | NOT NULL | - | Server-generated UUID + ext. |
+| `originalName` | String | NOT NULL | - | Original client filename for display. |
+| `mimeType` | String | NOT NULL | - | Whitelist enforced in app. |
+| `size` | Int | NOT NULL | - | Bytes. Max 10MB enforced in app. |
 | `storageKey` | String | Unique, NOT NULL | B-tree unique | Path/key in storage backend. |
-| `storageBackend` | Enum | NOT NULL | вЂ” | `LOCAL`, `S3`, `MINIO`. |
-| `createdById` | UUID | FK, NOT NULL | B-tree | вЂ” |
-| `deletedAt` | DateTime | вЂ” | B-tree | Async cleanup job via Bull. |
+| `storageBackend` | Enum | NOT NULL | - | `LOCAL`, `S3`, `MINIO`. |
+| `createdById` | UUID | FK, NOT NULL | B-tree | - |
+| `deletedAt` | DateTime | - | B-tree | Async cleanup job via Bull. |
 
 ---
 
@@ -409,17 +409,17 @@ model AuditLog {
 
 | Field | Type | Constraints | Index | Notes |
 |-------|------|-------------|-------|-------|
-| `id` | UUID | PK | вЂ” | вЂ” |
-| `actorId` | UUID | FK в†’ User.id, nullable | B-tree | Null for system actions. |
+| `id` | UUID | PK | - | - |
+| `actorId` | UUID | FK -> User.id, nullable | B-tree | Null for system actions. |
 | `action` | Enum | NOT NULL | B-tree | See enum `AuditAction`. |
 | `entityType` | String | NOT NULL | B-tree composite | E.g. `Message`, `Channel`, `Workspace`. |
-| `entityId` | String | NOT NULL | B-tree composite | UUID string; not a foreign key. |
+| `entityId` | UUID | NOT NULL | B-tree composite | Polymorphic ref; not a foreign key. |
 | `workspaceId` | UUID | FK, nullable | B-tree composite | For workspace-scoped filtering. |
 | `channelId` | UUID | FK, nullable | B-tree | Optional context. |
-| `metadata` | JSON | вЂ” | вЂ” | Arbitrary context (old/new values, reason). |
-| `ipAddress` | String | вЂ” | вЂ” | For security forensics. |
-| `userAgent` | String | вЂ” | вЂ” | For security forensics. |
-| `createdAt` | DateTime | NOT NULL | B-tree | вЂ” |
+| `metadata` | JSON | - | - | Arbitrary context (old/new values, reason). |
+| `ipAddress` | String | - | - | For security forensics. |
+| `userAgent` | String | - | - | For security forensics. |
+| `createdAt` | DateTime | NOT NULL | B-tree | - |
 
 **No `updatedAt`, no `deletedAt`.** Immutable by design.
 
@@ -451,12 +451,12 @@ model RefreshToken {
 
 | Field | Type | Constraints | Index | Notes |
 |-------|------|-------------|-------|-------|
-| `id` | UUID | PK | вЂ” | вЂ” |
-| `userId` | UUID | FK, NOT NULL | B-tree | вЂ” |
+| `id` | UUID | PK | - | - |
+| `userId` | UUID | FK, NOT NULL | B-tree | - |
 | `tokenHash` | String | Unique, NOT NULL | B-tree unique | SHA-256 of the raw token. Raw token never stored. |
 | `expiresAt` | DateTime | NOT NULL | B-tree | TTL enforced in app + DB cleanup job. |
-| `revokedAt` | DateTime | вЂ” | вЂ” | Explicit revocation (logout, rotation, security event). |
-| `deletedAt` | DateTime | вЂ” | B-tree | Soft delete for consistency with other entities. |
+| `revokedAt` | DateTime | - | - | Explicit revocation (logout, rotation, security event). |
+| `deletedAt` | DateTime | - | B-tree | Soft delete for consistency with other entities. |
 
 **Rotation flow:** On refresh, mark current token `revokedAt = now()`, create new token row, return new raw token to client.
 
@@ -471,7 +471,7 @@ model Invitation {
   id String @id @default(uuid()) @db.Uuid
   workspaceId String        @db.Uuid
   invitedById String        @db.Uuid
-  role        WorkspaceRole
+  role        WorkspaceRole @default(MEMBER)
   invitedEmail String?
   tokenHash   String        @unique
   expiresAt   DateTime
@@ -491,16 +491,16 @@ model Invitation {
 
 | Field | Type | Constraints | Index | Notes |
 |-------|------|-------------|-------|-------|
-| `id` | UUID | PK | вЂ” | вЂ” |
-| `workspaceId` | UUID | FK, NOT NULL | B-tree | вЂ” |
-| `invitedById` | UUID | FK, NOT NULL | B-tree | вЂ” |
-| `role` | Enum | NOT NULL, DEFAULT `MEMBER` | вЂ” | Role assigned upon acceptance. |
-| `invitedEmail` | String | вЂ” | вЂ” | Optional email binding. If set, acceptor must match. |
+| `id` | UUID | PK | - | - |
+| `workspaceId` | UUID | FK, NOT NULL | B-tree | - |
+| `invitedById` | UUID | FK, NOT NULL | B-tree | - |
+| `role` | Enum | NOT NULL, DEFAULT `MEMBER` | - | Role assigned upon acceptance. |
+| `invitedEmail` | String | - | - | Optional email binding. If set, acceptor must match. |
 | `tokenHash` | String | Unique, NOT NULL | B-tree unique | SHA-256 hash of raw invite token. Raw token is returned only once and never stored. |
 | `expiresAt` | DateTime | NOT NULL | B-tree | Default 7 days. |
 | `usedById` | UUID | FK, nullable | B-tree | Set when accepted. |
-| `usedAt` | DateTime | вЂ” | вЂ” | Set when accepted. |
-| `deletedAt` | DateTime | вЂ” | B-tree | Revocation / cleanup. |
+| `usedAt` | DateTime | - | - | Set when accepted. |
+| `deletedAt` | DateTime | - | B-tree | Revocation / cleanup. |
 
 ---
 
@@ -536,16 +536,16 @@ model Notification {
 
 | Field | Type | Constraints | Index | Notes |
 |-------|------|-------------|-------|-------|
-| `id` | UUID | PK | вЂ” | вЂ” |
+| `id` | UUID | PK | - | - |
 | `userId` | UUID | FK, NOT NULL | B-tree composite | Recipient. |
-| `type` | Enum | NOT NULL | вЂ” | `MENTION`, `THREAD_REPLY`, `CHANNEL_INVITE`, `SYSTEM`. |
-| `title` | String | NOT NULL | вЂ” | Short display text. |
-| `body` | String | NOT NULL | вЂ” | Detail text. |
-| `entityType` | String | вЂ” | вЂ” | Polymorphic ref (e.g. `Message`). |
-| `entityId` | String | вЂ” | вЂ” | Polymorphic ref UUID. |
+| `type` | Enum | NOT NULL | - | `MENTION`, `THREAD_REPLY`, `CHANNEL_INVITE`, `SYSTEM`. |
+| `title` | String | NOT NULL | - | Short display text. |
+| `body` | String | NOT NULL | - | Detail text. |
+| `entityType` | String | - | - | Polymorphic ref (e.g. `Message`). |
+| `entityId` | UUID | - | - | Polymorphic ref. |
 | `isRead` | Boolean | NOT NULL, DEFAULT false | B-tree composite | Part of unread query index. |
-| `readAt` | DateTime | вЂ” | вЂ” | Set on first read. |
-| `deletedAt` | DateTime | вЂ” | B-tree | Soft delete for dismissed notifications. |
+| `readAt` | DateTime | - | - | Set on first read. |
+| `deletedAt` | DateTime | - | B-tree | Soft delete for dismissed notifications. |
 
 ---
 
@@ -573,11 +573,11 @@ model ReadReceipt {
 
 | Field | Type | Constraints | Index | Notes |
 |-------|------|-------------|-------|-------|
-| `id` | UUID | PK | вЂ” | вЂ” |
+| `id` | UUID | PK | - | - |
 | `messageId` | UUID | FK, NOT NULL | B-tree composite | Part of `@@unique([messageId, userId])`. |
-| `userId` | UUID | FK, NOT NULL | B-tree composite | вЂ” |
+| `userId` | UUID | FK, NOT NULL | B-tree composite | - |
 | `channelId` | UUID | NOT NULL | B-tree composite | Denormalized for fast channel-level queries. |
-| `readAt` | DateTime | NOT NULL | вЂ” | вЂ” |
+| `readAt` | DateTime | NOT NULL | - | - |
 
 ---
 
@@ -622,7 +622,7 @@ Message ||--o{ Notification : "referenced"
 
 | Entity | `deletedAt` | Behavior | Notes |
 |--------|-------------|----------|-------|
-| User | Yes | User row retained; auth blocked; profile anonymized | Display name в†’ `[Deleted User]` per legacy pattern. |
+| User | Yes | User row retained; auth blocked; profile anonymized | Display name -> `[Deleted User]` per legacy pattern. |
 | Workspace | Yes | Hidden from lists; data retained | `OWNER` can archive workspace. Owner transfer is required before leaving, not before archive. |
 | WorkspaceMember | Yes | Membership history preserved | Re-join possible by creating new row. |
 | Channel | Yes | Hidden from lists; messages readable by admins | Direct links still work for admins. |
@@ -682,7 +682,7 @@ USING GIN ("searchVector");
 ### 7.3 Query Pattern (pseudo-SQL)
 ```sql
 SELECT m.*, ts_rank(m."searchVector", query) as rank
-FROM "Message" m, plainto_tsquery('english', $1) query
+FROM "Message" m, plainto_tsquery('simple', $1) query
 WHERE m."searchVector" @@ query
   AND m."channelId" = $2
   AND m."deletedAt" IS NULL
@@ -702,9 +702,9 @@ A thread is a logical view, not a physical table.
 
 ```
 Message (parent)
-в”њв”Ђв”Ђ Message (reply)  parentId = parent.id
-в”њв”Ђв”Ђ Message (reply)  parentId = parent.id
-в””в”Ђв”Ђ Message (reply)  parentId = parent.id
+|-- Message (reply)  parentId = parent.id
+|-- Message (reply)  parentId = parent.id
+\-- Message (reply)  parentId = parent.id
 ```
 
 ### 8.2 Query Patterns
@@ -742,6 +742,7 @@ MVP supports only one level of threading (flat replies). Only messages with `par
 | Workspace | `slug` | Unique | URL routing. |
 | WorkspaceMember | `[workspaceId, userId]` | Partial unique (raw SQL) | One active membership per user per workspace. |
 | WorkspaceMember | `[workspaceId, role]` | B-tree | Fast admin/owner lookups. |
+| WorkspaceMember | `workspaceId` WHERE `role` = `OWNER` | Partial unique (raw SQL) | Enforces single active OWNER per workspace. |
 | Channel | `[workspaceId, slug]` | Unique | Per-workspace URL routing. |
 | Channel | `[workspaceId, deletedAt]` | B-tree | Filtered channel lists. |
 | ChannelMember | `[channelId, userId]` | Partial unique (raw SQL) | One active membership per user per channel. |
@@ -779,13 +780,14 @@ MVP supports only one level of threading (flat replies). Only messages with `par
 11. `Invitation` (FK: Workspace, User x2)
 12. `Notification` (FK: User, Workspace, Channel)
 13. `ReadReceipt` (FK: Message, User)
-14. `AuditLog` (FK: User, Workspace, Channel вЂ” nullable)
+14. `AuditLog` (FK: User, Workspace, Channel - nullable)
 15. Raw SQL: `Message.searchVector` generated column + GIN index
 16. Raw SQL: Partial unique indexes for soft-deletable junction tables:
     ```sql
     CREATE UNIQUE INDEX idx_workspace_member_active ON "WorkspaceMember" ("workspaceId", "userId") WHERE "deletedAt" IS NULL;
     CREATE UNIQUE INDEX idx_channel_member_active ON "ChannelMember" ("channelId", "userId") WHERE "deletedAt" IS NULL;
     CREATE UNIQUE INDEX idx_reaction_active ON "Reaction" ("messageId", "userId", "emoji") WHERE "deletedAt" IS NULL;
+    CREATE UNIQUE INDEX idx_workspace_owner_unique ON "WorkspaceMember" ("workspaceId") WHERE role = 'OWNER' AND "deletedAt" IS NULL;
     ```
 17. Raw SQL: Case-insensitive email unique:
     ```sql
@@ -797,12 +799,12 @@ MVP supports only one level of threading (flat replies). Only messages with `par
 
 ## 12. Out of Schema (v2 / Post-MVP)
 
-- **Email delivery / SMTP integration** вЂ” out of MVP; no `EmailQueue` table.
-- **Message pinning** вЂ” no `PinnedMessage` table.
-- **User groups / @admin mentions** вЂ” no `UserGroup` table.
-- **Channel categories** вЂ” no `ChannelCategory` table.
-- **Custom emoji** вЂ” `Reaction.emoji` is String; no `CustomEmoji` table.
-- **Voice/video state** вЂ” no WebRTC state tables.
-- **Data export jobs** вЂ” no `ExportJob` table.
-- **Webhooks / integrations** вЂ” no `WebhookSubscription` table.
+- **Email delivery / SMTP integration** - out of MVP; no `EmailQueue` table.
+- **Message pinning** - no `PinnedMessage` table.
+- **User groups / @admin mentions** - no `UserGroup` table.
+- **Channel categories** - no `ChannelCategory` table.
+- **Custom emoji** - `Reaction.emoji` is String; no `CustomEmoji` table.
+- **Voice/video state** - no WebRTC state tables.
+- **Data export jobs** - no `ExportJob` table.
+- **Webhooks / integrations** - no `WebhookSubscription` table.
 
