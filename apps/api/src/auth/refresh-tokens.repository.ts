@@ -37,6 +37,13 @@ export class RefreshTokensRepository {
     return result.count;
   }
 
+  async revokeToken(tokenHash: string) {
+    return this.prisma.refreshToken.updateMany({
+      where: { tokenHash },
+      data: { revokedAt: new Date() },
+    });
+  }
+
   async findActiveByHash(tokenHash: string) {
     return this.prisma.refreshToken.findFirst({
       where: {

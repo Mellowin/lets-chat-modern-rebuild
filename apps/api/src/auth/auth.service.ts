@@ -138,6 +138,16 @@ export class AuthService {
     return { user: authUser, accessToken, refreshToken: newRefreshToken };
   }
 
+  async logout(refreshToken: string): Promise<{ success: boolean }> {
+    const tokenHash = this.hashRefreshToken(refreshToken);
+    try {
+      await this.refreshTokens.revokeToken(tokenHash);
+    } catch {
+      // ignore errors for already revoked or missing tokens
+    }
+    return { success: true };
+  }
+
   private async validateUserCredentials(
     email: string,
     password: string,

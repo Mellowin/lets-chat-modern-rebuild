@@ -15,6 +15,7 @@ import type { AuthUserResponse } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { LogoutDto } from './dto/logout.dto';
 import { JwtAccessGuard } from './guards/jwt-access.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 
@@ -53,6 +54,16 @@ export class AuthController {
   @ApiBadRequestResponse({ description: 'Validation failed' })
   async refresh(@Body() dto: RefreshTokenDto) {
     return this.auth.refresh(dto.refreshToken);
+  }
+
+  @Post('logout')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Logout user' })
+  @ApiBody({ type: LogoutDto })
+  @ApiOkResponse({ description: 'Logout successful' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  async logout(@Body() dto: LogoutDto) {
+    return this.auth.logout(dto.refreshToken);
   }
 
   @Get('me')
