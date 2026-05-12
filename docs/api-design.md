@@ -115,7 +115,7 @@ Set-Cookie: refresh_token=eyJhbG...; HttpOnly; Secure; SameSite=Strict; Max-Age=
 
 **Errors:**
 - `401 UNAUTHORIZED` — invalid credentials
-- `423 LOCKED` — account temporarily locked (auth throttling)
+- `429 RATE_LIMITED` — too many login attempts
 
 ---
 
@@ -321,7 +321,7 @@ DELETE /workspaces/:workspaceId
 
 **Response 204.**
 
-**Note:** Workspace OWNER cannot delete if they are the sole owner. Must transfer ownership first (`permissions.md` §4.2).
+**Note:** Workspace OWNER can archive the workspace. The "sole owner cannot leave" rule applies only to `POST /workspaces/:workspaceId/leave`, not to archive.
 
 ---
 
@@ -440,7 +440,22 @@ GET /workspaces/:workspaceId/invites
 
 **Permission:** `@RequireWorkspaceRole('OWNER', 'ADMIN')`
 
-**Response 200:** Array of pending invites.
+**Response 200:**
+```json
+{
+  "data": [
+    {
+      "id": "uuid",
+      "role": "MEMBER",
+      "invitedEmail": "user@example.com",
+      "expiresAt": "2026-05-18T12:00:00Z",
+      "createdAt": "2026-05-11T12:00:00Z"
+    }
+  ]
+}
+```
+
+**Note:** Raw invite token is never returned from list endpoint.
 
 ---
 
@@ -459,10 +474,17 @@ DELETE /workspaces/:workspaceId/invites/:inviteId
 ### 5.13 Accept Invite
 
 ```http
-POST /invites/:token/accept
+POST /invites/accept
 ```
 
 **Permission:** Authenticated user (must match `invitedEmail` if set).
+
+**Request:**
+```json
+{
+  "token": "raw-invite-token"
+}
+```
 
 **Response 200:** `{ workspaceId, role }`
 
@@ -484,16 +506,16 @@ POST /invites/:token/accept
 | `/users/me` | PATCH | Bearer | — | Update profile |
 | `/workspaces` | POST | Bearer | — | Create workspace |
 | `/workspaces` | GET | Bearer | — | List my workspaces |
-| `/workspaces/:id` | GET | Bearer | `IsWorkspaceMember` | Get workspace |
-| `/workspaces/:id` | PATCH | Bearer | `OWNER/ADMIN` | Update workspace |
-| `/workspaces/:id` | DELETE | Bearer | `OWNER` | Archive workspace |
-| `/workspaces/:id/members` | GET | Bearer | `IsWorkspaceMember` | List members |
-| `/workspaces/:id/members/:uid/role` | PATCH | Bearer | `OWNER` | Change role |
-| `/workspaces/:id/members/:uid` | DELETE | Bearer | `OWNER/ADMIN` | Remove member |
-| `/workspaces/:id/leave` | POST | Bearer | `IsWorkspaceMember` | Self-remove |
-| `/workspaces/:id/invites` | POST | Bearer | `OWNER/ADMIN` | Create invite |
-| `/workspaces/:id/invites` | GET | Bearer | `OWNER/ADMIN` | List invites |
-| `/workspaces/:id/invites/:id` | DELETE | Bearer | `OWNER/ADMIN` | Revoke invite |
+| `/workspaces/:workspaceId` | GET | Bearer | `IsWorkspaceMember` | Get workspace |
+| `/workspaces/:workspaceId` | PATCH | Bearer | `OWNER/ADMIN` | Update workspace |
+| `/workspaces/:workspaceId` | DELETE | Bearer | `OWNER` | Archive workspace |
+| `/workspaces/:workspaceId/members` | GET | Bearer | `IsWorkspaceMember` | List members |
+| `/workspaces/:workspaceId/members/:userId/role` | PATCH | Bearer | `OWNER` | Change role |
+| `/workspaces/:workspaceId/members/:userId` | DELETE | Bearer | `OWNER/ADMIN` | Remove member |
+| `/workspaces/:workspaceId/leave` | POST | Bearer | `IsWorkspaceMember` | Self-remove |
+| `/workspaces/:workspaceId/invites` | POST | Bearer | `OWNER/ADMIN` | Create invite |
+| `/workspaces/:workspaceId/invites` | GET | Bearer | `OWNER/ADMIN` | List invites |
+| `/workspaces/:workspaceId/invites/:inviteId` | DELETE | Bearer | `OWNER/ADMIN` | Revoke invite |
 | `/invites/:token/accept` | POST | Bearer | — | Accept invite |
 
 ---
@@ -735,7 +757,7 @@ GET /channels/:channelId/messages
 - `limit` — max 50, default 20
 - `cursor` — pagination cursor (messageId)
 - `parentId` — filter by thread parent; null = top-level only
-- `search` — full-text search query (optional, uses `tsvector`)
+
 - `authorId` — filter by author
 - `from` / `to` — ISO 8601 date range
 
@@ -748,7 +770,7 @@ GET /channels/:channelId/messages
 }
 ```
 
-**Note:** Soft-deleted messages are included with `"deleted": true` and `content: null` for admin/owner; hidden for regular members unless explicitly fetched.
+**Note:** Soft-deleted messages are returned with `deletedAt != null` and `content: null` only where user is allowed to see deletion context. Regular members do not receive deleted messages in normal list responses.
 
 ---
 
@@ -781,7 +803,7 @@ PATCH /messages/:messageId
 
 **Errors:**
 - `403 FORBIDDEN` — not author
-- `410 GONE` — edit window expired (> 15 min)
+- `422 UNPROCESSABLE_ENTITY` — edit window expired (> 15 min)
 
 ---
 
@@ -886,20 +908,20 @@ POST /attachments/presigned-url
 
 | Endpoint | Method | Auth | Permission | Notes |
 |----------|--------|------|------------|-------|
-| `/workspaces/:id/channels` | POST | Bearer | `IsWorkspaceMember` | Create channel |
-| `/workspaces/:id/channels` | GET | Bearer | `IsWorkspaceMember` | List channels |
-| `/channels/:id` | GET | Bearer | `CanAccessChannel` | Get channel |
-| `/channels/:id` | PATCH | Bearer | `OWNER/ADMIN` | Update channel |
-| `/channels/:id` | DELETE | Bearer | `OWNER/ADMIN` | Archive channel |
-| `/channels/:id/members` | GET | Bearer | `CanAccessChannel` | List members |
-| `/channels/:id/members` | POST | Bearer | `OWNER/ADMIN` | Add member |
-| `/channels/:id/members/:uid` | DELETE | Bearer | `OWNER/ADMIN` | Remove member |
-| `/channels/:id/messages` | POST | Bearer | `CanAccessChannel` | Create message |
-| `/channels/:id/messages` | GET | Bearer | `CanAccessChannel` | List messages / search |
-| `/messages/:id` | GET | Bearer | `CanAccessChannel` | Get message |
-| `/messages/:id` | PATCH | Bearer | `@IsMessageAuthor` | Edit (15 min) |
-| `/messages/:id` | DELETE | Bearer | `Author or OWNER/ADMIN` | Soft delete |
-| `/messages/:id/reactions` | POST | Bearer | `CanAccessChannel` | Toggle reaction |
+| `/workspaces/:workspaceId/channels` | POST | Bearer | `IsWorkspaceMember` | Create channel |
+| `/workspaces/:workspaceId/channels` | GET | Bearer | `IsWorkspaceMember` | List channels |
+| `/channels/:channelId` | GET | Bearer | `CanAccessChannel` | Get channel |
+| `/channels/:channelId` | PATCH | Bearer | `OWNER/ADMIN` | Update channel |
+| `/channels/:channelId` | DELETE | Bearer | `OWNER/ADMIN` | Archive channel |
+| `/channels/:channelId/members` | GET | Bearer | `CanAccessChannel` | List members |
+| `/channels/:channelId/members` | POST | Bearer | `OWNER/ADMIN` | Add member |
+| `/channels/:channelId/members/:userId` | DELETE | Bearer | `OWNER/ADMIN` | Remove member |
+| `/channels/:channelId/messages` | POST | Bearer | `CanAccessChannel` | Create message |
+| `/channels/:channelId/messages` | GET | Bearer | `CanAccessChannel` | List messages |
+| `/messages/:messageId` | GET | Bearer | `CanAccessChannel` | Get message |
+| `/messages/:messageId` | PATCH | Bearer | `@IsMessageAuthor` | Edit (15 min) |
+| `/messages/:messageId` | DELETE | Bearer | `Author or OWNER/ADMIN` | Soft delete |
+| `/messages/:messageId/reactions` | POST | Bearer | `CanAccessChannel` | Toggle reaction |
 | `/attachments/presigned-url` | POST | Bearer | `CanAccessChannel` | Get upload URL |
 
 ---
@@ -912,7 +934,11 @@ POST /attachments/presigned-url
 GET /search/messages
 ```
 
-**Permission:** `IsWorkspaceMember` (search is workspace-scoped; channel-level filtering optional)
+**Permission:**
+- User must be workspace member.
+- If `channelId` is provided: validate `CanAccessChannel(channelId)`.
+- If `channelId` is omitted: search only channels the user can read (public + private where explicit member).
+- Private channel messages require explicit membership unless workspace `OWNER`/`ADMIN` uses audited moderation override.
 
 **Query params:**
 - `query` — search string (required)
@@ -1125,12 +1151,12 @@ GET /channels/:channelId/messages/:messageId/read-receipts
 | Endpoint | Method | Auth | Permission | Notes |
 |----------|--------|------|------------|-------|
 | `/search/messages` | GET | Bearer | `IsWorkspaceMember` | Full-text search |
-| `/workspaces/:id/audit-logs` | GET | Bearer | `OWNER/ADMIN` | Immutable audit trail |
+| `/workspaces/:workspaceId/audit-logs` | GET | Bearer | `OWNER/ADMIN` | Immutable audit trail |
 | `/notifications` | GET | Bearer | — | Own notifications |
-| `/notifications/:id/read` | PATCH | Bearer | Own only | Mark read |
+| `/notifications/:notificationId/read` | PATCH | Bearer | Own only | Mark read |
 | `/notifications/read-all` | POST | Bearer | — | Bulk mark read |
-| `/channels/:id/read-receipts` | POST | Bearer | `CanAccessChannel` | Batch write receipts |
-| `/channels/:id/messages/:id/read-receipts` | GET | Bearer | `CanAccessChannel` | Per-message readers |
+| `/channels/:channelId/read-receipts` | POST | Bearer | `CanAccessChannel` | Batch write receipts |
+| `/channels/:channelId/messages/:messageId/read-receipts` | GET | Bearer | `CanAccessChannel` | Per-message readers |
 
 ---
 
@@ -1163,8 +1189,8 @@ All errors use the same envelope:
 | `401` | `UNAUTHORIZED` | Missing / invalid / expired JWT |
 | `403` | `FORBIDDEN` | Authenticated, but lacks permission |
 | `404` | `NOT_FOUND` | Resource does not exist or user lacks access (always 404, never 403 for security) |
-| `409` | `CONFLICT` | Unique constraint (slug, email), idempotency conflict |
-| `410` | `GONE` | Edit window expired, invite revoked |
+| `409` | `CONFLICT` | Unique constraint (slug, email) |
+| `410` | `GONE` | Invite expired or revoked |
 | `422` | `UNPROCESSABLE_ENTITY` | Business rule violation (cannot remove last OWNER) |
 | `429` | `RATE_LIMITED` | Rate limit exceeded |
 | `500` | `INTERNAL_ERROR` | Unhandled exception |
@@ -1238,11 +1264,11 @@ X-RateLimit-Reset: 1715431200
 |-------|-------|--------|------------|
 | Global (auth) | 300 | 1 min | All authenticated requests combined |
 | Auth | 5 | 1 min | `POST /auth/login`, `POST /auth/register` |
-| Invite create | 10 | 1 min | `POST /workspaces/:id/invites` |
-| Message create | 60 | 1 min | `POST /channels/:id/messages` |
+| Invite create | 10 | 1 min | `POST /workspaces/:workspaceId/invites` |
+| Message create | 60 | 1 min | `POST /channels/:channelId/messages` |
 | Search | 30 | 1 min | `GET /search/messages` |
 | Presigned URL | 20 | 1 min | `POST /attachments/presigned-url` |
-| Invite accept | 10 | 1 min | `POST /invites/:token/accept` |
+| Invite accept | 10 | 1 min | `POST /invites/accept` |
 
 **Exceeding limit:**
 ```http
@@ -1269,22 +1295,13 @@ X-RateLimit-Retry-After: 42
 
 ### 9.4 Idempotency
 
-`POST` endpoints that mutate state support an optional idempotency key:
+Idempotency keys are **not implemented in MVP**.
 
-```http
-Idempotency-Key: <uuid>
-```
+Retry safety is handled by:
+- Client-side deduplication in message composer and form submits.
+- Unique constraints on slug, email, username preventing duplicate creates.
 
-- Key is stored for 24 hours
-- Duplicate key within 24h returns the original response (HTTP 200/201) without side effects
-- Key scope: per-user, per-endpoint
-
-**Endpoints supporting idempotency:**
-- `POST /auth/register`
-- `POST /workspaces`
-- `POST /workspaces/:id/invites`
-- `POST /workspaces/:id/channels`
-- `POST /channels/:id/messages`
+Server-side idempotency with `Idempotency-Key` header is a **post-MVP** feature.
 
 ---
 
