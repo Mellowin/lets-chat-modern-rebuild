@@ -1,5 +1,6 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Req } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { Request } from 'express';
 import { PrismaService } from '@lets-chat/database';
 
 @Controller('health')
@@ -10,7 +11,7 @@ export class HealthController {
   ) {}
 
   @Get()
-  async check() {
+  async check(@Req() req: Request) {
     const timestamp = new Date().toISOString();
     const uptime = process.uptime();
     const environment = this.config.get<string>('NODE_ENV', 'development');
@@ -30,6 +31,7 @@ export class HealthController {
       uptime,
       environment,
       database: dbStatus,
+      requestId: req.id,
     };
   }
 }

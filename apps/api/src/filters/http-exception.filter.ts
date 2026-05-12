@@ -24,7 +24,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const res = ctx.getResponse<Response>();
     const req = ctx.getRequest<Request>();
 
-    const requestId = (req.id as string) || 'unknown';
+    const requestId =
+      typeof req.id === 'string' && req.id.length > 0 ? req.id : 'unknown';
     const path = req.url;
     const timestamp = new Date().toISOString();
 

@@ -5,6 +5,7 @@ import { LoggerModule } from 'nestjs-pino';
 import { DatabaseModule } from '@lets-chat/database';
 import { envValidationSchema } from './config/env.validation';
 import { RequestIdInterceptor } from './logger/request-id.interceptor';
+import { normalizeRequestId } from './logger/request-id.util';
 import { HttpExceptionFilter } from './filters/http-exception.filter';
 import { HealthModule } from './health/health.module';
 import { AppController } from './app.controller';
@@ -23,7 +24,7 @@ import { AppService } from './app.service';
     LoggerModule.forRoot({
       pinoHttp: {
         genReqId: (req) =>
-          (req.headers['x-request-id'] as string) || crypto.randomUUID(),
+          normalizeRequestId(req.headers['x-request-id']) || crypto.randomUUID(),
         customProps: (req) => ({ requestId: req.id }),
       },
     }),
