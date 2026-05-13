@@ -149,7 +149,7 @@ export class WebsocketGateway
     await socket.join(room);
 
     this.logger.log({ socketId: socket.id, userId, channelId }, 'Joined channel room');
-    socket.emit('channel:joined', { channelId });
+    socket.emit('channel:joined', { workspaceId, channelId });
   }
 
   @SubscribeMessage('channel:leave')
@@ -171,6 +171,15 @@ export class WebsocketGateway
     }
 
     const room = `channel:${channelId}`;
+
+    if (!socket.rooms.has(room)) {
+      socket.emit('channel:error', {
+        message: 'Channel room not joined',
+        channelId,
+      });
+      return;
+    }
+
     await socket.leave(room);
 
     this.logger.log({ socketId: socket.id, userId, channelId }, 'Left channel room');
