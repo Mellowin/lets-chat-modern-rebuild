@@ -446,6 +446,36 @@ Body:
 
 > **Note:** Presign validates requested metadata only. Actual uploaded object size/content-type must be verified later by a complete/confirm endpoint or cleanup job. The Attachment row is created before upload, so abandoned uploads may create orphan/pending rows.
 
+**POST** `/api/v1/workspaces/:workspaceId/channels/:channelId/messages/:messageId/attachments/:attachmentId/complete`
+
+| Scenario | Expected |
+|----------|----------|
+| Complete after successful upload | `201 Created` + `{ id, filename, mimeType, sizeBytes, storageKey, createdAt }` |
+| Complete before upload | `409 Conflict` — Upload not completed |
+| Complete fake attachmentId | `404 Not Found` — Attachment not found |
+| Complete wrong message | `404 Not Found` — Attachment not found |
+| Size mismatch (uploaded ≠ declared) | `422 Unprocessable Entity` — Uploaded file size does not match expected size |
+| Content-type mismatch | `422 Unprocessable Entity` — Uploaded file type does not match expected type |
+| Deleted message | `404 Not Found` |
+| Private channel as non-member | `404 Not Found` |
+| Without token | `401 Unauthorized` |
+
+- Verifies object existence via MinIO `HEAD` before confirming.
+
+**GET** `/api/v1/workspaces/:workspaceId/channels/:channelId/messages/:messageId/attachments/:attachmentId/download`
+
+| Scenario | Expected |
+|----------|----------|
+| Download completed attachment | `200 OK` + `{ attachmentId, filename, mimeType, sizeBytes, downloadUrl, expiresInSeconds }` |
+| Download never-uploaded attachment | `409 Conflict` — Upload not completed |
+| Download fake attachmentId | `404 Not Found` — Attachment not found |
+| Deleted message | `404 Not Found` |
+| Private channel as non-member | `404 Not Found` |
+| Without token | `401 Unauthorized` |
+
+- `downloadUrl` is a presigned GET URL valid for 300 seconds.
+- Object existence is verified via MinIO `HEAD` before generating the URL.
+
 ### 14. API Documentation (Swagger)
 
 Open: http://localhost:3001/api/docs
