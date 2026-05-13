@@ -172,11 +172,11 @@ export class MessagesService {
       }
     }
 
-    await this.messages.softDeleteMessage(messageId);
+    const deleted = await this.messages.softDeleteMessage(messageId);
     this.websocketEvents.broadcastMessageDeleted(channelId, {
-      id: messageId,
-      channelId,
-      deletedAt: new Date(),
+      id: deleted.id,
+      channelId: deleted.channelId,
+      deletedAt: deleted.deletedAt!,
     });
   }
 }
