@@ -80,4 +80,48 @@ export class WebsocketEventsService {
       );
     }
   }
+
+  broadcastReactionAdded(
+    channelId: string,
+    payload: {
+      messageId: string;
+      channelId: string;
+      emoji: string;
+      user: {
+        id: string;
+        username: string;
+      };
+    },
+  ) {
+    try {
+      this.gateway.broadcastToRoom(`channel:${channelId}`, 'reaction:added', payload);
+    } catch (error) {
+      this.logger.error(
+        { channelId, messageId: payload.messageId, error: (error as Error).message },
+        'Failed to broadcast reaction:added',
+      );
+    }
+  }
+
+  broadcastReactionRemoved(
+    channelId: string,
+    payload: {
+      messageId: string;
+      channelId: string;
+      emoji: string;
+      user: {
+        id: string;
+        username: string;
+      };
+    },
+  ) {
+    try {
+      this.gateway.broadcastToRoom(`channel:${channelId}`, 'reaction:removed', payload);
+    } catch (error) {
+      this.logger.error(
+        { channelId, messageId: payload.messageId, error: (error as Error).message },
+        'Failed to broadcast reaction:removed',
+      );
+    }
+  }
 }
