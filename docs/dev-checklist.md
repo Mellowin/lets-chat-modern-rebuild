@@ -147,7 +147,56 @@ Body:
 | Repeated logout | `200 OK` + `{ success: true }` |
 | Short/missing token | `400 Bad Request` — Validation failed |
 
-### 7. API Documentation (Swagger)
+### 7. Workspaces
+
+**POST** `/api/v1/workspaces`
+
+| Scenario | Expected |
+|----------|----------|
+| Without token | `401 Unauthorized` |
+| Valid token | `201 Created` + workspace object |
+| Duplicate slug | `409 Conflict` — Slug already in use |
+| Invalid slug with spaces | `400 Bad Request` — Validation failed |
+| Uppercase slug | `201 Created` — slug normalized to lowercase |
+
+**GET** `/api/v1/workspaces`
+
+| Scenario | Expected |
+|----------|----------|
+| Valid token | `200 OK` + list of workspaces where user is active member |
+| Without token | `401 Unauthorized` |
+
+**GET** `/api/v1/workspaces/:workspaceId`
+
+| Scenario | Expected |
+|----------|----------|
+| Own workspace | `200 OK` + workspace object |
+| Random workspaceId | `404 Not Found` |
+| Without token | `401 Unauthorized` |
+
+**PATCH** `/api/v1/workspaces/:workspaceId`
+
+Body:
+
+```json
+{
+  "name": "Updated Name"
+}
+```
+
+| Scenario | Expected |
+|----------|----------|
+| As OWNER | `200 OK` + updated workspace |
+| With slug field in body | `400 Bad Request` — Validation failed |
+
+**POST** `/api/v1/workspaces/:workspaceId/archive`
+
+| Scenario | Expected |
+|----------|----------|
+| As OWNER | `200 OK` + `{ success: true }` |
+| Archived workspace in list | Disappears from `GET /workspaces` |
+
+### 8. API Documentation (Swagger)
 
 Open: http://localhost:3001/api/docs
 
