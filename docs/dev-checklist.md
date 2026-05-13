@@ -257,7 +257,48 @@ Body:
 | Private channel as non-member | `404 Not Found` |
 | Archived channel in list | Disappears from `GET /workspaces/:workspaceId/channels` |
 
-### 9. API Documentation (Swagger)
+### 9. Messages
+
+**POST** `/api/v1/workspaces/:workspaceId/channels/:channelId/messages`
+
+Body:
+
+```json
+{
+  "content": "Hello everyone!",
+  "parentId": null
+}
+```
+
+| Scenario | Expected |
+|----------|----------|
+| Public channel as workspace member | `201 Created` + message with author |
+| Private channel as non-member | `404 Not Found` |
+| Empty content | `400 Bad Request` — Validation failed |
+| Content over 4000 chars | `400 Bad Request` — Validation failed |
+| Thread reply with valid `parentId` | `201 Created` + reply message |
+| Thread reply to reply | `400 Bad Request` — Cannot reply to a reply |
+
+- Response shape includes `author: { id, username, displayName, avatarUrl }`.
+
+**GET** `/api/v1/workspaces/:workspaceId/channels/:channelId/messages`
+
+Query params:
+
+- `limit` — default `50`, max `100`
+- `before` — ISO date cursor
+
+| Scenario | Expected |
+|----------|----------|
+| Valid token | `200 OK` + list of messages with same shape as POST |
+| Invalid `workspaceId`/`channelId` | `400 Bad Request` — Invalid UUID |
+| Random `channelId` | `404 Not Found` |
+| Without token | `401 Unauthorized` |
+
+- Messages are ordered newest first.
+- Soft-deleted messages are excluded.
+
+### 10. API Documentation (Swagger)
 
 Open: http://localhost:3001/api/docs
 
