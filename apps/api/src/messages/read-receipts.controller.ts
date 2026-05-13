@@ -10,6 +10,7 @@ import {
   ApiTags,
   ApiOperation,
   ApiBearerAuth,
+  ApiCreatedResponse,
   ApiOkResponse,
   ApiNotFoundResponse,
   ApiUnauthorizedResponse,
@@ -28,7 +29,7 @@ export class ReadReceiptsController {
 
   @Post('read')
   @ApiOperation({ summary: 'Mark message as read' })
-  @ApiOkResponse({ description: 'Read receipt created or updated' })
+  @ApiCreatedResponse({ description: 'Read receipt created or updated' })
   @ApiNotFoundResponse({ description: 'Message or channel not found' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   async markAsRead(
