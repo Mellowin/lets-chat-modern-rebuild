@@ -15,12 +15,13 @@ import { ReadReceiptsController } from './read-receipts.controller';
 import { MessagesSearchService } from './messages-search.service';
 import { SearchController } from './search.controller';
 import { StorageModule } from '../storage/storage.module';
+import { WebsocketModule } from '../websocket/websocket.module';
 import { AttachmentsService } from './attachments.service';
 import { AttachmentsRepository } from './attachments.repository';
 import { AttachmentsController } from './attachments.controller';
 
 @Module({
-  imports: [AuthModule, UsersModule, WorkspacesModule, ChannelsModule, StorageModule],
+  imports: [AuthModule, UsersModule, WorkspacesModule, ChannelsModule, StorageModule, WebsocketModule],
   controllers: [MessagesController, ReactionsController, ReadReceiptsController, SearchController, AttachmentsController],
   providers: [MessagesService, MessagesRepository, ReactionsService, ReactionsRepository, ReadReceiptsService, ReadReceiptsRepository, MessagesSearchService, AttachmentsService, AttachmentsRepository],
   exports: [MessagesService, MessagesRepository, ReactionsService, ReactionsRepository, ReadReceiptsService, ReadReceiptsRepository, MessagesSearchService, AttachmentsService, AttachmentsRepository],

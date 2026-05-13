@@ -33,7 +33,7 @@ export class WebsocketGateway
   implements OnGatewayConnection, OnGatewayDisconnect
 {
   @WebSocketServer()
-  private readonly server: Server;
+  server: Server;
 
   private readonly logger = new Logger(WebsocketGateway.name);
 
@@ -110,6 +110,10 @@ export class WebsocketGateway
   handleDisconnect(socket: Socket) {
     const userId = socket.data.user?.id;
     this.logger.log({ socketId: socket.id, userId }, 'Socket disconnected');
+  }
+
+  broadcastToRoom(room: string, event: string, payload: unknown) {
+    this.server.to(room).emit(event, payload);
   }
 
   @SubscribeMessage('channel:join')
