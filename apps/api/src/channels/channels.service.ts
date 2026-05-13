@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@lets-chat/database';
+import { ChannelType, Prisma } from '@lets-chat/database';
 import { WorkspacesRepository } from '../workspaces/workspaces.repository';
 import { ChannelsRepository } from './channels.repository';
 import { CreateChannelDto } from './dto/create-channel.dto';
@@ -21,6 +21,8 @@ export class ChannelsService {
     dto: CreateChannelDto,
     userId: string,
   ) {
+    // Any active WorkspaceMember may create a channel.
+    // The creator receives ChannelMember OWNER role.
     const role = await this.workspaces.findMemberRole(workspaceId, userId);
     if (!role) {
       throw new NotFoundException('Workspace not found');
@@ -43,7 +45,7 @@ export class ChannelsService {
           name: dto.name.trim(),
           slug,
           description: dto.description?.trim(),
-          type: dto.type,
+          type: dto.type ?? ChannelType.PUBLIC,
           createdById: userId,
         },
         userId,
@@ -74,6 +76,7 @@ export class ChannelsService {
       .replace(/[^a-z0-9\s-]/g, '')
       .replace(/\s+/g, '-')
       .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '')
       .substring(0, 50);
   }
 }
