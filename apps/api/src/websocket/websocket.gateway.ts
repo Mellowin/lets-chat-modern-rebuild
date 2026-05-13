@@ -8,9 +8,13 @@ import { Socket } from 'socket.io';
 import { TokenService } from '../auth/token.service';
 import { UsersRepository } from '../users/users.repository';
 
+const websocketCorsOrigin = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map((origin) => origin.trim())
+  : ['http://localhost:3000', 'http://127.0.0.1:3000'];
+
 @WebSocketGateway({
   cors: {
-    origin: true,
+    origin: websocketCorsOrigin,
     credentials: true,
   },
 })
@@ -24,14 +28,25 @@ export class WebsocketGateway
     private readonly usersRepository: UsersRepository,
   ) {}
 
+  private getHandshakeToken(socket: Socket): string | null {
+    const token = socket.handshake.auth?.token;
+
+    if (typeof token !== 'string') {
+      return null;
+    }
+
+    const trimmed = token.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
   async handleConnection(socket: Socket) {
     const socketId = socket.id;
 
     try {
-      const token = socket.handshake.auth.token as string | undefined;
+      const token = this.getHandshakeToken(socket);
 
       if (!token) {
-        this.logger.warn({ socketId }, 'Socket connection rejected: missing token');
+        this.logger.warn({ socketId }, 'Socket connection rejected: missing or malformed token');
         socket.emit('auth:error', { message: 'Access token missing' });
         socket.disconnect(true);
         return;
