@@ -147,7 +147,9 @@ export class MessagesService {
     }
 
     const updated = await this.messages.updateMessage(messageId, message.content, dto.content, userId);
-    return this.toMessageResponse(updated);
+    const response = this.toMessageResponse(updated);
+    this.websocketEvents.broadcastMessageUpdated(channelId, response);
+    return response;
   }
 
   async remove(
@@ -171,5 +173,10 @@ export class MessagesService {
     }
 
     await this.messages.softDeleteMessage(messageId);
+    this.websocketEvents.broadcastMessageDeleted(channelId, {
+      id: messageId,
+      channelId,
+      deletedAt: new Date(),
+    });
   }
 }
