@@ -12,11 +12,13 @@ import { ReactionsController } from './reactions.controller';
 import { ReadReceiptsService } from './read-receipts.service';
 import { ReadReceiptsRepository } from './read-receipts.repository';
 import { ReadReceiptsController } from './read-receipts.controller';
+import { MessagesSearchService } from './messages-search.service';
+import { SearchController } from './search.controller';
 
 @Module({
   imports: [AuthModule, UsersModule, WorkspacesModule, ChannelsModule],
-  controllers: [MessagesController, ReactionsController, ReadReceiptsController],
-  providers: [MessagesService, MessagesRepository, ReactionsService, ReactionsRepository, ReadReceiptsService, ReadReceiptsRepository],
-  exports: [MessagesService, MessagesRepository, ReactionsService, ReactionsRepository, ReadReceiptsService, ReadReceiptsRepository],
+  controllers: [MessagesController, ReactionsController, ReadReceiptsController, SearchController],
+  providers: [MessagesService, MessagesRepository, ReactionsService, ReactionsRepository, ReadReceiptsService, ReadReceiptsRepository, MessagesSearchService],
+  exports: [MessagesService, MessagesRepository, ReactionsService, ReactionsRepository, ReadReceiptsService, ReadReceiptsRepository, MessagesSearchService],
 })
 export class MessagesModule {}

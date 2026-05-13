@@ -394,7 +394,31 @@ Body:
 | Deleted message | `404 Not Found` |
 | Without token | `401 Unauthorized` |
 
-### 12. API Documentation (Swagger)
+### 12. Search
+
+**GET** `/api/v1/workspaces/:workspaceId/search/messages`
+
+Query params:
+
+- `q` — search query, min 2, max 100
+- `channelId` — optional UUID filter
+- `limit` — default `20`, max `50`
+
+| Scenario | Expected |
+|----------|----------|
+| Search public messages | `200 OK` + ranked results with author and channel |
+| Search with `channelId` | `200 OK` + results filtered to channel |
+| Short `q` (< 2) | `400 Bad Request` |
+| Invalid `channelId` | `400 Bad Request` |
+| Private channel as non-member (with channelId) | `404 Not Found` |
+| Random workspaceId | `404 Not Found` |
+| Without token | `401 Unauthorized` |
+
+- Uses PostgreSQL full-text search (`searchVector` + GIN index).
+- Deleted messages are excluded.
+- Results ordered by relevance desc, then `createdAt` desc.
+
+### 13. API Documentation (Swagger)
 
 Open: http://localhost:3001/api/docs
 
