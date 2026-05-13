@@ -9,11 +9,14 @@ import { MessagesController } from './messages.controller';
 import { ReactionsService } from './reactions.service';
 import { ReactionsRepository } from './reactions.repository';
 import { ReactionsController } from './reactions.controller';
+import { ReadReceiptsService } from './read-receipts.service';
+import { ReadReceiptsRepository } from './read-receipts.repository';
+import { ReadReceiptsController } from './read-receipts.controller';
 
 @Module({
   imports: [AuthModule, UsersModule, WorkspacesModule, ChannelsModule],
-  controllers: [MessagesController, ReactionsController],
-  providers: [MessagesService, MessagesRepository, ReactionsService, ReactionsRepository],
-  exports: [MessagesService, MessagesRepository, ReactionsService, ReactionsRepository],
+  controllers: [MessagesController, ReactionsController, ReadReceiptsController],
+  providers: [MessagesService, MessagesRepository, ReactionsService, ReactionsRepository, ReadReceiptsService, ReadReceiptsRepository],
+  exports: [MessagesService, MessagesRepository, ReactionsService, ReactionsRepository, ReadReceiptsService, ReadReceiptsRepository],
 })
 export class MessagesModule {}

@@ -372,7 +372,29 @@ Body:
 | Deleted message | `404 Not Found` |
 | Without token | `401 Unauthorized` |
 
-### 11. API Documentation (Swagger)
+### 11. Read Receipts
+
+**POST** `/api/v1/workspaces/:workspaceId/channels/:channelId/messages/:messageId/read`
+
+| Scenario | Expected |
+|----------|----------|
+| Mark message as read | `201 Created` + read receipt object |
+| Mark same message again | `201 Created` — idempotent upsert, updates `readAt` |
+| Deleted message | `404 Not Found` |
+| Private channel as non-member | `404 Not Found` |
+| Without token | `401 Unauthorized` |
+
+- Duplicate read receipts for the same user/message are prevented by unique index.
+
+**GET** `/api/v1/workspaces/:workspaceId/channels/:channelId/messages/:messageId/read-receipts`
+
+| Scenario | Expected |
+|----------|----------|
+| List read receipts | `200 OK` + `[{ id, messageId, userId, channelId, readAt, createdAt, user }]` |
+| Deleted message | `404 Not Found` |
+| Without token | `401 Unauthorized` |
+
+### 12. API Documentation (Swagger)
 
 Open: http://localhost:3001/api/docs
 
