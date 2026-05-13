@@ -19,4 +19,11 @@ export const envValidationSchema = Joi.object({
   PORT: Joi.number().port().default(3001),
 
   CORS_ORIGIN: Joi.string().uri().optional(),
+
+  S3_ENDPOINT: Joi.string().uri().required(),
+  S3_REGION: Joi.string().default('us-east-1'),
+  S3_ACCESS_KEY: Joi.string().required(),
+  S3_SECRET_KEY: Joi.string().required(),
+  S3_BUCKET: Joi.string().required(),
+  S3_FORCE_PATH_STYLE: Joi.boolean().default(true),
 });
