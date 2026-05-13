@@ -312,7 +312,7 @@ Body:
 |----------|----------|
 | As author within 15 min | `200 OK` + updated message with `editedAt` set |
 | As non-author | `403 Forbidden` — Only the author can edit |
-| After 15 min window | `403 Forbidden` — Message edit window has expired |
+| After 15 min window | `422 Unprocessable Entity` — Message edit window has expired |
 | Random messageId | `404 Not Found` |
 | Already deleted message | `404 Not Found` |
 | Without token | `401 Unauthorized` |

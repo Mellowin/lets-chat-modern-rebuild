@@ -23,6 +23,7 @@ import {
   ApiNotFoundResponse,
   ApiUnauthorizedResponse,
   ApiForbiddenResponse,
+  ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import { MessagesService } from './messages.service';
 import { CreateMessageDto } from './dto/create-message.dto';
@@ -72,7 +73,8 @@ export class MessagesController {
   @ApiOperation({ summary: 'Update message' })
   @ApiOkResponse({ description: 'Message updated' })
   @ApiBadRequestResponse({ description: 'Validation failed' })
-  @ApiForbiddenResponse({ description: 'Not author or edit window expired' })
+  @ApiForbiddenResponse({ description: 'Only the author can edit this message' })
+  @ApiUnprocessableEntityResponse({ description: 'Message edit window has expired' })
   @ApiNotFoundResponse({ description: 'Message or channel not found' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   async update(

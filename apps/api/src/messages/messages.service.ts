@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { WorkspacesRepository } from '../workspaces/workspaces.repository';
 import { ChannelsRepository } from '../channels/channels.repository';
@@ -107,7 +108,7 @@ export class MessagesService {
 
     const editWindowMs = 15 * 60 * 1000;
     if (Date.now() - message.createdAt.getTime() > editWindowMs) {
-      throw new ForbiddenException('Message edit window has expired');
+      throw new UnprocessableEntityException('Message edit window has expired');
     }
 
     return this.messages.updateMessage(messageId, message.content, dto.content, userId);
