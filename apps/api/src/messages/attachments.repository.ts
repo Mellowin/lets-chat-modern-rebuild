@@ -5,6 +5,12 @@ import { PrismaService, StorageBackend } from '@lets-chat/database';
 export class AttachmentsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  async findById(id: string) {
+    return this.prisma.attachment.findUnique({
+      where: { id },
+    });
+  }
+
   async createAttachment(data: {
     messageId: string;
     createdById: string;

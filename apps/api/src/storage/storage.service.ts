@@ -7,6 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import {
   S3Client,
   PutObjectCommand,
+  HeadObjectCommand,
   HeadBucketCommand,
   CreateBucketCommand,
   NotFound,
@@ -61,6 +62,12 @@ export class StorageService implements OnModuleInit {
         throw error;
       }
     }
+  }
+
+  async headObject(objectKey: string) {
+    return this.client.send(
+      new HeadObjectCommand({ Bucket: this.bucket, Key: objectKey }),
+    );
   }
 
   async getPresignedUploadUrl(

@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { StorageBackend } from '@lets-chat/database';
 import { ChannelsService } from '../channels/channels.service';
 import { MessagesRepository } from './messages.repository';
@@ -29,9 +34,6 @@ export class AttachmentsService {
     const sanitized = dto.filename.replace(/[^a-zA-Z0-9._-]/g, '_');
     const objectKey = `workspaces/${workspaceId}/channels/${channelId}/messages/${messageId}/${randomUUID()}-${sanitized}`;
 
-    // TODO: Attachment row is created before actual upload.
-    // A future complete/confirm endpoint should HEAD the object in MinIO
-    // and verify real size + content-type before marking as confirmed.
     const attachment = await this.attachments.createAttachment({
       messageId,
       createdById: userId,
@@ -56,6 +58,66 @@ export class AttachmentsService {
       objectKey,
       expiresInSeconds,
     };
+  }
+
+  async complete(
+    workspaceId: string,
+    channelId: string,
+    messageId: string,
+    attachmentId: string,
+    userId: string,
+  ) {
+    await this.channels.findById(workspaceId, channelId, userId);
+    await this.validateMessage(channelId, messageId);
+
+    const attachment = await this.attachments.findById(attachmentId);
+    if (
+      !attachment ||
+      attachment.messageId !== messageId ||
+      attachment.createdById !== userId ||
+      attachment.deletedAt !== null
+    ) {
+      throw new NotFoundException('Attachment not found');
+    }
+
+    try {
+      const head = await this.storage.headObject(attachment.storageKey);
+
+      if (head.ContentLength !== attachment.size) {
+        throw new UnprocessableEntityException(
+          'Uploaded file size does not match expected size',
+        );
+      }
+
+      if (head.ContentType && head.ContentType !== attachment.mimeType) {
+        throw new UnprocessableEntityException(
+          'Uploaded file type does not match expected type',
+        );
+      }
+
+      return {
+        id: attachment.id,
+        filename: attachment.filename,
+        mimeType: attachment.mimeType,
+        sizeBytes: attachment.size,
+        storageKey: attachment.storageKey,
+        createdAt: attachment.createdAt,
+      };
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof UnprocessableEntityException
+      ) {
+        throw error;
+      }
+      if (
+        (error as any).name === 'NotFound' ||
+        (error as any).$metadata?.httpStatusCode === 404
+      ) {
+        throw new ConflictException('Upload not completed');
+      }
+      throw error;
+    }
   }
 
   private async validateMessage(channelId: string, messageId: string) {
