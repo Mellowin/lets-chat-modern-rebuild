@@ -1,4 +1,4 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsString,
   MinLength,
@@ -12,7 +12,7 @@ import {
 import { Transform } from 'class-transformer';
 
 export class SearchMessagesQueryDto {
-  @ApiPropertyOptional({ example: 'hello world' })
+  @ApiProperty({ example: 'hello world' })
   @IsString()
   @MinLength(2)
   @MaxLength(100)
@@ -31,6 +31,9 @@ export class SearchMessagesQueryDto {
   @IsInt()
   @Min(1)
   @Max(50)
-  @Transform(({ value }) => (value ? parseInt(value, 10) : 20))
+  @Transform(({ value }) => {
+    if (value === undefined || value === null || value === '') return 20;
+    return Number(value);
+  })
   limit?: number;
 }
