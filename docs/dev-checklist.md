@@ -360,6 +360,7 @@ Body:
 |----------|----------|
 | Remove own reaction | `204 No Content` — soft deleted |
 | Remove missing reaction | `404 Not Found` |
+| Invalid/empty emoji | `400 Bad Request` |
 | Deleted message | `404 Not Found` |
 | Without token | `401 Unauthorized` |
 

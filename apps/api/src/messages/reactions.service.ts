@@ -1,8 +1,10 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '@lets-chat/database';
 import { ChannelsService } from '../channels/channels.service';
 import { MessagesRepository } from './messages.repository';
 import { ReactionsRepository } from './reactions.repository';
@@ -41,14 +43,34 @@ export class ReactionsService {
       dto.emoji,
     );
     if (deleted) {
-      return this.reactions.restore(deleted.id);
+      try {
+        return await this.reactions.restore(deleted.id);
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002'
+        ) {
+          throw new ConflictException('Reaction already exists');
+        }
+        throw error;
+      }
     }
 
-    return this.reactions.create({
-      messageId,
-      userId,
-      emoji: dto.emoji,
-    });
+    try {
+      return await this.reactions.create({
+        messageId,
+        userId,
+        emoji: dto.emoji,
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('Reaction already exists');
+      }
+      throw error;
+    }
   }
 
   async removeReaction(
@@ -61,7 +83,16 @@ export class ReactionsService {
     await this.channels.findById(workspaceId, channelId, userId);
     await this.validateMessage(channelId, messageId);
 
-    const active = await this.reactions.findActive(messageId, userId, emoji);
+    const normalizedEmoji = emoji.trim();
+    if (!normalizedEmoji || normalizedEmoji.length > 32) {
+      throw new BadRequestException('Invalid emoji');
+    }
+
+    const active = await this.reactions.findActive(
+      messageId,
+      userId,
+      normalizedEmoji,
+    );
     if (!active) {
       throw new NotFoundException('Reaction not found');
     }

@@ -18,6 +18,7 @@ import {
   ApiOkResponse,
   ApiNoContentResponse,
   ApiConflictResponse,
+  ApiBadRequestResponse,
   ApiNotFoundResponse,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
@@ -60,6 +61,7 @@ export class ReactionsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remove own reaction' })
   @ApiNoContentResponse({ description: 'Reaction removed' })
+  @ApiBadRequestResponse({ description: 'Invalid emoji' })
   @ApiNotFoundResponse({ description: 'Reaction or message not found' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   async remove(
