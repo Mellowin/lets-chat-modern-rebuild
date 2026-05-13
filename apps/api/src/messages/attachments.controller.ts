@@ -1,5 +1,6 @@
 import {
   Controller,
+  Get,
   Post,
   Body,
   Param,
@@ -10,6 +11,7 @@ import {
   ApiTags,
   ApiOperation,
   ApiBearerAuth,
+  ApiOkResponse,
   ApiCreatedResponse,
   ApiBadRequestResponse,
   ApiNotFoundResponse,
@@ -69,6 +71,28 @@ export class AttachmentsController {
     @CurrentUser() user: AuthUserResponse,
   ) {
     return this.attachments.complete(
+      workspaceId,
+      channelId,
+      messageId,
+      attachmentId,
+      user.id,
+    );
+  }
+
+  @Get(':attachmentId/download')
+  @ApiOperation({ summary: 'Get presigned download URL for attachment' })
+  @ApiOkResponse({ description: 'Presigned download URL created' })
+  @ApiConflictResponse({ description: 'Upload not completed' })
+  @ApiNotFoundResponse({ description: 'Attachment or message not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async download(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Param('channelId', ParseUUIDPipe) channelId: string,
+    @Param('messageId', ParseUUIDPipe) messageId: string,
+    @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.attachments.download(
       workspaceId,
       channelId,
       messageId,

@@ -7,6 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import {
   S3Client,
   PutObjectCommand,
+  GetObjectCommand,
   HeadObjectCommand,
   HeadBucketCommand,
   CreateBucketCommand,
@@ -86,5 +87,21 @@ export class StorageService implements OnModuleInit {
     });
 
     return { uploadUrl, objectKey, expiresInSeconds };
+  }
+
+  async getPresignedDownloadUrl(
+    objectKey: string,
+    expiresInSeconds = 300,
+  ) {
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: objectKey,
+    });
+
+    const downloadUrl = await getSignedUrl(this.client, command, {
+      expiresIn: expiresInSeconds,
+    });
+
+    return { downloadUrl, objectKey, expiresInSeconds };
   }
 }

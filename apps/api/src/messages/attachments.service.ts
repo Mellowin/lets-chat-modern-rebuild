@@ -120,6 +120,53 @@ export class AttachmentsService {
     }
   }
 
+  async download(
+    workspaceId: string,
+    channelId: string,
+    messageId: string,
+    attachmentId: string,
+    userId: string,
+  ) {
+    await this.channels.findById(workspaceId, channelId, userId);
+    await this.validateMessage(channelId, messageId);
+
+    const attachment = await this.attachments.findById(attachmentId);
+    if (
+      !attachment ||
+      attachment.messageId !== messageId ||
+      attachment.deletedAt !== null
+    ) {
+      throw new NotFoundException('Attachment not found');
+    }
+
+    try {
+      await this.storage.headObject(attachment.storageKey);
+    } catch (error) {
+      if (
+        (error as any).name === 'NotFound' ||
+        (error as any).$metadata?.httpStatusCode === 404
+      ) {
+        throw new ConflictException('Upload not completed');
+      }
+      throw error;
+    }
+
+    const { downloadUrl, expiresInSeconds } =
+      await this.storage.getPresignedDownloadUrl(
+        attachment.storageKey,
+        300,
+      );
+
+    return {
+      attachmentId: attachment.id,
+      filename: attachment.filename,
+      mimeType: attachment.mimeType,
+      sizeBytes: attachment.size,
+      downloadUrl,
+      expiresInSeconds,
+    };
+  }
+
   private async validateMessage(channelId: string, messageId: string) {
     const message = await this.messages.findById(messageId);
     if (!message || message.channelId !== channelId || message.deletedAt !== null) {
