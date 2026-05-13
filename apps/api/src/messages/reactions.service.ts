@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@lets-chat/database';
@@ -14,6 +15,8 @@ import { CreateReactionDto } from './dto/create-reaction.dto';
 
 @Injectable()
 export class ReactionsService {
+  private readonly logger = new Logger(ReactionsService.name);
+
   constructor(
     private readonly channels: ChannelsService,
     private readonly messages: MessagesRepository,
@@ -127,18 +130,25 @@ export class ReactionsService {
     emoji: string,
     userId: string,
   ) {
-    const user = await this.users.findById(userId);
-    if (!user) return;
+    try {
+      const user = await this.users.findById(userId);
+      if (!user) return;
 
-    this.websocketEvents.broadcastReactionAdded(channelId, {
-      messageId,
-      channelId,
-      emoji,
-      user: {
-        id: user.id,
-        username: user.username,
-      },
-    });
+      this.websocketEvents.broadcastReactionAdded(channelId, {
+        messageId,
+        channelId,
+        emoji,
+        user: {
+          id: user.id,
+          username: user.username,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        { channelId, messageId, userId, error: (error as Error).message },
+        'Failed to prepare reaction:added broadcast',
+      );
+    }
   }
 
   private async broadcastReactionRemoved(
@@ -147,18 +157,25 @@ export class ReactionsService {
     emoji: string,
     userId: string,
   ) {
-    const user = await this.users.findById(userId);
-    if (!user) return;
+    try {
+      const user = await this.users.findById(userId);
+      if (!user) return;
 
-    this.websocketEvents.broadcastReactionRemoved(channelId, {
-      messageId,
-      channelId,
-      emoji,
-      user: {
-        id: user.id,
-        username: user.username,
-      },
-    });
+      this.websocketEvents.broadcastReactionRemoved(channelId, {
+        messageId,
+        channelId,
+        emoji,
+        user: {
+          id: user.id,
+          username: user.username,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        { channelId, messageId, userId, error: (error as Error).message },
+        'Failed to prepare reaction:removed broadcast',
+      );
+    }
   }
 
   private async validateMessage(channelId: string, messageId: string) {
