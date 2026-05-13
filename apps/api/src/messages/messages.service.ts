@@ -77,7 +77,16 @@ export class MessagesService {
       parentId: dto.parentId,
     });
 
-    this.websocketEvents.broadcastMessageCreated(channelId, message);
+    this.websocketEvents.broadcastMessageCreated(channelId, {
+      id: message.id,
+      channelId: message.channelId,
+      content: message.content,
+      parentId: message.parentId,
+      createdAt: message.createdAt,
+      updatedAt: message.updatedAt,
+      editedAt: message.editedAt,
+      author: message.author,
+    });
 
     return message;
   }
