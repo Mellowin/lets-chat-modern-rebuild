@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@lets-chat/database';
+import { PrismaService, WorkspaceRole } from '@lets-chat/database';
 
 interface CreateWorkspaceInput {
   name: string;
@@ -55,6 +55,41 @@ export class WorkspacesRepository {
         },
       },
       orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async findActiveById(id: string) {
+    return this.prisma.workspace.findFirst({
+      where: { id, deletedAt: null },
+    });
+  }
+
+  async findMemberRole(
+    workspaceId: string,
+    userId: string,
+  ): Promise<WorkspaceRole | null> {
+    const member = await this.prisma.workspaceMember.findFirst({
+      where: {
+        workspaceId,
+        userId,
+        deletedAt: null,
+      },
+      select: { role: true },
+    });
+    return member?.role ?? null;
+  }
+
+  async updateName(id: string, name: string) {
+    return this.prisma.workspace.update({
+      where: { id },
+      data: { name },
+    });
+  }
+
+  async archive(id: string) {
+    return this.prisma.workspace.update({
+      where: { id },
+      data: { deletedAt: new Date() },
     });
   }
 }

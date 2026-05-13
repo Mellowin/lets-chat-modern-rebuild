@@ -1,7 +1,13 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@lets-chat/database';
 import { WorkspacesRepository } from './workspaces.repository';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
+import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 
 @Injectable()
 export class WorkspacesService {
@@ -32,5 +38,42 @@ export class WorkspacesService {
 
   async listForUser(userId: string) {
     return this.workspaces.listForUser(userId);
+  }
+
+  async findById(workspaceId: string, userId: string) {
+    const workspace = await this.workspaces.findActiveById(workspaceId);
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+    const role = await this.workspaces.findMemberRole(workspaceId, userId);
+    if (!role) {
+      throw new NotFoundException('Workspace not found');
+    }
+    return workspace;
+  }
+
+  async update(workspaceId: string, userId: string, dto: UpdateWorkspaceDto) {
+    const workspace = await this.workspaces.findActiveById(workspaceId);
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+    const role = await this.workspaces.findMemberRole(workspaceId, userId);
+    if (role !== 'OWNER' && role !== 'ADMIN') {
+      throw new ForbiddenException('Insufficient permissions');
+    }
+    return this.workspaces.updateName(workspaceId, dto.name);
+  }
+
+  async archive(workspaceId: string, userId: string) {
+    const workspace = await this.workspaces.findActiveById(workspaceId);
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+    const role = await this.workspaces.findMemberRole(workspaceId, userId);
+    if (role !== 'OWNER') {
+      throw new ForbiddenException('Only owner can archive workspace');
+    }
+    await this.workspaces.archive(workspaceId);
+    return { success: true };
   }
 }

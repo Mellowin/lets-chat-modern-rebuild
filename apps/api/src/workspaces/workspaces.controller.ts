@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  Param,
+  HttpCode,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -7,10 +16,13 @@ import {
   ApiOkResponse,
   ApiConflictResponse,
   ApiBadRequestResponse,
+  ApiForbiddenResponse,
+  ApiNotFoundResponse,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { WorkspacesService } from './workspaces.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
+import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUserResponse } from '../auth/auth.service';
@@ -41,5 +53,46 @@ export class WorkspacesController {
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   async findAll(@CurrentUser() user: AuthUserResponse) {
     return this.workspaces.listForUser(user.id);
+  }
+
+  @Get(':workspaceId')
+  @ApiOperation({ summary: 'Get workspace by id' })
+  @ApiOkResponse({ description: 'Workspace found' })
+  @ApiNotFoundResponse({ description: 'Workspace not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async findOne(
+    @Param('workspaceId') workspaceId: string,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.workspaces.findById(workspaceId, user.id);
+  }
+
+  @Patch(':workspaceId')
+  @ApiOperation({ summary: 'Update workspace' })
+  @ApiOkResponse({ description: 'Workspace updated' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiForbiddenResponse({ description: 'Forbidden' })
+  @ApiNotFoundResponse({ description: 'Workspace not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async update(
+    @Param('workspaceId') workspaceId: string,
+    @Body() dto: UpdateWorkspaceDto,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.workspaces.update(workspaceId, user.id, dto);
+  }
+
+  @Post(':workspaceId/archive')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Archive workspace' })
+  @ApiOkResponse({ description: 'Workspace archived' })
+  @ApiForbiddenResponse({ description: 'Forbidden' })
+  @ApiNotFoundResponse({ description: 'Workspace not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async archive(
+    @Param('workspaceId') workspaceId: string,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.workspaces.archive(workspaceId, user.id);
   }
 }
