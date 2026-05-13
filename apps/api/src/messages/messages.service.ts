@@ -22,6 +22,33 @@ export class MessagesService {
     private readonly websocketEvents: WebsocketEventsService,
   ) {}
 
+  private toMessageResponse(message: {
+    id: string;
+    channelId: string;
+    content: string;
+    parentId: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    editedAt: Date | null;
+    author: {
+      id: string;
+      username: string;
+      displayName: string | null;
+      avatarUrl: string | null;
+    };
+  }) {
+    return {
+      id: message.id,
+      channelId: message.channelId,
+      content: message.content,
+      parentId: message.parentId,
+      createdAt: message.createdAt,
+      updatedAt: message.updatedAt,
+      editedAt: message.editedAt,
+      author: message.author,
+    };
+  }
+
   private async validateChannelAccess(
     workspaceId: string,
     channelId: string,
@@ -77,18 +104,10 @@ export class MessagesService {
       parentId: dto.parentId,
     });
 
-    this.websocketEvents.broadcastMessageCreated(channelId, {
-      id: message.id,
-      channelId: message.channelId,
-      content: message.content,
-      parentId: message.parentId,
-      createdAt: message.createdAt,
-      updatedAt: message.updatedAt,
-      editedAt: message.editedAt,
-      author: message.author,
-    });
+    const response = this.toMessageResponse(message);
+    this.websocketEvents.broadcastMessageCreated(channelId, response);
 
-    return message;
+    return response;
   }
 
   async list(
@@ -101,7 +120,8 @@ export class MessagesService {
 
     const limit = Math.min(query.limit ?? 50, 100);
     const before = query.before ? new Date(query.before) : undefined;
-    return this.messages.listForChannel(channelId, limit, before);
+    const messages = await this.messages.listForChannel(channelId, limit, before);
+    return messages.map((m) => this.toMessageResponse(m));
   }
 
   async update(
@@ -126,7 +146,8 @@ export class MessagesService {
       throw new UnprocessableEntityException('Message edit window has expired');
     }
 
-    return this.messages.updateMessage(messageId, message.content, dto.content, userId);
+    const updated = await this.messages.updateMessage(messageId, message.content, dto.content, userId);
+    return this.toMessageResponse(updated);
   }
 
   async remove(
