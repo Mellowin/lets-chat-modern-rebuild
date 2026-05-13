@@ -221,6 +221,42 @@ Body:
 - Private channels are visible only to explicit ChannelMembers.
 - Any active WorkspaceMember may create a channel and becomes its ChannelMember OWNER.
 
+**GET** `/api/v1/workspaces/:workspaceId/channels/:channelId`
+
+| Scenario | Expected |
+|----------|----------|
+| Public channel as workspace member | `200 OK` + channel object |
+| Private channel as creator | `200 OK` + channel object |
+| Private channel as non-member | `404 Not Found` |
+| Random channelId | `404 Not Found` |
+| Without token | `401 Unauthorized` |
+
+**PATCH** `/api/v1/workspaces/:workspaceId/channels/:channelId`
+
+Body:
+
+```json
+{
+  "name": "Updated Name"
+}
+```
+
+| Scenario | Expected |
+|----------|----------|
+| As Channel OWNER | `200 OK` + updated channel |
+| With slug/type in body | `400 Bad Request` — Validation failed |
+| Public channel as workspace member without channel role | `403 Forbidden` |
+| Private channel as non-member | `404 Not Found` |
+
+**POST** `/api/v1/workspaces/:workspaceId/channels/:channelId/archive`
+
+| Scenario | Expected |
+|----------|----------|
+| As Channel OWNER | `200 OK` + `{ success: true }` |
+| Public channel as workspace member without channel role | `403 Forbidden` |
+| Private channel as non-member | `404 Not Found` |
+| Archived channel in list | Disappears from `GET /workspaces/:workspaceId/channels` |
+
 ### 9. API Documentation (Swagger)
 
 Open: http://localhost:3001/api/docs
