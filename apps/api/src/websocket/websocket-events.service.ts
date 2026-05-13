@@ -124,4 +124,26 @@ export class WebsocketEventsService {
       );
     }
   }
+
+  broadcastReadReceipt(
+    channelId: string,
+    payload: {
+      messageId: string;
+      channelId: string;
+      user: {
+        id: string;
+        username: string;
+      };
+      readAt: Date;
+    },
+  ) {
+    try {
+      this.gateway.broadcastToRoom(`channel:${channelId}`, 'read:updated', payload);
+    } catch (error) {
+      this.logger.error(
+        { channelId, messageId: payload.messageId, error: (error as Error).message },
+        'Failed to broadcast read:updated',
+      );
+    }
+  }
 }
