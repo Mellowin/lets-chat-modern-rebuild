@@ -418,7 +418,33 @@ Query params:
 - Deleted messages are excluded.
 - Results ordered by relevance desc, then `createdAt` desc.
 
-### 13. API Documentation (Swagger)
+### 13. Attachments
+
+**POST** `/api/v1/workspaces/:workspaceId/channels/:channelId/messages/:messageId/attachments/presign`
+
+Body:
+
+```json
+{
+  "filename": "document.pdf",
+  "mimeType": "application/pdf",
+  "sizeBytes": 123456
+}
+```
+
+| Scenario | Expected |
+|----------|----------|
+| Valid presign | `201 Created` + `{ attachmentId, uploadUrl, objectKey, expiresInSeconds }` |
+| Invalid mimeType | `400 Bad Request` |
+| Too large sizeBytes (>10MB) | `400 Bad Request` |
+| Deleted message | `404 Not Found` |
+| Private channel as non-member | `404 Not Found` |
+| Without token | `401 Unauthorized` |
+
+- `mimeType` allowlist: `image/png`, `image/jpeg`, `image/webp`, `application/pdf`, `text/plain`.
+- `objectKey` pattern: `workspaces/{ws}/channels/{ch}/messages/{msg}/{uuid}-{sanitizedFilename}`.
+
+### 14. API Documentation (Swagger)
 
 Open: http://localhost:3001/api/docs
 

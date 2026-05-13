@@ -1,0 +1,64 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { StorageBackend } from '@lets-chat/database';
+import { ChannelsService } from '../channels/channels.service';
+import { MessagesRepository } from './messages.repository';
+import { AttachmentsRepository } from './attachments.repository';
+import { StorageService } from '../storage/storage.service';
+import { PresignAttachmentDto } from './dto/presign-attachment.dto';
+import { randomUUID } from 'crypto';
+
+@Injectable()
+export class AttachmentsService {
+  constructor(
+    private readonly channels: ChannelsService,
+    private readonly messages: MessagesRepository,
+    private readonly attachments: AttachmentsRepository,
+    private readonly storage: StorageService,
+  ) {}
+
+  async presign(
+    workspaceId: string,
+    channelId: string,
+    messageId: string,
+    dto: PresignAttachmentDto,
+    userId: string,
+  ) {
+    await this.channels.findById(workspaceId, channelId, userId);
+    await this.validateMessage(channelId, messageId);
+
+    const sanitized = dto.filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const objectKey = `workspaces/${workspaceId}/channels/${channelId}/messages/${messageId}/${randomUUID()}-${sanitized}`;
+
+    const attachment = await this.attachments.createAttachment({
+      messageId,
+      createdById: userId,
+      filename: sanitized,
+      originalName: dto.filename,
+      mimeType: dto.mimeType,
+      size: dto.sizeBytes,
+      storageKey: objectKey,
+      storageBackend: StorageBackend.MINIO,
+    });
+
+    const { uploadUrl, expiresInSeconds } =
+      await this.storage.getPresignedUploadUrl(
+        objectKey,
+        dto.mimeType,
+        300,
+      );
+
+    return {
+      attachmentId: attachment.id,
+      uploadUrl,
+      objectKey,
+      expiresInSeconds,
+    };
+  }
+
+  private async validateMessage(channelId: string, messageId: string) {
+    const message = await this.messages.findById(messageId);
+    if (!message || message.channelId !== channelId || message.deletedAt !== null) {
+      throw new NotFoundException('Message not found');
+    }
+  }
+}

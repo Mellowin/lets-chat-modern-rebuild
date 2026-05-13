@@ -14,11 +14,15 @@ import { ReadReceiptsRepository } from './read-receipts.repository';
 import { ReadReceiptsController } from './read-receipts.controller';
 import { MessagesSearchService } from './messages-search.service';
 import { SearchController } from './search.controller';
+import { StorageModule } from '../storage/storage.module';
+import { AttachmentsService } from './attachments.service';
+import { AttachmentsRepository } from './attachments.repository';
+import { AttachmentsController } from './attachments.controller';
 
 @Module({
-  imports: [AuthModule, UsersModule, WorkspacesModule, ChannelsModule],
-  controllers: [MessagesController, ReactionsController, ReadReceiptsController, SearchController],
-  providers: [MessagesService, MessagesRepository, ReactionsService, ReactionsRepository, ReadReceiptsService, ReadReceiptsRepository, MessagesSearchService],
-  exports: [MessagesService, MessagesRepository, ReactionsService, ReactionsRepository, ReadReceiptsService, ReadReceiptsRepository, MessagesSearchService],
+  imports: [AuthModule, UsersModule, WorkspacesModule, ChannelsModule, StorageModule],
+  controllers: [MessagesController, ReactionsController, ReadReceiptsController, SearchController, AttachmentsController],
+  providers: [MessagesService, MessagesRepository, ReactionsService, ReactionsRepository, ReadReceiptsService, ReadReceiptsRepository, MessagesSearchService, AttachmentsService, AttachmentsRepository],
+  exports: [MessagesService, MessagesRepository, ReactionsService, ReactionsRepository, ReadReceiptsService, ReadReceiptsRepository, MessagesSearchService, AttachmentsService, AttachmentsRepository],
 })
 export class MessagesModule {}
