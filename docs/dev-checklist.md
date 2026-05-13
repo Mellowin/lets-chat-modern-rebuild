@@ -196,7 +196,32 @@ Body:
 | As OWNER | `200 OK` + `{ success: true }` |
 | Archived workspace in list | Disappears from `GET /workspaces` |
 
-### 8. API Documentation (Swagger)
+### 8. Channels
+
+**POST** `/api/v1/workspaces/:workspaceId/channels`
+
+| Scenario | Expected |
+|----------|----------|
+| Without token | `401 Unauthorized` |
+| In own workspace | `201 Created` + channel object |
+| Without `type` field | `201 Created` + type `PUBLIC` |
+| Private channel | `201 Created` + type `PRIVATE` |
+| Duplicate slug/name | `409 Conflict` — Channel slug already in use |
+| Name `"Test!!!"` | Slug saved as `test` (no trailing dash) |
+
+**GET** `/api/v1/workspaces/:workspaceId/channels`
+
+| Scenario | Expected |
+|----------|----------|
+| Valid token | `200 OK` + list of public + own private channels |
+| Random workspaceId | `404 Not Found` |
+| Without token | `401 Unauthorized` |
+
+- Public channels are visible to all active workspace members.
+- Private channels are visible only to explicit ChannelMembers.
+- Any active WorkspaceMember may create a channel and becomes its ChannelMember OWNER.
+
+### 9. API Documentation (Swagger)
 
 Open: http://localhost:3001/api/docs
 
