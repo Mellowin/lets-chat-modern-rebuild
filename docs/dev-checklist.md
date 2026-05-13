@@ -485,6 +485,75 @@ Open: http://localhost:3001/api/docs
 - Lists all registered endpoints.
 - Try out requests directly from the browser.
 
+### 15. WebSocket Realtime Events
+
+Connect via Socket.io to `ws://localhost:3001` with `auth: { token }`.
+
+| Event | Direction | Trigger |
+|-------|-----------|---------|
+| `connected` | Server → Client | Successful auth handshake |
+| `auth:error` | Server → Client | Missing/invalid token or user not found |
+| `auth:expired` | Server → Client | Expired or malformed JWT |
+| `channel:joined` | Server → Client | `channel:join` with valid access |
+| `channel:left` | Server → Client | `channel:leave` from a joined room |
+| `channel:error` | Server → Client | Invalid UUID, no access, or room not joined |
+| `message:created` | Server → Client | REST `POST /messages` succeeds |
+| `message:updated` | Server → Client | REST `PATCH /messages/:id` succeeds |
+| `message:deleted` | Server → Client | REST `DELETE /messages/:id` succeeds |
+| `reaction:added` | Server → Client | REST `POST /messages/:id/reactions` succeeds |
+| `reaction:removed` | Server → Client | REST `DELETE /messages/:id/reactions/:emoji` succeeds |
+| `read:updated` | Server → Client | REST `POST /messages/:id/read` succeeds |
+
+**Auth handshake**
+
+| Scenario | Expected |
+|----------|----------|
+| Missing token | `auth:error` + disconnect |
+| Empty string token | `auth:error` + disconnect |
+| Whitespace-only token | `auth:error` + disconnect |
+| Non-string token (object) | `auth:error` + disconnect |
+| Invalid string token | `auth:expired` + disconnect |
+| Valid token | `connected` + `{ userId }` |
+
+**Channel join/leave**
+
+| Scenario | Expected |
+|----------|----------|
+| Join valid public channel | `channel:joined` + `{ workspaceId, channelId }` |
+| Join valid private channel as member | `channel:joined` + `{ workspaceId, channelId }` |
+| Join private channel as non-member | `channel:error` |
+| Invalid UUID | `channel:error` |
+| Leave joined channel | `channel:left` + `{ channelId }` |
+| Leave not-joined channel | `channel:error` |
+
+**Message broadcasts**
+
+| Scenario | Expected |
+|----------|----------|
+| REST create message, joined socket | `message:created` with public shape |
+| REST update message, joined socket | `message:updated` with public shape |
+| REST delete message, joined socket | `message:deleted` + `{ id, channelId, deletedAt }` |
+| REST create message, non-joined socket | Nothing |
+
+**Reaction broadcasts**
+
+| Scenario | Expected |
+|----------|----------|
+| REST add reaction, joined socket | `reaction:added` + `{ messageId, channelId, emoji, user }` |
+| REST remove reaction, joined socket | `reaction:removed` + `{ messageId, channelId, emoji, user }` |
+| Duplicate reaction 409 | No broadcast |
+| Missing reaction 404 | No broadcast |
+
+**Read receipt broadcasts**
+
+| Scenario | Expected |
+|----------|----------|
+| REST mark as read, joined socket | `read:updated` + `{ messageId, channelId, user, readAt }` |
+| GET read-receipts | No broadcast |
+
+- All broadcasts are **best-effort**: REST succeeds even if WebSocket emit fails.
+- All payloads use the **public message contract** (no `authorId`, no `deletedAt`).
+
 ## Troubleshooting
 
 | Symptom | Fix |
