@@ -6,11 +6,14 @@ import { ChannelsModule } from '../channels/channels.module';
 import { MessagesService } from './messages.service';
 import { MessagesRepository } from './messages.repository';
 import { MessagesController } from './messages.controller';
+import { ReactionsService } from './reactions.service';
+import { ReactionsRepository } from './reactions.repository';
+import { ReactionsController } from './reactions.controller';
 
 @Module({
   imports: [AuthModule, UsersModule, WorkspacesModule, ChannelsModule],
-  controllers: [MessagesController],
-  providers: [MessagesService, MessagesRepository],
-  exports: [MessagesService, MessagesRepository],
+  controllers: [MessagesController, ReactionsController],
+  providers: [MessagesService, MessagesRepository, ReactionsService, ReactionsRepository],
+  exports: [MessagesService, MessagesRepository, ReactionsService, ReactionsRepository],
 })
 export class MessagesModule {}

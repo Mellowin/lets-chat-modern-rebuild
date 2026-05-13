@@ -332,7 +332,46 @@ Body:
 
 - Soft delete sets `deletedAt`; message disappears from list.
 
-### 10. API Documentation (Swagger)
+### 10. Reactions
+
+**POST** `/api/v1/workspaces/:workspaceId/channels/:channelId/messages/:messageId/reactions`
+
+Body:
+
+```json
+{
+  "emoji": "👍"
+}
+```
+
+| Scenario | Expected |
+|----------|----------|
+| Add new reaction | `201 Created` + reaction object |
+| Duplicate active reaction | `409 Conflict` — Reaction already exists |
+| Deleted message | `404 Not Found` |
+| Private channel as non-member | `404 Not Found` |
+| Without token | `401 Unauthorized` |
+
+- Adding the same emoji after soft-delete restores the previous row (`deletedAt: null`).
+
+**DELETE** `/api/v1/workspaces/:workspaceId/channels/:channelId/messages/:messageId/reactions/:emoji`
+
+| Scenario | Expected |
+|----------|----------|
+| Remove own reaction | `204 No Content` — soft deleted |
+| Remove missing reaction | `404 Not Found` |
+| Deleted message | `404 Not Found` |
+| Without token | `401 Unauthorized` |
+
+**GET** `/api/v1/workspaces/:workspaceId/channels/:channelId/messages/:messageId/reactions`
+
+| Scenario | Expected |
+|----------|----------|
+| List reactions | `200 OK` + `[{ emoji, count, reactedByMe }]` |
+| Deleted message | `404 Not Found` |
+| Without token | `401 Unauthorized` |
+
+### 11. API Documentation (Swagger)
 
 Open: http://localhost:3001/api/docs
 
