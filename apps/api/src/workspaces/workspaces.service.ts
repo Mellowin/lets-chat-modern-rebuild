@@ -58,6 +58,9 @@ export class WorkspacesService {
       throw new NotFoundException('Workspace not found');
     }
     const role = await this.workspaces.findMemberRole(workspaceId, userId);
+    if (!role) {
+      throw new NotFoundException('Workspace not found');
+    }
     if (role !== 'OWNER' && role !== 'ADMIN') {
       throw new ForbiddenException('Insufficient permissions');
     }
@@ -70,6 +73,9 @@ export class WorkspacesService {
       throw new NotFoundException('Workspace not found');
     }
     const role = await this.workspaces.findMemberRole(workspaceId, userId);
+    if (!role) {
+      throw new NotFoundException('Workspace not found');
+    }
     if (role !== 'OWNER') {
       throw new ForbiddenException('Only owner can archive workspace');
     }
