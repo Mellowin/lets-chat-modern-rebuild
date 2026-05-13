@@ -21,6 +21,7 @@ import {
 } from '@nestjs/swagger';
 import { AttachmentsService } from './attachments.service';
 import { PresignAttachmentDto } from './dto/presign-attachment.dto';
+import { AttachmentDownloadResponseDto } from './dto/attachment-download-response.dto';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUserResponse } from '../auth/auth.service';
@@ -81,7 +82,10 @@ export class AttachmentsController {
 
   @Get(':attachmentId/download')
   @ApiOperation({ summary: 'Get presigned download URL for attachment' })
-  @ApiOkResponse({ description: 'Presigned download URL created' })
+  @ApiOkResponse({
+    description: 'Presigned download URL created',
+    type: AttachmentDownloadResponseDto,
+  })
   @ApiConflictResponse({ description: 'Upload not completed' })
   @ApiNotFoundResponse({ description: 'Attachment or message not found' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
