@@ -60,4 +60,34 @@ export class MessagesRepository {
       },
     });
   }
+
+  async updateMessage(messageId: string, oldContent: string, newContent: string, editedById: string) {
+    const [, updated] = await this.prisma.$transaction([
+      this.prisma.messageEdit.create({
+        data: { messageId, oldContent, newContent, editedById },
+      }),
+      this.prisma.message.update({
+        where: { id: messageId },
+        data: { content: newContent, editedAt: new Date() },
+        include: {
+          author: {
+            select: {
+              id: true,
+              username: true,
+              displayName: true,
+              avatarUrl: true,
+            },
+          },
+        },
+      }),
+    ]);
+    return updated;
+  }
+
+  async softDeleteMessage(id: string) {
+    return this.prisma.message.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+  }
 }

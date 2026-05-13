@@ -298,6 +298,40 @@ Query params:
 - Messages are ordered newest first.
 - Soft-deleted messages are excluded.
 
+**PATCH** `/api/v1/workspaces/:workspaceId/channels/:channelId/messages/:messageId`
+
+Body:
+
+```json
+{
+  "content": "Updated content"
+}
+```
+
+| Scenario | Expected |
+|----------|----------|
+| As author within 15 min | `200 OK` + updated message with `editedAt` set |
+| As non-author | `403 Forbidden` — Only the author can edit |
+| After 15 min window | `403 Forbidden` — Message edit window has expired |
+| Random messageId | `404 Not Found` |
+| Already deleted message | `404 Not Found` |
+| Without token | `401 Unauthorized` |
+
+- Edit history is persisted in `MessageEdit` table (`oldContent`, `newContent`, `editedById`).
+
+**DELETE** `/api/v1/workspaces/:workspaceId/channels/:channelId/messages/:messageId`
+
+| Scenario | Expected |
+|----------|----------|
+| As author | `204 No Content` — soft deleted |
+| As channel OWNER/ADMIN | `204 No Content` — can delete any message |
+| As non-author without channel role | `403 Forbidden` — Insufficient permissions |
+| Random messageId | `404 Not Found` |
+| Already deleted message | `404 Not Found` |
+| Without token | `401 Unauthorized` |
+
+- Soft delete sets `deletedAt`; message disappears from list.
+
 ### 10. API Documentation (Swagger)
 
 Open: http://localhost:3001/api/docs
