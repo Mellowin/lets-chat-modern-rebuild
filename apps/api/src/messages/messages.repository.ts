@@ -20,6 +20,16 @@ export class MessagesRepository {
         content: data.content,
         parentId: data.parentId,
       },
+      include: {
+        author: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+      },
     });
   }
 

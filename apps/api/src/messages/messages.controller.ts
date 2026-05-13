@@ -6,6 +6,7 @@ import {
   Param,
   Query,
   UseGuards,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -38,8 +39,8 @@ export class MessagesController {
   @ApiNotFoundResponse({ description: 'Channel not found' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   async create(
-    @Param('workspaceId') workspaceId: string,
-    @Param('channelId') channelId: string,
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Param('channelId', ParseUUIDPipe) channelId: string,
     @Body() dto: CreateMessageDto,
     @CurrentUser() user: AuthUserResponse,
   ) {
@@ -52,8 +53,8 @@ export class MessagesController {
   @ApiNotFoundResponse({ description: 'Channel not found' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   async findAll(
-    @Param('workspaceId') workspaceId: string,
-    @Param('channelId') channelId: string,
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Param('channelId', ParseUUIDPipe) channelId: string,
     @Query() query: ListMessagesQueryDto,
     @CurrentUser() user: AuthUserResponse,
   ) {
