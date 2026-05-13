@@ -444,6 +444,8 @@ Body:
 - `mimeType` allowlist: `image/png`, `image/jpeg`, `image/webp`, `application/pdf`, `text/plain`.
 - `objectKey` pattern: `workspaces/{ws}/channels/{ch}/messages/{msg}/{uuid}-{sanitizedFilename}`.
 
+> **Note:** Presign validates requested metadata only. Actual uploaded object size/content-type must be verified later by a complete/confirm endpoint or cleanup job. The Attachment row is created before upload, so abandoned uploads may create orphan/pending rows.
+
 ### 14. API Documentation (Swagger)
 
 Open: http://localhost:3001/api/docs

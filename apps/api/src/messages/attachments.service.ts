@@ -29,6 +29,9 @@ export class AttachmentsService {
     const sanitized = dto.filename.replace(/[^a-zA-Z0-9._-]/g, '_');
     const objectKey = `workspaces/${workspaceId}/channels/${channelId}/messages/${messageId}/${randomUUID()}-${sanitized}`;
 
+    // TODO: Attachment row is created before actual upload.
+    // A future complete/confirm endpoint should HEAD the object in MinIO
+    // and verify real size + content-type before marking as confirmed.
     const attachment = await this.attachments.createAttachment({
       messageId,
       createdById: userId,
