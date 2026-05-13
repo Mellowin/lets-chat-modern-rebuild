@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  Param,
+  HttpCode,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -7,11 +16,13 @@ import {
   ApiOkResponse,
   ApiConflictResponse,
   ApiBadRequestResponse,
+  ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { ChannelsService } from './channels.service';
 import { CreateChannelDto } from './dto/create-channel.dto';
+import { UpdateChannelDto } from './dto/update-channel.dto';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUserResponse } from '../auth/auth.service';
@@ -48,5 +59,49 @@ export class ChannelsController {
     @CurrentUser() user: AuthUserResponse,
   ) {
     return this.channels.list(workspaceId, user.id);
+  }
+
+  @Get(':channelId')
+  @ApiOperation({ summary: 'Get channel by id' })
+  @ApiOkResponse({ description: 'Channel found' })
+  @ApiNotFoundResponse({ description: 'Channel not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async findOne(
+    @Param('workspaceId') workspaceId: string,
+    @Param('channelId') channelId: string,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.channels.findById(workspaceId, channelId, user.id);
+  }
+
+  @Patch(':channelId')
+  @ApiOperation({ summary: 'Update channel' })
+  @ApiOkResponse({ description: 'Channel updated' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiForbiddenResponse({ description: 'Forbidden' })
+  @ApiNotFoundResponse({ description: 'Channel not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async update(
+    @Param('workspaceId') workspaceId: string,
+    @Param('channelId') channelId: string,
+    @Body() dto: UpdateChannelDto,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.channels.update(workspaceId, channelId, dto, user.id);
+  }
+
+  @Post(':channelId/archive')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Archive channel' })
+  @ApiOkResponse({ description: 'Channel archived' })
+  @ApiForbiddenResponse({ description: 'Forbidden' })
+  @ApiNotFoundResponse({ description: 'Channel not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async archive(
+    @Param('workspaceId') workspaceId: string,
+    @Param('channelId') channelId: string,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.channels.archive(workspaceId, channelId, user.id);
   }
 }

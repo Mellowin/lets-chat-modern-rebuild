@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -8,6 +9,7 @@ import { ChannelType, Prisma } from '@lets-chat/database';
 import { WorkspacesRepository } from '../workspaces/workspaces.repository';
 import { ChannelsRepository } from './channels.repository';
 import { CreateChannelDto } from './dto/create-channel.dto';
+import { UpdateChannelDto } from './dto/update-channel.dto';
 
 @Injectable()
 export class ChannelsService {
@@ -67,6 +69,74 @@ export class ChannelsService {
       throw new NotFoundException('Workspace not found');
     }
     return this.channels.listForWorkspace(workspaceId, userId);
+  }
+
+  async findById(workspaceId: string, channelId: string, userId: string) {
+    const wsRole = await this.workspaces.findMemberRole(workspaceId, userId);
+    if (!wsRole) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const channel = await this.channels.findActiveById(channelId);
+    if (!channel || channel.workspaceId !== workspaceId) {
+      throw new NotFoundException('Channel not found');
+    }
+
+    if (channel.type === 'PRIVATE') {
+      const chRole = await this.channels.findChannelMemberRole(
+        channelId,
+        userId,
+      );
+      if (!chRole) {
+        throw new NotFoundException('Channel not found');
+      }
+    }
+
+    return channel;
+  }
+
+  async update(
+    workspaceId: string,
+    channelId: string,
+    dto: UpdateChannelDto,
+    userId: string,
+  ) {
+    const channel = await this.channels.findActiveById(channelId);
+    if (!channel || channel.workspaceId !== workspaceId) {
+      throw new NotFoundException('Channel not found');
+    }
+
+    const chRole = await this.channels.findChannelMemberRole(channelId, userId);
+    if (!chRole) {
+      throw new NotFoundException('Channel not found');
+    }
+    if (chRole !== 'OWNER' && chRole !== 'ADMIN') {
+      throw new ForbiddenException('Insufficient permissions');
+    }
+
+    const updateData: { name?: string; description?: string } = {};
+    if (dto.name !== undefined) updateData.name = dto.name;
+    if (dto.description !== undefined) updateData.description = dto.description;
+
+    return this.channels.updateChannel(channelId, updateData);
+  }
+
+  async archive(workspaceId: string, channelId: string, userId: string) {
+    const channel = await this.channels.findActiveById(channelId);
+    if (!channel || channel.workspaceId !== workspaceId) {
+      throw new NotFoundException('Channel not found');
+    }
+
+    const chRole = await this.channels.findChannelMemberRole(channelId, userId);
+    if (!chRole) {
+      throw new NotFoundException('Channel not found');
+    }
+    if (chRole !== 'OWNER') {
+      throw new ForbiddenException('Only owner can archive channel');
+    }
+
+    await this.channels.archiveChannel(channelId);
+    return { success: true };
   }
 
   private slugify(name: string): string {

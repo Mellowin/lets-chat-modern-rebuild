@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@lets-chat/database';
+import { ChannelRole, PrismaService } from '@lets-chat/database';
 
 interface CreateChannelInput {
   workspaceId: string;
@@ -66,6 +66,44 @@ export class ChannelsRepository {
         ],
       },
       orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async findActiveById(channelId: string) {
+    return this.prisma.channel.findFirst({
+      where: { id: channelId, deletedAt: null },
+    });
+  }
+
+  async findChannelMemberRole(
+    channelId: string,
+    userId: string,
+  ): Promise<ChannelRole | null> {
+    const member = await this.prisma.channelMember.findFirst({
+      where: {
+        channelId,
+        userId,
+        deletedAt: null,
+      },
+      select: { role: true },
+    });
+    return member?.role ?? null;
+  }
+
+  async updateChannel(
+    channelId: string,
+    data: { name?: string; description?: string },
+  ) {
+    return this.prisma.channel.update({
+      where: { id: channelId },
+      data,
+    });
+  }
+
+  async archiveChannel(channelId: string) {
+    return this.prisma.channel.update({
+      where: { id: channelId },
+      data: { deletedAt: new Date() },
     });
   }
 }
