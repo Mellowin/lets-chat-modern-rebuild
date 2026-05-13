@@ -453,7 +453,7 @@ Body:
 | Complete after successful upload | `201 Created` + `{ id, filename, mimeType, sizeBytes, storageKey, createdAt }` |
 | Complete before upload | `409 Conflict` — Upload not completed |
 | Complete fake attachmentId | `404 Not Found` — Attachment not found |
-| Complete wrong message | `404 Not Found` — Attachment not found |
+| Attachment does not belong to this message | `404 Not Found` — Attachment not found |
 | Size mismatch (uploaded ≠ declared) | `422 Unprocessable Entity` — Uploaded file size does not match expected size |
 | Content-type mismatch | `422 Unprocessable Entity` — Uploaded file type does not match expected type |
 | Deleted message | `404 Not Found` |
@@ -461,6 +461,7 @@ Body:
 | Without token | `401 Unauthorized` |
 
 - Verifies object existence via MinIO `HEAD` before confirming.
+- Only the attachment creator (`createdById`) can confirm upload completion.
 
 **GET** `/api/v1/workspaces/:workspaceId/channels/:channelId/messages/:messageId/attachments/:attachmentId/download`
 
@@ -469,6 +470,7 @@ Body:
 | Download completed attachment | `200 OK` + `{ attachmentId, filename, mimeType, sizeBytes, downloadUrl, expiresInSeconds }` |
 | Download never-uploaded attachment | `409 Conflict` — Upload not completed |
 | Download fake attachmentId | `404 Not Found` — Attachment not found |
+| Attachment does not belong to this message | `404 Not Found` — Attachment not found |
 | Deleted message | `404 Not Found` |
 | Private channel as non-member | `404 Not Found` |
 | Without token | `401 Unauthorized` |

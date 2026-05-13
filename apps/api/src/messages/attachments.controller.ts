@@ -21,6 +21,8 @@ import {
 } from '@nestjs/swagger';
 import { AttachmentsService } from './attachments.service';
 import { PresignAttachmentDto } from './dto/presign-attachment.dto';
+import { PresignAttachmentResponseDto } from './dto/presign-attachment-response.dto';
+import { CompleteAttachmentResponseDto } from './dto/complete-attachment-response.dto';
 import { AttachmentDownloadResponseDto } from './dto/attachment-download-response.dto';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -37,7 +39,10 @@ export class AttachmentsController {
 
   @Post('presign')
   @ApiOperation({ summary: 'Get presigned upload URL for attachment' })
-  @ApiCreatedResponse({ description: 'Presigned URL created' })
+  @ApiCreatedResponse({
+    description: 'Presigned URL created',
+    type: PresignAttachmentResponseDto,
+  })
   @ApiBadRequestResponse({ description: 'Validation failed' })
   @ApiNotFoundResponse({ description: 'Message or channel not found' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
@@ -59,7 +64,10 @@ export class AttachmentsController {
 
   @Post(':attachmentId/complete')
   @ApiOperation({ summary: 'Confirm attachment upload completion' })
-  @ApiCreatedResponse({ description: 'Attachment upload confirmed' })
+  @ApiCreatedResponse({
+    description: 'Attachment upload confirmed',
+    type: CompleteAttachmentResponseDto,
+  })
   @ApiConflictResponse({ description: 'Upload not completed' })
   @ApiUnprocessableEntityResponse({ description: 'Size or content-type mismatch' })
   @ApiNotFoundResponse({ description: 'Attachment or message not found' })
