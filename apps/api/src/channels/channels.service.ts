@@ -101,6 +101,11 @@ export class ChannelsService {
     dto: UpdateChannelDto,
     userId: string,
   ) {
+    const wsRole = await this.workspaces.findMemberRole(workspaceId, userId);
+    if (!wsRole) {
+      throw new NotFoundException('Workspace not found');
+    }
+
     const channel = await this.channels.findActiveById(channelId);
     if (!channel || channel.workspaceId !== workspaceId) {
       throw new NotFoundException('Channel not found');
@@ -108,6 +113,9 @@ export class ChannelsService {
 
     const chRole = await this.channels.findChannelMemberRole(channelId, userId);
     if (!chRole) {
+      if (channel.type === 'PUBLIC') {
+        throw new ForbiddenException('Insufficient permissions');
+      }
       throw new NotFoundException('Channel not found');
     }
     if (chRole !== 'OWNER' && chRole !== 'ADMIN') {
@@ -122,6 +130,11 @@ export class ChannelsService {
   }
 
   async archive(workspaceId: string, channelId: string, userId: string) {
+    const wsRole = await this.workspaces.findMemberRole(workspaceId, userId);
+    if (!wsRole) {
+      throw new NotFoundException('Workspace not found');
+    }
+
     const channel = await this.channels.findActiveById(channelId);
     if (!channel || channel.workspaceId !== workspaceId) {
       throw new NotFoundException('Channel not found');
@@ -129,6 +142,9 @@ export class ChannelsService {
 
     const chRole = await this.channels.findChannelMemberRole(channelId, userId);
     if (!chRole) {
+      if (channel.type === 'PUBLIC') {
+        throw new ForbiddenException('Insufficient permissions');
+      }
       throw new NotFoundException('Channel not found');
     }
     if (chRole !== 'OWNER') {
