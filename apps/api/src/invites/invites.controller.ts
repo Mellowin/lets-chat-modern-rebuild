@@ -3,6 +3,7 @@ import {
   Post,
   Body,
   Param,
+  ParseUUIDPipe,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -36,7 +37,7 @@ export class InvitesController {
   @ApiNotFoundResponse({ description: 'Workspace not found' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   async create(
-    @Param('workspaceId') workspaceId: string,
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
     @Body() dto: CreateInviteDto,
     @CurrentUser() user: AuthUserResponse,
   ) {
