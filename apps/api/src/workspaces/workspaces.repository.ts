@@ -208,10 +208,13 @@ export class WorkspacesRepository {
         throw new Error('TARGET_STATE_CHANGED');
       }
 
-      await tx.workspace.update({
+      const workspaceUpdate = await tx.workspace.updateMany({
         where: { id: data.workspaceId, deletedAt: null },
         data: { ownerId: data.targetUserId },
       });
+      if (workspaceUpdate.count === 0) {
+        throw new Error('WORKSPACE_STATE_CHANGED');
+      }
 
       return {
         workspaceId: data.workspaceId,

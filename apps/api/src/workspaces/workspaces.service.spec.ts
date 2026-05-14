@@ -1,5 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@lets-chat/database';
 import { WorkspacesService } from './workspaces.service';
 import { WorkspacesRepository } from './workspaces.repository';
 import { AuditService } from '../audit/audit.service';
@@ -214,7 +215,7 @@ describe('WorkspacesService', () => {
       expectAuditNotCalled();
     });
 
-    it('should map race condition to ConflictException', async () => {
+    it('should map race condition on old owner to ConflictException', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       workspacesRepository.findActiveMemberById.mockResolvedValue({
@@ -233,6 +234,88 @@ describe('WorkspacesService', () => {
         user: { id: userId, username: 'owner' },
       } as any);
       workspacesRepository.transferOwnership.mockRejectedValue(new Error('OWNERSHIP_STATE_CHANGED'));
+
+      await expect(
+        service.transferOwnership(workspaceId, userId, { memberId }),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expectAuditNotCalled();
+    });
+
+    it('should map race condition on target to ConflictException', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      workspacesRepository.findActiveMemberById.mockResolvedValue({
+        id: memberId,
+        workspaceId,
+        role: 'MEMBER',
+        userId: targetUserId,
+        createdAt: new Date('2026-01-01'),
+        user: { id: targetUserId, username: 'alice' },
+      } as any);
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
+        id: userId,
+        workspaceId,
+        role: 'OWNER',
+        userId,
+        user: { id: userId, username: 'owner' },
+      } as any);
+      workspacesRepository.transferOwnership.mockRejectedValue(new Error('TARGET_STATE_CHANGED'));
+
+      await expect(
+        service.transferOwnership(workspaceId, userId, { memberId }),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expectAuditNotCalled();
+    });
+
+    it('should map workspace state change to ConflictException', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      workspacesRepository.findActiveMemberById.mockResolvedValue({
+        id: memberId,
+        workspaceId,
+        role: 'MEMBER',
+        userId: targetUserId,
+        createdAt: new Date('2026-01-01'),
+        user: { id: targetUserId, username: 'alice' },
+      } as any);
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
+        id: userId,
+        workspaceId,
+        role: 'OWNER',
+        userId,
+        user: { id: userId, username: 'owner' },
+      } as any);
+      workspacesRepository.transferOwnership.mockRejectedValue(new Error('WORKSPACE_STATE_CHANGED'));
+
+      await expect(
+        service.transferOwnership(workspaceId, userId, { memberId }),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expectAuditNotCalled();
+    });
+
+    it('should map Prisma P2002 to ConflictException', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      workspacesRepository.findActiveMemberById.mockResolvedValue({
+        id: memberId,
+        workspaceId,
+        role: 'MEMBER',
+        userId: targetUserId,
+        createdAt: new Date('2026-01-01'),
+        user: { id: targetUserId, username: 'alice' },
+      } as any);
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
+        id: userId,
+        workspaceId,
+        role: 'OWNER',
+        userId,
+        user: { id: userId, username: 'owner' },
+      } as any);
+      const prismaError = new Prisma.PrismaClientKnownRequestError(
+        'Unique constraint failed',
+        { code: 'P2002', clientVersion: '5.22.0' },
+      );
+      workspacesRepository.transferOwnership.mockRejectedValue(prismaError);
 
       await expect(
         service.transferOwnership(workspaceId, userId, { memberId }),

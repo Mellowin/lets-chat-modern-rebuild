@@ -276,7 +276,15 @@ export class WorkspacesService {
     } catch (error) {
       if (
         error instanceof Error &&
-        (error.message === 'OWNERSHIP_STATE_CHANGED' || error.message === 'TARGET_STATE_CHANGED')
+        (error.message === 'OWNERSHIP_STATE_CHANGED' ||
+          error.message === 'TARGET_STATE_CHANGED' ||
+          error.message === 'WORKSPACE_STATE_CHANGED')
+      ) {
+        throw new ConflictException('Ownership state changed');
+      }
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
       ) {
         throw new ConflictException('Ownership state changed');
       }
