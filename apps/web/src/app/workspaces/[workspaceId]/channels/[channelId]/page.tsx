@@ -111,11 +111,23 @@ export default function ChannelDetailPage() {
       console.error("Auth expired");
     });
 
+    socket.on("message:created", (msg: Message) => {
+      appendMessage(msg);
+    });
+
     return () => {
       socket.emit("channel:leave", { channelId });
       socket.disconnect();
     };
   }, [isAuthenticated, workspaceId, channelId]);
+
+  function appendMessage(msg: Message) {
+    setMessages((prev) => {
+      if (prev.kind !== "success") return prev;
+      if (prev.data.some((m) => m.id === msg.id)) return prev;
+      return { kind: "success", data: [...prev.data, msg] };
+    });
+  }
 
   async function handleSendMessage(e: React.FormEvent) {
     e.preventDefault();
@@ -134,12 +146,10 @@ export default function ChannelDetailPage() {
     setSendState({ kind: "loading" });
     try {
       const input: CreateMessageInput = { content: trimmed };
-      await createMessage(token, workspaceId, channelId, input);
+      const msg = await createMessage(token, workspaceId, channelId, input);
       setContent("");
       setSendState({ kind: "idle" });
-      // refresh messages
-      const refreshed = await getMessages(token, workspaceId, channelId);
-      setMessages({ kind: "success", data: refreshed });
+      appendMessage(msg);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to send message";
       setSendState({ kind: "error", message });
