@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { getHealth, type HealthResponse } from "@/lib/api";
 
 type HealthState =
@@ -33,6 +34,21 @@ export default function Home() {
         Secure team collaboration platform. Backend infrastructure is
         bootstrapped and ready.
       </p>
+
+      <div className="mt-6 flex items-center gap-3">
+        <Link
+          href="/login"
+          className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
+        >
+          Sign in
+        </Link>
+        <Link
+          href="/register"
+          className="inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-4 py-2 text-sm font-medium hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+        >
+          Create account
+        </Link>
+      </div>
 
       <div className="mt-8 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 p-5">
         <div className="flex items-center justify-between">
