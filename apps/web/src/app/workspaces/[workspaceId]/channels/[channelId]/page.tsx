@@ -5,11 +5,18 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { getChannel, type Channel } from "@/lib/channels-api";
+import { getMessages, type Message } from "@/lib/messages-api";
 
 type ChannelState =
   | { kind: "idle" }
   | { kind: "loading" }
   | { kind: "success"; data: Channel }
+  | { kind: "error"; message: string };
+
+type MessagesState =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "success"; data: Message[] }
   | { kind: "error"; message: string };
 
 export default function ChannelDetailPage() {
@@ -20,6 +27,7 @@ export default function ChannelDetailPage() {
     typeof params.channelId === "string" ? params.channelId : "";
   const { isLoading: authLoading, isAuthenticated } = useAuth();
   const [channel, setChannel] = useState<ChannelState>({ kind: "idle" });
+  const [messages, setMessages] = useState<MessagesState>({ kind: "idle" });
 
   useEffect(() => {
     if (!isAuthenticated || !workspaceId || !channelId) return;
@@ -29,13 +37,23 @@ export default function ChannelDetailPage() {
     let cancelled = false;
     async function load(t: string, ws: string, ch: string) {
       setChannel({ kind: "loading" });
+      setMessages({ kind: "loading" });
       try {
-        const data = await getChannel(t, ws, ch);
-        if (!cancelled) setChannel({ kind: "success", data });
+        const [chData, msgData] = await Promise.all([
+          getChannel(t, ws, ch),
+          getMessages(t, ws, ch),
+        ]);
+        if (!cancelled) {
+          setChannel({ kind: "success", data: chData });
+          setMessages({ kind: "success", data: msgData });
+        }
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Failed to load channel";
-        if (!cancelled) setChannel({ kind: "error", message });
+        if (!cancelled) {
+          setChannel({ kind: "error", message });
+          setMessages({ kind: "error", message });
+        }
       }
     }
     load(token, workspaceId, channelId);
@@ -123,15 +141,69 @@ export default function ChannelDetailPage() {
               {channel.data.description}
             </p>
           )}
-
-          <div className="mt-8 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 p-5">
-            <h2 className="text-sm font-semibold">Messages</h2>
-            <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-              Messages will appear here.
-            </p>
-          </div>
         </>
       )}
+
+      <div className="mt-8 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 p-5">
+        <h2 className="text-sm font-semibold">Messages</h2>
+
+        {messages.kind === "loading" && (
+          <div className="mt-3 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
+            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
+            Loading messages…
+          </div>
+        )}
+
+        {messages.kind === "error" && (
+          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
+            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+              <span className="h-2 w-2 rounded-full bg-red-500" />
+              {messages.message}
+            </div>
+          </div>
+        )}
+
+        {messages.kind === "success" && messages.data.length === 0 && (
+          <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
+            No messages yet.
+          </p>
+        )}
+
+        {messages.kind === "success" && messages.data.length > 0 && (
+          <ul className="mt-4 space-y-4">
+            {messages.data.map((msg) => (
+              <li key={msg.id} className="flex gap-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-200 dark:bg-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                  {msg.author.username.slice(0, 2).toUpperCase()}
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold">
+                      {msg.author.displayName || msg.author.username}
+                    </span>
+                    <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                      {new Date(msg.createdAt).toLocaleString()}
+                    </span>
+                    {msg.editedAt && (
+                      <span className="text-[10px] text-zinc-400 dark:text-zinc-500 italic">
+                        edited
+                      </span>
+                    )}
+                    {msg.parentId && (
+                      <span className="text-[10px] text-zinc-400 dark:text-zinc-500 italic">
+                        reply
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-0.5 text-sm text-zinc-700 dark:text-zinc-300">
+                    {msg.content}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
