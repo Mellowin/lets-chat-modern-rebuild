@@ -1,6 +1,7 @@
 import {
   Controller,
   Post,
+  Delete,
   Body,
   Param,
   ParseUUIDPipe,
@@ -11,9 +12,11 @@ import {
   ApiOperation,
   ApiBearerAuth,
   ApiCreatedResponse,
+  ApiOkResponse,
   ApiBadRequestResponse,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
+  ApiConflictResponse,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { InvitesService } from './invites.service';
@@ -42,5 +45,21 @@ export class InvitesController {
     @CurrentUser() user: AuthUserResponse,
   ) {
     return this.invites.create(workspaceId, dto, user.id);
+  }
+
+  @Delete(':inviteId')
+  @ApiOperation({ summary: 'Revoke workspace invite' })
+  @ApiOkResponse({ description: 'Invite revoked' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiForbiddenResponse({ description: 'Forbidden' })
+  @ApiNotFoundResponse({ description: 'Invite not found' })
+  @ApiConflictResponse({ description: 'Invite already used' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async revoke(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Param('inviteId', ParseUUIDPipe) inviteId: string,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.invites.revoke(workspaceId, inviteId, user.id);
   }
 }

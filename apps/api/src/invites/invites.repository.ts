@@ -41,4 +41,17 @@ export class InvitesRepository {
       return member;
     });
   }
+
+  async findById(id: string) {
+    return this.prisma.invitation.findUnique({
+      where: { id },
+    });
+  }
+
+  async softDelete(id: string) {
+    return this.prisma.invitation.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+  }
 }

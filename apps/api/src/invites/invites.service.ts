@@ -118,4 +118,33 @@ export class InvitesService {
       throw error;
     }
   }
+
+  async revoke(workspaceId: string, inviteId: string, userId: string) {
+    const workspace = await this.workspaces.findActiveById(workspaceId);
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const role = await this.workspaces.findMemberRole(workspaceId, userId);
+    if (!role) {
+      throw new NotFoundException('Workspace not found');
+    }
+    if (role !== 'OWNER' && role !== 'ADMIN') {
+      throw new ForbiddenException('Insufficient permissions');
+    }
+
+    const invite = await this.invites.findById(inviteId);
+    if (!invite || invite.deletedAt) {
+      throw new NotFoundException('Invite not found');
+    }
+    if (invite.workspaceId !== workspaceId) {
+      throw new NotFoundException('Invite not found');
+    }
+    if (invite.usedAt || invite.usedById) {
+      throw new ConflictException('Invite already used');
+    }
+
+    const updated = await this.invites.softDelete(inviteId);
+    return { id: updated.id, deletedAt: updated.deletedAt };
+  }
 }

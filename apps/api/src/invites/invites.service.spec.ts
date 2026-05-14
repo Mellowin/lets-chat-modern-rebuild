@@ -24,6 +24,8 @@ describe('InvitesService', () => {
             createInvite: jest.fn(),
             findByTokenHash: jest.fn(),
             acceptInvite: jest.fn(),
+            findById: jest.fn(),
+            softDelete: jest.fn(),
           },
         },
         {
@@ -324,6 +326,103 @@ describe('InvitesService', () => {
       await expect(
         service.accept(rawToken, userId, 'test@example.com'),
       ).rejects.toBeInstanceOf(ConflictException);
+    });
+  });
+
+  describe('revoke', () => {
+    const inviteId = '44444444-4444-4444-4444-444444444444';
+
+    function makeInvite(overrides: any = {}) {
+      return {
+        id: inviteId,
+        workspaceId,
+        invitedEmail: 'test@example.com',
+        role: 'MEMBER',
+        tokenHash: 'hash',
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        usedAt: null,
+        usedById: null,
+        deletedAt: null,
+        ...overrides,
+      };
+    }
+
+    it('should allow OWNER to revoke unused invite', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      invitesRepository.findById.mockResolvedValue(makeInvite() as any);
+      invitesRepository.softDelete.mockResolvedValue({ id: inviteId, deletedAt: new Date() } as any);
+
+      const result = await service.revoke(workspaceId, inviteId, userId);
+
+      expect(result.id).toBe(inviteId);
+      expect(result.deletedAt).toBeInstanceOf(Date);
+      expect(invitesRepository.softDelete).toHaveBeenCalledWith(inviteId);
+    });
+
+    it('should allow ADMIN to revoke unused invite', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('ADMIN');
+      invitesRepository.findById.mockResolvedValue(makeInvite() as any);
+      invitesRepository.softDelete.mockResolvedValue({ id: inviteId, deletedAt: new Date() } as any);
+
+      const result = await service.revoke(workspaceId, inviteId, userId);
+
+      expect(result.id).toBe(inviteId);
+    });
+
+    it('should reject MEMBER revoking invite', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+
+      await expect(
+        service.revoke(workspaceId, inviteId, userId),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('should reject non-member', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue(null);
+
+      await expect(
+        service.revoke(workspaceId, inviteId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('should reject invite from another workspace', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      invitesRepository.findById.mockResolvedValue(
+        makeInvite({ workspaceId: 'other-workspace-id' }) as any,
+      );
+
+      await expect(
+        service.revoke(workspaceId, inviteId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('should reject already used invite', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      invitesRepository.findById.mockResolvedValue(
+        makeInvite({ usedAt: new Date() }) as any,
+      );
+
+      await expect(
+        service.revoke(workspaceId, inviteId, userId),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('should reject deleted invite', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      invitesRepository.findById.mockResolvedValue(
+        makeInvite({ deletedAt: new Date() }) as any,
+      );
+
+      await expect(
+        service.revoke(workspaceId, inviteId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 });
