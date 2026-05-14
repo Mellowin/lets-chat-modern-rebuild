@@ -15,4 +15,30 @@ export class InvitesRepository {
   }) {
     return this.prisma.invitation.create({ data });
   }
+
+  async findByTokenHash(tokenHash: string) {
+    return this.prisma.invitation.findUnique({
+      where: { tokenHash },
+    });
+  }
+
+  async acceptInvite(
+    inviteId: string,
+    userId: string,
+    workspaceId: string,
+    role: WorkspaceRole,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const member = await tx.workspaceMember.create({
+        data: { workspaceId, userId, role },
+      });
+
+      await tx.invitation.update({
+        where: { id: inviteId },
+        data: { usedAt: new Date(), usedById: userId },
+      });
+
+      return member;
+    });
+  }
 }

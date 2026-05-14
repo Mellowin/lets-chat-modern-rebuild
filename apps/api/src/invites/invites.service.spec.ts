@@ -1,5 +1,6 @@
 import { Test } from '@nestjs/testing';
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, GoneException, NotFoundException } from '@nestjs/common';
+import { createHash } from 'crypto';
 import { InvitesService } from './invites.service';
 import { InvitesRepository } from './invites.repository';
 import { WorkspacesRepository } from '../workspaces/workspaces.repository';
@@ -20,6 +21,8 @@ describe('InvitesService', () => {
           provide: InvitesRepository,
           useValue: {
             createInvite: jest.fn(),
+            findByTokenHash: jest.fn(),
+            acceptInvite: jest.fn(),
           },
         },
         {
@@ -180,5 +183,117 @@ describe('InvitesService', () => {
     const expiresMs = result.expiresAt.getTime();
     expect(expiresMs).toBeGreaterThanOrEqual(before + 7 * 24 * 60 * 60 * 1000 - 1000);
     expect(expiresMs).toBeLessThanOrEqual(after + 7 * 24 * 60 * 60 * 1000 + 1000);
+  });
+
+  describe('accept', () => {
+    const rawToken = 'raw-token-123';
+    const tokenHash = createHash('sha256').update(rawToken).digest('hex');
+
+    function makeInvite(overrides: any = {}) {
+      return {
+        id: 'invite-id',
+        workspaceId,
+        invitedEmail: 'test@example.com',
+        role: 'MEMBER',
+        tokenHash,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        usedAt: null,
+        usedById: null,
+        deletedAt: null,
+        ...overrides,
+      };
+    }
+
+    it('should allow accepting a valid invite', async () => {
+      invitesRepository.findByTokenHash.mockResolvedValue(makeInvite() as any);
+      workspacesRepository.findMemberRole.mockResolvedValue(null);
+      invitesRepository.acceptInvite.mockResolvedValue({
+        workspaceId,
+        role: 'MEMBER',
+        createdAt: new Date('2026-01-01'),
+      } as any);
+
+      const result = await service.accept(rawToken, userId, 'test@example.com');
+
+      expect(result.workspaceId).toBe(workspaceId);
+      expect(result.role).toBe('MEMBER');
+      expect(invitesRepository.acceptInvite).toHaveBeenCalledWith(
+        'invite-id',
+        userId,
+        workspaceId,
+        'MEMBER',
+      );
+    });
+
+    it('should reject invalid token', async () => {
+      invitesRepository.findByTokenHash.mockResolvedValue(null);
+
+      await expect(
+        service.accept(rawToken, userId, 'test@example.com'),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('should reject expired invite', async () => {
+      invitesRepository.findByTokenHash.mockResolvedValue(
+        makeInvite({ expiresAt: new Date(Date.now() - 1000) }) as any,
+      );
+
+      await expect(
+        service.accept(rawToken, userId, 'test@example.com'),
+      ).rejects.toBeInstanceOf(GoneException);
+    });
+
+    it('should reject already used invite', async () => {
+      invitesRepository.findByTokenHash.mockResolvedValue(
+        makeInvite({ usedAt: new Date() }) as any,
+      );
+
+      await expect(
+        service.accept(rawToken, userId, 'test@example.com'),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('should reject email mismatch', async () => {
+      invitesRepository.findByTokenHash.mockResolvedValue(makeInvite() as any);
+
+      await expect(
+        service.accept(rawToken, userId, 'different@example.com'),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('should reject already workspace member', async () => {
+      invitesRepository.findByTokenHash.mockResolvedValue(makeInvite() as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+
+      await expect(
+        service.accept(rawToken, userId, 'test@example.com'),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('should reject OWNER invite', async () => {
+      invitesRepository.findByTokenHash.mockResolvedValue(
+        makeInvite({ role: 'OWNER' }) as any,
+      );
+
+      await expect(
+        service.accept(rawToken, userId, 'test@example.com'),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('should hash token before lookup', async () => {
+      invitesRepository.findByTokenHash.mockResolvedValue(makeInvite() as any);
+      workspacesRepository.findMemberRole.mockResolvedValue(null);
+      invitesRepository.acceptInvite.mockResolvedValue({
+        workspaceId,
+        role: 'MEMBER',
+        createdAt: new Date(),
+      } as any);
+
+      await service.accept(rawToken, userId, 'test@example.com');
+
+      expect(invitesRepository.findByTokenHash).toHaveBeenCalledWith(
+        expect.not.stringMatching(rawToken),
+      );
+    });
   });
 });

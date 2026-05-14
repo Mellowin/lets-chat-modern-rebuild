@@ -1,6 +1,8 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
+  GoneException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -55,6 +57,49 @@ export class InvitesService {
       token: rawToken,
       expiresAt: invite.expiresAt,
       createdAt: invite.createdAt,
+    };
+  }
+
+  async accept(token: string, userId: string, userEmail: string) {
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+
+    const invite = await this.invites.findByTokenHash(tokenHash);
+    if (!invite || invite.deletedAt) {
+      throw new NotFoundException('Invite not found');
+    }
+
+    if (invite.usedAt || invite.usedById) {
+      throw new ConflictException('Invite already used');
+    }
+
+    if (invite.expiresAt < new Date()) {
+      throw new GoneException('Invite expired');
+    }
+
+    if (invite.invitedEmail && invite.invitedEmail !== userEmail.toLowerCase()) {
+      throw new ForbiddenException('Email mismatch');
+    }
+
+    if (invite.role === 'OWNER') {
+      throw new BadRequestException('Cannot accept OWNER invite');
+    }
+
+    const existingRole = await this.workspaces.findMemberRole(invite.workspaceId, userId);
+    if (existingRole) {
+      throw new ConflictException('Already a member of this workspace');
+    }
+
+    const member = await this.invites.acceptInvite(
+      invite.id,
+      userId,
+      invite.workspaceId,
+      invite.role,
+    );
+
+    return {
+      workspaceId: member.workspaceId,
+      role: member.role,
+      joinedAt: member.createdAt,
     };
   }
 }
