@@ -196,6 +196,38 @@ Body:
 | As OWNER | `200 OK` + `{ success: true }` |
 | Archived workspace in list | Disappears from `GET /workspaces` |
 
+**PATCH** `/api/v1/workspaces/:workspaceId/owner`
+
+Body:
+
+```json
+{
+  "memberId": "uuid"
+}
+```
+
+| Scenario | Expected |
+|----------|----------|
+| OWNER transferring to MEMBER | `200 OK` + `{ workspaceId, previousOwner, newOwner }` |
+| OWNER transferring to ADMIN | `200 OK` + `{ workspaceId, previousOwner, newOwner }` |
+| ADMIN requester | `403 Forbidden` |
+| MEMBER requester | `403 Forbidden` |
+| Non-member requester | `404 Not Found` |
+| Invalid workspaceId | `400 Bad Request` |
+| Inactive workspace | `404 Not Found` |
+| Target from another workspace | `404 Not Found` |
+| Deleted target member | `404 Not Found` |
+| Transfer to self | `400 Bad Request` |
+| Target already OWNER | `400 Bad Request` |
+| Race/state conflict | `409 Conflict` |
+
+- `memberId` is **WorkspaceMember.id**, not `User.id`.
+- Old OWNER becomes `ADMIN`.
+- Target member becomes `OWNER`.
+- `Workspace.ownerId` is updated to target userId.
+- Operation is **transactional**.
+- **Audit:** `workspace.ownership.transferred` with metadata `{ oldOwnerUserId, oldOwnerMemberId, newOwnerUserId, newOwnerMemberId, previousTargetRole, oldOwnerNewRole }`.
+
 ### 8. Channels
 
 **POST** `/api/v1/workspaces/:workspaceId/channels`
