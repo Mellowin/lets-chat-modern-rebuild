@@ -713,6 +713,7 @@ Body:
 - Allowed roles in body: `ADMIN` | `MEMBER`.
 - Current OWNER role cannot be changed.
 - No ownership transfer.
+- **Audit:** successful role update records `workspace.member.role_updated` with metadata `{ targetUserId, oldRole, newRole }`.
 
 **DELETE** `/api/v1/workspaces/:workspaceId/members/:memberId`
 
@@ -733,11 +734,12 @@ Body:
 - Removal is a **soft delete**: `deletedAt` is set to current timestamp.
 - Removed members are excluded from `GET /workspaces/:workspaceId/members`.
 - User account, messages, and invites are not affected.
+- **Audit:** successful removal records `workspace.member.removed` with metadata `{ targetUserId, removedRole }`.
 
 Current limitations:
 - No ownership transfer.
-- No audit log.
 - No frontend.
+- Audit is recorded after successful action; not yet transactional with the main action.
 
 ## Troubleshooting
 
