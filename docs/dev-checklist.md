@@ -618,6 +618,7 @@ Presence payload:
 | Endpoint | Method | Access |
 |----------|--------|--------|
 | `POST /workspaces/:workspaceId/invites` | Create invite | OWNER or ADMIN |
+| `GET /workspaces/:workspaceId/invites` | List invites | OWNER or ADMIN |
 | `POST /invites/accept` | Accept invite | Authenticated user |
 | `DELETE /workspaces/:workspaceId/invites/:inviteId` | Revoke invite | OWNER or ADMIN |
 
@@ -628,6 +629,17 @@ Create invite rules:
 - `SHA-256(tokenHash)` stored in DB.
 - `expiresAt` set to 7 days from creation.
 - `workspaceId` must be active (not archived).
+
+List invite rules:
+- Only `OWNER` or `ADMIN` can list.
+- Results are scoped to `workspaceId` only.
+- Sorted by `createdAt DESC`.
+- Response never includes `tokenHash` or raw `token`.
+- Status mapping:
+  - `deletedAt != null` → `REVOKED`
+  - `usedAt != null` or `usedById != null` → `USED`
+  - `expiresAt < now` → `EXPIRED`
+  - otherwise → `PENDING`
 
 Accept invite rules:
 - Raw token is hashed with `SHA-256` before DB lookup.
@@ -656,7 +668,6 @@ revoked → terminal (no further action)
 
 Current limitations:
 - No email delivery.
-- No invite listing endpoint.
 - No audit log.
 - No frontend.
 
