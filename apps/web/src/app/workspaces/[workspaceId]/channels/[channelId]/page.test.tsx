@@ -208,8 +208,8 @@ describe("ChannelDetailPage — edit/delete", () => {
     channelId: "ch1",
     content: "Hello",
     parentId: null,
-    createdAt: "2024-01-01T00:00:00Z",
-    updatedAt: "2024-01-01T00:00:00Z",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     editedAt: null,
     author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
   };
@@ -219,8 +219,8 @@ describe("ChannelDetailPage — edit/delete", () => {
     channelId: "ch1",
     content: "Hi",
     parentId: null,
-    createdAt: "2024-01-01T00:00:00Z",
-    updatedAt: "2024-01-01T00:00:00Z",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     editedAt: null,
     author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
   };
@@ -390,8 +390,8 @@ describe("ChannelDetailPage — WebSocket live events", () => {
     channelId: "ch1",
     content: "Hello",
     parentId: null,
-    createdAt: "2024-01-01T00:00:00Z",
-    updatedAt: "2024-01-01T00:00:00Z",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     editedAt: null,
     author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
   };

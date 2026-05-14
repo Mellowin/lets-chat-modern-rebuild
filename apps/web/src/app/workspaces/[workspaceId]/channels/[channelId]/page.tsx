@@ -166,6 +166,11 @@ export default function ChannelDetailPage() {
     });
   }
 
+  function isEditable(msg: Message) {
+    const editWindowMs = 15 * 60 * 1000;
+    return Date.now() - new Date(msg.createdAt).getTime() <= editWindowMs;
+  }
+
   function handleEditStart(msg: Message) {
     setEditingMessageId(msg.id);
     setEditContent(msg.content);
@@ -429,12 +434,14 @@ export default function ChannelDetailPage() {
                     )}
                     {user?.id === msg.author.id && editingMessageId !== msg.id && (
                       <>
-                        <button
-                          onClick={() => handleEditStart(msg)}
-                          className="text-[10px] text-zinc-400 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-200 underline"
-                        >
-                          Edit
-                        </button>
+                        {isEditable(msg) && (
+                          <button
+                            onClick={() => handleEditStart(msg)}
+                            className="text-[10px] text-zinc-400 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-200 underline"
+                          >
+                            Edit
+                          </button>
+                        )}
                         <button
                           onClick={() => handleDelete(msg.id)}
                           className="text-[10px] text-zinc-400 hover:text-red-600 dark:text-zinc-500 dark:hover:text-red-400 underline"
