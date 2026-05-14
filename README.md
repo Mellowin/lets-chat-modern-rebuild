@@ -8,8 +8,11 @@
 
 This project is a ground-up rebuild of the archived **lets-chat** application (~9.8k ⭐), transforming a 2014-era Node/MongoDB/jQuery codebase into a production-oriented, secure team collaboration platform using modern best practices.
 
-**Original:** Node 0.10.x + Express.oi + Mongoose + MongoDB + Nunjucks  
-**Modern:** Node 20 + NestJS 11 + Prisma 5.14 + PostgreSQL 15 + Redis 7 + Next.js 16 + React 19 + Socket.io 4
+**Original:** Node 0.10.x + Express.oi + Mongoose + MongoDB + Nunjucks
+
+**Modern backend:** Node 20 + NestJS 11 + Prisma 5.22 + PostgreSQL 15 + Redis 7 + Socket.io 4
+
+**Frontend (planned Phase 3):** Next.js 16 (App Router), Tailwind CSS 4, shadcn/ui
 
 ---
 
@@ -17,8 +20,8 @@ This project is a ground-up rebuild of the archived **lets-chat** application (~
 
 ### Backend (implemented)
 
-- 🔐 **Secure Auth** — JWT access/refresh tokens, bcrypt, rate limiting, brute-force protection
-- 🏢 **Workspaces** — Multi-tenant team organization with role-based access (OWNER/ADMIN/MEMBER)
+- 🔐 **Secure Auth** — JWT access/refresh tokens, bcrypt, rate limiting
+- 🏢 **Workspaces** — Multi-tenant team organization with OWNER/ADMIN/MEMBER roles
 - 💬 **Channels** — Public and private channels with permission guards
 - 💬 **Messages** — CRUD, soft delete, edit history, threaded replies
 - 😀 **Reactions** — Emoji reactions with grouped counts
@@ -38,13 +41,12 @@ This project is a ground-up rebuild of the archived **lets-chat** application (~
 | Layer | Technology |
 |-------|-----------|
 | **Backend** | NestJS 11, TypeScript 5.7 |
-| **Frontend** | Next.js 16 (App Router), Tailwind CSS 4, shadcn/ui |
+| **Frontend** | Next.js 16 planned (App Router, Tailwind CSS 4, shadcn/ui) |
 | **Database** | PostgreSQL 15 |
-| **ORM** | Prisma 5.14 |
+| **ORM** | Prisma 5.22 |
 | **Cache / PubSub** | Redis 7 |
-| **Real-Time** | Socket.io 4 + Redis Adapter |
-| **Queue** | Bull (Redis-backed) |
-| **Testing** | Jest, Playwright |
+| **Real-Time** | Socket.io 4, in-memory presence (Redis adapter planned) |
+| **Testing** | Jest unit tests (Playwright E2E planned) |
 | **Docs** | Swagger / OpenAPI |
 
 ---
@@ -55,7 +57,7 @@ This project is a ground-up rebuild of the archived **lets-chat** application (~
 secure-collab-platform/
 ├── apps/
 │   ├── api/                 # NestJS backend
-│   └── web/                 # Next.js frontend
+│   └── web/                 # Next.js frontend (not started)
 ├── packages/
 │   ├── shared/              # Shared types & utilities
 │   └── database/            # Prisma schema & migrations
@@ -88,7 +90,6 @@ docker compose up -d
 
 # 3. Run database migrations
 cd packages/database
-$env:DATABASE_URL="postgresql://postgres:postgres@localhost:5432/letschat?schema=public"
 pnpm exec prisma migrate dev
 
 # 4. Generate Prisma Client
@@ -100,7 +101,22 @@ pnpm --filter api build
 pnpm --filter api start:dev
 ```
 
+**Environment variable (if needed):**
+
+PowerShell:
+
+```powershell
+$env:DATABASE_URL="postgresql://postgres:postgres@localhost:5432/letschat?schema=public"
+```
+
+Bash / macOS / Linux:
+
+```bash
+export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/letschat?schema=public"
+```
+
 **Verify:**
+
 - Health: `GET http://localhost:3001/api/v1/health`
 - Swagger: `http://localhost:3001/api/docs`
 
@@ -124,6 +140,7 @@ pnpm --filter api build
 | [`docs/scope.md`](docs/scope.md) | Locked MVP scope with success criteria |
 | [`docs/before-after.md`](docs/before-after.md) | Technology & architecture comparison |
 | [`docs/architecture.md`](docs/architecture.md) | ADRs, ER diagrams, deployment model |
+| [`docs/dev-checklist.md`](docs/dev-checklist.md) | Developer checklist with all endpoints and rules |
 
 ---
 
@@ -144,6 +161,8 @@ pnpm --filter api build
 | Members | ✅ | List, role update, remove, audit |
 | Audit Logs | ✅ | Write + list endpoint, OWNER/ADMIN read |
 
+---
+
 ## Current Limitations
 
 - **No frontend MVP yet** — UI work is the next milestone
@@ -154,12 +173,14 @@ pnpm --filter api build
 - **No CI / E2E tests** — only unit tests are implemented
 - **No production Docker Compose** — local dev stack only
 
+---
+
 ## Roadmap
 
 - [x] Phase 0: Legacy analysis & scope definition
 - [x] Phase 1–2: Backend architecture, database design & NestJS API implementation
 - [ ] Phase 3: Next.js frontend & real-time integration
-- [ ] Phase 4: Email delivery, notifications, cursor pagination
+- [ ] Phase 4: Email delivery, notifications, cursor pagination, Redis WS adapter
 - [ ] Phase 5: CI/CD, E2E tests, deployment, demo
 
 **v2 Ideas:** WebRTC voice channels, AI thread summarization, GitHub/GitLab integrations
