@@ -116,20 +116,32 @@ export class WebsocketGateway
   handleDisconnect(socket: Socket) {
     const socketId = socket.id;
     const userId = socket.data.user?.id;
+    const rooms = this.socketRooms.get(socketId) ?? new Set();
 
     this.socketRooms.delete(socketId);
 
     if (userId) {
       this.untrackSocket(userId, socketId);
 
-      if (!this.userSockets.has(userId)) {
-        const rooms = this.userRooms.get(userId) ?? new Set();
-        for (const room of rooms) {
+      for (const room of rooms) {
+        const userSocketIds = this.userSockets.get(userId) ?? new Set();
+        let otherSocketInRoom = false;
+        for (const otherSocketId of userSocketIds) {
+          if (this.socketRooms.get(otherSocketId)?.has(room)) {
+            otherSocketInRoom = true;
+            break;
+          }
+        }
+        if (!otherSocketInRoom) {
           this.server.to(room).emit('presence:offline', {
             user: { id: userId, username: socket.data.user?.username },
             status: 'offline',
           });
+          this.userRooms.get(userId)?.delete(room);
         }
+      }
+
+      if (!this.userSockets.has(userId)) {
         this.userRooms.delete(userId);
       }
     }
