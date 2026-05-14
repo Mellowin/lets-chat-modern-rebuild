@@ -6,6 +6,8 @@ import { useParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { getChannel, type Channel } from "@/lib/channels-api";
 import { getMessages, createMessage, type Message, type CreateMessageInput } from "@/lib/messages-api";
+import { createSocket } from "@/lib/socket-client";
+import type { Socket } from "socket.io-client";
 
 type ChannelState =
   | { kind: "idle" }
@@ -32,6 +34,9 @@ export default function ChannelDetailPage() {
   const [sendState, setSendState] = useState<
     { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string }
   >({ kind: "idle" });
+  const [socketStatus, setSocketStatus] = useState<
+    "disconnected" | "connecting" | "connected" | "joined" | "error"
+  >("disconnected");
 
   useEffect(() => {
     if (!isAuthenticated || !workspaceId || !channelId) return;
@@ -63,6 +68,52 @@ export default function ChannelDetailPage() {
     load(token, workspaceId, channelId);
     return () => {
       cancelled = true;
+    };
+  }, [isAuthenticated, workspaceId, channelId]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !workspaceId || !channelId) return;
+    const token = localStorage.getItem("accessToken");
+    if (!token) return;
+
+    setSocketStatus("connecting");
+    const socket = createSocket(token);
+
+    socket.on("connect", () => {
+      setSocketStatus("connected");
+      socket.emit("channel:join", { workspaceId, channelId });
+    });
+
+    socket.on("disconnect", () => {
+      setSocketStatus("disconnected");
+    });
+
+    socket.on("connected", () => {
+      setSocketStatus("connected");
+    });
+
+    socket.on("channel:joined", () => {
+      setSocketStatus("joined");
+    });
+
+    socket.on("channel:error", (data: { message?: string }) => {
+      setSocketStatus("error");
+      console.error("Channel error:", data?.message);
+    });
+
+    socket.on("auth:error", (data: { message?: string }) => {
+      setSocketStatus("error");
+      console.error("Auth error:", data?.message);
+    });
+
+    socket.on("auth:expired", () => {
+      setSocketStatus("error");
+      console.error("Auth expired");
+    });
+
+    return () => {
+      socket.emit("channel:leave", { channelId });
+      socket.disconnect();
     };
   }, [isAuthenticated, workspaceId, channelId]);
 
@@ -164,6 +215,21 @@ export default function ChannelDetailPage() {
               }`}
             >
               {channel.data.type}
+            </span>
+            <span
+              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
+                socketStatus === "joined"
+                  ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400"
+                  : socketStatus === "connected"
+                    ? "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                    : socketStatus === "connecting"
+                      ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400"
+                      : socketStatus === "error"
+                        ? "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400"
+                        : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-500"
+              }`}
+            >
+              {socketStatus}
             </span>
           </div>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
