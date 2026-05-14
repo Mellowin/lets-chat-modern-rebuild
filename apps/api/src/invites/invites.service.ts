@@ -6,6 +6,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '@lets-chat/database';
 import { randomBytes, createHash } from 'crypto';
 import { WorkspacesRepository } from '../workspaces/workspaces.repository';
 import { InvitesRepository } from './invites.repository';
@@ -94,17 +95,27 @@ export class InvitesService {
       throw new ConflictException('Already a member of this workspace');
     }
 
-    const member = await this.invites.acceptInvite(
-      invite.id,
-      userId,
-      invite.workspaceId,
-      invite.role,
-    );
+    try {
+      const member = await this.invites.acceptInvite(
+        invite.id,
+        userId,
+        invite.workspaceId,
+        invite.role,
+      );
 
-    return {
-      workspaceId: member.workspaceId,
-      role: member.role,
-      joinedAt: member.createdAt,
-    };
+      return {
+        workspaceId: member.workspaceId,
+        role: member.role,
+        joinedAt: member.createdAt,
+      };
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('Already a member of this workspace');
+      }
+      throw error;
+    }
   }
 }

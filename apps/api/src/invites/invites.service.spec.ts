@@ -1,5 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { BadRequestException, ConflictException, ForbiddenException, GoneException, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@lets-chat/database';
 import { createHash } from 'crypto';
 import { InvitesService } from './invites.service';
 import { InvitesRepository } from './invites.repository';
@@ -307,6 +308,22 @@ describe('InvitesService', () => {
       expect(invitesRepository.findByTokenHash).toHaveBeenCalledWith(
         expect.not.stringMatching(rawToken),
       );
+    });
+
+    it('should map Prisma P2002 to ConflictException on race condition', async () => {
+      invitesRepository.findByTokenHash.mockResolvedValue(makeInvite() as any);
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue(null);
+
+      const prismaError = new Prisma.PrismaClientKnownRequestError(
+        'Unique constraint failed',
+        { code: 'P2002', clientVersion: '5.22.0' },
+      );
+      invitesRepository.acceptInvite.mockRejectedValue(prismaError);
+
+      await expect(
+        service.accept(rawToken, userId, 'test@example.com'),
+      ).rejects.toBeInstanceOf(ConflictException);
     });
   });
 });
