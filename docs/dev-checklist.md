@@ -503,6 +503,11 @@ Connect via Socket.io to `ws://localhost:3001` with `auth: { token }`.
 | `reaction:added` | Server → Client | REST `POST /messages/:id/reactions` succeeds |
 | `reaction:removed` | Server → Client | REST `DELETE /messages/:id/reactions/:emoji` succeeds |
 | `read:updated` | Server → Client | REST `POST /messages/:id/read` succeeds |
+| `typing:start` | Client → Server | User starts typing in a channel |
+| `typing:stop` | Client → Server | User stops typing in a channel |
+| `typing:started` | Server → Client | `typing:start` received and broadcast |
+| `typing:stopped` | Server → Client | `typing:stop` received and broadcast |
+| `typing:error` | Server → Client | Invalid UUID, no access, or not joined room |
 
 **Auth handshake**
 
@@ -550,6 +555,16 @@ Connect via Socket.io to `ws://localhost:3001` with `auth: { token }`.
 |----------|----------|
 | REST mark as read, joined socket | `read:updated` + `{ messageId, channelId, user, readAt }` |
 | GET read-receipts | No broadcast |
+
+**Typing indicators**
+
+| Scenario | Expected |
+|----------|----------|
+| `typing:start` with valid joined channel | `typing:started` to room (sender excluded) |
+| `typing:stop` with valid joined channel | `typing:stopped` to room (sender excluded) |
+| Not joined channel | `typing:error` |
+| Invalid channelId | `typing:error` |
+| Missing channelId | `typing:error` |
 
 - All broadcasts are **best-effort**: REST succeeds even if WebSocket emit fails.
 - `message:created` and `message:updated` payloads use the **public message contract** (no `authorId`, no `deletedAt`).

@@ -189,4 +189,61 @@ export class WebsocketGateway
     this.logger.log({ socketId: socket.id, userId, channelId }, 'Left channel room');
     socket.emit('channel:left', { channelId });
   }
+
+  @SubscribeMessage('typing:start')
+  async handleTypingStart(
+    socket: Socket,
+    payload: { channelId: unknown },
+  ) {
+    await this.broadcastTyping(socket, payload.channelId, 'typing:start');
+  }
+
+  @SubscribeMessage('typing:stop')
+  async handleTypingStop(
+    socket: Socket,
+    payload: { channelId: unknown },
+  ) {
+    await this.broadcastTyping(socket, payload.channelId, 'typing:stop');
+  }
+
+  private async broadcastTyping(
+    socket: Socket,
+    channelId: unknown,
+    event: 'typing:start' | 'typing:stop',
+  ) {
+    const userId = this.getUserId(socket);
+    if (!userId) {
+      socket.emit('typing:error', { message: 'Not authenticated' });
+      return;
+    }
+
+    if (!isValidUUID(channelId)) {
+      socket.emit('typing:error', { message: 'Invalid UUID' });
+      return;
+    }
+
+    const room = `channel:${channelId}`;
+    if (!socket.rooms.has(room)) {
+      socket.emit('typing:error', { message: 'Channel room not joined', channelId });
+      return;
+    }
+
+    try {
+      const user = await this.usersRepository.findById(userId);
+      if (!user) return;
+
+      socket.to(room).emit(event, {
+        channelId,
+        user: {
+          id: user.id,
+          username: user.username,
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        { socketId: socket.id, userId, channelId, event, error: (error as Error).message },
+        'Typing broadcast error',
+      );
+    }
+  }
 }
