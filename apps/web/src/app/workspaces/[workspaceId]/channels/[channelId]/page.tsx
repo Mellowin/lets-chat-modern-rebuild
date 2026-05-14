@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { getChannel, type Channel } from "@/lib/channels-api";
-import { getMessages, createMessage, type Message, type CreateMessageInput } from "@/lib/messages-api";
+import { getMessages, createMessage, updateMessage, deleteMessage, type Message, type CreateMessageInput, type UpdateMessageInput } from "@/lib/messages-api";
 import { createSocket } from "@/lib/socket-client";
 import type { Socket } from "socket.io-client";
 
@@ -27,7 +27,7 @@ export default function ChannelDetailPage() {
     typeof params.workspaceId === "string" ? params.workspaceId : "";
   const channelId =
     typeof params.channelId === "string" ? params.channelId : "";
-  const { isLoading: authLoading, isAuthenticated } = useAuth();
+  const { isLoading: authLoading, isAuthenticated, user } = useAuth();
   const [channel, setChannel] = useState<ChannelState>({ kind: "idle" });
   const [messages, setMessages] = useState<MessagesState>({ kind: "idle" });
   const [content, setContent] = useState("");
@@ -37,6 +37,11 @@ export default function ChannelDetailPage() {
   const [socketStatus, setSocketStatus] = useState<
     "disconnected" | "connecting" | "connected" | "joined" | "error"
   >("disconnected");
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState("");
+  const [editState, setEditState] = useState<
+    { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string }
+  >({ kind: "idle" });
 
   useEffect(() => {
     if (!isAuthenticated || !workspaceId || !channelId) return;
@@ -128,6 +133,79 @@ export default function ChannelDetailPage() {
       if (prev.data.some((m) => m.id === msg.id)) return prev;
       return { kind: "success", data: [...prev.data, msg] };
     });
+  }
+
+  function updateMessageInState(msg: Message) {
+    setMessages((prev) => {
+      if (prev.kind !== "success") return prev;
+      return {
+        kind: "success",
+        data: prev.data.map((m) => (m.id === msg.id ? msg : m)),
+      };
+    });
+  }
+
+  function removeMessageFromState(messageId: string) {
+    setMessages((prev) => {
+      if (prev.kind !== "success") return prev;
+      return {
+        kind: "success",
+        data: prev.data.filter((m) => m.id !== messageId),
+      };
+    });
+  }
+
+  function handleEditStart(msg: Message) {
+    setEditingMessageId(msg.id);
+    setEditContent(msg.content);
+    setEditState({ kind: "idle" });
+  }
+
+  function handleEditCancel() {
+    setEditingMessageId(null);
+    setEditContent("");
+    setEditState({ kind: "idle" });
+  }
+
+  async function handleEditSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = editContent.trim();
+    if (!trimmed) {
+      setEditState({ kind: "error", message: "Message cannot be empty" });
+      return;
+    }
+    if (trimmed.length > 4000) {
+      setEditState({ kind: "error", message: "Message is too long (max 4000 characters)" });
+      return;
+    }
+    const token = localStorage.getItem("accessToken");
+    if (!token || !workspaceId || !channelId || !editingMessageId) return;
+
+    setEditState({ kind: "loading" });
+    try {
+      const input: UpdateMessageInput = { content: trimmed };
+      const msg = await updateMessage(token, workspaceId, channelId, editingMessageId, input);
+      setEditState({ kind: "idle" });
+      setEditingMessageId(null);
+      setEditContent("");
+      updateMessageInState(msg);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to update message";
+      setEditState({ kind: "error", message });
+    }
+  }
+
+  async function handleDelete(messageId: string) {
+    if (!window.confirm("Delete this message?")) return;
+    const token = localStorage.getItem("accessToken");
+    if (!token || !workspaceId || !channelId) return;
+    try {
+      await deleteMessage(token, workspaceId, channelId, messageId);
+      removeMessageFromState(messageId);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to delete message";
+      alert(message);
+    }
   }
 
   async function handleSendMessage(e: React.FormEvent) {
@@ -338,10 +416,63 @@ export default function ChannelDetailPage() {
                         reply
                       </span>
                     )}
+                    {user?.id === msg.author.id && editingMessageId !== msg.id && (
+                      <>
+                        <button
+                          onClick={() => handleEditStart(msg)}
+                          className="text-[10px] text-zinc-400 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-200 underline"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(msg.id)}
+                          className="text-[10px] text-zinc-400 hover:text-red-600 dark:text-zinc-500 dark:hover:text-red-400 underline"
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
                   </div>
-                  <p className="mt-0.5 text-sm text-zinc-700 dark:text-zinc-300">
-                    {msg.content}
-                  </p>
+                  {editingMessageId === msg.id ? (
+                    <form onSubmit={handleEditSubmit} className="mt-1 flex flex-col gap-2">
+                      <textarea
+                        rows={2}
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        disabled={editState.kind === "loading"}
+                        className="w-full resize-none rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100 disabled:opacity-60"
+                      />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="submit"
+                          disabled={editState.kind === "loading"}
+                          className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
+                        >
+                          {editState.kind === "loading" ? "Saving…" : "Save"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleEditCancel}
+                          disabled={editState.kind === "loading"}
+                          className="inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-60 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                      {editState.kind === "error" && (
+                        <div className="rounded-lg border border-red-200 bg-red-50 p-2 text-xs dark:border-red-900 dark:bg-red-950/30">
+                          <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+                            <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                            {editState.message}
+                          </div>
+                        </div>
+                      )}
+                    </form>
+                  ) : (
+                    <p className="mt-0.5 text-sm text-zinc-700 dark:text-zinc-300">
+                      {msg.content}
+                    </p>
+                  )}
                 </div>
               </li>
             ))}
