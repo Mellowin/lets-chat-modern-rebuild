@@ -206,6 +206,7 @@ describe('InvitesService', () => {
 
     it('should allow accepting a valid invite', async () => {
       invitesRepository.findByTokenHash.mockResolvedValue(makeInvite() as any);
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
       workspacesRepository.findMemberRole.mockResolvedValue(null);
       invitesRepository.acceptInvite.mockResolvedValue({
         workspaceId,
@@ -263,11 +264,22 @@ describe('InvitesService', () => {
 
     it('should reject already workspace member', async () => {
       invitesRepository.findByTokenHash.mockResolvedValue(makeInvite() as any);
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
 
       await expect(
         service.accept(rawToken, userId, 'test@example.com'),
       ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('should reject accept for inactive workspace', async () => {
+      invitesRepository.findByTokenHash.mockResolvedValue(makeInvite() as any);
+      workspacesRepository.findActiveById.mockResolvedValue(null);
+
+      await expect(
+        service.accept(rawToken, userId, 'test@example.com'),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(invitesRepository.acceptInvite).not.toHaveBeenCalled();
     });
 
     it('should reject OWNER invite', async () => {
@@ -282,6 +294,7 @@ describe('InvitesService', () => {
 
     it('should hash token before lookup', async () => {
       invitesRepository.findByTokenHash.mockResolvedValue(makeInvite() as any);
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
       workspacesRepository.findMemberRole.mockResolvedValue(null);
       invitesRepository.acceptInvite.mockResolvedValue({
         workspaceId,

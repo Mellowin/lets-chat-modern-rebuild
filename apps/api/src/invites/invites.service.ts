@@ -84,6 +84,11 @@ export class InvitesService {
       throw new BadRequestException('Cannot accept OWNER invite');
     }
 
+    const workspace = await this.workspaces.findActiveById(invite.workspaceId);
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
     const existingRole = await this.workspaces.findMemberRole(invite.workspaceId, userId);
     if (existingRole) {
       throw new ConflictException('Already a member of this workspace');
