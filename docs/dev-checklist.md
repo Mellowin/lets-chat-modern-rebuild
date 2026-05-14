@@ -613,6 +613,53 @@ Presence payload:
 - `reaction:added`, `reaction:removed`, and `read:updated` payloads use their own public event contracts.
 - Presence is **in-memory only**: no DB, no Redis, no `lastSeen`. Server restart clears all presence state. Multi-tab support: closing one tab does not emit `offline` if another tab (socket) remains connected.
 
+**Invites**
+
+| Endpoint | Method | Access |
+|----------|--------|--------|
+| `POST /workspaces/:workspaceId/invites` | Create invite | OWNER or ADMIN |
+| `POST /invites/accept` | Accept invite | Authenticated user |
+| `DELETE /workspaces/:workspaceId/invites/:inviteId` | Revoke invite | OWNER or ADMIN |
+
+Create invite rules:
+- `email` is normalized to lowercase.
+- `role` allowed: `ADMIN` or `MEMBER`. `OWNER` is rejected.
+- Raw token returned **once** in response.
+- `SHA-256(tokenHash)` stored in DB.
+- `expiresAt` set to 7 days from creation.
+- `workspaceId` must be active (not archived).
+
+Accept invite rules:
+- Raw token is hashed with `SHA-256` before DB lookup.
+- Invite must exist, not deleted, not used, not expired.
+- `invitedEmail` must match current user's normalized email.
+- Workspace must still be active.
+- User must not already be an active member.
+- `OWNER` role invites cannot be accepted.
+- Transaction: mark invite used + create `WorkspaceMember`.
+- Race against revoke is handled atomically (conditional update).
+
+Revoke invite rules:
+- Soft delete: sets `deletedAt`.
+- Cannot revoke already used invite (`409`).
+- Cannot revoke already deleted invite (`404`).
+- Invite must belong to the specified workspace.
+- Race against accept is handled atomically (conditional updateMany).
+
+Invite state machine:
+```text
+created → accepted (usedAt set, WorkspaceMember created)
+created → revoked (deletedAt set)
+accepted → terminal (no further action)
+revoked → terminal (no further action)
+```
+
+Current limitations:
+- No email delivery.
+- No invite listing endpoint.
+- No audit log.
+- No frontend.
+
 ## Troubleshooting
 
 | Symptom | Fix |
