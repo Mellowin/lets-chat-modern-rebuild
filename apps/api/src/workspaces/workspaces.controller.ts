@@ -27,6 +27,7 @@ import { WorkspacesService } from './workspaces.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
+import { TransferOwnershipDto } from './dto/transfer-ownership.dto';
 import { ListAuditLogsQueryDto } from '../audit/dto/list-audit-logs-query.dto';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -142,6 +143,22 @@ export class WorkspacesController {
     @CurrentUser() user: AuthUserResponse,
   ) {
     return this.workspaces.removeMember(workspaceId, memberId, user.id);
+  }
+
+  @Patch(':workspaceId/owner')
+  @ApiOperation({ summary: 'Transfer workspace ownership' })
+  @ApiOkResponse({ description: 'Ownership transferred' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiForbiddenResponse({ description: 'Forbidden' })
+  @ApiNotFoundResponse({ description: 'Workspace or member not found' })
+  @ApiConflictResponse({ description: 'Conflict' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async transferOwnership(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Body() dto: TransferOwnershipDto,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.workspaces.transferOwnership(workspaceId, user.id, dto);
   }
 
   @Get(':workspaceId/audit-logs')

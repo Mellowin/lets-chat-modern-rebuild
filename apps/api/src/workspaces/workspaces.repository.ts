@@ -129,6 +129,24 @@ export class WorkspacesRepository {
     });
   }
 
+  async findActiveMemberByUserId(workspaceId: string, userId: string) {
+    return this.prisma.workspaceMember.findFirst({
+      where: {
+        workspaceId,
+        userId,
+        deletedAt: null,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+      },
+    });
+  }
+
   async updateMemberRole(memberId: string, role: WorkspaceRole) {
     return this.prisma.workspaceMember.update({
       where: { id: memberId },
@@ -154,5 +172,60 @@ export class WorkspacesRepository {
       data: { deletedAt: new Date() },
     });
     return result.count;
+  }
+
+  async transferOwnership(data: {
+    workspaceId: string;
+    currentOwnerMemberId: string;
+    currentOwnerUserId: string;
+    targetMemberId: string;
+    targetUserId: string;
+  }) {
+    return this.prisma.$transaction(async (tx) => {
+      const downgrade = await tx.workspaceMember.updateMany({
+        where: {
+          id: data.currentOwnerMemberId,
+          workspaceId: data.workspaceId,
+          role: 'OWNER',
+          deletedAt: null,
+        },
+        data: { role: 'ADMIN' },
+      });
+      if (downgrade.count === 0) {
+        throw new Error('OWNERSHIP_STATE_CHANGED');
+      }
+
+      const promote = await tx.workspaceMember.updateMany({
+        where: {
+          id: data.targetMemberId,
+          workspaceId: data.workspaceId,
+          deletedAt: null,
+          role: { in: ['ADMIN', 'MEMBER'] },
+        },
+        data: { role: 'OWNER' },
+      });
+      if (promote.count === 0) {
+        throw new Error('TARGET_STATE_CHANGED');
+      }
+
+      await tx.workspace.update({
+        where: { id: data.workspaceId, deletedAt: null },
+        data: { ownerId: data.targetUserId },
+      });
+
+      return {
+        workspaceId: data.workspaceId,
+        previousOwner: {
+          id: data.currentOwnerMemberId,
+          userId: data.currentOwnerUserId,
+          role: 'ADMIN' as const,
+        },
+        newOwner: {
+          id: data.targetMemberId,
+          userId: data.targetUserId,
+          role: 'OWNER' as const,
+        },
+      };
+    });
   }
 }

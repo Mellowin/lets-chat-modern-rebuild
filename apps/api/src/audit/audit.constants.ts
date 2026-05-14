@@ -4,6 +4,7 @@ export const AuditAction = {
   WORKSPACE_INVITE_CREATED: 'workspace.invite.created',
   WORKSPACE_INVITE_ACCEPTED: 'workspace.invite.accepted',
   WORKSPACE_INVITE_REVOKED: 'workspace.invite.revoked',
+  WORKSPACE_OWNERSHIP_TRANSFERRED: 'workspace.ownership.transferred',
 } as const;
 
 export const AuditEntityType = {

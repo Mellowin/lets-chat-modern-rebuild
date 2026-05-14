@@ -10,6 +10,7 @@ import { WorkspacesRepository } from './workspaces.repository';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
+import { TransferOwnershipDto } from './dto/transfer-ownership.dto';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction, AuditEntityType } from '../audit/audit.constants';
 
@@ -204,6 +205,83 @@ export class WorkspacesService {
       workspaceId,
       deletedAt: new Date(),
     };
+  }
+
+  async transferOwnership(
+    workspaceId: string,
+    userId: string,
+    dto: TransferOwnershipDto,
+  ) {
+    const workspace = await this.workspaces.findActiveById(workspaceId);
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const requesterRole = await this.workspaces.findMemberRole(workspaceId, userId);
+    if (!requesterRole) {
+      throw new NotFoundException('Workspace not found');
+    }
+    if (requesterRole !== 'OWNER') {
+      throw new ForbiddenException('Only owner can transfer ownership');
+    }
+
+    const targetMember = await this.workspaces.findActiveMemberById(
+      dto.memberId,
+      workspaceId,
+    );
+    if (!targetMember) {
+      throw new NotFoundException('Member not found');
+    }
+    if (targetMember.role === 'OWNER') {
+      throw new BadRequestException('Target member is already the owner');
+    }
+    if (targetMember.userId === userId) {
+      throw new BadRequestException('Cannot transfer ownership to yourself');
+    }
+
+    const currentOwnerMember = await this.workspaces.findActiveMemberByUserId(
+      workspaceId,
+      userId,
+    );
+    if (!currentOwnerMember) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    try {
+      const result = await this.workspaces.transferOwnership({
+        workspaceId,
+        currentOwnerMemberId: currentOwnerMember.id,
+        currentOwnerUserId: userId,
+        targetMemberId: targetMember.id,
+        targetUserId: targetMember.userId,
+      });
+
+      await this.audit.record({
+        actorId: userId,
+        action: AuditAction.WORKSPACE_OWNERSHIP_TRANSFERRED,
+        entityType: AuditEntityType.WORKSPACE,
+        entityId: workspaceId,
+        workspaceId,
+        metadata: {
+          oldOwnerUserId: userId,
+          oldOwnerMemberId: currentOwnerMember.id,
+          newOwnerUserId: targetMember.userId,
+          newOwnerMemberId: targetMember.id,
+          previousTargetRole: targetMember.role,
+          oldOwnerNewRole: 'ADMIN',
+        },
+      });
+
+      return result;
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        (error.message === 'OWNERSHIP_STATE_CHANGED' || error.message === 'TARGET_STATE_CHANGED')
+      ) {
+        throw new ConflictException('Ownership state changed');
+      }
+      throw error;
+    }
   }
 
   async listAuditLogs(workspaceId: string, userId: string, limit: number) {
