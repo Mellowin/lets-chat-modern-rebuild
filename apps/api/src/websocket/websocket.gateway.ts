@@ -39,6 +39,7 @@ export class WebsocketGateway
 
   private readonly userSockets = new Map<string, Set<string>>();
   private readonly socketRooms = new Map<string, Set<string>>();
+  private readonly userRooms = new Map<string, Set<string>>();
 
   constructor(
     private readonly tokenService: TokenService,
@@ -115,17 +116,21 @@ export class WebsocketGateway
   handleDisconnect(socket: Socket) {
     const socketId = socket.id;
     const userId = socket.data.user?.id;
-    const rooms = this.getSocketRooms(socketId);
 
     this.socketRooms.delete(socketId);
-    const trackedUserId = this.untrackSocket(socketId);
 
-    if (trackedUserId && !this.userSockets.has(trackedUserId)) {
-      for (const room of rooms) {
-        this.server.to(room).emit('presence:offline', {
-          user: { id: trackedUserId, username: socket.data.user?.username },
-          status: 'offline',
-        });
+    if (userId) {
+      this.untrackSocket(userId, socketId);
+
+      if (!this.userSockets.has(userId)) {
+        const rooms = this.userRooms.get(userId) ?? new Set();
+        for (const room of rooms) {
+          this.server.to(room).emit('presence:offline', {
+            user: { id: userId, username: socket.data.user?.username },
+            status: 'offline',
+          });
+        }
+        this.userRooms.delete(userId);
       }
     }
 
@@ -172,6 +177,7 @@ export class WebsocketGateway
     const room = `channel:${channelId}`;
     await socket.join(room);
     this.addSocketRoom(socket.id, room);
+    this.addUserRoom(userId, room);
 
     socket.to(room).emit('presence:online', {
       user: { id: userId, username: socket.data.user?.username },
@@ -211,6 +217,23 @@ export class WebsocketGateway
     }
 
     this.removeSocketRoom(socket.id, room);
+
+    const userSocketIds = this.userSockets.get(userId) ?? new Set();
+    let otherSocketInRoom = false;
+    for (const otherSocketId of userSocketIds) {
+      if (otherSocketId !== socket.id && this.socketRooms.get(otherSocketId)?.has(room)) {
+        otherSocketInRoom = true;
+        break;
+      }
+    }
+    if (!otherSocketInRoom) {
+      socket.to(room).emit('presence:offline', {
+        user: { id: userId, username: socket.data.user?.username },
+        status: 'offline',
+      });
+      this.userRooms.get(userId)?.delete(room);
+    }
+
     await socket.leave(room);
 
     this.logger.log({ socketId: socket.id, userId, channelId }, 'Left channel room');
@@ -281,17 +304,14 @@ export class WebsocketGateway
     this.userSockets.get(userId)!.add(socketId);
   }
 
-  private untrackSocket(socketId: string): string | undefined {
-    for (const [userId, sockets] of this.userSockets) {
-      if (sockets.has(socketId)) {
-        sockets.delete(socketId);
-        if (sockets.size === 0) {
-          this.userSockets.delete(userId);
-        }
-        return userId;
+  private untrackSocket(userId: string, socketId: string): void {
+    const sockets = this.userSockets.get(userId);
+    if (sockets) {
+      sockets.delete(socketId);
+      if (sockets.size === 0) {
+        this.userSockets.delete(userId);
       }
     }
-    return undefined;
   }
 
   private addSocketRoom(socketId: string, room: string): void {
@@ -311,7 +331,10 @@ export class WebsocketGateway
     }
   }
 
-  private getSocketRooms(socketId: string): Set<string> {
-    return this.socketRooms.get(socketId) ?? new Set();
+  private addUserRoom(userId: string, room: string): void {
+    if (!this.userRooms.has(userId)) {
+      this.userRooms.set(userId, new Set());
+    }
+    this.userRooms.get(userId)!.add(room);
   }
 }
