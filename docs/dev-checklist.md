@@ -567,21 +567,51 @@ Connect via Socket.io to `ws://localhost:3001` with `auth: { token }`.
 | Not joined channel | `typing:error` |
 | Invalid channelId | `typing:error` |
 | Missing channelId | `typing:error` |
+| Missing user data | `typing:error` |
+
+Typing payload:
+
+```json
+{
+  "channelId": "uuid",
+  "user": {
+    "id": "uuid",
+    "username": "string"
+  }
+}
+```
 
 **Presence**
 
 | Scenario | Expected |
 |----------|----------|
 | Join channel | `presence:online` to room (sender excluded) |
-| Last socket disconnect | `presence:offline` to all joined rooms |
-| Multi-tab: close one of two sockets | No `presence:offline` |
+| Leave channel (no other same-user socket in room) | `presence:offline` to that room |
+| Leave channel (another same-user socket still in room) | No `presence:offline` |
+| Socket disconnect (no other same-user socket in that room) | `presence:offline` to that room |
+| Socket disconnect (another same-user socket still in that room) | No `presence:offline` |
+| Last socket disconnect (different rooms) | `presence:offline` to all rooms the user was in |
+| Multi-tab same room: close one tab | No `presence:offline` |
+| Multi-tab different rooms: close room1 tab | `presence:offline` to room1 only |
 | Unauthenticated socket | Not tracked, no presence events |
+
+Presence payload:
+
+```json
+{
+  "user": {
+    "id": "uuid",
+    "username": "string"
+  },
+  "status": "online" | "offline"
+}
+```
 
 - All broadcasts are **best-effort**: REST succeeds even if WebSocket emit fails.
 - `message:created` and `message:updated` payloads use the **public message contract** (no `authorId`, no `deletedAt`).
 - `message:deleted` payload intentionally includes `deletedAt`: `{ id, channelId, deletedAt }`.
 - `reaction:added`, `reaction:removed`, and `read:updated` payloads use their own public event contracts.
-- Presence is **in-memory only**: no DB, no Redis, no `lastSeen`. Server restart clears all presence state.
+- Presence is **in-memory only**: no DB, no Redis, no `lastSeen`. Server restart clears all presence state. Multi-tab support: closing one tab does not emit `offline` if another tab (socket) remains connected.
 
 ## Troubleshooting
 
