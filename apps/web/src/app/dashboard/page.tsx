@@ -52,11 +52,12 @@ export default function DashboardPage() {
     const token = localStorage.getItem("accessToken");
     if (!token) return;
 
-    setCreateState({ kind: "idle" });
+    setCreateState({ kind: "loading" });
     try {
       await createWorkspace(token, { name: trimmedName, slug: trimmedSlug });
       setName("");
       setSlug("");
+      setCreateState({ kind: "idle" });
       await loadWorkspaces(token);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to create workspace";
