@@ -671,6 +671,55 @@ Current limitations:
 - No audit log.
 - No frontend.
 
+### 16. Members
+
+**GET** `/api/v1/workspaces/:workspaceId/members`
+
+| Scenario | Expected |
+|----------|----------|
+| Any active workspace member | `200 OK` + list of active members |
+| Non-member | `404 Not Found` |
+| Inactive workspace | `404 Not Found` |
+| Without token | `401 Unauthorized` |
+
+- Returns only active memberships (`deletedAt: null`).
+- Sorted by `createdAt ASC` (oldest first).
+- Response excludes `passwordHash` and other sensitive user fields.
+
+**PATCH** `/api/v1/workspaces/:workspaceId/members/:memberId/role`
+
+Body:
+
+```json
+{
+  "role": "ADMIN"
+}
+```
+
+| Scenario | Expected |
+|----------|----------|
+| OWNER promoting MEMBER to ADMIN | `200 OK` + updated member |
+| OWNER demoting ADMIN to MEMBER | `200 OK` + updated member |
+| ADMIN requester | `403 Forbidden` |
+| MEMBER requester | `403 Forbidden` |
+| Non-member requester | `404 Not Found` |
+| Inactive workspace | `404 Not Found` |
+| Target member from another workspace | `404 Not Found` |
+| Deleted target member | `404 Not Found` |
+| Target is current OWNER | `400 Bad Request` |
+| Role `OWNER` in body | `400 Bad Request` |
+
+- Only workspace OWNER can update member roles.
+- Allowed roles in body: `ADMIN` | `MEMBER`.
+- Current OWNER role cannot be changed.
+- No ownership transfer.
+
+Current limitations:
+- No remove member yet.
+- No ownership transfer.
+- No audit log.
+- No frontend.
+
 ## Troubleshooting
 
 | Symptom | Fix |
