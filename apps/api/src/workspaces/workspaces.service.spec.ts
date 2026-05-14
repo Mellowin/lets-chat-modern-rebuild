@@ -2,10 +2,13 @@ import { Test } from '@nestjs/testing';
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { WorkspacesService } from './workspaces.service';
 import { WorkspacesRepository } from './workspaces.repository';
+import { AuditService } from '../audit/audit.service';
+import { AuditAction, AuditEntityType } from '../audit/audit.constants';
 
 describe('WorkspacesService', () => {
   let service: WorkspacesService;
   let workspacesRepository: jest.Mocked<WorkspacesRepository>;
+  let auditService: jest.Mocked<AuditService>;
 
   const userId = '11111111-1111-1111-1111-111111111111';
   const workspaceId = '22222222-2222-2222-2222-222222222222';
@@ -25,16 +28,27 @@ describe('WorkspacesService', () => {
             softDeleteMember: jest.fn(),
           },
         },
+        {
+          provide: AuditService,
+          useValue: {
+            record: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
     service = moduleRef.get(WorkspacesService);
     workspacesRepository = moduleRef.get(WorkspacesRepository);
+    auditService = moduleRef.get(AuditService);
   });
 
   afterEach(() => {
     jest.clearAllMocks();
   });
+
+  const expectAuditNotCalled = () => {
+    expect(auditService.record).not.toHaveBeenCalled();
+  };
 
   describe('listMembers', () => {
     it('should allow OWNER to list members', async () => {
@@ -131,6 +145,7 @@ describe('WorkspacesService', () => {
         id: memberId,
         workspaceId,
         role: 'MEMBER',
+        userId: targetUserId,
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'alice' },
       } as any);
@@ -147,6 +162,18 @@ describe('WorkspacesService', () => {
       expect(result.role).toBe('ADMIN');
       expect(result.user.username).toBe('alice');
       expect(result).not.toHaveProperty('passwordHash');
+      expect(auditService.record).toHaveBeenCalledWith({
+        actorId: userId,
+        action: AuditAction.WORKSPACE_MEMBER_ROLE_UPDATED,
+        entityType: AuditEntityType.WORKSPACE_MEMBER,
+        entityId: memberId,
+        workspaceId,
+        metadata: {
+          targetUserId: targetUserId,
+          oldRole: 'MEMBER',
+          newRole: 'ADMIN',
+        },
+      });
     });
 
     it('should allow OWNER to demote ADMIN to MEMBER', async () => {
@@ -156,6 +183,7 @@ describe('WorkspacesService', () => {
         id: memberId,
         workspaceId,
         role: 'ADMIN',
+        userId: targetUserId,
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'bob' },
       } as any);
@@ -170,6 +198,18 @@ describe('WorkspacesService', () => {
       const result = await service.updateMemberRole(workspaceId, memberId, { role: 'MEMBER' }, userId);
 
       expect(result.role).toBe('MEMBER');
+      expect(auditService.record).toHaveBeenCalledWith({
+        actorId: userId,
+        action: AuditAction.WORKSPACE_MEMBER_ROLE_UPDATED,
+        entityType: AuditEntityType.WORKSPACE_MEMBER,
+        entityId: memberId,
+        workspaceId,
+        metadata: {
+          targetUserId: targetUserId,
+          oldRole: 'ADMIN',
+          newRole: 'MEMBER',
+        },
+      });
     });
 
     it('should reject ADMIN requester', async () => {
@@ -179,6 +219,7 @@ describe('WorkspacesService', () => {
       await expect(
         service.updateMemberRole(workspaceId, memberId, { role: 'ADMIN' }, userId),
       ).rejects.toBeInstanceOf(ForbiddenException);
+      expectAuditNotCalled();
     });
 
     it('should reject MEMBER requester', async () => {
@@ -188,6 +229,7 @@ describe('WorkspacesService', () => {
       await expect(
         service.updateMemberRole(workspaceId, memberId, { role: 'ADMIN' }, userId),
       ).rejects.toBeInstanceOf(ForbiddenException);
+      expectAuditNotCalled();
     });
 
     it('should reject non-member requester', async () => {
@@ -197,6 +239,7 @@ describe('WorkspacesService', () => {
       await expect(
         service.updateMemberRole(workspaceId, memberId, { role: 'ADMIN' }, userId),
       ).rejects.toBeInstanceOf(NotFoundException);
+      expectAuditNotCalled();
     });
 
     it('should reject inactive workspace', async () => {
@@ -205,6 +248,7 @@ describe('WorkspacesService', () => {
       await expect(
         service.updateMemberRole(workspaceId, memberId, { role: 'ADMIN' }, userId),
       ).rejects.toBeInstanceOf(NotFoundException);
+      expectAuditNotCalled();
     });
 
     it('should reject target member from another workspace', async () => {
@@ -215,6 +259,7 @@ describe('WorkspacesService', () => {
       await expect(
         service.updateMemberRole(workspaceId, memberId, { role: 'ADMIN' }, userId),
       ).rejects.toBeInstanceOf(NotFoundException);
+      expectAuditNotCalled();
     });
 
     it('should reject deleted target member', async () => {
@@ -225,6 +270,7 @@ describe('WorkspacesService', () => {
       await expect(
         service.updateMemberRole(workspaceId, memberId, { role: 'ADMIN' }, userId),
       ).rejects.toBeInstanceOf(NotFoundException);
+      expectAuditNotCalled();
     });
 
     it('should reject changing role of current OWNER', async () => {
@@ -241,6 +287,7 @@ describe('WorkspacesService', () => {
       await expect(
         service.updateMemberRole(workspaceId, memberId, { role: 'ADMIN' }, userId),
       ).rejects.toBeInstanceOf(BadRequestException);
+      expectAuditNotCalled();
     });
 
     it('should reject OWNER role in body', async () => {
@@ -250,6 +297,7 @@ describe('WorkspacesService', () => {
         id: memberId,
         workspaceId,
         role: 'MEMBER',
+        userId: targetUserId,
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'alice' },
       } as any);
@@ -257,6 +305,7 @@ describe('WorkspacesService', () => {
       await expect(
         service.updateMemberRole(workspaceId, memberId, { role: 'OWNER' }, userId),
       ).rejects.toBeInstanceOf(BadRequestException);
+      expectAuditNotCalled();
     });
 
     it('should return updated member without passwordHash', async () => {
@@ -266,6 +315,7 @@ describe('WorkspacesService', () => {
         id: memberId,
         workspaceId,
         role: 'MEMBER',
+        userId: targetUserId,
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'alice' },
       } as any);
@@ -290,6 +340,18 @@ describe('WorkspacesService', () => {
         },
       });
       expect(result).not.toHaveProperty('passwordHash');
+      expect(auditService.record).toHaveBeenCalledWith({
+        actorId: userId,
+        action: AuditAction.WORKSPACE_MEMBER_ROLE_UPDATED,
+        entityType: AuditEntityType.WORKSPACE_MEMBER,
+        entityId: memberId,
+        workspaceId,
+        metadata: {
+          targetUserId: targetUserId,
+          oldRole: 'MEMBER',
+          newRole: 'ADMIN',
+        },
+      });
     });
   });
 
@@ -315,6 +377,17 @@ describe('WorkspacesService', () => {
       expect(result.id).toBe(memberId);
       expect(result.workspaceId).toBe(workspaceId);
       expect(result).toHaveProperty('deletedAt');
+      expect(auditService.record).toHaveBeenCalledWith({
+        actorId: userId,
+        action: AuditAction.WORKSPACE_MEMBER_REMOVED,
+        entityType: AuditEntityType.WORKSPACE_MEMBER,
+        entityId: memberId,
+        workspaceId,
+        metadata: {
+          targetUserId: targetUserId,
+          removedRole: 'MEMBER',
+        },
+      });
     });
 
     it('should allow OWNER to remove ADMIN', async () => {
@@ -334,6 +407,17 @@ describe('WorkspacesService', () => {
 
       expect(result.id).toBe(memberId);
       expect(result.deletedAt).toBeInstanceOf(Date);
+      expect(auditService.record).toHaveBeenCalledWith({
+        actorId: userId,
+        action: AuditAction.WORKSPACE_MEMBER_REMOVED,
+        entityType: AuditEntityType.WORKSPACE_MEMBER,
+        entityId: memberId,
+        workspaceId,
+        metadata: {
+          targetUserId: targetUserId,
+          removedRole: 'ADMIN',
+        },
+      });
     });
 
     it('should reject ADMIN requester', async () => {
@@ -343,6 +427,7 @@ describe('WorkspacesService', () => {
       await expect(
         service.removeMember(workspaceId, memberId, userId),
       ).rejects.toBeInstanceOf(ForbiddenException);
+      expectAuditNotCalled();
     });
 
     it('should reject MEMBER requester', async () => {
@@ -352,6 +437,7 @@ describe('WorkspacesService', () => {
       await expect(
         service.removeMember(workspaceId, memberId, userId),
       ).rejects.toBeInstanceOf(ForbiddenException);
+      expectAuditNotCalled();
     });
 
     it('should reject non-member requester', async () => {
@@ -361,6 +447,7 @@ describe('WorkspacesService', () => {
       await expect(
         service.removeMember(workspaceId, memberId, userId),
       ).rejects.toBeInstanceOf(NotFoundException);
+      expectAuditNotCalled();
     });
 
     it('should reject inactive workspace', async () => {
@@ -369,6 +456,7 @@ describe('WorkspacesService', () => {
       await expect(
         service.removeMember(workspaceId, memberId, userId),
       ).rejects.toBeInstanceOf(NotFoundException);
+      expectAuditNotCalled();
     });
 
     it('should reject target member from another workspace', async () => {
@@ -379,6 +467,7 @@ describe('WorkspacesService', () => {
       await expect(
         service.removeMember(workspaceId, memberId, userId),
       ).rejects.toBeInstanceOf(NotFoundException);
+      expectAuditNotCalled();
     });
 
     it('should reject already deleted target member', async () => {
@@ -389,6 +478,7 @@ describe('WorkspacesService', () => {
       await expect(
         service.removeMember(workspaceId, memberId, userId),
       ).rejects.toBeInstanceOf(NotFoundException);
+      expectAuditNotCalled();
     });
 
     it('should reject removing workspace OWNER', async () => {
@@ -406,6 +496,7 @@ describe('WorkspacesService', () => {
       await expect(
         service.removeMember(workspaceId, memberId, userId),
       ).rejects.toBeInstanceOf(BadRequestException);
+      expectAuditNotCalled();
     });
 
     it('should reject self-removal', async () => {
@@ -423,6 +514,7 @@ describe('WorkspacesService', () => {
       await expect(
         service.removeMember(workspaceId, memberId, userId),
       ).rejects.toBeInstanceOf(BadRequestException);
+      expectAuditNotCalled();
     });
 
     it('should reject when soft delete affects 0 rows', async () => {
@@ -441,6 +533,7 @@ describe('WorkspacesService', () => {
       await expect(
         service.removeMember(workspaceId, memberId, userId),
       ).rejects.toBeInstanceOf(NotFoundException);
+      expectAuditNotCalled();
     });
 
     it('should return correct response shape', async () => {
@@ -462,6 +555,17 @@ describe('WorkspacesService', () => {
         id: memberId,
         workspaceId,
         deletedAt: expect.any(Date),
+      });
+      expect(auditService.record).toHaveBeenCalledWith({
+        actorId: userId,
+        action: AuditAction.WORKSPACE_MEMBER_REMOVED,
+        entityType: AuditEntityType.WORKSPACE_MEMBER,
+        entityId: memberId,
+        workspaceId,
+        metadata: {
+          targetUserId: targetUserId,
+          removedRole: 'MEMBER',
+        },
       });
     });
   });

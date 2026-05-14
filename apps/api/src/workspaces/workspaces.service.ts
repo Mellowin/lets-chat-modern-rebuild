@@ -10,10 +10,15 @@ import { WorkspacesRepository } from './workspaces.repository';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
+import { AuditService } from '../audit/audit.service';
+import { AuditAction, AuditEntityType } from '../audit/audit.constants';
 
 @Injectable()
 export class WorkspacesService {
-  constructor(private readonly workspaces: WorkspacesRepository) {}
+  constructor(
+    private readonly workspaces: WorkspacesRepository,
+    private readonly audit: AuditService,
+  ) {}
 
   async create(dto: CreateWorkspaceDto, userId: string) {
     const normalizedSlug = dto.slug.trim().toLowerCase();
@@ -120,6 +125,20 @@ export class WorkspacesService {
     }
 
     const updated = await this.workspaces.updateMemberRole(memberId, dto.role);
+
+    await this.audit.record({
+      actorId: userId,
+      action: AuditAction.WORKSPACE_MEMBER_ROLE_UPDATED,
+      entityType: AuditEntityType.WORKSPACE_MEMBER,
+      entityId: memberId,
+      workspaceId,
+      metadata: {
+        targetUserId: targetMember.userId,
+        oldRole: targetMember.role,
+        newRole: dto.role,
+      },
+    });
+
     return {
       id: updated.id,
       workspaceId: updated.workspaceId,
@@ -167,6 +186,18 @@ export class WorkspacesService {
     if (deletedCount === 0) {
       throw new NotFoundException('Member not found');
     }
+
+    await this.audit.record({
+      actorId: userId,
+      action: AuditAction.WORKSPACE_MEMBER_REMOVED,
+      entityType: AuditEntityType.WORKSPACE_MEMBER,
+      entityId: memberId,
+      workspaceId,
+      metadata: {
+        targetUserId: targetMember.userId,
+        removedRole: targetMember.role,
+      },
+    });
 
     return {
       id: memberId,
