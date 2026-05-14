@@ -37,6 +37,9 @@ export class WebsocketGateway
 
   private readonly logger = new Logger(WebsocketGateway.name);
 
+  private readonly userSockets = new Map<string, Set<string>>();
+  private readonly socketRooms = new Map<string, Set<string>>();
+
   constructor(
     private readonly tokenService: TokenService,
     private readonly usersRepository: UsersRepository,
@@ -95,6 +98,8 @@ export class WebsocketGateway
         username: user.username,
       };
 
+      this.trackSocket(user.id, socketId);
+
       this.logger.log({ socketId, userId: user.id }, 'Socket connected');
       socket.emit('connected', { userId: user.id });
     } catch (error) {
@@ -108,8 +113,23 @@ export class WebsocketGateway
   }
 
   handleDisconnect(socket: Socket) {
+    const socketId = socket.id;
     const userId = socket.data.user?.id;
-    this.logger.log({ socketId: socket.id, userId }, 'Socket disconnected');
+    const rooms = this.getSocketRooms(socketId);
+
+    this.socketRooms.delete(socketId);
+    const trackedUserId = this.untrackSocket(socketId);
+
+    if (trackedUserId && !this.userSockets.has(trackedUserId)) {
+      for (const room of rooms) {
+        this.server.to(room).emit('presence:offline', {
+          user: { id: trackedUserId, username: socket.data.user?.username },
+          status: 'offline',
+        });
+      }
+    }
+
+    this.logger.log({ socketId, userId }, 'Socket disconnected');
   }
 
   broadcastToRoom(room: string, event: string, payload: unknown) {
@@ -151,6 +171,12 @@ export class WebsocketGateway
 
     const room = `channel:${channelId}`;
     await socket.join(room);
+    this.addSocketRoom(socket.id, room);
+
+    socket.to(room).emit('presence:online', {
+      user: { id: userId, username: socket.data.user?.username },
+      status: 'online',
+    });
 
     this.logger.log({ socketId: socket.id, userId, channelId }, 'Joined channel room');
     socket.emit('channel:joined', { workspaceId, channelId });
@@ -184,6 +210,7 @@ export class WebsocketGateway
       return;
     }
 
+    this.removeSocketRoom(socket.id, room);
     await socket.leave(room);
 
     this.logger.log({ socketId: socket.id, userId, channelId }, 'Left channel room');
@@ -245,5 +272,46 @@ export class WebsocketGateway
         'Typing broadcast error',
       );
     }
+  }
+
+  private trackSocket(userId: string, socketId: string): void {
+    if (!this.userSockets.has(userId)) {
+      this.userSockets.set(userId, new Set());
+    }
+    this.userSockets.get(userId)!.add(socketId);
+  }
+
+  private untrackSocket(socketId: string): string | undefined {
+    for (const [userId, sockets] of this.userSockets) {
+      if (sockets.has(socketId)) {
+        sockets.delete(socketId);
+        if (sockets.size === 0) {
+          this.userSockets.delete(userId);
+        }
+        return userId;
+      }
+    }
+    return undefined;
+  }
+
+  private addSocketRoom(socketId: string, room: string): void {
+    if (!this.socketRooms.has(socketId)) {
+      this.socketRooms.set(socketId, new Set());
+    }
+    this.socketRooms.get(socketId)!.add(room);
+  }
+
+  private removeSocketRoom(socketId: string, room: string): void {
+    const rooms = this.socketRooms.get(socketId);
+    if (rooms) {
+      rooms.delete(room);
+      if (rooms.size === 0) {
+        this.socketRooms.delete(socketId);
+      }
+    }
+  }
+
+  private getSocketRooms(socketId: string): Set<string> {
+    return this.socketRooms.get(socketId) ?? new Set();
   }
 }

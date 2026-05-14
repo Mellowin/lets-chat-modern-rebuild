@@ -508,6 +508,8 @@ Connect via Socket.io to `ws://localhost:3001` with `auth: { token }`.
 | `typing:started` | Server → Client | `typing:start` received and broadcast |
 | `typing:stopped` | Server → Client | `typing:stop` received and broadcast |
 | `typing:error` | Server → Client | Invalid UUID, no access, or not joined room |
+| `presence:online` | Server → Client | User joins a channel room |
+| `presence:offline` | Server → Client | User's last socket disconnects from a channel room |
 
 **Auth handshake**
 
@@ -566,10 +568,20 @@ Connect via Socket.io to `ws://localhost:3001` with `auth: { token }`.
 | Invalid channelId | `typing:error` |
 | Missing channelId | `typing:error` |
 
+**Presence**
+
+| Scenario | Expected |
+|----------|----------|
+| Join channel | `presence:online` to room (sender excluded) |
+| Last socket disconnect | `presence:offline` to all joined rooms |
+| Multi-tab: close one of two sockets | No `presence:offline` |
+| Unauthenticated socket | Not tracked, no presence events |
+
 - All broadcasts are **best-effort**: REST succeeds even if WebSocket emit fails.
 - `message:created` and `message:updated` payloads use the **public message contract** (no `authorId`, no `deletedAt`).
 - `message:deleted` payload intentionally includes `deletedAt`: `{ id, channelId, deletedAt }`.
 - `reaction:added`, `reaction:removed`, and `read:updated` payloads use their own public event contracts.
+- Presence is **in-memory only**: no DB, no Redis, no `lastSeen`. Server restart clears all presence state.
 
 ## Troubleshooting
 

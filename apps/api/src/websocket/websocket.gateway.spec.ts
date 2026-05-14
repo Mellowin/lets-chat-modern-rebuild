@@ -394,6 +394,130 @@ describe('WebsocketGateway', () => {
     });
   });
 
+  describe('presence', () => {
+    it('should track socket on authenticated connection', async () => {
+      const socket = createMockSocket({
+        id: 'socket-a',
+        handshake: { auth: { token: 'valid' } } as any,
+      });
+
+      tokenService.verifyAccessToken.mockResolvedValue({ sub: userId, email: 'test@test.com', jti: 'jti-1' });
+      usersRepository.findById.mockResolvedValue({
+        id: userId,
+        email: 'test@test.com',
+        username: 'testuser',
+      } as any);
+
+      await gateway.handleConnection(socket);
+
+      expect(gateway['userSockets'].get(userId)).toContain('socket-a');
+    });
+
+    it('should not track unauthenticated socket', async () => {
+      const socket = createMockSocket({
+        id: 'socket-b',
+      });
+
+      await gateway.handleConnection(socket);
+
+      expect(gateway['userSockets'].has(userId)).toBe(false);
+    });
+
+    it('should emit presence:online on channel join', async () => {
+      const socket = createMockSocket({
+        id: 'socket-c',
+        data: { user: { id: userId, username: 'testuser' } },
+      });
+      socket.rooms.add(`channel:${channelId}`);
+
+      channelsService.findById.mockResolvedValue({ id: channelId } as any);
+
+      await gateway.handleChannelJoin(socket, { workspaceId, channelId });
+
+      expect(socket.to).toHaveBeenCalledWith(`channel:${channelId}`);
+      expect(socket.to(`channel:${channelId}`).emit).toHaveBeenCalledWith('presence:online', {
+        user: { id: userId, username: 'testuser' },
+        status: 'online',
+      });
+    });
+
+    it('should remove room tracking on channel leave', async () => {
+      const socket = createMockSocket({
+        id: 'socket-d',
+        data: { user: { id: userId } },
+      });
+      socket.rooms.add(`channel:${channelId}`);
+      gateway['socketRooms'].set('socket-d', new Set([`channel:${channelId}`]));
+
+      await gateway.handleChannelLeave(socket, { channelId });
+
+      expect(gateway['socketRooms'].has('socket-d')).toBe(false);
+    });
+
+    it('should emit presence:offline on last socket disconnect', async () => {
+      const socket = createMockSocket({
+        id: 'socket-e',
+        data: { user: { id: userId, username: 'testuser' } },
+      });
+      gateway['userSockets'].set(userId, new Set(['socket-e']));
+      gateway['socketRooms'].set('socket-e', new Set([`channel:${channelId}`]));
+
+      gateway.handleDisconnect(socket);
+
+      expect(gateway['userSockets'].has(userId)).toBe(false);
+      expect(gateway.server.to).toHaveBeenCalledWith(`channel:${channelId}`);
+      expect(gateway.server.to(`channel:${channelId}`).emit).toHaveBeenCalledWith('presence:offline', {
+        user: { id: userId, username: 'testuser' },
+        status: 'offline',
+      });
+    });
+
+    it('should not emit offline when user still has other sockets', async () => {
+      const socket1 = createMockSocket({
+        id: 'socket-f1',
+        data: { user: { id: userId, username: 'testuser' } },
+      });
+      const socket2 = createMockSocket({
+        id: 'socket-f2',
+        data: { user: { id: userId, username: 'testuser' } },
+      });
+
+      gateway['userSockets'].set(userId, new Set(['socket-f1', 'socket-f2']));
+      gateway['socketRooms'].set('socket-f1', new Set([`channel:${channelId}`]));
+
+      gateway.handleDisconnect(socket1);
+
+      expect(gateway['userSockets'].has(userId)).toBe(true);
+      expect(gateway['userSockets'].get(userId)).toContain('socket-f2');
+      expect(gateway.server.to).not.toHaveBeenCalled();
+    });
+
+    it('should emit offline to all joined rooms on last disconnect', async () => {
+      const socket = createMockSocket({
+        id: 'socket-g',
+        data: { user: { id: userId, username: 'testuser' } },
+      });
+      const room1 = `channel:${channelId}`;
+      const room2 = `channel:44444444-4444-4444-4444-444444444444`;
+
+      gateway['userSockets'].set(userId, new Set(['socket-g']));
+      gateway['socketRooms'].set('socket-g', new Set([room1, room2]));
+
+      gateway.handleDisconnect(socket);
+
+      expect(gateway.server.to).toHaveBeenCalledWith(room1);
+      expect(gateway.server.to).toHaveBeenCalledWith(room2);
+      expect(gateway.server.to(room1).emit).toHaveBeenCalledWith('presence:offline', {
+        user: { id: userId, username: 'testuser' },
+        status: 'offline',
+      });
+      expect(gateway.server.to(room2).emit).toHaveBeenCalledWith('presence:offline', {
+        user: { id: userId, username: 'testuser' },
+        status: 'offline',
+      });
+    });
+  });
+
   describe('broadcastToRoom', () => {
     it('should emit event via server.to', () => {
       gateway.broadcastToRoom('channel:1', 'test:event', { foo: 'bar' });
