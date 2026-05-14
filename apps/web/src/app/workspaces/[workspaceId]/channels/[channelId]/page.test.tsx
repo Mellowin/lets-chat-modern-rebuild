@@ -22,6 +22,7 @@ vi.mock("@/lib/auth-context", () => ({
     isLoading: false,
     isAuthenticated: true,
     user: { id: "u1", email: "a@b.com", username: "alice" },
+    accessToken: "token",
   }),
 }));
 

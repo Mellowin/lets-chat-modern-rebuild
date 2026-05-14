@@ -27,7 +27,7 @@ export default function ChannelDetailPage() {
     typeof params.workspaceId === "string" ? params.workspaceId : "";
   const channelId =
     typeof params.channelId === "string" ? params.channelId : "";
-  const { isLoading: authLoading, isAuthenticated, user } = useAuth();
+  const { isLoading: authLoading, isAuthenticated, user, accessToken } = useAuth();
   const [channel, setChannel] = useState<ChannelState>({ kind: "idle" });
   const [messages, setMessages] = useState<MessagesState>({ kind: "idle" });
   const [content, setContent] = useState("");
@@ -44,9 +44,7 @@ export default function ChannelDetailPage() {
   >({ kind: "idle" });
 
   useEffect(() => {
-    if (!isAuthenticated || !workspaceId || !channelId) return;
-    const token = localStorage.getItem("accessToken");
-    if (!token) return;
+    if (!isAuthenticated || !workspaceId || !channelId || !accessToken) return;
 
     let cancelled = false;
     async function load(t: string, ws: string, ch: string) {
@@ -70,20 +68,19 @@ export default function ChannelDetailPage() {
         }
       }
     }
-    load(token, workspaceId, channelId);
+    load(accessToken, workspaceId, channelId);
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, workspaceId, channelId]);
+  }, [isAuthenticated, workspaceId, channelId, accessToken]);
 
   useEffect(() => {
     if (!isAuthenticated || !workspaceId || !channelId) return;
-    const token = localStorage.getItem("accessToken");
-    if (!token) return;
+    if (!accessToken) return;
 
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSocketStatus("connecting");
-    const socket = createSocket(token);
+    const socket = createSocket(accessToken);
 
     socket.on("connect", () => {
       setSocketStatus("connected");
@@ -136,7 +133,7 @@ export default function ChannelDetailPage() {
       socket.emit("channel:leave", { channelId });
       socket.disconnect();
     };
-  }, [isAuthenticated, workspaceId, channelId]);
+  }, [isAuthenticated, workspaceId, channelId, accessToken]);
 
   function appendMessage(msg: Message) {
     setMessages((prev) => {
@@ -194,13 +191,12 @@ export default function ChannelDetailPage() {
       setEditState({ kind: "error", message: "Message is too long (max 4000 characters)" });
       return;
     }
-    const token = localStorage.getItem("accessToken");
-    if (!token || !workspaceId || !channelId || !editingMessageId) return;
+    if (!accessToken || !workspaceId || !channelId || !editingMessageId) return;
 
     setEditState({ kind: "loading" });
     try {
       const input: UpdateMessageInput = { content: trimmed };
-      const msg = await updateMessage(token, workspaceId, channelId, editingMessageId, input);
+      const msg = await updateMessage(accessToken, workspaceId, channelId, editingMessageId, input);
       setEditState({ kind: "idle" });
       setEditingMessageId(null);
       setEditContent("");
@@ -213,10 +209,9 @@ export default function ChannelDetailPage() {
 
   async function handleDelete(messageId: string) {
     if (!window.confirm("Delete this message?")) return;
-    const token = localStorage.getItem("accessToken");
-    if (!token || !workspaceId || !channelId) return;
+    if (!accessToken || !workspaceId || !channelId) return;
     try {
-      await deleteMessage(token, workspaceId, channelId, messageId);
+      await deleteMessage(accessToken, workspaceId, channelId, messageId);
       removeMessageFromState(messageId);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to delete message";
@@ -235,13 +230,12 @@ export default function ChannelDetailPage() {
       setSendState({ kind: "error", message: "Message is too long (max 4000 characters)" });
       return;
     }
-    const token = localStorage.getItem("accessToken");
-    if (!token || !workspaceId || !channelId) return;
+    if (!accessToken || !workspaceId || !channelId) return;
 
     setSendState({ kind: "loading" });
     try {
       const input: CreateMessageInput = { content: trimmed };
-      const msg = await createMessage(token, workspaceId, channelId, input);
+      const msg = await createMessage(accessToken, workspaceId, channelId, input);
       setContent("");
       setSendState({ kind: "idle" });
       appendMessage(msg);
@@ -416,7 +410,7 @@ export default function ChannelDetailPage() {
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold">
+                    <span className="text-sm font-semibold capitalize">
                       {msg.author.displayName || msg.author.username}
                     </span>
                     <span className="text-xs text-zinc-400 dark:text-zinc-500">

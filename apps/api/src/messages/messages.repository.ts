@@ -46,7 +46,7 @@ export class MessagesRepository {
         deletedAt: null,
         ...(before ? { createdAt: { lt: before } } : {}),
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: 'asc' },
       take: limit,
       include: {
         author: {
