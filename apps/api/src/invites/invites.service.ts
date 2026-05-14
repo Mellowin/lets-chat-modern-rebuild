@@ -11,12 +11,15 @@ import { randomBytes, createHash } from 'crypto';
 import { WorkspacesRepository } from '../workspaces/workspaces.repository';
 import { InvitesRepository } from './invites.repository';
 import { CreateInviteDto } from './dto/create-invite.dto';
+import { AuditService } from '../audit/audit.service';
+import { AuditAction, AuditEntityType } from '../audit/audit.constants';
 
 @Injectable()
 export class InvitesService {
   constructor(
     private readonly invites: InvitesRepository,
     private readonly workspaces: WorkspacesRepository,
+    private readonly audit: AuditService,
   ) {}
 
   async create(workspaceId: string, dto: CreateInviteDto, invitedById: string) {
@@ -48,6 +51,18 @@ export class InvitesService {
       role: dto.role,
       tokenHash,
       expiresAt,
+    });
+
+    await this.audit.record({
+      actorId: invitedById,
+      action: AuditAction.WORKSPACE_INVITE_CREATED,
+      entityType: AuditEntityType.INVITATION,
+      entityId: invite.id,
+      workspaceId,
+      metadata: {
+        role: invite.role,
+        expiresAt: invite.expiresAt,
+      },
     });
 
     return {
@@ -102,6 +117,17 @@ export class InvitesService {
         invite.workspaceId,
         invite.role,
       );
+
+      await this.audit.record({
+        actorId: userId,
+        action: AuditAction.WORKSPACE_INVITE_ACCEPTED,
+        entityType: AuditEntityType.INVITATION,
+        entityId: invite.id,
+        workspaceId: invite.workspaceId,
+        metadata: {
+          role: invite.role,
+        },
+      });
 
       return {
         workspaceId: member.workspaceId,
@@ -169,6 +195,17 @@ export class InvitesService {
       }
       throw new NotFoundException('Invite not found');
     }
+
+    await this.audit.record({
+      actorId: userId,
+      action: AuditAction.WORKSPACE_INVITE_REVOKED,
+      entityType: AuditEntityType.INVITATION,
+      entityId: inviteId,
+      workspaceId,
+      metadata: {
+        role: invite.role,
+      },
+    });
 
     return { id: inviteId, deletedAt: revokedAt };
   }

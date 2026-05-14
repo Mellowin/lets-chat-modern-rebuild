@@ -5,11 +5,14 @@ import { createHash } from 'crypto';
 import { InvitesService } from './invites.service';
 import { InvitesRepository } from './invites.repository';
 import { WorkspacesRepository } from '../workspaces/workspaces.repository';
+import { AuditService } from '../audit/audit.service';
+import { AuditAction, AuditEntityType } from '../audit/audit.constants';
 
 describe('InvitesService', () => {
   let service: InvitesService;
   let invitesRepository: jest.Mocked<InvitesRepository>;
   let workspacesRepository: jest.Mocked<WorkspacesRepository>;
+  let auditService: jest.Mocked<AuditService>;
 
   const userId = '11111111-1111-1111-1111-111111111111';
   const workspaceId = '22222222-2222-2222-2222-222222222222';
@@ -36,17 +39,28 @@ describe('InvitesService', () => {
             findMemberRole: jest.fn(),
           },
         },
+        {
+          provide: AuditService,
+          useValue: {
+            record: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
     service = moduleRef.get(InvitesService);
     invitesRepository = moduleRef.get(InvitesRepository);
     workspacesRepository = moduleRef.get(WorkspacesRepository);
+    auditService = moduleRef.get(AuditService);
   });
 
   afterEach(() => {
     jest.clearAllMocks();
   });
+
+  const expectAuditNotCalled = () => {
+    expect(auditService.record).not.toHaveBeenCalled();
+  };
 
   it('should allow OWNER to create MEMBER invite', async () => {
     workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
@@ -120,6 +134,7 @@ describe('InvitesService', () => {
     await expect(
       service.create(workspaceId, { email: 'test@example.com', role: 'MEMBER' }, userId),
     ).rejects.toBeInstanceOf(ForbiddenException);
+    expectAuditNotCalled();
   });
 
   it('should reject random workspaceId', async () => {
@@ -128,6 +143,7 @@ describe('InvitesService', () => {
     await expect(
       service.create(workspaceId, { email: 'test@example.com', role: 'MEMBER' }, userId),
     ).rejects.toBeInstanceOf(NotFoundException);
+    expectAuditNotCalled();
   });
 
   it('should reject non-member of workspace', async () => {
@@ -137,6 +153,7 @@ describe('InvitesService', () => {
     await expect(
       service.create(workspaceId, { email: 'test@example.com', role: 'MEMBER' }, userId),
     ).rejects.toBeInstanceOf(NotFoundException);
+    expectAuditNotCalled();
   });
 
   it('should reject OWNER role in body', async () => {
@@ -146,6 +163,7 @@ describe('InvitesService', () => {
     await expect(
       service.create(workspaceId, { email: 'test@example.com', role: 'OWNER' as any }, userId),
     ).rejects.toBeInstanceOf(BadRequestException);
+    expectAuditNotCalled();
   });
 
   it('should store tokenHash, not raw token', async () => {
@@ -166,6 +184,10 @@ describe('InvitesService', () => {
     expect(callArg.tokenHash).toBeDefined();
     expect(callArg.tokenHash).not.toBe(result.token);
     expect(callArg.tokenHash).toHaveLength(64);
+    expect(auditService.record).toHaveBeenCalled();
+    const auditCall = auditService.record.mock.calls[0][0];
+    expect(auditCall.metadata).not.toHaveProperty('token');
+    expect(auditCall.metadata).not.toHaveProperty('tokenHash');
   });
 
   it('should set expiresAt to roughly 7 days from now', async () => {
@@ -228,6 +250,16 @@ describe('InvitesService', () => {
         workspaceId,
         'MEMBER',
       );
+      expect(auditService.record).toHaveBeenCalledWith({
+        actorId: userId,
+        action: AuditAction.WORKSPACE_INVITE_ACCEPTED,
+        entityType: AuditEntityType.INVITATION,
+        entityId: 'invite-id',
+        workspaceId,
+        metadata: {
+          role: 'MEMBER',
+        },
+      });
     });
 
     it('should reject invalid token', async () => {
@@ -236,6 +268,7 @@ describe('InvitesService', () => {
       await expect(
         service.accept(rawToken, userId, 'test@example.com'),
       ).rejects.toBeInstanceOf(NotFoundException);
+      expectAuditNotCalled();
     });
 
     it('should reject expired invite', async () => {
@@ -246,6 +279,7 @@ describe('InvitesService', () => {
       await expect(
         service.accept(rawToken, userId, 'test@example.com'),
       ).rejects.toBeInstanceOf(GoneException);
+      expectAuditNotCalled();
     });
 
     it('should reject already used invite', async () => {
@@ -256,6 +290,7 @@ describe('InvitesService', () => {
       await expect(
         service.accept(rawToken, userId, 'test@example.com'),
       ).rejects.toBeInstanceOf(ConflictException);
+      expectAuditNotCalled();
     });
 
     it('should reject email mismatch', async () => {
@@ -264,6 +299,7 @@ describe('InvitesService', () => {
       await expect(
         service.accept(rawToken, userId, 'different@example.com'),
       ).rejects.toBeInstanceOf(ForbiddenException);
+      expectAuditNotCalled();
     });
 
     it('should reject already workspace member', async () => {
@@ -274,6 +310,7 @@ describe('InvitesService', () => {
       await expect(
         service.accept(rawToken, userId, 'test@example.com'),
       ).rejects.toBeInstanceOf(ConflictException);
+      expectAuditNotCalled();
     });
 
     it('should reject accept for inactive workspace', async () => {
@@ -284,6 +321,7 @@ describe('InvitesService', () => {
         service.accept(rawToken, userId, 'test@example.com'),
       ).rejects.toBeInstanceOf(NotFoundException);
       expect(invitesRepository.acceptInvite).not.toHaveBeenCalled();
+      expectAuditNotCalled();
     });
 
     it('should reject OWNER invite', async () => {
@@ -294,6 +332,7 @@ describe('InvitesService', () => {
       await expect(
         service.accept(rawToken, userId, 'test@example.com'),
       ).rejects.toBeInstanceOf(BadRequestException);
+      expectAuditNotCalled();
     });
 
     it('should hash token before lookup', async () => {
@@ -311,6 +350,7 @@ describe('InvitesService', () => {
       expect(invitesRepository.findByTokenHash).toHaveBeenCalledWith(
         expect.not.stringMatching(rawToken),
       );
+      expect(auditService.record).toHaveBeenCalled();
     });
 
     it('should map Prisma P2002 to ConflictException on race condition', async () => {
@@ -362,6 +402,16 @@ describe('InvitesService', () => {
         inviteId,
         expect.any(Date),
       );
+      expect(auditService.record).toHaveBeenCalledWith({
+        actorId: userId,
+        action: AuditAction.WORKSPACE_INVITE_REVOKED,
+        entityType: AuditEntityType.INVITATION,
+        entityId: inviteId,
+        workspaceId,
+        metadata: {
+          role: 'MEMBER',
+        },
+      });
     });
 
     it('should allow ADMIN to revoke unused invite', async () => {
@@ -373,6 +423,11 @@ describe('InvitesService', () => {
       const result = await service.revoke(workspaceId, inviteId, userId);
 
       expect(result.id).toBe(inviteId);
+      expect(auditService.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: AuditAction.WORKSPACE_INVITE_REVOKED,
+        }),
+      );
     });
 
     it('should reject MEMBER revoking invite', async () => {
@@ -382,6 +437,7 @@ describe('InvitesService', () => {
       await expect(
         service.revoke(workspaceId, inviteId, userId),
       ).rejects.toBeInstanceOf(ForbiddenException);
+      expectAuditNotCalled();
     });
 
     it('should reject non-member', async () => {
@@ -391,6 +447,7 @@ describe('InvitesService', () => {
       await expect(
         service.revoke(workspaceId, inviteId, userId),
       ).rejects.toBeInstanceOf(NotFoundException);
+      expectAuditNotCalled();
     });
 
     it('should reject invite from another workspace', async () => {
@@ -403,6 +460,7 @@ describe('InvitesService', () => {
       await expect(
         service.revoke(workspaceId, inviteId, userId),
       ).rejects.toBeInstanceOf(NotFoundException);
+      expectAuditNotCalled();
     });
 
     it('should reject already used invite', async () => {
@@ -415,6 +473,7 @@ describe('InvitesService', () => {
       await expect(
         service.revoke(workspaceId, inviteId, userId),
       ).rejects.toBeInstanceOf(ConflictException);
+      expectAuditNotCalled();
     });
 
     it('should reject deleted invite', async () => {
@@ -427,6 +486,7 @@ describe('InvitesService', () => {
       await expect(
         service.revoke(workspaceId, inviteId, userId),
       ).rejects.toBeInstanceOf(NotFoundException);
+      expectAuditNotCalled();
     });
 
     it('should map race-used invite to ConflictException', async () => {
@@ -440,6 +500,7 @@ describe('InvitesService', () => {
       await expect(
         service.revoke(workspaceId, inviteId, userId),
       ).rejects.toBeInstanceOf(ConflictException);
+      expectAuditNotCalled();
     });
 
     it('should map race-deleted invite to NotFoundException', async () => {
@@ -591,6 +652,7 @@ describe('InvitesService', () => {
       await expect(
         service.accept(rawToken, userId, 'test@example.com'),
       ).rejects.toBeInstanceOf(NotFoundException);
+      expectAuditNotCalled();
     });
 
     it('should reject accept if invite was used between validation and transaction', async () => {
@@ -607,6 +669,7 @@ describe('InvitesService', () => {
       await expect(
         service.accept(rawToken, userId, 'test@example.com'),
       ).rejects.toBeInstanceOf(ConflictException);
+      expectAuditNotCalled();
     });
   });
 });
