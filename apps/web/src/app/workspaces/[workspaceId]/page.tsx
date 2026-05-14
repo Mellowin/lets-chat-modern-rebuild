@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { getWorkspace, type Workspace } from "@/lib/workspaces-api";
-import { getChannels, type Channel } from "@/lib/channels-api";
+import { getChannels, createChannel, type Channel, type CreateChannelInput } from "@/lib/channels-api";
 
 type DetailState =
   | { kind: "idle" }
@@ -25,6 +25,12 @@ export default function WorkspaceDetailPage() {
   const { isLoading: authLoading, isAuthenticated } = useAuth();
   const [detail, setDetail] = useState<DetailState>({ kind: "idle" });
   const [channels, setChannels] = useState<ChannelsState>({ kind: "idle" });
+  const [channelName, setChannelName] = useState("");
+  const [channelDescription, setChannelDescription] = useState("");
+  const [channelType, setChannelType] = useState<"PUBLIC" | "PRIVATE">("PUBLIC");
+  const [createChannelState, setCreateChannelState] = useState<
+    { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string }
+  >({ kind: "idle" });
 
   useEffect(() => {
     if (!isAuthenticated || !workspaceId) return;
@@ -55,6 +61,37 @@ export default function WorkspaceDetailPage() {
     load(token, workspaceId);
     return () => { cancelled = true; };
   }, [isAuthenticated, workspaceId]);
+
+  async function handleCreateChannel(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmedName = channelName.trim();
+    if (!trimmedName || trimmedName.length < 2) {
+      setCreateChannelState({ kind: "error", message: "Channel name must be at least 2 characters" });
+      return;
+    }
+    const token = localStorage.getItem("accessToken");
+    if (!token || !workspaceId) return;
+
+    setCreateChannelState({ kind: "loading" });
+    try {
+      const input: CreateChannelInput = {
+        name: trimmedName,
+        description: channelDescription.trim() || undefined,
+        type: channelType,
+      };
+      await createChannel(token, workspaceId, input);
+      setChannelName("");
+      setChannelDescription("");
+      setChannelType("PUBLIC");
+      setCreateChannelState({ kind: "idle" });
+      // refresh channel list
+      const refreshed = await getChannels(token, workspaceId);
+      setChannels({ kind: "success", data: refreshed });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to create channel";
+      setCreateChannelState({ kind: "error", message });
+    }
+  }
 
   if (authLoading) {
     return (
@@ -122,7 +159,54 @@ export default function WorkspaceDetailPage() {
         </>
       )}
 
-      <div className="mt-8 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 p-5">
+      {/* Create channel */}
+      <div className="mt-8 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
+        <h2 className="text-sm font-semibold">Create channel</h2>
+        <form onSubmit={handleCreateChannel} className="mt-4 flex flex-col gap-3">
+          <input
+            type="text"
+            placeholder="Channel name"
+            value={channelName}
+            onChange={(e) => setChannelName(e.target.value)}
+            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
+          />
+          <input
+            type="text"
+            placeholder="Description (optional)"
+            value={channelDescription}
+            onChange={(e) => setChannelDescription(e.target.value)}
+            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
+          />
+          <div className="flex items-center gap-3">
+            <select
+              value={channelType}
+              onChange={(e) => setChannelType(e.target.value as "PUBLIC" | "PRIVATE")}
+              className="rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
+            >
+              <option value="PUBLIC">Public</option>
+              <option value="PRIVATE">Private</option>
+            </select>
+            <button
+              type="submit"
+              disabled={createChannelState.kind === "loading"}
+              className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
+            >
+              {createChannelState.kind === "loading" ? "Creating…" : "Create channel"}
+            </button>
+          </div>
+        </form>
+        {createChannelState.kind === "error" && (
+          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
+            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+              <span className="h-2 w-2 rounded-full bg-red-500" />
+              {createChannelState.message}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Channel list */}
+      <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 p-5">
         <h2 className="text-sm font-semibold">Channels</h2>
 
         {channels.kind === "loading" && (
