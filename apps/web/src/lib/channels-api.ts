@@ -49,6 +49,37 @@ export async function getChannels(
   return res.json() as Promise<Channel[]>;
 }
 
+export async function getChannel(
+  accessToken: string,
+  workspaceId: string,
+  channelId: string,
+): Promise<Channel> {
+  const res = await fetch(
+    `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}`,
+    {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
+
+  if (!res.ok) {
+    let message = `Failed to load channel: ${res.status} ${res.statusText}`;
+    try {
+      const body = await res.json();
+      if (body?.message) message = body.message;
+      else if (body?.error) message = body.error;
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+
+  return res.json() as Promise<Channel>;
+}
+
 export async function createChannel(
   accessToken: string,
   workspaceId: string,

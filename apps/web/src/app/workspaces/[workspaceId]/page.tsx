@@ -234,32 +234,34 @@ export default function WorkspaceDetailPage() {
         {channels.kind === "success" && channels.data.length > 0 && (
           <ul className="mt-3 divide-y divide-zinc-200 dark:divide-zinc-800">
             {channels.data.map((ch) => (
-              <li
-                key={ch.id}
-                className="flex items-center justify-between py-3"
-              >
-                <div>
-                  <p className="text-sm font-medium">{ch.name}</p>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    {ch.slug}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {ch.description && (
-                    <span className="text-xs text-zinc-400 dark:text-zinc-500 truncate max-w-[12rem]">
-                      {ch.description}
+              <li key={ch.id}>
+                <Link
+                  href={`/workspaces/${workspaceId}/channels/${ch.id}`}
+                  className="flex items-center justify-between py-3 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 -mx-2 px-2 rounded-md transition-colors"
+                >
+                  <div>
+                    <p className="text-sm font-medium">{ch.name}</p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                      {ch.slug}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {ch.description && (
+                      <span className="text-xs text-zinc-400 dark:text-zinc-500 truncate max-w-[12rem]">
+                        {ch.description}
+                      </span>
+                    )}
+                    <span
+                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
+                        ch.type === "PUBLIC"
+                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400"
+                          : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
+                      }`}
+                    >
+                      {ch.type}
                     </span>
-                  )}
-                  <span
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
-                      ch.type === "PUBLIC"
-                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400"
-                        : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
-                    }`}
-                  >
-                    {ch.type}
-                  </span>
-                </div>
+                  </div>
+                </Link>
               </li>
             ))}
           </ul>
