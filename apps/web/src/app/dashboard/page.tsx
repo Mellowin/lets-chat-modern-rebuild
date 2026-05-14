@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { getWorkspaces, type Workspace } from "@/lib/workspaces-api";
+import { getWorkspaces, createWorkspace, type Workspace } from "@/lib/workspaces-api";
 
 type WorkspacesState =
   | { kind: "idle" }
@@ -11,29 +11,58 @@ type WorkspacesState =
   | { kind: "success"; data: Workspace[] }
   | { kind: "error"; message: string };
 
+type CreateState =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "error"; message: string };
+
 export default function DashboardPage() {
   const { user, isLoading: authLoading, isAuthenticated, logout } = useAuth();
   const [workspaces, setWorkspaces] = useState<WorkspacesState>({ kind: "idle" });
+  const [createState, setCreateState] = useState<CreateState>({ kind: "idle" });
+  const [name, setName] = useState("");
+  const [slug, setSlug] = useState("");
+
+  const loadWorkspaces = useCallback(async (token: string) => {
+    setWorkspaces({ kind: "loading" });
+    try {
+      const data = await getWorkspaces(token);
+      setWorkspaces({ kind: "success", data });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to load workspaces";
+      setWorkspaces({ kind: "error", message });
+    }
+  }, []);
 
   useEffect(() => {
     if (!isAuthenticated) return;
     const token = localStorage.getItem("accessToken");
     if (!token) return;
+    loadWorkspaces(token);
+  }, [isAuthenticated, loadWorkspaces]);
 
-    let cancelled = false;
-    async function load(t: string) {
-      setWorkspaces({ kind: "loading" });
-      try {
-        const data = await getWorkspaces(t);
-        if (!cancelled) setWorkspaces({ kind: "success", data });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Failed to load workspaces";
-        if (!cancelled) setWorkspaces({ kind: "error", message });
-      }
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmedName = name.trim();
+    const trimmedSlug = slug.trim();
+    if (!trimmedName || !trimmedSlug) {
+      setCreateState({ kind: "error", message: "Name and slug are required" });
+      return;
     }
-    load(token);
-    return () => { cancelled = true; };
-  }, [isAuthenticated]);
+    const token = localStorage.getItem("accessToken");
+    if (!token) return;
+
+    setCreateState({ kind: "idle" });
+    try {
+      await createWorkspace(token, { name: trimmedName, slug: trimmedSlug });
+      setName("");
+      setSlug("");
+      await loadWorkspaces(token);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to create workspace";
+      setCreateState({ kind: "error", message });
+    }
+  }
 
   if (authLoading) {
     return (
@@ -74,7 +103,44 @@ export default function DashboardPage() {
         You are signed in as {user?.email}.
       </p>
 
-      <div className="mt-8 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 p-5">
+      {/* Create workspace form */}
+      <div className="mt-8 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
+        <h2 className="text-sm font-semibold">Create workspace</h2>
+        <form onSubmit={handleCreate} className="mt-4 flex flex-col sm:flex-row items-start gap-3">
+          <input
+            type="text"
+            placeholder="Workspace name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="flex-1 w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
+          />
+          <input
+            type="text"
+            placeholder="slug (e.g. my-team)"
+            value={slug}
+            onChange={(e) => setSlug(e.target.value)}
+            className="flex-1 w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
+          />
+          <button
+            type="submit"
+            disabled={createState.kind === "loading"}
+            className="inline-flex w-full sm:w-auto items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
+          >
+            {createState.kind === "loading" ? "Creating…" : "Create"}
+          </button>
+        </form>
+        {createState.kind === "error" && (
+          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-2.5 text-sm dark:border-red-900 dark:bg-red-950/30">
+            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+              <span className="h-2 w-2 rounded-full bg-red-500" />
+              {createState.message}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Workspace list */}
+      <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 p-5">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold">Your Workspaces</h2>
         </div>
