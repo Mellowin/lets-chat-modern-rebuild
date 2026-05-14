@@ -122,6 +122,16 @@ export default function ChannelDetailPage() {
       appendMessage(msg);
     });
 
+    socket.on("message:updated", (msg: Message) => {
+      if (msg.channelId !== channelId) return;
+      updateMessageInState(msg);
+    });
+
+    socket.on("message:deleted", (payload: { id: string; channelId: string; deletedAt: string }) => {
+      if (payload.channelId !== channelId) return;
+      removeMessageFromState(payload.id);
+    });
+
     return () => {
       socket.emit("channel:leave", { channelId });
       socket.disconnect();

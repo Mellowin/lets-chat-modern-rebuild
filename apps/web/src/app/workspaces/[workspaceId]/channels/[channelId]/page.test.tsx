@@ -5,7 +5,10 @@ import ChannelDetailPage from "./page";
 import { getChannel } from "@/lib/channels-api";
 import { getMessages, createMessage, updateMessage, deleteMessage } from "@/lib/messages-api";
 
-const socketOnMock = vi.fn();
+const socketHandlers: Record<string, (...args: unknown[]) => void> = {};
+const socketOnMock = vi.fn((event: string, handler: (...args: unknown[]) => void) => {
+  socketHandlers[event] = handler;
+});
 const socketEmitMock = vi.fn();
 const socketDisconnectMock = vi.fn();
 
@@ -38,6 +41,7 @@ vi.mock("@/lib/socket-client", () => ({
     on: socketOnMock,
     emit: socketEmitMock,
     disconnect: socketDisconnectMock,
+    off: vi.fn(),
   })),
 }));
 
@@ -367,6 +371,97 @@ describe("ChannelDetailPage — edit/delete", () => {
     });
 
     expect(window.alert).toHaveBeenCalledWith("Forbidden");
+    expect(screen.getByText("Hello")).toBeInTheDocument();
+  });
+});
+
+describe("ChannelDetailPage — WebSocket live events", () => {
+  beforeEach(() => {
+    localStorage.setItem("accessToken", "token");
+    vi.clearAllMocks();
+    socketOnMock.mockClear();
+    socketEmitMock.mockClear();
+    socketDisconnectMock.mockClear();
+    Object.keys(socketHandlers).forEach((k) => delete socketHandlers[k]);
+  });
+
+  const ownMessage = {
+    id: "m1",
+    channelId: "ch1",
+    content: "Hello",
+    parentId: null,
+    createdAt: "2024-01-01T00:00:00Z",
+    updatedAt: "2024-01-01T00:00:00Z",
+    editedAt: null,
+    author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+  };
+
+  it("updates message on message:updated", async () => {
+    mockChannelAndMessages([ownMessage]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+
+    expect(socketHandlers["message:updated"]).toBeDefined();
+    socketHandlers["message:updated"]({
+      ...ownMessage,
+      content: "Updated via WS",
+      editedAt: "2024-01-02T00:00:00Z",
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Updated via WS")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Hello")).not.toBeInTheDocument();
+  });
+
+  it("ignores message:updated from another channel", async () => {
+    mockChannelAndMessages([ownMessage]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+
+    socketHandlers["message:updated"]({
+      ...ownMessage,
+      channelId: "ch-other",
+      content: "Updated via WS",
+      editedAt: "2024-01-02T00:00:00Z",
+    });
+
+    expect(screen.getByText("Hello")).toBeInTheDocument();
+    expect(screen.queryByText("Updated via WS")).not.toBeInTheDocument();
+  });
+
+  it("removes message on message:deleted", async () => {
+    mockChannelAndMessages([ownMessage]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+
+    expect(socketHandlers["message:deleted"]).toBeDefined();
+    socketHandlers["message:deleted"]({ id: "m1", channelId: "ch1", deletedAt: "2024-01-02T00:00:00Z" });
+
+    await waitFor(() => {
+      expect(screen.queryByText("Hello")).not.toBeInTheDocument();
+    });
+  });
+
+  it("ignores message:deleted from another channel", async () => {
+    mockChannelAndMessages([ownMessage]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+
+    socketHandlers["message:deleted"]({ id: "m1", channelId: "ch-other", deletedAt: "2024-01-02T00:00:00Z" });
+
     expect(screen.getByText("Hello")).toBeInTheDocument();
   });
 });
