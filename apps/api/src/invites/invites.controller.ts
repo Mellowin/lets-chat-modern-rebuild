@@ -33,13 +33,6 @@ import type { AuthUserResponse } from '../auth/auth.service';
 export class InvitesController {
   constructor(private readonly invites: InvitesService) {}
 
-  @Post()
-  @ApiOperation({ summary: 'Create workspace invite' })
-  @ApiCreatedResponse({ description: 'Invite created' })
-  @ApiBadRequestResponse({ description: 'Validation failed' })
-  @ApiForbiddenResponse({ description: 'Forbidden' })
-  @ApiNotFoundResponse({ description: 'Workspace not found' })
-  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   @Get()
   @ApiOperation({ summary: 'List workspace invites' })
   @ApiOkResponse({ description: 'Invites list' })
