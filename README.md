@@ -15,16 +15,21 @@ This project is a ground-up rebuild of the archived **lets-chat** application (~
 
 ## Key Features (MVP)
 
+### Backend (implemented)
+
 - 🔐 **Secure Auth** — JWT access/refresh tokens, bcrypt, rate limiting, brute-force protection
-- 🏢 **Workspaces** — Multi-tenant team organization with role-based access
+- 🏢 **Workspaces** — Multi-tenant team organization with role-based access (OWNER/ADMIN/MEMBER)
 - 💬 **Channels** — Public and private channels with permission guards
-- ⚡ **Real-Time Messaging** — Socket.io 4 with Redis adapter for horizontal scaling
-- 🧵 **Threads** — Reply in threaded conversations
-- 😀 **Reactions** — Emoji reactions on messages
-- 📎 **File Uploads** — Direct-to-S3/MinIO via presigned URLs
+- 💬 **Messages** — CRUD, soft delete, edit history, threaded replies
+- 😀 **Reactions** — Emoji reactions with grouped counts
+- 👁️ **Read Receipts** — Idempotent mark-as-read
+- 📎 **File Uploads** — Direct-to-MinIO via presigned URLs
 - 🔍 **Full-Text Search** — PostgreSQL `tsvector` + GIN index
-- 📋 **Audit Log** — Immutable compliance trail for all actions
-- 🐳 **Docker Compose** — One-command local development stack
+- 📨 **Invites** — Token-based invites with SHA-256 hash, email match, race-hardened accept/revoke
+- 👥 **Members** — List, role update, soft-delete removal, ownership transfer
+- 📋 **Audit Log** — Immutable compliance trail for member/invite/ownership actions with listing endpoint
+- ⚡ **Real-Time** — Socket.io 4 with auth, channel rooms, message/reaction/read broadcasts, typing indicators, in-memory presence
+- 🐳 **Docker Compose** — One-command local development stack (PostgreSQL, Redis, MinIO)
 
 ---
 
@@ -66,25 +71,47 @@ secure-collab-platform/
 
 ## Quick Start
 
-> Coming in Phase 1 — Docker Compose setup
+### Prerequisites
+
+- Node.js 20+
+- pnpm
+- Docker Desktop
+
+### Local Development
 
 ```bash
-# Clone repository
-git clone <repo-url>
-cd secure-collab-platform
+# 1. Install dependencies
+pnpm install
 
-# Start everything
+# 2. Start infrastructure (PostgreSQL, Redis, MinIO)
 docker compose up -d
 
-# Run migrations
-pnpm db:migrate
+# 3. Run database migrations
+cd packages/database
+$env:DATABASE_URL="postgresql://postgres:postgres@localhost:5432/letschat?schema=public"
+pnpm exec prisma migrate dev
 
-# Seed database
-pnpm db:seed
+# 4. Generate Prisma Client
+pnpm exec prisma generate
 
-# API: http://localhost:3001
-# Web: http://localhost:3000
-# Swagger: http://localhost:3001/api/docs
+# 5. Build and start API
+cd ../..
+pnpm --filter api build
+pnpm --filter api start:dev
+```
+
+**Verify:**
+- Health: `GET http://localhost:3001/api/v1/health`
+- Swagger: `http://localhost:3001/api/docs`
+
+### Running Tests
+
+```bash
+# API unit tests
+pnpm --filter api test
+
+# Type check
+pnpm --filter api build
 ```
 
 ---
@@ -100,14 +127,40 @@ pnpm db:seed
 
 ---
 
+## Backend Status
+
+| Module | Status | Notes |
+|--------|--------|-------|
+| Auth | ✅ | Register, login, refresh, logout, JWT guards |
+| Workspaces | ✅ | CRUD, archive, ownership transfer |
+| Channels | ✅ | Public/private, CRUD, archive |
+| Messages | ✅ | CRUD, soft delete, edit history, replies |
+| Reactions | ✅ | Add/remove, grouped counts, race handling |
+| Read Receipts | ✅ | Mark read, list, idempotent |
+| Search | ✅ | FTS with GIN index, channel-scoped |
+| Attachments | ✅ | Presign, complete, download |
+| WebSocket | ✅ | Auth, rooms, broadcasts, typing, presence |
+| Invites | ✅ | Create, accept, revoke, list, audit |
+| Members | ✅ | List, role update, remove, audit |
+| Audit Logs | ✅ | Write + list endpoint, OWNER/ADMIN read |
+
+## Current Limitations
+
+- **No frontend MVP yet** — UI work is the next milestone
+- **No email invite delivery** — invite tokens must be shared manually
+- **Audit write is not transactional** — audit records are written after the main action succeeds
+- **No cursor pagination** — audit logs, messages, and search use simple limit-based pagination
+- **No Redis WebSocket adapter** — presence is in-memory only; server restart clears state
+- **No CI / E2E tests** — only unit tests are implemented
+- **No production Docker Compose** — local dev stack only
+
 ## Roadmap
 
 - [x] Phase 0: Legacy analysis & scope definition
-- [ ] Phase 1: Backend architecture & database design
-- [ ] Phase 2: NestJS API implementation
+- [x] Phase 1–2: Backend architecture, database design & NestJS API implementation
 - [ ] Phase 3: Next.js frontend & real-time integration
-- [ ] Phase 4: File uploads, search, notifications
-- [ ] Phase 5: Testing, deployment, demo
+- [ ] Phase 4: Email delivery, notifications, cursor pagination
+- [ ] Phase 5: CI/CD, E2E tests, deployment, demo
 
 **v2 Ideas:** WebRTC voice channels, AI thread summarization, GitHub/GitLab integrations
 
