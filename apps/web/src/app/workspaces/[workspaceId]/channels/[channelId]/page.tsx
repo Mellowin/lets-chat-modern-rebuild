@@ -81,7 +81,6 @@ export default function ChannelDetailPage() {
 
     socket.on("connect", () => {
       setSocketStatus("connected");
-      socket.emit("channel:join", { workspaceId, channelId });
     });
 
     socket.on("disconnect", () => {
@@ -90,6 +89,7 @@ export default function ChannelDetailPage() {
 
     socket.on("connected", () => {
       setSocketStatus("connected");
+      socket.emit("channel:join", { workspaceId, channelId });
     });
 
     socket.on("channel:joined", () => {
