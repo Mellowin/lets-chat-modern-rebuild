@@ -31,4 +31,24 @@ export class AuditService {
       userAgent: input.userAgent ?? null,
     });
   }
+
+  async listForWorkspace(workspaceId: string, limit: number) {
+    const logs = await this.audit.listForWorkspace(workspaceId, limit);
+    return logs.map((log) => ({
+      id: log.id,
+      action: log.action,
+      entityType: log.entityType,
+      entityId: log.entityId,
+      workspaceId: log.workspaceId,
+      channelId: log.channelId,
+      metadata: log.metadata,
+      createdAt: log.createdAt,
+      actor: log.actor
+        ? {
+            id: log.actor.id,
+            username: log.actor.username,
+          }
+        : null,
+    }));
+  }
 }

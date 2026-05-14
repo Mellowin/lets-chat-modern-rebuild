@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   HttpCode,
   ParseUUIDPipe,
   UseGuards,
@@ -26,6 +27,7 @@ import { WorkspacesService } from './workspaces.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
+import { ListAuditLogsQueryDto } from '../audit/dto/list-audit-logs-query.dto';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUserResponse } from '../auth/auth.service';
@@ -140,5 +142,20 @@ export class WorkspacesController {
     @CurrentUser() user: AuthUserResponse,
   ) {
     return this.workspaces.removeMember(workspaceId, memberId, user.id);
+  }
+
+  @Get(':workspaceId/audit-logs')
+  @ApiOperation({ summary: 'List workspace audit logs' })
+  @ApiOkResponse({ description: 'Audit logs list' })
+  @ApiForbiddenResponse({ description: 'Forbidden' })
+  @ApiNotFoundResponse({ description: 'Workspace not found' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async listAuditLogs(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Query() query: ListAuditLogsQueryDto,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.workspaces.listAuditLogs(workspaceId, user.id, query.limit ?? 50);
   }
 }

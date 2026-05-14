@@ -32,6 +32,7 @@ describe('WorkspacesService', () => {
           provide: AuditService,
           useValue: {
             record: jest.fn(),
+            listForWorkspace: jest.fn(),
           },
         },
       ],
@@ -49,6 +50,96 @@ describe('WorkspacesService', () => {
   const expectAuditNotCalled = () => {
     expect(auditService.record).not.toHaveBeenCalled();
   };
+
+  describe('listAuditLogs', () => {
+    it('should allow OWNER to list audit logs', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      auditService.listForWorkspace.mockResolvedValue([
+        {
+          id: 'audit-1',
+          action: 'workspace.member.role_updated',
+          entityType: 'workspace_member',
+          entityId: 'member-1',
+          workspaceId,
+          channelId: null,
+          metadata: { oldRole: 'MEMBER', newRole: 'ADMIN' },
+          createdAt: new Date('2026-01-01'),
+          actor: { id: userId, username: 'owner' },
+        },
+      ] as any);
+
+      const result = await service.listAuditLogs(workspaceId, userId, 50);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].action).toBe('workspace.member.role_updated');
+      expect(result[0].actor!.username).toBe('owner');
+      expect(result[0]).not.toHaveProperty('passwordHash');
+    });
+
+    it('should allow ADMIN to list audit logs', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('ADMIN');
+      auditService.listForWorkspace.mockResolvedValue([]);
+
+      const result = await service.listAuditLogs(workspaceId, userId, 50);
+
+      expect(result).toEqual([]);
+    });
+
+    it('should reject MEMBER requester', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+
+      await expect(service.listAuditLogs(workspaceId, userId, 50)).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('should reject non-member requester', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue(null);
+
+      await expect(service.listAuditLogs(workspaceId, userId, 50)).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('should reject inactive workspace', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue(null);
+
+      await expect(service.listAuditLogs(workspaceId, userId, 50)).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('should return actor null for system action', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      auditService.listForWorkspace.mockResolvedValue([
+        {
+          id: 'audit-2',
+          action: 'workspace.invite.revoked',
+          entityType: 'invitation',
+          entityId: 'invite-1',
+          workspaceId,
+          channelId: null,
+          metadata: { role: 'MEMBER' },
+          createdAt: new Date('2026-01-01'),
+          actor: null,
+        },
+      ] as any);
+
+      const result = await service.listAuditLogs(workspaceId, userId, 50);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].actor).toBeNull();
+    });
+
+    it('should pass limit to audit service', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      auditService.listForWorkspace.mockResolvedValue([]);
+
+      await service.listAuditLogs(workspaceId, userId, 25);
+
+      expect(auditService.listForWorkspace).toHaveBeenCalledWith(workspaceId, 25);
+    });
+  });
 
   describe('listMembers', () => {
     it('should allow OWNER to list members', async () => {

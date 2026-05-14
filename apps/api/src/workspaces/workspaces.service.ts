@@ -206,6 +206,23 @@ export class WorkspacesService {
     };
   }
 
+  async listAuditLogs(workspaceId: string, userId: string, limit: number) {
+    const workspace = await this.workspaces.findActiveById(workspaceId);
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const role = await this.workspaces.findMemberRole(workspaceId, userId);
+    if (!role) {
+      throw new NotFoundException('Workspace not found');
+    }
+    if (role !== 'OWNER' && role !== 'ADMIN') {
+      throw new ForbiddenException('Insufficient permissions');
+    }
+
+    return this.audit.listForWorkspace(workspaceId, limit);
+  }
+
   async listMembers(workspaceId: string, userId: string) {
     const workspace = await this.workspaces.findActiveById(workspaceId);
     if (!workspace) {

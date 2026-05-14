@@ -8,4 +8,20 @@ export class AuditRepository {
   async create(data: Prisma.AuditLogUncheckedCreateInput) {
     return this.prisma.auditLog.create({ data });
   }
+
+  async listForWorkspace(workspaceId: string, limit: number) {
+    return this.prisma.auditLog.findMany({
+      where: { workspaceId },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: {
+        actor: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+      },
+    });
+  }
 }
