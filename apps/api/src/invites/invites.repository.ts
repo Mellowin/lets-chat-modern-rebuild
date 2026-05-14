@@ -69,4 +69,11 @@ export class InvitesRepository {
     });
     return result.count;
   }
+
+  async listForWorkspace(workspaceId: string) {
+    return this.prisma.invitation.findMany({
+      where: { workspaceId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
 }

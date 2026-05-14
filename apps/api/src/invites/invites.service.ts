@@ -172,4 +172,44 @@ export class InvitesService {
 
     return { id: inviteId, deletedAt: revokedAt };
   }
+
+  async list(workspaceId: string, userId: string) {
+    const workspace = await this.workspaces.findActiveById(workspaceId);
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const role = await this.workspaces.findMemberRole(workspaceId, userId);
+    if (!role) {
+      throw new NotFoundException('Workspace not found');
+    }
+    if (role !== 'OWNER' && role !== 'ADMIN') {
+      throw new ForbiddenException('Insufficient permissions');
+    }
+
+    const invites = await this.invites.listForWorkspace(workspaceId);
+    return invites.map((invite) => ({
+      id: invite.id,
+      workspaceId: invite.workspaceId,
+      email: invite.invitedEmail,
+      role: invite.role,
+      status: this.mapInviteStatus(invite),
+      expiresAt: invite.expiresAt,
+      usedAt: invite.usedAt,
+      deletedAt: invite.deletedAt,
+      createdAt: invite.createdAt,
+    }));
+  }
+
+  private mapInviteStatus(invite: {
+    deletedAt: Date | null;
+    usedAt: Date | null;
+    usedById: string | null;
+    expiresAt: Date;
+  }): 'PENDING' | 'USED' | 'REVOKED' | 'EXPIRED' {
+    if (invite.deletedAt) return 'REVOKED';
+    if (invite.usedAt || invite.usedById) return 'USED';
+    if (invite.expiresAt < new Date()) return 'EXPIRED';
+    return 'PENDING';
+  }
 }

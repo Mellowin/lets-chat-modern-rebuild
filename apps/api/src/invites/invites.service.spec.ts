@@ -26,6 +26,7 @@ describe('InvitesService', () => {
             acceptInvite: jest.fn(),
             findById: jest.fn(),
             softDeleteIfUnused: jest.fn(),
+            listForWorkspace: jest.fn(),
           },
         },
         {
@@ -452,6 +453,109 @@ describe('InvitesService', () => {
       await expect(
         service.revoke(workspaceId, inviteId, userId),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('list', () => {
+    it('should allow OWNER to list invites', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      invitesRepository.listForWorkspace.mockResolvedValue([
+        {
+          id: 'invite-1',
+          workspaceId,
+          invitedEmail: 'a@example.com',
+          role: 'MEMBER',
+          expiresAt: new Date(Date.now() + 86400000),
+          usedAt: null,
+          usedById: null,
+          deletedAt: null,
+          createdAt: new Date(),
+        },
+        {
+          id: 'invite-2',
+          workspaceId,
+          invitedEmail: 'b@example.com',
+          role: 'ADMIN',
+          expiresAt: new Date(Date.now() - 86400000),
+          usedAt: new Date(),
+          usedById: 'user-id',
+          deletedAt: null,
+          createdAt: new Date(),
+        },
+        {
+          id: 'invite-3',
+          workspaceId,
+          invitedEmail: 'c@example.com',
+          role: 'MEMBER',
+          expiresAt: new Date(Date.now() + 86400000),
+          usedAt: null,
+          usedById: null,
+          deletedAt: new Date(),
+          createdAt: new Date(),
+        },
+      ] as any);
+
+      const result = await service.list(workspaceId, userId);
+
+      expect(result).toHaveLength(3);
+      expect(result[0].status).toBe('PENDING');
+      expect(result[1].status).toBe('USED');
+      expect(result[2].status).toBe('REVOKED');
+      expect(result[0]).not.toHaveProperty('tokenHash');
+      expect(result[0]).not.toHaveProperty('token');
+    });
+
+    it('should allow ADMIN to list invites', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('ADMIN');
+      invitesRepository.listForWorkspace.mockResolvedValue([]);
+
+      const result = await service.list(workspaceId, userId);
+
+      expect(result).toEqual([]);
+    });
+
+    it('should reject MEMBER listing invites', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+
+      await expect(service.list(workspaceId, userId)).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('should reject non-member listing invites', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue(null);
+
+      await expect(service.list(workspaceId, userId)).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('should reject inactive workspace', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue(null);
+
+      await expect(service.list(workspaceId, userId)).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('should map expired invite status', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      invitesRepository.listForWorkspace.mockResolvedValue([
+        {
+          id: 'invite-expired',
+          workspaceId,
+          invitedEmail: 'exp@example.com',
+          role: 'MEMBER',
+          expiresAt: new Date(Date.now() - 86400000),
+          usedAt: null,
+          usedById: null,
+          deletedAt: null,
+          createdAt: new Date(),
+        },
+      ] as any);
+
+      const result = await service.list(workspaceId, userId);
+
+      expect(result[0].status).toBe('EXPIRED');
     });
   });
 

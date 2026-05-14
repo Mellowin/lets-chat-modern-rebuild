@@ -1,5 +1,6 @@
 import {
   Controller,
+  Get,
   Post,
   Delete,
   Body,
@@ -31,6 +32,26 @@ import type { AuthUserResponse } from '../auth/auth.service';
 @ApiBearerAuth()
 export class InvitesController {
   constructor(private readonly invites: InvitesService) {}
+
+  @Post()
+  @ApiOperation({ summary: 'Create workspace invite' })
+  @ApiCreatedResponse({ description: 'Invite created' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiForbiddenResponse({ description: 'Forbidden' })
+  @ApiNotFoundResponse({ description: 'Workspace not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @Get()
+  @ApiOperation({ summary: 'List workspace invites' })
+  @ApiOkResponse({ description: 'Invites list' })
+  @ApiForbiddenResponse({ description: 'Forbidden' })
+  @ApiNotFoundResponse({ description: 'Workspace not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async list(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.invites.list(workspaceId, user.id);
+  }
 
   @Post()
   @ApiOperation({ summary: 'Create workspace invite' })
