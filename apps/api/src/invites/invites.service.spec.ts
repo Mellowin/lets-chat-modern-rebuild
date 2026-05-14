@@ -357,7 +357,10 @@ describe('InvitesService', () => {
 
       expect(result.id).toBe(inviteId);
       expect(result.deletedAt).toBeInstanceOf(Date);
-      expect(invitesRepository.softDeleteIfUnused).toHaveBeenCalledWith(inviteId);
+      expect(invitesRepository.softDeleteIfUnused).toHaveBeenCalledWith(
+        inviteId,
+        expect.any(Date),
+      );
     });
 
     it('should allow ADMIN to revoke unused invite', async () => {
@@ -449,6 +452,57 @@ describe('InvitesService', () => {
       await expect(
         service.revoke(workspaceId, inviteId, userId),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('accept race against revoke', () => {
+    const rawToken = 'race-token-123';
+
+    function makeInvite(overrides: any = {}) {
+      return {
+        id: 'invite-id',
+        workspaceId,
+        invitedEmail: 'test@example.com',
+        role: 'MEMBER',
+        tokenHash: createHash('sha256').update(rawToken).digest('hex'),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        usedAt: null,
+        usedById: null,
+        deletedAt: null,
+        ...overrides,
+      };
+    }
+
+    it('should reject accept if invite was revoked between validation and transaction', async () => {
+      invitesRepository.findByTokenHash.mockResolvedValue(makeInvite() as any);
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue(null);
+      invitesRepository.acceptInvite.mockRejectedValue(
+        new Error('INVITE_ALREADY_USED_OR_REVOKED'),
+      );
+      invitesRepository.findById.mockResolvedValue(
+        makeInvite({ deletedAt: new Date() }) as any,
+      );
+
+      await expect(
+        service.accept(rawToken, userId, 'test@example.com'),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('should reject accept if invite was used between validation and transaction', async () => {
+      invitesRepository.findByTokenHash.mockResolvedValue(makeInvite() as any);
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue(null);
+      invitesRepository.acceptInvite.mockRejectedValue(
+        new Error('INVITE_ALREADY_USED_OR_REVOKED'),
+      );
+      invitesRepository.findById.mockResolvedValue(
+        makeInvite({ usedAt: new Date() }) as any,
+      );
+
+      await expect(
+        service.accept(rawToken, userId, 'test@example.com'),
+      ).rejects.toBeInstanceOf(ConflictException);
     });
   });
 });

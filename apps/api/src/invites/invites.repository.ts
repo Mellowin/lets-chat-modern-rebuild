@@ -29,13 +29,22 @@ export class InvitesRepository {
     role: WorkspaceRole,
   ) {
     return this.prisma.$transaction(async (tx) => {
-      const member = await tx.workspaceMember.create({
-        data: { workspaceId, userId, role },
+      const markResult = await tx.invitation.updateMany({
+        where: {
+          id: inviteId,
+          deletedAt: null,
+          usedAt: null,
+          usedById: null,
+        },
+        data: { usedAt: new Date(), usedById: userId },
       });
 
-      await tx.invitation.update({
-        where: { id: inviteId },
-        data: { usedAt: new Date(), usedById: userId },
+      if (markResult.count === 0) {
+        throw new Error('INVITE_ALREADY_USED_OR_REVOKED');
+      }
+
+      const member = await tx.workspaceMember.create({
+        data: { workspaceId, userId, role },
       });
 
       return member;
@@ -48,7 +57,7 @@ export class InvitesRepository {
     });
   }
 
-  async softDeleteIfUnused(id: string): Promise<number> {
+  async softDeleteIfUnused(id: string, deletedAt: Date): Promise<number> {
     const result = await this.prisma.invitation.updateMany({
       where: {
         id,
@@ -56,7 +65,7 @@ export class InvitesRepository {
         usedAt: null,
         usedById: null,
       },
-      data: { deletedAt: new Date() },
+      data: { deletedAt },
     });
     return result.count;
   }

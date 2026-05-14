@@ -115,6 +115,19 @@ export class InvitesService {
       ) {
         throw new ConflictException('Already a member of this workspace');
       }
+      if (
+        error instanceof Error &&
+        error.message === 'INVITE_ALREADY_USED_OR_REVOKED'
+      ) {
+        const current = await this.invites.findById(invite.id);
+        if (!current || current.deletedAt) {
+          throw new NotFoundException('Invite not found');
+        }
+        if (current.usedAt || current.usedById) {
+          throw new ConflictException('Invite already used');
+        }
+        throw new NotFoundException('Invite not found');
+      }
       throw error;
     }
   }
@@ -144,7 +157,8 @@ export class InvitesService {
       throw new ConflictException('Invite already used');
     }
 
-    const deletedCount = await this.invites.softDeleteIfUnused(inviteId);
+    const revokedAt = new Date();
+    const deletedCount = await this.invites.softDeleteIfUnused(inviteId, revokedAt);
     if (deletedCount === 0) {
       const current = await this.invites.findById(inviteId);
       if (!current || current.deletedAt) {
@@ -156,6 +170,6 @@ export class InvitesService {
       throw new NotFoundException('Invite not found');
     }
 
-    return { id: inviteId, deletedAt: new Date() };
+    return { id: inviteId, deletedAt: revokedAt };
   }
 }
