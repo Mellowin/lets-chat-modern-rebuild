@@ -658,6 +658,12 @@ Revoke invite rules:
 - Invite must belong to the specified workspace.
 - Race against accept is handled atomically (conditional updateMany).
 
+**Audit logging:**
+- Create invite → `workspace.invite.created` (`entityType: invitation`, metadata: `{ role, expiresAt }`).
+- Accept invite → `workspace.invite.accepted` (`entityType: invitation`, metadata: `{ role }`).
+- Revoke invite → `workspace.invite.revoked` (`entityType: invitation`, metadata: `{ role }`).
+- Raw token and `tokenHash` are **never** stored in audit metadata.
+
 Invite state machine:
 ```text
 created → accepted (usedAt set, WorkspaceMember created)
@@ -668,8 +674,9 @@ revoked → terminal (no further action)
 
 Current limitations:
 - No email delivery.
-- No audit log.
 - No frontend.
+- Audit is recorded after successful action; not yet transactional with the main action.
+- No audit listing endpoint yet.
 
 ### 16. Members
 
