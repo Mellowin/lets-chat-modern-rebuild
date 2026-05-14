@@ -112,6 +112,7 @@ export default function ChannelDetailPage() {
     });
 
     socket.on("message:created", (msg: Message) => {
+      if (msg.channelId !== channelId) return;
       appendMessage(msg);
     });
 
