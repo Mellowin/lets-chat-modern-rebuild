@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import ChannelDetailPage from "./page";
 import { getChannel } from "@/lib/channels-api";
-import { getMessages, createMessage } from "@/lib/messages-api";
+import { getMessages, createMessage, updateMessage, deleteMessage } from "@/lib/messages-api";
 
 const socketOnMock = vi.fn();
 const socketEmitMock = vi.fn();
@@ -186,5 +186,187 @@ describe("ChannelDetailPage — composer", () => {
 
     expect(await screen.findByText(/Forbidden/i)).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/Type a message/i)).toHaveValue("Secret");
+  });
+});
+
+describe("ChannelDetailPage — edit/delete", () => {
+  beforeEach(() => {
+    localStorage.setItem("accessToken", "token");
+    vi.clearAllMocks();
+    socketOnMock.mockReset();
+    socketEmitMock.mockReset();
+    socketDisconnectMock.mockReset();
+    window.alert = vi.fn();
+  });
+
+  const ownMessage = {
+    id: "m1",
+    channelId: "ch1",
+    content: "Hello",
+    parentId: null,
+    createdAt: "2024-01-01T00:00:00Z",
+    updatedAt: "2024-01-01T00:00:00Z",
+    editedAt: null,
+    author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+  };
+
+  const otherMessage = {
+    id: "m2",
+    channelId: "ch1",
+    content: "Hi",
+    parentId: null,
+    createdAt: "2024-01-01T00:00:00Z",
+    updatedAt: "2024-01-01T00:00:00Z",
+    editedAt: null,
+    author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+  };
+
+  it("shows Edit and Delete buttons on own message", async () => {
+    mockChannelAndMessages([ownMessage]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole("button", { name: /Edit/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Delete/i })).toBeInTheDocument();
+  });
+
+  it("hides Edit and Delete buttons on other user's message", async () => {
+    mockChannelAndMessages([otherMessage]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hi")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole("button", { name: /Edit/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Delete/i })).not.toBeInTheDocument();
+  });
+
+  it("edits own message successfully", async () => {
+    mockChannelAndMessages([ownMessage]);
+    vi.mocked(updateMessage).mockResolvedValueOnce({
+      ...ownMessage,
+      content: "Updated",
+      editedAt: "2024-01-02T00:00:00Z",
+    });
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Edit/i }));
+
+    const editTextarea = screen.getByDisplayValue("Hello");
+    await userEvent.clear(editTextarea);
+    await userEvent.type(editTextarea, "Updated");
+
+    await userEvent.click(screen.getByRole("button", { name: /Save/i }));
+
+    await waitFor(() => {
+      expect(updateMessage).toHaveBeenCalledWith("token", "ws1", "ch1", "m1", { content: "Updated" });
+    });
+
+    expect(screen.getByText("Updated")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Save/i })).not.toBeInTheDocument();
+  });
+
+  it("shows validation error on empty edit", async () => {
+    mockChannelAndMessages([ownMessage]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Edit/i }));
+
+    const editTextarea = screen.getByDisplayValue("Hello");
+    await userEvent.clear(editTextarea);
+
+    fireEvent.submit(screen.getByRole("button", { name: /Save/i }));
+
+    expect(await screen.findByText(/Message cannot be empty/i)).toBeInTheDocument();
+    expect(updateMessage).not.toHaveBeenCalled();
+  });
+
+  it("cancels edit without calling updateMessage", async () => {
+    mockChannelAndMessages([ownMessage]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Edit/i }));
+
+    const editTextarea = screen.getByDisplayValue("Hello");
+    await userEvent.type(editTextarea, "Changed");
+
+    await userEvent.click(screen.getByRole("button", { name: /Cancel/i }));
+
+    expect(screen.getByText("Hello")).toBeInTheDocument();
+    expect(updateMessage).not.toHaveBeenCalled();
+  });
+
+  it("deletes own message after confirm", async () => {
+    mockChannelAndMessages([ownMessage]);
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    vi.mocked(deleteMessage).mockResolvedValueOnce(undefined);
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Delete/i }));
+
+    await waitFor(() => {
+      expect(deleteMessage).toHaveBeenCalledWith("token", "ws1", "ch1", "m1");
+    });
+
+    expect(screen.queryByText("Hello")).not.toBeInTheDocument();
+  });
+
+  it("does not delete if user cancels confirm", async () => {
+    mockChannelAndMessages([ownMessage]);
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Delete/i }));
+
+    expect(deleteMessage).not.toHaveBeenCalled();
+    expect(screen.getByText("Hello")).toBeInTheDocument();
+  });
+
+  it("shows alert and keeps message on delete backend failure", async () => {
+    mockChannelAndMessages([ownMessage]);
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    vi.mocked(deleteMessage).mockRejectedValueOnce(new Error("Forbidden"));
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Delete/i }));
+
+    await waitFor(() => {
+      expect(deleteMessage).toHaveBeenCalledWith("token", "ws1", "ch1", "m1");
+    });
+
+    expect(window.alert).toHaveBeenCalledWith("Forbidden");
+    expect(screen.getByText("Hello")).toBeInTheDocument();
   });
 });
