@@ -24,6 +24,18 @@ export interface RegisterInput {
   password: string;
 }
 
+async function parseErrorMessage(res: Response, fallback: string): Promise<string> {
+  let message = fallback;
+  try {
+    const body = await res.json();
+    if (body?.message) message = body.message;
+    else if (body?.error) message = body.error;
+  } catch {
+    // ignore parse error
+  }
+  return message;
+}
+
 export async function login(input: LoginInput): Promise<AuthResult> {
   const res = await fetch(`${API_BASE}/auth/login`, {
     method: "POST",
@@ -32,15 +44,7 @@ export async function login(input: LoginInput): Promise<AuthResult> {
   });
 
   if (!res.ok) {
-    let message = `Login failed: ${res.status} ${res.statusText}`;
-    try {
-      const body = await res.json();
-      if (body?.message) message = body.message;
-      else if (body?.error) message = body.error;
-    } catch {
-      // ignore parse error
-    }
-    throw new Error(message);
+    throw new Error(await parseErrorMessage(res, `Login failed: ${res.status} ${res.statusText}`));
   }
 
   return res.json() as Promise<AuthResult>;
@@ -54,16 +58,38 @@ export async function register(input: RegisterInput): Promise<AuthResult> {
   });
 
   if (!res.ok) {
-    let message = `Registration failed: ${res.status} ${res.statusText}`;
-    try {
-      const body = await res.json();
-      if (body?.message) message = body.message;
-      else if (body?.error) message = body.error;
-    } catch {
-      // ignore parse error
-    }
-    throw new Error(message);
+    throw new Error(await parseErrorMessage(res, `Registration failed: ${res.status} ${res.statusText}`));
   }
 
   return res.json() as Promise<AuthResult>;
+}
+
+export async function getMe(accessToken: string): Promise<AuthUser> {
+  const res = await fetch(`${API_BASE}/auth/me`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to load user: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<AuthUser>;
+}
+
+export async function logout(refreshToken: string): Promise<{ success: boolean }> {
+  const res = await fetch(`${API_BASE}/auth/logout`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ refreshToken }),
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Logout failed: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<{ success: boolean }>;
 }

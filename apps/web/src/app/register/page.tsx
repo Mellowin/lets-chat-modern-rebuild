@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { register, type AuthResult } from "@/lib/auth-api";
+import { useAuth } from "@/lib/auth-context";
 
 type FormState =
   | { kind: "idle" }
@@ -11,6 +13,8 @@ type FormState =
   | { kind: "error"; message: string };
 
 export default function RegisterPage() {
+  const router = useRouter();
+  const { loginSuccess } = useAuth();
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -29,9 +33,9 @@ export default function RegisterPage() {
         username: username.trim(),
         password,
       });
-      localStorage.setItem("accessToken", data.accessToken);
-      localStorage.setItem("refreshToken", data.refreshToken);
+      loginSuccess(data);
       setFormState({ kind: "success", data });
+      router.push("/dashboard");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Registration failed";
       setFormState({ kind: "error", message });

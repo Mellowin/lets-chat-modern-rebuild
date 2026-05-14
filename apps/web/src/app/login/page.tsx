@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { login, type AuthResult } from "@/lib/auth-api";
+import { useAuth } from "@/lib/auth-context";
 
 type FormState =
   | { kind: "idle" }
@@ -11,6 +13,8 @@ type FormState =
   | { kind: "error"; message: string };
 
 export default function LoginPage() {
+  const router = useRouter();
+  const { loginSuccess } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [formState, setFormState] = useState<FormState>({ kind: "idle" });
@@ -24,9 +28,9 @@ export default function LoginPage() {
     setFormState({ kind: "loading" });
     try {
       const data = await login({ email: email.trim(), password });
-      localStorage.setItem("accessToken", data.accessToken);
-      localStorage.setItem("refreshToken", data.refreshToken);
+      loginSuccess(data);
       setFormState({ kind: "success", data });
+      router.push("/dashboard");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Login failed";
       setFormState({ kind: "error", message });
