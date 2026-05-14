@@ -166,19 +166,21 @@ export default function DashboardPage() {
           ) : (
             <ul className="divide-y divide-zinc-200 dark:divide-zinc-800">
               {workspaces.data.map((ws) => (
-                <li
-                  key={ws.id}
-                  className="flex items-center justify-between py-3"
-                >
-                  <div>
-                    <p className="text-sm font-medium">{ws.name}</p>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                      {ws.slug}
-                    </p>
-                  </div>
-                  <span className="text-xs text-zinc-400 dark:text-zinc-500">
-                    {new Date(ws.createdAt).toLocaleDateString()}
-                  </span>
+                <li key={ws.id}>
+                  <Link
+                    href={`/workspaces/${ws.id}`}
+                    className="flex items-center justify-between py-3 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 -mx-2 px-2 rounded-md transition-colors"
+                  >
+                    <div>
+                      <p className="text-sm font-medium">{ws.name}</p>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                        {ws.slug}
+                      </p>
+                    </div>
+                    <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                      {new Date(ws.createdAt).toLocaleDateString()}
+                    </span>
+                  </Link>
                 </li>
               ))}
             </ul>
