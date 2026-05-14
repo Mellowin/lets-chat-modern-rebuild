@@ -11,6 +11,7 @@ import { NotFoundException } from '@nestjs/common';
 import { TokenService } from '../auth/token.service';
 import { UsersRepository } from '../users/users.repository';
 import { ChannelsService } from '../channels/channels.service';
+import { PresenceService } from './presence.service';
 
 const websocketCorsOrigin = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map((origin) => origin.trim())
@@ -37,14 +38,11 @@ export class WebsocketGateway
 
   private readonly logger = new Logger(WebsocketGateway.name);
 
-  private readonly userSockets = new Map<string, Set<string>>();
-  private readonly socketRooms = new Map<string, Set<string>>();
-  private readonly userRooms = new Map<string, Set<string>>();
-
   constructor(
     private readonly tokenService: TokenService,
     private readonly usersRepository: UsersRepository,
     private readonly channelsService: ChannelsService,
+    private readonly presence: PresenceService,
   ) {}
 
   private getHandshakeToken(socket: Socket): string | null {
@@ -99,7 +97,7 @@ export class WebsocketGateway
         username: user.username,
       };
 
-      this.trackSocket(user.id, socketId);
+      this.presence.trackSocket(user.id, socketId);
 
       this.logger.log({ socketId, userId: user.id }, 'Socket connected');
       socket.emit('connected', { userId: user.id });
@@ -116,33 +114,25 @@ export class WebsocketGateway
   handleDisconnect(socket: Socket) {
     const socketId = socket.id;
     const userId = socket.data.user?.id;
-    const rooms = this.socketRooms.get(socketId) ?? new Set();
+    const rooms = this.presence.getSocketRooms(socketId);
 
-    this.socketRooms.delete(socketId);
+    this.presence.clearSocket(socketId);
 
     if (userId) {
-      this.untrackSocket(userId, socketId);
+      this.presence.untrackSocket(userId, socketId);
 
       for (const room of rooms) {
-        const userSocketIds = this.userSockets.get(userId) ?? new Set();
-        let otherSocketInRoom = false;
-        for (const otherSocketId of userSocketIds) {
-          if (this.socketRooms.get(otherSocketId)?.has(room)) {
-            otherSocketInRoom = true;
-            break;
-          }
-        }
-        if (!otherSocketInRoom) {
+        if (!this.presence.hasOtherSocketInRoom(userId, socketId, room)) {
           this.server.to(room).emit('presence:offline', {
             user: { id: userId, username: socket.data.user?.username },
             status: 'offline',
           });
-          this.userRooms.get(userId)?.delete(room);
+          this.presence.removeUserRoom(userId, room);
         }
       }
 
-      if (!this.userSockets.has(userId)) {
-        this.userRooms.delete(userId);
+      if (!this.presence.isUserTracked(userId)) {
+        this.presence.clearUserRooms(userId);
       }
     }
 
@@ -188,8 +178,8 @@ export class WebsocketGateway
 
     const room = `channel:${channelId}`;
     await socket.join(room);
-    this.addSocketRoom(socket.id, room);
-    this.addUserRoom(userId, room);
+    this.presence.addSocketRoom(socket.id, room);
+    this.presence.addUserRoom(userId, room);
 
     socket.to(room).emit('presence:online', {
       user: { id: userId, username: socket.data.user?.username },
@@ -228,22 +218,14 @@ export class WebsocketGateway
       return;
     }
 
-    this.removeSocketRoom(socket.id, room);
+    this.presence.removeSocketRoom(socket.id, room);
 
-    const userSocketIds = this.userSockets.get(userId) ?? new Set();
-    let otherSocketInRoom = false;
-    for (const otherSocketId of userSocketIds) {
-      if (otherSocketId !== socket.id && this.socketRooms.get(otherSocketId)?.has(room)) {
-        otherSocketInRoom = true;
-        break;
-      }
-    }
-    if (!otherSocketInRoom) {
+    if (!this.presence.hasOtherSocketInRoom(userId, socket.id, room)) {
       socket.to(room).emit('presence:offline', {
         user: { id: userId, username: socket.data.user?.username },
         status: 'offline',
       });
-      this.userRooms.get(userId)?.delete(room);
+      this.presence.removeUserRoom(userId, room);
     }
 
     await socket.leave(room);
@@ -307,46 +289,5 @@ export class WebsocketGateway
         'Typing broadcast error',
       );
     }
-  }
-
-  private trackSocket(userId: string, socketId: string): void {
-    if (!this.userSockets.has(userId)) {
-      this.userSockets.set(userId, new Set());
-    }
-    this.userSockets.get(userId)!.add(socketId);
-  }
-
-  private untrackSocket(userId: string, socketId: string): void {
-    const sockets = this.userSockets.get(userId);
-    if (sockets) {
-      sockets.delete(socketId);
-      if (sockets.size === 0) {
-        this.userSockets.delete(userId);
-      }
-    }
-  }
-
-  private addSocketRoom(socketId: string, room: string): void {
-    if (!this.socketRooms.has(socketId)) {
-      this.socketRooms.set(socketId, new Set());
-    }
-    this.socketRooms.get(socketId)!.add(room);
-  }
-
-  private removeSocketRoom(socketId: string, room: string): void {
-    const rooms = this.socketRooms.get(socketId);
-    if (rooms) {
-      rooms.delete(room);
-      if (rooms.size === 0) {
-        this.socketRooms.delete(socketId);
-      }
-    }
-  }
-
-  private addUserRoom(userId: string, room: string): void {
-    if (!this.userRooms.has(userId)) {
-      this.userRooms.set(userId, new Set());
-    }
-    this.userRooms.get(userId)!.add(room);
   }
 }

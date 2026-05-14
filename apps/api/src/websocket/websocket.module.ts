@@ -4,10 +4,11 @@ import { UsersModule } from '../users/users.module';
 import { ChannelsModule } from '../channels/channels.module';
 import { WebsocketGateway } from './websocket.gateway';
 import { WebsocketEventsService } from './websocket-events.service';
+import { PresenceService } from './presence.service';
 
 @Module({
   imports: [AuthModule, UsersModule, ChannelsModule],
-  providers: [WebsocketGateway, WebsocketEventsService],
+  providers: [WebsocketGateway, WebsocketEventsService, PresenceService],
   exports: [WebsocketEventsService],
 })
 export class WebsocketModule {}
