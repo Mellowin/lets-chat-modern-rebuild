@@ -552,7 +552,9 @@ Connect via Socket.io to `ws://localhost:3001` with `auth: { token }`.
 | GET read-receipts | No broadcast |
 
 - All broadcasts are **best-effort**: REST succeeds even if WebSocket emit fails.
-- All payloads use the **public message contract** (no `authorId`, no `deletedAt`).
+- `message:created` and `message:updated` payloads use the **public message contract** (no `authorId`, no `deletedAt`).
+- `message:deleted` payload intentionally includes `deletedAt`: `{ id, channelId, deletedAt }`.
+- `reaction:added`, `reaction:removed`, and `read:updated` payloads use their own public event contracts.
 
 ## Troubleshooting
 
