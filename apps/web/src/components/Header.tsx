@@ -8,7 +8,7 @@ export default function Header() {
 
   return (
     <header className="flex items-center justify-between h-14 px-4 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
-      <Link href="/" className="flex items-center gap-2">
+      <Link href={isAuthenticated ? "/dashboard" : "/"} className="flex items-center gap-2">
         <div className="w-6 h-6 rounded bg-zinc-900 dark:bg-zinc-100" />
         <span className="font-semibold text-sm tracking-tight">lets-chat</span>
       </Link>
