@@ -22,8 +22,13 @@ export default function RegisterPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!email.trim() || !username.trim() || !password.trim()) {
+    const trimmedUsername = username.trim();
+    if (!email.trim() || !trimmedUsername || !password.trim()) {
       setFormState({ kind: "error", message: "All fields are required" });
+      return;
+    }
+    if (!/^[a-zA-Z0-9_]+$/.test(trimmedUsername)) {
+      setFormState({ kind: "error", message: "Username can only contain Latin letters, numbers and underscores" });
       return;
     }
     setFormState({ kind: "loading" });
@@ -83,6 +88,9 @@ export default function RegisterPage() {
               className="mt-1 block w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
               placeholder="john_doe"
             />
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+              Only Latin letters, numbers and underscore are allowed.
+            </p>
           </div>
 
           <div>
