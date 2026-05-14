@@ -195,7 +195,7 @@ export class WebsocketGateway
     socket: Socket,
     payload: { channelId: unknown },
   ) {
-    await this.broadcastTyping(socket, payload.channelId, 'typing:start');
+    await this.broadcastTyping(socket, payload.channelId, 'typing:started');
   }
 
   @SubscribeMessage('typing:stop')
@@ -203,13 +203,13 @@ export class WebsocketGateway
     socket: Socket,
     payload: { channelId: unknown },
   ) {
-    await this.broadcastTyping(socket, payload.channelId, 'typing:stop');
+    await this.broadcastTyping(socket, payload.channelId, 'typing:stopped');
   }
 
   private async broadcastTyping(
     socket: Socket,
     channelId: unknown,
-    event: 'typing:start' | 'typing:stop',
+    event: 'typing:started' | 'typing:stopped',
   ) {
     const userId = this.getUserId(socket);
     if (!userId) {
