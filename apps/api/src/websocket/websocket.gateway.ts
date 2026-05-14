@@ -239,7 +239,7 @@ export class WebsocketGateway
     socket: Socket,
     payload: { channelId: unknown },
   ) {
-    await this.broadcastTyping(socket, payload.channelId, 'typing:started');
+    this.broadcastTyping(socket, payload.channelId, 'typing:started');
   }
 
   @SubscribeMessage('typing:stop')
@@ -247,10 +247,10 @@ export class WebsocketGateway
     socket: Socket,
     payload: { channelId: unknown },
   ) {
-    await this.broadcastTyping(socket, payload.channelId, 'typing:stopped');
+    this.broadcastTyping(socket, payload.channelId, 'typing:stopped');
   }
 
-  private async broadcastTyping(
+  private broadcastTyping(
     socket: Socket,
     channelId: unknown,
     event: 'typing:started' | 'typing:stopped',
@@ -272,22 +272,18 @@ export class WebsocketGateway
       return;
     }
 
-    try {
-      const user = await this.usersRepository.findById(userId);
-      if (!user) return;
-
-      socket.to(room).emit(event, {
-        channelId,
-        user: {
-          id: user.id,
-          username: user.username,
-        },
-      });
-    } catch (error) {
-      this.logger.error(
-        { socketId: socket.id, userId, channelId, event, error: (error as Error).message },
-        'Typing broadcast error',
-      );
+    const user = socket.data.user;
+    if (!user?.username) {
+      socket.emit('typing:error', { message: 'User data missing' });
+      return;
     }
+
+    socket.to(room).emit(event, {
+      channelId,
+      user: {
+        id: userId,
+        username: user.username,
+      },
+    });
   }
 }

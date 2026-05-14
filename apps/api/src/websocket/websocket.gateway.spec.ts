@@ -299,19 +299,15 @@ describe('WebsocketGateway', () => {
   });
 
   describe('handleTypingStart', () => {
-    it('should broadcast typing:start to room excluding sender', async () => {
+    it('should broadcast typing:started with socket user data', async () => {
       const socket = createMockSocket({
-        data: { user: { id: userId } },
+        data: { user: { id: userId, username: 'testuser' } },
       });
       socket.rooms.add(`channel:${channelId}`);
 
-      usersRepository.findById.mockResolvedValue({
-        id: userId,
-        username: 'testuser',
-      } as any);
-
       await gateway.handleTypingStart(socket, { channelId });
 
+      expect(usersRepository.findById).not.toHaveBeenCalled();
       expect(socket.to).toHaveBeenCalledWith(`channel:${channelId}`);
       expect(socket.to(`channel:${channelId}`).emit).toHaveBeenCalledWith('typing:started', {
         channelId,
@@ -330,7 +326,7 @@ describe('WebsocketGateway', () => {
 
     it('should reject invalid channelId', async () => {
       const socket = createMockSocket({
-        data: { user: { id: userId } },
+        data: { user: { id: userId, username: 'testuser' } },
       });
 
       await gateway.handleTypingStart(socket, { channelId: 'bad' });
@@ -340,7 +336,7 @@ describe('WebsocketGateway', () => {
 
     it('should reject when room not joined', async () => {
       const socket = createMockSocket({
-        data: { user: { id: userId } },
+        data: { user: { id: userId, username: 'testuser' } },
       });
 
       await gateway.handleTypingStart(socket, { channelId });
@@ -351,35 +347,29 @@ describe('WebsocketGateway', () => {
       });
     });
 
-    it('should silently return when user not found', async () => {
+    it('should reject when user data is missing', async () => {
       const socket = createMockSocket({
         data: { user: { id: userId } },
       });
       socket.rooms.add(`channel:${channelId}`);
-
-      usersRepository.findById.mockResolvedValue(null);
 
       await gateway.handleTypingStart(socket, { channelId });
 
       expect(socket.to).not.toHaveBeenCalled();
-      expect(socket.emit).not.toHaveBeenCalledWith('typing:error', expect.anything());
+      expect(socket.emit).toHaveBeenCalledWith('typing:error', { message: 'User data missing' });
     });
   });
 
   describe('handleTypingStop', () => {
-    it('should broadcast typing:stop to room excluding sender', async () => {
+    it('should broadcast typing:stopped with socket user data', async () => {
       const socket = createMockSocket({
-        data: { user: { id: userId } },
+        data: { user: { id: userId, username: 'testuser' } },
       });
       socket.rooms.add(`channel:${channelId}`);
 
-      usersRepository.findById.mockResolvedValue({
-        id: userId,
-        username: 'testuser',
-      } as any);
-
       await gateway.handleTypingStop(socket, { channelId });
 
+      expect(usersRepository.findById).not.toHaveBeenCalled();
       expect(socket.to).toHaveBeenCalledWith(`channel:${channelId}`);
       expect(socket.to(`channel:${channelId}`).emit).toHaveBeenCalledWith('typing:stopped', {
         channelId,
