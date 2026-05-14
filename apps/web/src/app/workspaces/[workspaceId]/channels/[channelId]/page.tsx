@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { getChannel, type Channel } from "@/lib/channels-api";
 import { getMessages, createMessage, updateMessage, deleteMessage, type Message, type CreateMessageInput, type UpdateMessageInput } from "@/lib/messages-api";
 import { createSocket } from "@/lib/socket-client";
-import type { Socket } from "socket.io-client";
+
 
 type ChannelState =
   | { kind: "idle" }
@@ -81,6 +81,7 @@ export default function ChannelDetailPage() {
     const token = localStorage.getItem("accessToken");
     if (!token) return;
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSocketStatus("connecting");
     const socket = createSocket(token);
 

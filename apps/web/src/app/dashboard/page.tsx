@@ -17,7 +17,7 @@ type CreateState =
   | { kind: "error"; message: string };
 
 export default function DashboardPage() {
-  const { user, isLoading: authLoading, isAuthenticated, logout } = useAuth();
+  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const [workspaces, setWorkspaces] = useState<WorkspacesState>({ kind: "idle" });
   const [createState, setCreateState] = useState<CreateState>({ kind: "idle" });
   const [name, setName] = useState("");
@@ -38,6 +38,7 @@ export default function DashboardPage() {
     if (!isAuthenticated) return;
     const token = localStorage.getItem("accessToken");
     if (!token) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadWorkspaces(token);
   }, [isAuthenticated, loadWorkspaces]);
 
