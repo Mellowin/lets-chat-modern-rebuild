@@ -143,4 +143,16 @@ export class WorkspacesRepository {
       },
     });
   }
+
+  async softDeleteMember(memberId: string, workspaceId: string) {
+    const result = await this.prisma.workspaceMember.updateMany({
+      where: {
+        id: memberId,
+        workspaceId,
+        deletedAt: null,
+      },
+      data: { deletedAt: new Date() },
+    });
+    return result.count;
+  }
 }

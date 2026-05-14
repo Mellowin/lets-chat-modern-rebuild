@@ -132,6 +132,49 @@ export class WorkspacesService {
     };
   }
 
+  async removeMember(workspaceId: string, memberId: string, userId: string) {
+    const workspace = await this.workspaces.findActiveById(workspaceId);
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const requesterRole = await this.workspaces.findMemberRole(workspaceId, userId);
+    if (!requesterRole) {
+      throw new NotFoundException('Workspace not found');
+    }
+    if (requesterRole !== 'OWNER') {
+      throw new ForbiddenException('Only owner can remove members');
+    }
+
+    const targetMember = await this.workspaces.findActiveMemberById(
+      memberId,
+      workspaceId,
+    );
+    if (!targetMember) {
+      throw new NotFoundException('Member not found');
+    }
+    if (targetMember.role === 'OWNER') {
+      throw new BadRequestException('Cannot remove workspace owner');
+    }
+    if (targetMember.userId === userId) {
+      throw new BadRequestException('Cannot remove yourself');
+    }
+
+    const deletedCount = await this.workspaces.softDeleteMember(
+      memberId,
+      workspaceId,
+    );
+    if (deletedCount === 0) {
+      throw new NotFoundException('Member not found');
+    }
+
+    return {
+      id: memberId,
+      workspaceId,
+      deletedAt: new Date(),
+    };
+  }
+
   async listMembers(workspaceId: string, userId: string) {
     const workspace = await this.workspaces.findActiveById(workspaceId);
     if (!workspace) {

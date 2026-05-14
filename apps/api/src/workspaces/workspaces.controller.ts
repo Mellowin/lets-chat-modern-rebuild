@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   HttpCode,
@@ -124,5 +125,20 @@ export class WorkspacesController {
     @CurrentUser() user: AuthUserResponse,
   ) {
     return this.workspaces.updateMemberRole(workspaceId, memberId, dto, user.id);
+  }
+
+  @Delete(':workspaceId/members/:memberId')
+  @ApiOperation({ summary: 'Remove workspace member' })
+  @ApiOkResponse({ description: 'Member removed' })
+  @ApiForbiddenResponse({ description: 'Forbidden' })
+  @ApiNotFoundResponse({ description: 'Workspace or member not found' })
+  @ApiBadRequestResponse({ description: 'Bad request' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async removeMember(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Param('memberId', ParseUUIDPipe) memberId: string,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.workspaces.removeMember(workspaceId, memberId, user.id);
   }
 }
