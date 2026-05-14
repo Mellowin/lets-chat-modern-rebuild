@@ -18,6 +18,10 @@ export interface Message {
   author: MessageAuthor;
 }
 
+export interface CreateMessageInput {
+  content: string;
+}
+
 export async function getMessages(
   accessToken: string,
   workspaceId: string,
@@ -47,4 +51,38 @@ export async function getMessages(
   }
 
   return res.json() as Promise<Message[]>;
+}
+
+export async function createMessage(
+  accessToken: string,
+  workspaceId: string,
+  channelId: string,
+  input: CreateMessageInput,
+): Promise<Message> {
+  const res = await fetch(
+    `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/messages`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(input),
+    },
+  );
+
+  if (!res.ok) {
+    let message = `Failed to send message: ${res.status} ${res.statusText}`;
+    try {
+      const body = await res.json();
+      if (body?.message) message = body.message;
+      else if (body?.error) message = body.error;
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+
+  return res.json() as Promise<Message>;
 }

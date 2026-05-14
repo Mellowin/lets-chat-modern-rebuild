@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { getChannel, type Channel } from "@/lib/channels-api";
-import { getMessages, type Message } from "@/lib/messages-api";
+import { getMessages, createMessage, type Message, type CreateMessageInput } from "@/lib/messages-api";
 
 type ChannelState =
   | { kind: "idle" }
@@ -28,6 +28,10 @@ export default function ChannelDetailPage() {
   const { isLoading: authLoading, isAuthenticated } = useAuth();
   const [channel, setChannel] = useState<ChannelState>({ kind: "idle" });
   const [messages, setMessages] = useState<MessagesState>({ kind: "idle" });
+  const [content, setContent] = useState("");
+  const [sendState, setSendState] = useState<
+    { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string }
+  >({ kind: "idle" });
 
   useEffect(() => {
     if (!isAuthenticated || !workspaceId || !channelId) return;
@@ -61,6 +65,35 @@ export default function ChannelDetailPage() {
       cancelled = true;
     };
   }, [isAuthenticated, workspaceId, channelId]);
+
+  async function handleSendMessage(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = content.trim();
+    if (!trimmed) {
+      setSendState({ kind: "error", message: "Message cannot be empty" });
+      return;
+    }
+    if (trimmed.length > 4000) {
+      setSendState({ kind: "error", message: "Message is too long (max 4000 characters)" });
+      return;
+    }
+    const token = localStorage.getItem("accessToken");
+    if (!token || !workspaceId || !channelId) return;
+
+    setSendState({ kind: "loading" });
+    try {
+      const input: CreateMessageInput = { content: trimmed };
+      await createMessage(token, workspaceId, channelId, input);
+      setContent("");
+      setSendState({ kind: "idle" });
+      // refresh messages
+      const refreshed = await getMessages(token, workspaceId, channelId);
+      setMessages({ kind: "success", data: refreshed });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to send message";
+      setSendState({ kind: "error", message });
+    }
+  }
 
   if (authLoading) {
     return (
@@ -147,15 +180,49 @@ export default function ChannelDetailPage() {
       <div className="mt-8 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 p-5">
         <h2 className="text-sm font-semibold">Messages</h2>
 
+        {/* Composer */}
+        {channel.kind === "success" && (
+          <form onSubmit={handleSendMessage} className="mt-4 flex flex-col gap-2">
+            <textarea
+              rows={2}
+              placeholder="Type a message…"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              disabled={sendState.kind === "loading"}
+              className="w-full resize-none rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100 disabled:opacity-60"
+            />
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                {content.length}/4000
+              </span>
+              <button
+                type="submit"
+                disabled={sendState.kind === "loading"}
+                className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
+              >
+                {sendState.kind === "loading" ? "Sending…" : "Send"}
+              </button>
+            </div>
+            {sendState.kind === "error" && (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-2.5 text-sm dark:border-red-900 dark:bg-red-950/30">
+                <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+                  <span className="h-2 w-2 rounded-full bg-red-500" />
+                  {sendState.message}
+                </div>
+              </div>
+            )}
+          </form>
+        )}
+
         {messages.kind === "loading" && (
-          <div className="mt-3 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
+          <div className="mt-4 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
             <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
             Loading messages…
           </div>
         )}
 
         {messages.kind === "error" && (
-          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
             <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
               <span className="h-2 w-2 rounded-full bg-red-500" />
               {messages.message}
@@ -164,7 +231,7 @@ export default function ChannelDetailPage() {
         )}
 
         {messages.kind === "success" && messages.data.length === 0 && (
-          <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
+          <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">
             No messages yet.
           </p>
         )}
