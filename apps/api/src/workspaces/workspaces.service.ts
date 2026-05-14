@@ -82,4 +82,28 @@ export class WorkspacesService {
     await this.workspaces.archive(workspaceId);
     return { success: true };
   }
+
+  async listMembers(workspaceId: string, userId: string) {
+    const workspace = await this.workspaces.findActiveById(workspaceId);
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const role = await this.workspaces.findMemberRole(workspaceId, userId);
+    if (!role) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const members = await this.workspaces.listActiveMembers(workspaceId);
+    return members.map((member) => ({
+      id: member.id,
+      workspaceId: member.workspaceId,
+      role: member.role,
+      joinedAt: member.createdAt,
+      user: {
+        id: member.user.id,
+        username: member.user.username,
+      },
+    }));
+  }
 }

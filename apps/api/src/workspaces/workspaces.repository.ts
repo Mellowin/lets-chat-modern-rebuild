@@ -92,4 +92,22 @@ export class WorkspacesRepository {
       data: { deletedAt: new Date() },
     });
   }
+
+  async listActiveMembers(workspaceId: string) {
+    return this.prisma.workspaceMember.findMany({
+      where: {
+        workspaceId,
+        deletedAt: null,
+      },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+      },
+    });
+  }
 }

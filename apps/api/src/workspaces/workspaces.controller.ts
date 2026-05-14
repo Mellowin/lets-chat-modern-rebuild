@@ -6,6 +6,7 @@ import {
   Body,
   Param,
   HttpCode,
+  ParseUUIDPipe,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -94,5 +95,17 @@ export class WorkspacesController {
     @CurrentUser() user: AuthUserResponse,
   ) {
     return this.workspaces.archive(workspaceId, user.id);
+  }
+
+  @Get(':workspaceId/members')
+  @ApiOperation({ summary: 'List workspace members' })
+  @ApiOkResponse({ description: 'Members list' })
+  @ApiNotFoundResponse({ description: 'Workspace not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async listMembers(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.workspaces.listMembers(workspaceId, user.id);
   }
 }
