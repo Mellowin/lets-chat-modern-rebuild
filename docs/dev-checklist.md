@@ -714,8 +714,27 @@ Body:
 - Current OWNER role cannot be changed.
 - No ownership transfer.
 
+**DELETE** `/api/v1/workspaces/:workspaceId/members/:memberId`
+
+| Scenario | Expected |
+|----------|----------|
+| OWNER removing MEMBER | `200 OK` + `{ id, workspaceId, deletedAt }` |
+| OWNER removing ADMIN | `200 OK` + `{ id, workspaceId, deletedAt }` |
+| ADMIN requester | `403 Forbidden` |
+| MEMBER requester | `403 Forbidden` |
+| Non-member requester | `404 Not Found` |
+| Inactive workspace | `404 Not Found` |
+| Target member from another workspace | `404 Not Found` |
+| Already removed target member | `404 Not Found` |
+| Target is workspace OWNER | `400 Bad Request` |
+| Requester removes themselves | `400 Bad Request` |
+
+- Only workspace OWNER can remove members.
+- Removal is a **soft delete**: `deletedAt` is set to current timestamp.
+- Removed members are excluded from `GET /workspaces/:workspaceId/members`.
+- User account, messages, and invites are not affected.
+
 Current limitations:
-- No remove member yet.
 - No ownership transfer.
 - No audit log.
 - No frontend.
