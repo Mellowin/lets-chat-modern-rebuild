@@ -15,6 +15,7 @@ import { ChannelsModule } from './channels/channels.module';
 import { MessagesModule } from './messages/messages.module';
 import { StorageModule } from './storage/storage.module';
 import { WebsocketModule } from './websocket/websocket.module';
+import { InvitesModule } from './invites/invites.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -43,6 +44,7 @@ import { AppController } from './app.controller';
     MessagesModule,
     StorageModule,
     WebsocketModule,
+    InvitesModule,
   ],
   controllers: [AppController],
   providers: [
