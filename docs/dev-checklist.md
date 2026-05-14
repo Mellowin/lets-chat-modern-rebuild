@@ -748,6 +748,51 @@ Current limitations:
 - No frontend.
 - Audit is recorded after successful action; not yet transactional with the main action.
 
+### 17. Audit Logs
+
+**GET** `/api/v1/workspaces/:workspaceId/audit-logs`
+
+Query params:
+- `limit` — default `50`, max `100`, strict integer validation.
+
+| Scenario | Expected |
+|----------|----------|
+| As OWNER | `200 OK` + list of audit logs |
+| As ADMIN | `200 OK` + list of audit logs |
+| MEMBER requester | `403 Forbidden` |
+| Non-member requester | `404 Not Found` |
+| Invalid workspaceId | `400 Bad Request` |
+| Inactive workspace | `404 Not Found` |
+
+- Logs are scoped to `workspaceId` only.
+- Sorted by `createdAt DESC`.
+- Response item shape:
+
+```json
+{
+  "id": "uuid",
+  "action": "workspace.member.role_updated",
+  "entityType": "workspace_member",
+  "entityId": "uuid",
+  "workspaceId": "uuid",
+  "channelId": null,
+  "metadata": {},
+  "createdAt": "iso-date",
+  "actor": {
+    "id": "uuid",
+    "username": "string"
+  }
+}
+```
+
+- `actor` is `null` for system actions.
+- Response excludes `passwordHash`, actor `email`, raw tokens, and `tokenHash`.
+
+Current limitations:
+- No cursor pagination yet.
+- No filtering by action, entity type, or actor yet.
+- No export.
+
 ## Troubleshooting
 
 | Symptom | Fix |
