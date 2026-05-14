@@ -144,7 +144,18 @@ export class InvitesService {
       throw new ConflictException('Invite already used');
     }
 
-    const updated = await this.invites.softDelete(inviteId);
-    return { id: updated.id, deletedAt: updated.deletedAt };
+    const deletedCount = await this.invites.softDeleteIfUnused(inviteId);
+    if (deletedCount === 0) {
+      const current = await this.invites.findById(inviteId);
+      if (!current || current.deletedAt) {
+        throw new NotFoundException('Invite not found');
+      }
+      if (current.usedAt || current.usedById) {
+        throw new ConflictException('Invite already used');
+      }
+      throw new NotFoundException('Invite not found');
+    }
+
+    return { id: inviteId, deletedAt: new Date() };
   }
 }

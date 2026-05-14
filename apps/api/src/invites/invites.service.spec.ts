@@ -25,7 +25,7 @@ describe('InvitesService', () => {
             findByTokenHash: jest.fn(),
             acceptInvite: jest.fn(),
             findById: jest.fn(),
-            softDelete: jest.fn(),
+            softDeleteIfUnused: jest.fn(),
           },
         },
         {
@@ -351,20 +351,20 @@ describe('InvitesService', () => {
       workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       invitesRepository.findById.mockResolvedValue(makeInvite() as any);
-      invitesRepository.softDelete.mockResolvedValue({ id: inviteId, deletedAt: new Date() } as any);
+      invitesRepository.softDeleteIfUnused.mockResolvedValue(1);
 
       const result = await service.revoke(workspaceId, inviteId, userId);
 
       expect(result.id).toBe(inviteId);
       expect(result.deletedAt).toBeInstanceOf(Date);
-      expect(invitesRepository.softDelete).toHaveBeenCalledWith(inviteId);
+      expect(invitesRepository.softDeleteIfUnused).toHaveBeenCalledWith(inviteId);
     });
 
     it('should allow ADMIN to revoke unused invite', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
       workspacesRepository.findMemberRole.mockResolvedValue('ADMIN');
       invitesRepository.findById.mockResolvedValue(makeInvite() as any);
-      invitesRepository.softDelete.mockResolvedValue({ id: inviteId, deletedAt: new Date() } as any);
+      invitesRepository.softDeleteIfUnused.mockResolvedValue(1);
 
       const result = await service.revoke(workspaceId, inviteId, userId);
 
@@ -419,6 +419,32 @@ describe('InvitesService', () => {
       invitesRepository.findById.mockResolvedValue(
         makeInvite({ deletedAt: new Date() }) as any,
       );
+
+      await expect(
+        service.revoke(workspaceId, inviteId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('should map race-used invite to ConflictException', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      invitesRepository.findById
+        .mockResolvedValueOnce(makeInvite() as any)
+        .mockResolvedValueOnce(makeInvite({ usedAt: new Date() }) as any);
+      invitesRepository.softDeleteIfUnused.mockResolvedValue(0);
+
+      await expect(
+        service.revoke(workspaceId, inviteId, userId),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('should map race-deleted invite to NotFoundException', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      invitesRepository.findById
+        .mockResolvedValueOnce(makeInvite() as any)
+        .mockResolvedValueOnce(makeInvite({ deletedAt: new Date() }) as any);
+      invitesRepository.softDeleteIfUnused.mockResolvedValue(0);
 
       await expect(
         service.revoke(workspaceId, inviteId, userId),

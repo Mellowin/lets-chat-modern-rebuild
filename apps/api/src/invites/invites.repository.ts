@@ -48,10 +48,16 @@ export class InvitesRepository {
     });
   }
 
-  async softDelete(id: string) {
-    return this.prisma.invitation.update({
-      where: { id },
+  async softDeleteIfUnused(id: string): Promise<number> {
+    const result = await this.prisma.invitation.updateMany({
+      where: {
+        id,
+        deletedAt: null,
+        usedAt: null,
+        usedById: null,
+      },
       data: { deletedAt: new Date() },
     });
+    return result.count;
   }
 }
