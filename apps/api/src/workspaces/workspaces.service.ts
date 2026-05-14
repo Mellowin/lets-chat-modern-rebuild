@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -8,6 +9,7 @@ import { Prisma } from '@lets-chat/database';
 import { WorkspacesRepository } from './workspaces.repository';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
+import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
 
 @Injectable()
 export class WorkspacesService {
@@ -81,6 +83,53 @@ export class WorkspacesService {
     }
     await this.workspaces.archive(workspaceId);
     return { success: true };
+  }
+
+  async updateMemberRole(
+    workspaceId: string,
+    memberId: string,
+    dto: UpdateMemberRoleDto,
+    userId: string,
+  ) {
+    const workspace = await this.workspaces.findActiveById(workspaceId);
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const requesterRole = await this.workspaces.findMemberRole(workspaceId, userId);
+    if (!requesterRole) {
+      throw new NotFoundException('Workspace not found');
+    }
+    if (requesterRole !== 'OWNER') {
+      throw new ForbiddenException('Only owner can update member roles');
+    }
+
+    if (dto.role === 'OWNER') {
+      throw new BadRequestException('Cannot assign OWNER role');
+    }
+
+    const targetMember = await this.workspaces.findActiveMemberById(
+      memberId,
+      workspaceId,
+    );
+    if (!targetMember) {
+      throw new NotFoundException('Member not found');
+    }
+    if (targetMember.role === 'OWNER') {
+      throw new BadRequestException('Cannot change role of current owner');
+    }
+
+    const updated = await this.workspaces.updateMemberRole(memberId, dto.role);
+    return {
+      id: updated.id,
+      workspaceId: updated.workspaceId,
+      role: updated.role,
+      joinedAt: updated.createdAt,
+      user: {
+        id: updated.user.id,
+        username: updated.user.username,
+      },
+    };
   }
 
   async listMembers(workspaceId: string, userId: string) {

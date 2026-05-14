@@ -110,4 +110,37 @@ export class WorkspacesRepository {
       },
     });
   }
+
+  async findActiveMemberById(memberId: string, workspaceId: string) {
+    return this.prisma.workspaceMember.findFirst({
+      where: {
+        id: memberId,
+        workspaceId,
+        deletedAt: null,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+      },
+    });
+  }
+
+  async updateMemberRole(memberId: string, role: WorkspaceRole) {
+    return this.prisma.workspaceMember.update({
+      where: { id: memberId },
+      data: { role },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+      },
+    });
+  }
 }

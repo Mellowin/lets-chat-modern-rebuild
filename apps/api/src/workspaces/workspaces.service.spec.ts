@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { WorkspacesService } from './workspaces.service';
 import { WorkspacesRepository } from './workspaces.repository';
 
@@ -20,6 +20,8 @@ describe('WorkspacesService', () => {
             findActiveById: jest.fn(),
             findMemberRole: jest.fn(),
             listActiveMembers: jest.fn(),
+            findActiveMemberById: jest.fn(),
+            updateMemberRole: jest.fn(),
           },
         },
       ],
@@ -115,5 +117,178 @@ describe('WorkspacesService', () => {
       expect(result[1].user.username).toBe('bob');
     });
 
+  });
+
+  describe('updateMemberRole', () => {
+    const memberId = '33333333-3333-3333-3333-333333333333';
+    const targetUserId = '44444444-4444-4444-4444-444444444444';
+
+    it('should allow OWNER to promote MEMBER to ADMIN', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      workspacesRepository.findActiveMemberById.mockResolvedValue({
+        id: memberId,
+        workspaceId,
+        role: 'MEMBER',
+        createdAt: new Date('2026-01-01'),
+        user: { id: targetUserId, username: 'alice' },
+      } as any);
+      workspacesRepository.updateMemberRole.mockResolvedValue({
+        id: memberId,
+        workspaceId,
+        role: 'ADMIN',
+        createdAt: new Date('2026-01-01'),
+        user: { id: targetUserId, username: 'alice' },
+      } as any);
+
+      const result = await service.updateMemberRole(workspaceId, memberId, { role: 'ADMIN' }, userId);
+
+      expect(result.role).toBe('ADMIN');
+      expect(result.user.username).toBe('alice');
+      expect(result).not.toHaveProperty('passwordHash');
+    });
+
+    it('should allow OWNER to demote ADMIN to MEMBER', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      workspacesRepository.findActiveMemberById.mockResolvedValue({
+        id: memberId,
+        workspaceId,
+        role: 'ADMIN',
+        createdAt: new Date('2026-01-01'),
+        user: { id: targetUserId, username: 'bob' },
+      } as any);
+      workspacesRepository.updateMemberRole.mockResolvedValue({
+        id: memberId,
+        workspaceId,
+        role: 'MEMBER',
+        createdAt: new Date('2026-01-01'),
+        user: { id: targetUserId, username: 'bob' },
+      } as any);
+
+      const result = await service.updateMemberRole(workspaceId, memberId, { role: 'MEMBER' }, userId);
+
+      expect(result.role).toBe('MEMBER');
+    });
+
+    it('should reject ADMIN requester', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('ADMIN');
+
+      await expect(
+        service.updateMemberRole(workspaceId, memberId, { role: 'ADMIN' }, userId),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('should reject MEMBER requester', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+
+      await expect(
+        service.updateMemberRole(workspaceId, memberId, { role: 'ADMIN' }, userId),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('should reject non-member requester', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue(null);
+
+      await expect(
+        service.updateMemberRole(workspaceId, memberId, { role: 'ADMIN' }, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('should reject inactive workspace', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue(null);
+
+      await expect(
+        service.updateMemberRole(workspaceId, memberId, { role: 'ADMIN' }, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('should reject target member from another workspace', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      workspacesRepository.findActiveMemberById.mockResolvedValue(null);
+
+      await expect(
+        service.updateMemberRole(workspaceId, memberId, { role: 'ADMIN' }, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('should reject deleted target member', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      workspacesRepository.findActiveMemberById.mockResolvedValue(null);
+
+      await expect(
+        service.updateMemberRole(workspaceId, memberId, { role: 'ADMIN' }, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('should reject changing role of current OWNER', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      workspacesRepository.findActiveMemberById.mockResolvedValue({
+        id: memberId,
+        workspaceId,
+        role: 'OWNER',
+        createdAt: new Date('2026-01-01'),
+        user: { id: targetUserId, username: 'owner' },
+      } as any);
+
+      await expect(
+        service.updateMemberRole(workspaceId, memberId, { role: 'ADMIN' }, userId),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('should reject OWNER role in body', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      workspacesRepository.findActiveMemberById.mockResolvedValue({
+        id: memberId,
+        workspaceId,
+        role: 'MEMBER',
+        createdAt: new Date('2026-01-01'),
+        user: { id: targetUserId, username: 'alice' },
+      } as any);
+
+      await expect(
+        service.updateMemberRole(workspaceId, memberId, { role: 'OWNER' }, userId),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('should return updated member without passwordHash', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      workspacesRepository.findActiveMemberById.mockResolvedValue({
+        id: memberId,
+        workspaceId,
+        role: 'MEMBER',
+        createdAt: new Date('2026-01-01'),
+        user: { id: targetUserId, username: 'alice' },
+      } as any);
+      workspacesRepository.updateMemberRole.mockResolvedValue({
+        id: memberId,
+        workspaceId,
+        role: 'ADMIN',
+        createdAt: new Date('2026-01-01'),
+        user: { id: targetUserId, username: 'alice' },
+      } as any);
+
+      const result = await service.updateMemberRole(workspaceId, memberId, { role: 'ADMIN' }, userId);
+
+      expect(result).toEqual({
+        id: memberId,
+        workspaceId,
+        role: 'ADMIN',
+        joinedAt: expect.any(Date),
+        user: {
+          id: targetUserId,
+          username: 'alice',
+        },
+      });
+      expect(result).not.toHaveProperty('passwordHash');
+    });
   });
 });

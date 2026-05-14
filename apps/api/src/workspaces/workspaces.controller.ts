@@ -24,6 +24,7 @@ import {
 import { WorkspacesService } from './workspaces.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
+import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUserResponse } from '../auth/auth.service';
@@ -107,5 +108,21 @@ export class WorkspacesController {
     @CurrentUser() user: AuthUserResponse,
   ) {
     return this.workspaces.listMembers(workspaceId, user.id);
+  }
+
+  @Patch(':workspaceId/members/:memberId/role')
+  @ApiOperation({ summary: 'Update workspace member role' })
+  @ApiOkResponse({ description: 'Member role updated' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiForbiddenResponse({ description: 'Forbidden' })
+  @ApiNotFoundResponse({ description: 'Workspace or member not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async updateMemberRole(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Param('memberId', ParseUUIDPipe) memberId: string,
+    @Body() dto: UpdateMemberRoleDto,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.workspaces.updateMemberRole(workspaceId, memberId, dto, user.id);
   }
 }
