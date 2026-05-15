@@ -2,7 +2,7 @@
 
 > Last updated: 2026-05-15  
 > Code checkpoint: `389264d`  
-> Docs checkpoint: `8c300bd`
+> Docs checkpoint: `e8b0d1c`
 
 ---
 
@@ -85,10 +85,13 @@ Use these steps to verify core functionality after deploy or before release:
 - **Channels authorization unit tests** added (`channels.service.spec.ts`) — workspace membership, PRIVATE channel access, role-based update/archive (OWNER/ADMIN/MEMBER).
 - **Messages authorization unit tests** added (`messages.service.spec.ts`) — workspace/PRIVATE access, author-only edit with 15-min window, role-based delete permissions.
 - **WebSocket typing access revalidation** added — `broadcastTyping` revalidates channel membership on every event; revoked access triggers `typing:error`, presence cleanup, and automatic room leave.
-- **API tests count:** 193 (10 suites)
-- **CI:** green ✅
+- **Private channel E2E security smoke tests** added (`channels.e2e-spec.ts`) — 7 tests proving private channel access control through real HTTP endpoints.
+- **API tests count:** 193 unit tests (10 suites)
+- **E2E tests:** 7 passing locally (2 suites); requires Docker PostgreSQL
+- **CI:** green ✅ (unit tests, builds, lint; e2e not yet in CI)
 - **Remaining known risks:**
-  - No full E2E security tests yet
+  - E2E tests are local-only for now; CI workflow lacks PostgreSQL service
+  - No broad end-to-end coverage beyond private-channel smoke tests
 
 ---
 
