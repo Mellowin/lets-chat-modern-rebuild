@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { getWorkspaces, createWorkspace, type Workspace } from "@/lib/workspaces-api";
+import { slugify } from "@/lib/transliterate";
 
 type WorkspacesState =
   | { kind: "idle" }
@@ -49,16 +50,13 @@ export default function DashboardPage() {
       setCreateState({ kind: "error", message: "Name is required" });
       return;
     }
-    if (trimmedSlug && !/^[a-z0-9-]+$/.test(trimmedSlug)) {
-      setCreateState({ kind: "error", message: "Slug can only contain lowercase Latin letters, numbers and hyphens" });
-      return;
-    }
     if (!accessToken) return;
 
     setCreateState({ kind: "loading" });
     try {
       const input: { name: string; slug?: string } = { name: trimmedName };
-      if (trimmedSlug) input.slug = trimmedSlug;
+      const processedSlug = slugify(trimmedSlug || trimmedName);
+      if (processedSlug.length >= 3) input.slug = processedSlug;
       await createWorkspace(accessToken, input);
       setName("");
       setSlug("");
