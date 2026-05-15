@@ -61,6 +61,18 @@ export class WorkspacesController {
     return this.workspaces.listForUser(user.id);
   }
 
+  @Get('by-slug/:slug')
+  @ApiOperation({ summary: 'Get workspace by slug' })
+  @ApiOkResponse({ description: 'Workspace found' })
+  @ApiNotFoundResponse({ description: 'Workspace not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async findBySlug(
+    @Param('slug') slug: string,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.workspaces.findBySlug(slug, user.id);
+  }
+
   @Get(':workspaceId')
   @ApiOperation({ summary: 'Get workspace by id' })
   @ApiOkResponse({ description: 'Workspace found' })

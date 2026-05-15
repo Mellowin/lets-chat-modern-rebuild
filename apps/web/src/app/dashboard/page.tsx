@@ -173,7 +173,7 @@ export default function DashboardPage() {
               {workspaces.data.map((ws) => (
                 <li key={ws.id}>
                   <Link
-                    href={`/workspaces/${ws.id}`}
+                    href={`/workspaces/${ws.slug}`}
                     className="flex items-center justify-between py-3 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 -mx-2 px-2 rounded-md transition-colors"
                   >
                     <div>

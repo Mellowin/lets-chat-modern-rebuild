@@ -61,6 +61,18 @@ export class WorkspacesService {
     return workspace;
   }
 
+  async findBySlug(slug: string, userId: string) {
+    const workspace = await this.workspaces.findActiveBySlug(slug);
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+    const role = await this.workspaces.findMemberRole(workspace.id, userId);
+    if (!role) {
+      throw new NotFoundException('Workspace not found');
+    }
+    return workspace;
+  }
+
   async update(workspaceId: string, userId: string, dto: UpdateWorkspaceDto) {
     const workspace = await this.workspaces.findActiveById(workspaceId);
     if (!workspace) {

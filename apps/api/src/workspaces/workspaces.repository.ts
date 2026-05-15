@@ -64,6 +64,12 @@ export class WorkspacesRepository {
     });
   }
 
+  async findActiveBySlug(slug: string) {
+    return this.prisma.workspace.findFirst({
+      where: { slug, deletedAt: null },
+    });
+  }
+
   async findMemberRole(
     workspaceId: string,
     userId: string,

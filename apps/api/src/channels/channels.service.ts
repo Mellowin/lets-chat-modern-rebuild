@@ -96,6 +96,30 @@ export class ChannelsService {
     return channel;
   }
 
+  async findBySlug(workspaceId: string, slug: string, userId: string) {
+    const wsRole = await this.workspaces.findMemberRole(workspaceId, userId);
+    if (!wsRole) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const channel = await this.channels.findBySlug(workspaceId, slug);
+    if (!channel || channel.deletedAt) {
+      throw new NotFoundException('Channel not found');
+    }
+
+    if (channel.type === 'PRIVATE') {
+      const chRole = await this.channels.findChannelMemberRole(
+        channel.id,
+        userId,
+      );
+      if (!chRole) {
+        throw new NotFoundException('Channel not found');
+      }
+    }
+
+    return channel;
+  }
+
   async update(
     workspaceId: string,
     channelId: string,
