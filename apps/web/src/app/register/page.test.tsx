@@ -84,6 +84,33 @@ describe("RegisterPage", () => {
     expect(pushMock).toHaveBeenCalledWith("/dashboard");
   });
 
+  it("calls register with Cyrillic username and redirects on success", async () => {
+    const mockResult = {
+      user: { id: "u3", email: "cyr@example.com", username: "Валера", createdAt: "2024-01-01T00:00:00Z" },
+      accessToken: "at3",
+      refreshToken: "rt3",
+    };
+    vi.mocked(register).mockResolvedValueOnce(mockResult);
+
+    render(<RegisterPage />);
+
+    await userEvent.type(screen.getByLabelText(/Email/i), "cyr@example.com");
+    await userEvent.type(screen.getByLabelText(/Username/i), "Валера");
+    await userEvent.type(screen.getByLabelText(/Password/i), "securepass");
+    await userEvent.click(screen.getByRole("button", { name: /Create account/i }));
+
+    await waitFor(() => {
+      expect(register).toHaveBeenCalledWith({
+        email: "cyr@example.com",
+        username: "Валера",
+        password: "securepass",
+      });
+    });
+
+    expect(loginSuccessMock).toHaveBeenCalledWith(mockResult);
+    expect(pushMock).toHaveBeenCalledWith("/dashboard");
+  });
+
   it("shows backend error and does not redirect", async () => {
     vi.mocked(register).mockRejectedValueOnce(new Error("Email already in use"));
 

@@ -219,8 +219,7 @@ export default function ChannelDetailPage() {
     }
   }
 
-  async function handleSendMessage(e: React.FormEvent) {
-    e.preventDefault();
+  async function submitMessage() {
     const trimmed = content.trim();
     if (!trimmed) {
       setSendState({ kind: "error", message: "Message cannot be empty" });
@@ -243,6 +242,11 @@ export default function ChannelDetailPage() {
       const message = err instanceof Error ? err.message : "Failed to send message";
       setSendState({ kind: "error", message });
     }
+  }
+
+  function handleSendMessage(e: React.FormEvent) {
+    e.preventDefault();
+    submitMessage();
   }
 
   if (authLoading) {
@@ -356,7 +360,7 @@ export default function ChannelDetailPage() {
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
-                  handleSendMessage(e);
+                  submitMessage();
                 }
               }}
               disabled={sendState.kind === "loading"}
