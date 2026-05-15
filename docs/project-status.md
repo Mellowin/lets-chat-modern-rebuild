@@ -1,7 +1,8 @@
 # Project Status
 
 > Last updated: 2026-05-15  
-> Commit: `2c0eeb5`
+> Code checkpoint: `389264d`  
+> Docs checkpoint: `8c300bd`
 
 ---
 
