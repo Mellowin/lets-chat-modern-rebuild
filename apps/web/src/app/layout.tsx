@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 import Header from "@/components/Header";
+import Sidebar from "@/components/Sidebar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -35,20 +36,7 @@ export default function RootLayout({
 
           {/* Body: sidebar + main */}
           <div className="flex flex-1 overflow-hidden">
-            {/* Sidebar placeholder */}
-            <aside className="w-60 shrink-0 border-r border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 hidden sm:flex flex-col p-3">
-              <div className="text-xs font-medium text-zinc-400 uppercase tracking-wider px-2 py-1">
-                Workspace
-              </div>
-              <div className="mt-2 rounded-md bg-zinc-200/60 dark:bg-zinc-800/60 h-8" />
-              <div className="mt-1 rounded-md bg-zinc-200/60 dark:bg-zinc-800/60 h-8" />
-              <div className="mt-6 text-xs font-medium text-zinc-400 uppercase tracking-wider px-2 py-1">
-                Channels
-              </div>
-              <div className="mt-2 rounded-md bg-zinc-200/60 dark:bg-zinc-800/60 h-8" />
-              <div className="mt-1 rounded-md bg-zinc-200/60 dark:bg-zinc-800/60 h-8" />
-              <div className="mt-1 rounded-md bg-zinc-200/60 dark:bg-zinc-800/60 h-8" />
-            </aside>
+            <Sidebar />
 
             {/* Main content */}
             <main className="flex-1 overflow-auto">{children}</main>
