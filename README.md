@@ -1,38 +1,12 @@
 # Secure Team Collaboration Platform
 
-> **Modern rebuild** of [`sdelements/lets-chat`](https://github.com/sdelements/lets-chat) — a self-hosted chat app for small teams.
+> Modern full-stack rebuild of the archived [`lets-chat`](https://github.com/sdelements/lets-chat) app, focused on **authentication**, **private-channel authorization**, **real-time messaging**, and **test coverage**.
 
 ---
 
-## Overview
+## Demo / Screenshots
 
-This project is a ground-up rebuild of the archived **lets-chat** application (~9.8k ⭐), transforming a 2014-era Node/MongoDB/jQuery codebase into a production-oriented, secure team collaboration platform using modern best practices.
-
-**Original:** Node 0.10.x + Express.oi + Mongoose + MongoDB + Nunjucks
-
-**Modern backend:** Node 20 + NestJS 11 + Prisma 5.22 + PostgreSQL 15 + Redis 7 + Socket.io 4
-
-**Frontend (planned Phase 3):** Next.js 16 (App Router), Tailwind CSS 4, shadcn/ui
-
----
-
-## Key Features (MVP)
-
-### Backend (implemented)
-
-- 🔐 **Secure Auth** — JWT access/refresh tokens, bcrypt, rate limiting
-- 🏢 **Workspaces** — Multi-tenant team organization with OWNER/ADMIN/MEMBER roles
-- 💬 **Channels** — Public and private channels with permission guards
-- 💬 **Messages** — CRUD, soft delete, edit history, threaded replies
-- 😀 **Reactions** — Emoji reactions with grouped counts
-- 👁️ **Read Receipts** — Idempotent mark-as-read
-- 📎 **File Uploads** — Direct-to-MinIO via presigned URLs
-- 🔍 **Full-Text Search** — PostgreSQL `tsvector` + GIN index
-- 📨 **Invites** — Token-based invites with SHA-256 hash, email match, race-hardened accept/revoke
-- 👥 **Members** — List, role update, soft-delete removal, ownership transfer
-- 📋 **Audit Log** — Immutable compliance trail for member/invite/ownership actions with listing endpoint
-- ⚡ **Real-Time** — Socket.io 4 with auth, channel rooms, message/reaction/read broadcasts, typing indicators, in-memory presence
-- 🐳 **Docker Compose** — One-command local development stack (PostgreSQL, Redis, MinIO)
+Screenshots and demo video coming soon.
 
 ---
 
@@ -40,14 +14,61 @@ This project is a ground-up rebuild of the archived **lets-chat** application (~
 
 | Layer | Technology |
 |-------|-----------|
-| **Backend** | NestJS 11, TypeScript 5.7 |
-| **Frontend** | Next.js 16 planned (App Router, Tailwind CSS 4, shadcn/ui) |
-| **Database** | PostgreSQL 15 |
-| **ORM** | Prisma 5.22 |
-| **Cache / PubSub** | Redis 7 |
-| **Real-Time** | Socket.io 4, in-memory presence (Redis adapter planned) |
-| **Testing** | Jest unit tests (Playwright E2E planned) |
-| **Docs** | Swagger / OpenAPI |
+| **Frontend** | Next.js 16 (App Router), React 19, TypeScript 5, Tailwind CSS 4, shadcn/ui |
+| **Backend** | NestJS 11, TypeScript, Prisma ORM, PostgreSQL 15 |
+| **Real-Time** | Socket.io 4, in-memory presence |
+| **Storage** | MinIO / S3-style storage module (presigned URLs) |
+| **Testing** | Jest (API), Vitest + Testing Library (Web), Supertest (E2E) |
+| **CI** | GitHub Actions — unit tests, builds, lint |
+
+---
+
+## Key Features
+
+### Backend
+
+- 🔐 **JWT Auth** — access/refresh token rotation, bcrypt, per-tab sessionStorage
+- 🏢 **Workspaces** — multi-tenant teams with OWNER/ADMIN/MEMBER roles
+- 💬 **Channels** — public and private with authorization guards
+- 💬 **Messages** — CRUD, soft delete, 15-minute edit window
+- ⚡ **Real-Time** — Socket.io rooms, message broadcasts, typing indicators, presence
+- 🔒 **WebSocket Security** — typing revalidates channel access; revoked access triggers auto-leave
+- 📋 **Audit Log** — immutable trail for member/invite/ownership actions
+- 📨 **Invites** — token-based invites with SHA-256 hash and email match
+- 📎 **Storage Module** — presigned upload/download URLs (backend ready; UI integration pending)
+- 🔍 **Search Module** — FTS backend stub (UI integration pending)
+
+### Frontend
+
+- 🔐 **Auth Flow** — login, register, logout with sessionStorage isolation
+- 🏢 **Workspaces** — list, create, detail views
+- 💬 **Channels** — list, create, real-time message view
+- ✏️ **Messages** — send (Enter), edit within 15 min, soft delete
+- ⚡ **Live Updates** — message created/updated/deleted via WebSocket
+- 🌐 **Cyrillic Support** — usernames and workspace names with auto-transliteration
+
+---
+
+## Security & Authorization
+
+- **Private channels** return `404` for non-members — no information leakage
+- **Message edit** restricted to author and 15-minute window
+- **Message delete** restricted to author, admins, and owners
+- **Channel update/archive** enforced by role (OWNER/ADMIN only)
+- **WebSocket typing** revalidates membership on every event; revoked access forces room leave and presence cleanup
+
+---
+
+## Testing & CI
+
+| Suite | Count | Status |
+|-------|-------|--------|
+| API Unit Tests | 193 (10 suites) | ✅ passing |
+| Web Unit Tests | 64 (8 files) | ✅ passing |
+| E2E Security Smoke Tests | 7 (2 suites) | ✅ passing locally |
+
+- **CI:** GitHub Actions green for unit tests, builds, and lint
+- **E2E:** requires Docker PostgreSQL; not yet integrated into CI workflow
 
 ---
 
@@ -57,16 +78,15 @@ This project is a ground-up rebuild of the archived **lets-chat** application (~
 secure-collab-platform/
 ├── apps/
 │   ├── api/                 # NestJS backend
-│   └── web/                 # Next.js frontend (not started)
+│   └── web/                 # Next.js frontend
 ├── packages/
 │   ├── shared/              # Shared types & utilities
-│   └── database/            # Prisma schema & migrations
-├── docker-compose.yml
-└── docs/
-    ├── legacy-analysis.md   # Original lets-chat analysis
-    ├── scope.md             # MVP scope definition
-    ├── before-after.md      # Legacy → Modern comparison
-    └── architecture.md      # ADRs & ER diagrams
+│   └── database/            # Prisma schema, client, migrations
+├── docker-compose.yml       # PostgreSQL, Redis, MinIO
+├── docs/
+│   ├── project-status.md    # Current state & QA results
+│   └── ...
+└── README.md
 ```
 
 ---
@@ -79,118 +99,111 @@ secure-collab-platform/
 - pnpm
 - Docker Desktop
 
-### Local Development
+### 1. Install dependencies
 
 ```bash
-# 1. Install dependencies
 pnpm install
+```
 
-# 2. Start infrastructure (PostgreSQL, Redis, MinIO)
+### 2. Start infrastructure
+
+```bash
 docker compose up -d
+```
 
-# 3. Run database migrations
-cd packages/database
-pnpm exec prisma migrate dev
+### 3. Run database migrations
 
-# 4. Generate Prisma Client
-pnpm exec prisma generate
+```bash
+pnpm --filter @lets-chat/database migrate
+```
 
-# 5. Build and start API
-cd ../..
-pnpm --filter api build
+### 4. Generate Prisma Client
+
+```bash
+pnpm --filter @lets-chat/database generate
+```
+
+### 5. Start API (development)
+
+```bash
 pnpm --filter api start:dev
+```
+
+### 6. Start Web (development)
+
+```bash
+pnpm --filter web dev
 ```
 
 **Environment variable (if needed):**
 
-PowerShell:
-
 ```powershell
+# PowerShell
 $env:DATABASE_URL="postgresql://postgres:postgres@localhost:5432/letschat?schema=public"
 ```
 
-Bash / macOS / Linux:
-
 ```bash
+# Bash / macOS / Linux
 export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/letschat?schema=public"
 ```
 
 **Verify:**
 
-- Health: `GET http://localhost:3001/api/v1/health`
+- Health: `GET http://localhost:3001/health`
 - Swagger: `http://localhost:3001/api/docs`
+- Web app: `http://localhost:3000`
 
-### Running Tests
+---
+
+## Running Tests
 
 ```bash
 # API unit tests
 pnpm --filter api test
 
-# Type check
+# API E2E tests (requires Docker PostgreSQL)
+pnpm --filter api test:e2e
+
+# Web unit tests
+pnpm --filter web test
+
+# Web lint
+pnpm --filter web lint
+
+# Type check API
 pnpm --filter api build
+
+# Type check Web
+pnpm --filter web build
 ```
-
----
-
-## Documentation
-
-| Document | Description |
-|----------|-------------|
-| [`docs/legacy-analysis.md`](docs/legacy-analysis.md) | Deep analysis of original lets-chat codebase |
-| [`docs/scope.md`](docs/scope.md) | Locked MVP scope with success criteria |
-| [`docs/before-after.md`](docs/before-after.md) | Technology & architecture comparison |
-| [`docs/architecture.md`](docs/architecture.md) | ADRs, ER diagrams, deployment model |
-| [`docs/dev-checklist.md`](docs/dev-checklist.md) | Developer checklist with all endpoints and rules |
-
----
-
-## Backend Status
-
-| Module | Status | Notes |
-|--------|--------|-------|
-| Auth | ✅ | Register, login, refresh, logout, JWT guards |
-| Workspaces | ✅ | CRUD, archive, ownership transfer |
-| Channels | ✅ | Public/private, CRUD, archive |
-| Messages | ✅ | CRUD, soft delete, edit history, replies |
-| Reactions | ✅ | Add/remove, grouped counts, race handling |
-| Read Receipts | ✅ | Mark read, list, idempotent |
-| Search | ✅ | FTS with GIN index, channel-scoped |
-| Attachments | ✅ | Presign, complete, download |
-| WebSocket | ✅ | Auth, rooms, broadcasts, typing, presence |
-| Invites | ✅ | Create, accept, revoke, list, audit |
-| Members | ✅ | List, role update, remove, audit |
-| Audit Logs | ✅ | Write + list endpoint, OWNER/ADMIN read |
 
 ---
 
 ## Current Limitations
 
-- **No frontend MVP yet** — UI work is the next milestone
-- **No email invite delivery** — invite tokens must be shared manually
-- **Audit write is not transactional** — audit records are written after the main action succeeds
-- **No cursor pagination** — audit logs, messages, and search use simple limit-based pagination
-- **No Redis WebSocket adapter** — presence is in-memory only; server restart clears state
-- **No CI / E2E tests** — only unit tests are implemented
-- **No production Docker Compose** — local dev stack only
+> This is a **portfolio-grade rebuild**, not production-ready software.
+
+- **E2E tests are local-only** — CI workflow lacks a PostgreSQL service
+- **No broad E2E coverage** beyond private-channel authorization smoke tests
+- **No message threading / replies** — flat message list only
+- **No frontend file upload integration** — storage backend exists, UI does not
+- **No message search UI** — search backend exists, UI does not
+- **Presence is in-memory** — no Redis Socket.io adapter yet
+- **Email invite delivery** not implemented — tokens are shared manually
+- **No cursor pagination** — limit-based pagination for messages and logs
 
 ---
 
 ## Roadmap
 
-- [x] Phase 0: Legacy analysis & scope definition
-- [x] Phase 1–2: Backend architecture, database design & NestJS API implementation
-- [ ] Phase 3: Next.js frontend & real-time integration
-- [ ] Phase 4: Email delivery, notifications, cursor pagination, Redis WS adapter
-- [ ] Phase 5: CI/CD, E2E tests, deployment, demo
-
-**v2 Ideas:** WebRTC voice channels, AI thread summarization, GitHub/GitLab integrations
+- [ ] Add screenshots and short demo video
+- [ ] Integrate E2E tests into CI with PostgreSQL service
+- [ ] Frontend polish: file upload, search, pagination
+- [ ] Redis Socket.io adapter for multi-server presence
+- [ ] Cursor-based pagination for messages and audit logs
 
 ---
 
 ## License
 
 MIT (same as original lets-chat)
-
----
-
-*Built with respect for the original creators at Security Compass.*
