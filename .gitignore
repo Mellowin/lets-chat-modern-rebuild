@@ -35,3 +35,8 @@ coverage/
 
 # Misc
 *.tsbuildinfo
+
+# Temporary/debug files
+*.err
+check_*.sql
+scan_report.txt
