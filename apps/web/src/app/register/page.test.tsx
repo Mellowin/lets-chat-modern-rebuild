@@ -49,11 +49,11 @@ describe("RegisterPage", () => {
     render(<RegisterPage />);
 
     await userEvent.type(screen.getByLabelText(/Email/i), "test@example.com");
-    await userEvent.type(screen.getByLabelText(/Username/i), "Валера");
+    await userEvent.type(screen.getByLabelText(/Username/i), "invalid user!");
     await userEvent.type(screen.getByLabelText(/Password/i), "password123");
     await userEvent.click(screen.getByRole("button", { name: /Create account/i }));
 
-    expect(await screen.findByText(/Username can only contain Latin letters, numbers and underscores/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Username can only contain letters, numbers and underscores/i)).toBeInTheDocument();
     expect(register).not.toHaveBeenCalled();
   });
 

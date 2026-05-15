@@ -353,6 +353,12 @@ export default function ChannelDetailPage() {
               placeholder="Type a message…"
               value={content}
               onChange={(e) => setContent(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage(e);
+                }
+              }}
               disabled={sendState.kind === "loading"}
               className="w-full resize-none rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100 disabled:opacity-60"
             />
@@ -410,7 +416,7 @@ export default function ChannelDetailPage() {
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold capitalize">
+                    <span className="text-sm font-semibold">
                       {msg.author.displayName || msg.author.username}
                     </span>
                     <span className="text-xs text-zinc-400 dark:text-zinc-500">

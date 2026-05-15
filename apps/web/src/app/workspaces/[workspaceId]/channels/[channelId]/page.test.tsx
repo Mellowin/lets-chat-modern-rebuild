@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import ChannelDetailPage from "./page";
 import { getChannel } from "@/lib/channels-api";
-import { getMessages, createMessage, updateMessage, deleteMessage } from "@/lib/messages-api";
+import { getMessages, createMessage, updateMessage, deleteMessage, Message } from "@/lib/messages-api";
 
 const socketHandlers: Record<string, (...args: unknown[]) => void> = {};
 const socketOnMock = vi.fn((event: string, handler: (...args: unknown[]) => void) => {
@@ -59,7 +59,7 @@ function mockChannelAndMessages(messagesData: unknown[] = []) {
     updatedAt: "2024-01-01T00:00:00Z",
     deletedAt: null,
   });
-  vi.mocked(getMessages).mockResolvedValueOnce(messagesData as ReturnType<typeof getMessages>);
+  vi.mocked(getMessages).mockResolvedValueOnce(messagesData as Message[]);
 }
 
 describe("ChannelDetailPage — composer", () => {

@@ -27,8 +27,8 @@ export default function RegisterPage() {
       setFormState({ kind: "error", message: "All fields are required" });
       return;
     }
-    if (!/^[a-zA-Z0-9_]+$/.test(trimmedUsername)) {
-      setFormState({ kind: "error", message: "Username can only contain Latin letters, numbers and underscores" });
+    if (!/^[a-zA-Z0-9_а-яА-ЯёЁіІїЇєЄґҐ]+$/.test(trimmedUsername)) {
+      setFormState({ kind: "error", message: "Username can only contain letters, numbers and underscores" });
       return;
     }
     setFormState({ kind: "loading" });
@@ -89,7 +89,7 @@ export default function RegisterPage() {
               placeholder="john_doe"
             />
             <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-              Only Latin letters, numbers and underscore are allowed.
+              Letters, numbers and underscore are allowed.
             </p>
           </div>
 
