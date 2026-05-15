@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { getWorkspace, getWorkspaceBySlug, type Workspace } from "@/lib/workspaces-api";
+import { getWorkspace, type Workspace } from "@/lib/workspaces-api";
 import { getChannels, createChannel, type Channel, type CreateChannelInput } from "@/lib/channels-api";
 
 type DetailState =
@@ -36,17 +36,15 @@ export default function WorkspaceDetailPage() {
     if (!isAuthenticated || !workspaceId) return;
     if (!accessToken) return;
 
-    const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
-
     let cancelled = false;
     async function load(t: string, id: string) {
       setDetail({ kind: "loading" });
       setChannels({ kind: "loading" });
       try {
-        const wsData = isUuid(id)
-          ? await getWorkspace(t, id)
-          : await getWorkspaceBySlug(t, id);
-        const chData = await getChannels(t, wsData.id);
+        const [wsData, chData] = await Promise.all([
+          getWorkspace(t, id),
+          getChannels(t, id),
+        ]);
         if (!cancelled) {
           setDetail({ kind: "success", data: wsData });
           setChannels({ kind: "success", data: chData });
@@ -236,7 +234,7 @@ export default function WorkspaceDetailPage() {
             {channels.data.map((ch) => (
               <li key={ch.id}>
                 <Link
-                  href={`/workspaces/${workspaceId}/channels/${ch.slug}`}
+                  href={`/workspaces/${workspaceId}/channels/${ch.id}`}
                   className="flex items-center justify-between py-3 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 -mx-2 px-2 rounded-md transition-colors"
                 >
                   <div>

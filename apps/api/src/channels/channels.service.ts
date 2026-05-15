@@ -31,12 +31,15 @@ export class ChannelsService {
       throw new NotFoundException('Workspace not found');
     }
 
-    const baseSlug = slugify(dto.name);
-    if (baseSlug.length < 2) {
+    const slug = slugify(dto.name);
+    if (slug.length < 2) {
       throw new BadRequestException('Invalid channel name');
     }
 
-    const slug = await this.deduplicateChannelSlug(workspaceId, baseSlug);
+    const existing = await this.channels.findBySlug(workspaceId, slug);
+    if (existing) {
+      throw new ConflictException('Channel slug already in use');
+    }
 
     try {
       return await this.channels.createChannel(
@@ -61,19 +64,6 @@ export class ChannelsService {
     }
   }
 
-  private async deduplicateChannelSlug(workspaceId: string, baseSlug: string): Promise<string> {
-    let slug = baseSlug;
-    let counter = 2;
-    while (await this.channels.findBySlug(workspaceId, slug)) {
-      slug = `${baseSlug}-${counter}`;
-      counter++;
-      if (counter > 1000) {
-        throw new ConflictException('Unable to generate unique channel slug');
-      }
-    }
-    return slug;
-  }
-
   async list(workspaceId: string, userId: string) {
     const role = await this.workspaces.findMemberRole(workspaceId, userId);
     if (!role) {
@@ -96,30 +86,6 @@ export class ChannelsService {
     if (channel.type === 'PRIVATE') {
       const chRole = await this.channels.findChannelMemberRole(
         channelId,
-        userId,
-      );
-      if (!chRole) {
-        throw new NotFoundException('Channel not found');
-      }
-    }
-
-    return channel;
-  }
-
-  async findBySlug(workspaceId: string, slug: string, userId: string) {
-    const wsRole = await this.workspaces.findMemberRole(workspaceId, userId);
-    if (!wsRole) {
-      throw new NotFoundException('Workspace not found');
-    }
-
-    const channel = await this.channels.findBySlug(workspaceId, slug);
-    if (!channel || channel.deletedAt) {
-      throw new NotFoundException('Channel not found');
-    }
-
-    if (channel.type === 'PRIVATE') {
-      const chRole = await this.channels.findChannelMemberRole(
-        channel.id,
         userId,
       );
       if (!chRole) {

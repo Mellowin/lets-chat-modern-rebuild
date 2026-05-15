@@ -22,22 +22,12 @@ export class WorkspacesService {
     private readonly audit: AuditService,
   ) {}
 
-  private async deduplicateWorkspaceSlug(baseSlug: string): Promise<string> {
-    let slug = baseSlug;
-    let counter = 2;
-    while (await this.workspaces.findBySlug(slug)) {
-      slug = `${baseSlug}-${counter}`;
-      counter++;
-      if (counter > 1000) {
-        throw new ConflictException('Unable to generate unique slug');
-      }
-    }
-    return slug;
-  }
-
   async create(dto: CreateWorkspaceDto, userId: string) {
-    const baseSlug = dto.slug?.trim().toLowerCase() || slugify(dto.name);
-    const normalizedSlug = await this.deduplicateWorkspaceSlug(baseSlug);
+    const normalizedSlug = dto.slug?.trim().toLowerCase() || slugify(dto.name);
+    const existing = await this.workspaces.findBySlug(normalizedSlug);
+    if (existing) {
+      throw new ConflictException('Slug already in use');
+    }
 
     try {
       return await this.workspaces.createWorkspaceWithOwner(
@@ -65,18 +55,6 @@ export class WorkspacesService {
       throw new NotFoundException('Workspace not found');
     }
     const role = await this.workspaces.findMemberRole(workspaceId, userId);
-    if (!role) {
-      throw new NotFoundException('Workspace not found');
-    }
-    return workspace;
-  }
-
-  async findBySlug(slug: string, userId: string) {
-    const workspace = await this.workspaces.findActiveBySlug(slug);
-    if (!workspace) {
-      throw new NotFoundException('Workspace not found');
-    }
-    const role = await this.workspaces.findMemberRole(workspace.id, userId);
     if (!role) {
       throw new NotFoundException('Workspace not found');
     }

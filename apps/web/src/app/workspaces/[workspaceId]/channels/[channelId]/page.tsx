@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { getChannel, getChannelBySlug, type Channel } from "@/lib/channels-api";
-import { getWorkspaceBySlug } from "@/lib/workspaces-api";
+import { getChannel, type Channel } from "@/lib/channels-api";
+
 import { getMessages, createMessage, updateMessage, deleteMessage, type Message, type CreateMessageInput, type UpdateMessageInput } from "@/lib/messages-api";
 import { createSocket } from "@/lib/socket-client";
 
@@ -43,36 +43,19 @@ export default function ChannelDetailPage() {
   const [editState, setEditState] = useState<
     { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string }
   >({ kind: "idle" });
-  const [resolvedWorkspaceId, setResolvedWorkspaceId] = useState<string>("");
-  const [resolvedChannelId, setResolvedChannelId] = useState<string>("");
-
   useEffect(() => {
     if (!isAuthenticated || !workspaceId || !channelId || !accessToken) return;
-
-    const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 
     let cancelled = false;
     async function load(t: string, ws: string, ch: string) {
       setChannel({ kind: "loading" });
       setMessages({ kind: "loading" });
       try {
-        let wsId = ws;
-        if (!isUuid(ws)) {
-          const wsData = await getWorkspaceBySlug(t, ws);
-          wsId = wsData.id;
-        }
-        let chId = ch;
-        if (!isUuid(ch)) {
-          const chData = await getChannelBySlug(t, wsId, ch);
-          chId = chData.id;
-        }
         const [chData, msgData] = await Promise.all([
-          getChannel(t, wsId, chId),
-          getMessages(t, wsId, chId),
+          getChannel(t, ws, ch),
+          getMessages(t, ws, ch),
         ]);
         if (!cancelled) {
-          setResolvedWorkspaceId(wsId);
-          setResolvedChannelId(chId);
           setChannel({ kind: "success", data: chData });
           setMessages({ kind: "success", data: msgData });
         }
@@ -92,7 +75,7 @@ export default function ChannelDetailPage() {
   }, [isAuthenticated, workspaceId, channelId, accessToken]);
 
   useEffect(() => {
-    if (!isAuthenticated || !resolvedWorkspaceId || !resolvedChannelId) return;
+    if (!isAuthenticated || !workspaceId || !channelId) return;
     if (!accessToken) return;
 
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -109,7 +92,7 @@ export default function ChannelDetailPage() {
 
     socket.on("connected", () => {
       setSocketStatus("connected");
-      socket.emit("channel:join", { workspaceId: resolvedWorkspaceId, channelId: resolvedChannelId });
+      socket.emit("channel:join", { workspaceId, channelId });
     });
 
     socket.on("channel:joined", () => {
@@ -132,25 +115,25 @@ export default function ChannelDetailPage() {
     });
 
     socket.on("message:created", (msg: Message) => {
-      if (msg.channelId !== resolvedChannelId) return;
+      if (msg.channelId !== channelId) return;
       appendMessage(msg);
     });
 
     socket.on("message:updated", (msg: Message) => {
-      if (msg.channelId !== resolvedChannelId) return;
+      if (msg.channelId !== channelId) return;
       updateMessageInState(msg);
     });
 
     socket.on("message:deleted", (payload: { id: string; channelId: string; deletedAt: string }) => {
-      if (payload.channelId !== resolvedChannelId) return;
+      if (payload.channelId !== channelId) return;
       removeMessageFromState(payload.id);
     });
 
     return () => {
-      socket.emit("channel:leave", { channelId: resolvedChannelId });
+      socket.emit("channel:leave", { channelId });
       socket.disconnect();
     };
-  }, [isAuthenticated, resolvedWorkspaceId, resolvedChannelId, accessToken]);
+  }, [isAuthenticated, workspaceId, channelId, accessToken]);
 
   function appendMessage(msg: Message) {
     setMessages((prev) => {
@@ -208,12 +191,12 @@ export default function ChannelDetailPage() {
       setEditState({ kind: "error", message: "Message is too long (max 4000 characters)" });
       return;
     }
-    if (!accessToken || !resolvedWorkspaceId || !resolvedChannelId || !editingMessageId) return;
+    if (!accessToken || !workspaceId || !channelId || !editingMessageId) return;
 
     setEditState({ kind: "loading" });
     try {
       const input: UpdateMessageInput = { content: trimmed };
-      const msg = await updateMessage(accessToken, resolvedWorkspaceId, resolvedChannelId, editingMessageId, input);
+      const msg = await updateMessage(accessToken, workspaceId, channelId, editingMessageId, input);
       setEditState({ kind: "idle" });
       setEditingMessageId(null);
       setEditContent("");
@@ -226,9 +209,9 @@ export default function ChannelDetailPage() {
 
   async function handleDelete(messageId: string) {
     if (!window.confirm("Delete this message?")) return;
-    if (!accessToken || !resolvedWorkspaceId || !resolvedChannelId) return;
+    if (!accessToken || !workspaceId || !channelId) return;
     try {
-      await deleteMessage(accessToken, resolvedWorkspaceId, resolvedChannelId, messageId);
+      await deleteMessage(accessToken, workspaceId, channelId, messageId);
       removeMessageFromState(messageId);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to delete message";
@@ -247,12 +230,12 @@ export default function ChannelDetailPage() {
       setSendState({ kind: "error", message: "Message is too long (max 4000 characters)" });
       return;
     }
-    if (!accessToken || !resolvedWorkspaceId || !resolvedChannelId) return;
+    if (!accessToken || !workspaceId || !channelId) return;
 
     setSendState({ kind: "loading" });
     try {
       const input: CreateMessageInput = { content: trimmed };
-      const msg = await createMessage(accessToken, resolvedWorkspaceId, resolvedChannelId, input);
+      const msg = await createMessage(accessToken, workspaceId, channelId, input);
       setContent("");
       setSendState({ kind: "idle" });
       appendMessage(msg);

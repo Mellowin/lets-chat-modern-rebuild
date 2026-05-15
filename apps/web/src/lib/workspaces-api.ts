@@ -65,22 +65,6 @@ export async function getWorkspace(accessToken: string, workspaceId: string): Pr
   return res.json() as Promise<Workspace>;
 }
 
-export async function getWorkspaceBySlug(accessToken: string, slug: string): Promise<Workspace> {
-  const res = await fetch(`${API_BASE}/workspaces/by-slug/${encodeURIComponent(slug)}`, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-
-  if (!res.ok) {
-    throw new Error(await parseErrorMessage(res, `Failed to load workspace: ${res.status} ${res.statusText}`));
-  }
-
-  return res.json() as Promise<Workspace>;
-}
-
 export async function createWorkspace(
   accessToken: string,
   input: CreateWorkspaceInput,

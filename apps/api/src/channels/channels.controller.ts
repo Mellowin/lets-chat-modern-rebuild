@@ -61,19 +61,6 @@ export class ChannelsController {
     return this.channels.list(workspaceId, user.id);
   }
 
-  @Get('by-slug/:slug')
-  @ApiOperation({ summary: 'Get channel by slug' })
-  @ApiOkResponse({ description: 'Channel found' })
-  @ApiNotFoundResponse({ description: 'Channel not found' })
-  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
-  async findBySlug(
-    @Param('workspaceId') workspaceId: string,
-    @Param('slug') slug: string,
-    @CurrentUser() user: AuthUserResponse,
-  ) {
-    return this.channels.findBySlug(workspaceId, slug, user.id);
-  }
-
   @Get(':channelId')
   @ApiOperation({ summary: 'Get channel by id' })
   @ApiOkResponse({ description: 'Channel found' })
