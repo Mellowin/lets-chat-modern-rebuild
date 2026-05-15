@@ -83,6 +83,9 @@
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
+    "moduleNameMapper": {
+      "^@lets-chat/(.*)$": "<rootDir>/../../../packages/$1/src"
+    },
     "collectCoverageFrom": [
       "**/*.(t|j)s"
     ],
