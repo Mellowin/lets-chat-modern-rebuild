@@ -67,16 +67,24 @@ Use these steps to verify core functionality after deploy or before release:
 - [ ] **Shift+Enter** in composer inserts newline instead of sending
 - [ ] **Edit message** within 15 minutes — content updates for all connected clients
 - [ ] **Delete message** — message disappears for all connected clients
-- [ ] **Two tabs / two users** — realtime events propagate correctly across sessions
+- [x] **Two tabs / two users** — realtime events propagate correctly across sessions
 
 ---
 
-## 4. Known Limitations
+## 4. Manual QA Result
+
+- **Date:** 2026-05-15
+- **Status:** Passed
+- **Notes:** Browser QA completed by user; discovered issues were fixed during stabilization. All checklist items verified manually.
+
+---
+
+## 5. Known Limitations
 
 - **No slug-based URLs** — routing is strictly UUID-based; slugs are cosmetic only.
 - **No auto-dedupe** — duplicate slugs return `409 Conflict`; user must pick a different name.
 - **No full DTO unit test setup** — validation logic tested through integration tests, not isolated DTO specs.
-- **No CI status visible** — tests (160 backend, 64 frontend) and lint/build pass locally; GitHub Actions not yet configured or status not visible.
+- **CI green** — GitHub Actions workflow passes (API tests, Web tests, Web lint, builds).
 - **No message threading / replies** — flat message list only.
 - **No file attachments** — text-only messages.
 - **No message search** — not implemented.
