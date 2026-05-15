@@ -19,6 +19,10 @@ export class UsersRepository {
     return value.trim().toLowerCase();
   }
 
+  private trimUsername(value: string): string {
+    return value.trim();
+  }
+
   async findById(id: string) {
     return this.prisma.user.findUnique({
       where: { id },
@@ -33,7 +37,7 @@ export class UsersRepository {
 
   async findByUsername(username: string) {
     return this.prisma.user.findFirst({
-      where: { username: this.normalizeUsername(username) },
+      where: { username: { equals: this.normalizeUsername(username), mode: 'insensitive' } },
     });
   }
 
@@ -41,7 +45,7 @@ export class UsersRepository {
     return this.prisma.user.create({
       data: {
         email: this.normalizeEmail(input.email),
-        username: this.normalizeUsername(input.username),
+        username: this.trimUsername(input.username),
         passwordHash: input.passwordHash,
       },
     });
