@@ -49,6 +49,10 @@ export default function DashboardPage() {
       setCreateState({ kind: "error", message: "Name and slug are required" });
       return;
     }
+    if (!/^[a-z0-9-]+$/.test(trimmedSlug)) {
+      setCreateState({ kind: "error", message: "Slug can only contain lowercase Latin letters, numbers and hyphens" });
+      return;
+    }
     if (!accessToken) return;
 
     setCreateState({ kind: "loading" });

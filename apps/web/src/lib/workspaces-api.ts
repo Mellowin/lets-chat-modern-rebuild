@@ -20,8 +20,13 @@ async function parseErrorMessage(res: Response, fallback: string): Promise<strin
   let message = fallback;
   try {
     const body = await res.json();
-    if (body?.message) message = body.message;
-    else if (body?.error) message = body.error;
+    if (Array.isArray(body?.message) && body.message.length > 0) {
+      message = body.message.join("; ");
+    } else if (body?.message) {
+      message = body.message;
+    } else if (body?.error) {
+      message = body.error;
+    }
   } catch {
     // ignore
   }
