@@ -24,6 +24,9 @@ export class WorkspacesService {
 
   async create(dto: CreateWorkspaceDto, userId: string) {
     const normalizedSlug = dto.slug?.trim().toLowerCase() || slugify(dto.name);
+    if (normalizedSlug.length < 3) {
+      throw new BadRequestException('Invalid workspace slug');
+    }
     const existing = await this.workspaces.findBySlug(normalizedSlug);
     if (existing) {
       throw new ConflictException('Slug already in use');
