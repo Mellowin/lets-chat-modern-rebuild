@@ -80,6 +80,38 @@ export async function getChannel(
   return res.json() as Promise<Channel>;
 }
 
+export async function archiveChannel(
+  accessToken: string,
+  workspaceId: string,
+  channelId: string,
+): Promise<{ success: boolean }> {
+  const res = await fetch(
+    `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/archive`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
+
+  if (!res.ok) {
+    let message = `Failed to archive channel: ${res.status} ${res.statusText}`;
+    try {
+      const body = await res.json();
+      if (body?.message) message = body.message;
+      else if (body?.error) message = body.error;
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+
+  return res.json() as Promise<{ success: boolean }>;
+}
+
 export async function createChannel(
   accessToken: string,
   workspaceId: string,

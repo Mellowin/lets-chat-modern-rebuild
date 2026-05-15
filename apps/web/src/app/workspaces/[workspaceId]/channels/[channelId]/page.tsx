@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { getChannel, type Channel } from "@/lib/channels-api";
+import { getChannel, archiveChannel, type Channel } from "@/lib/channels-api";
 
 import { getMessages, createMessage, updateMessage, deleteMessage, type Message, type CreateMessageInput, type UpdateMessageInput } from "@/lib/messages-api";
 import { createSocket } from "@/lib/socket-client";
@@ -41,6 +41,9 @@ export default function ChannelDetailPage() {
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
   const [editState, setEditState] = useState<
+    { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string }
+  >({ kind: "idle" });
+  const [archiveState, setArchiveState] = useState<
     { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string }
   >({ kind: "idle" });
   const [typingUsers, setTypingUsers] = useState<Record<string, { username: string; timeout: number }>>({});
@@ -319,6 +322,24 @@ export default function ChannelDetailPage() {
     socket.emit("typing:stop", { workspaceId, channelId });
   }
 
+  async function handleArchive() {
+    if (!channelId || !accessToken || !workspaceId) return;
+    const name = channel.kind === "success" ? channel.data.name : "this channel";
+    if (!window.confirm(`Archive channel "${name}"?\nThis will hide the channel from the workspace. Only the channel owner can do this.`)) {
+      return;
+    }
+    setArchiveState({ kind: "loading" });
+    try {
+      await archiveChannel(accessToken, workspaceId, channelId);
+      setArchiveState({ kind: "idle" });
+      window.dispatchEvent(new Event("channels:changed"));
+      window.location.href = `/workspaces/${workspaceId}`;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to archive channel";
+      setArchiveState({ kind: "error", message });
+    }
+  }
+
   if (authLoading) {
     return (
       <div className="flex flex-1 items-center justify-center p-6">
@@ -376,7 +397,7 @@ export default function ChannelDetailPage() {
 
       {channel.kind === "success" && (
         <>
-          <div className="mt-6 flex items-center gap-3">
+          <div className="mt-6 flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl font-semibold tracking-tight">
               {channel.data.name}
             </h1>
@@ -404,7 +425,22 @@ export default function ChannelDetailPage() {
             >
               {socketStatus}
             </span>
+            <button
+              onClick={handleArchive}
+              disabled={archiveState.kind === "loading"}
+              className="ml-auto inline-flex items-center justify-center rounded-lg border border-red-300 dark:border-red-800 px-3 py-1.5 text-xs font-medium text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+            >
+              {archiveState.kind === "loading" ? "Archiving…" : "Archive"}
+            </button>
           </div>
+          {archiveState.kind === "error" && (
+            <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
+              <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+                <span className="h-2 w-2 rounded-full bg-red-500" />
+                {archiveState.message}
+              </div>
+            </div>
+          )}
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
             {channel.data.slug}
           </p>

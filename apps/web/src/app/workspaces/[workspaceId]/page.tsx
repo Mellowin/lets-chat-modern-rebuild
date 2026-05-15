@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { getWorkspace, type Workspace } from "@/lib/workspaces-api";
-import { getChannels, createChannel, type Channel, type CreateChannelInput } from "@/lib/channels-api";
+import { getChannels, createChannel, archiveChannel, type Channel, type CreateChannelInput } from "@/lib/channels-api";
 
 type DetailState =
   | { kind: "idle" }
@@ -31,6 +31,7 @@ export default function WorkspaceDetailPage() {
   const [createChannelState, setCreateChannelState] = useState<
     { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string }
   >({ kind: "idle" });
+  const [archiveError, setArchiveError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated || !workspaceId) return;
@@ -89,6 +90,25 @@ export default function WorkspaceDetailPage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to create channel";
       setCreateChannelState({ kind: "error", message });
+    }
+  }
+
+  async function handleArchiveChannel(e: React.MouseEvent, channelId: string, name: string) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!window.confirm(`Archive channel "${name}"?\nThis will hide the channel from the workspace. Only the channel owner can do this.`)) {
+      return;
+    }
+    if (!accessToken || !workspaceId) return;
+    setArchiveError(null);
+    try {
+      await archiveChannel(accessToken, workspaceId, channelId);
+      const refreshed = await getChannels(accessToken, workspaceId);
+      setChannels({ kind: "success", data: refreshed });
+      window.dispatchEvent(new Event("channels:changed"));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to archive channel";
+      setArchiveError(message);
     }
   }
 
@@ -230,6 +250,15 @@ export default function WorkspaceDetailPage() {
           </p>
         )}
 
+        {archiveError && (
+          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
+            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+              <span className="h-2 w-2 rounded-full bg-red-500" />
+              {archiveError}
+            </div>
+          </div>
+        )}
+
         {channels.kind === "success" && channels.data.length > 0 && (
           <ul className="mt-3 divide-y divide-zinc-200 dark:divide-zinc-800">
             {channels.data.map((ch) => (
@@ -250,6 +279,12 @@ export default function WorkspaceDetailPage() {
                         {ch.description}
                       </span>
                     )}
+                    <button
+                      onClick={(e) => handleArchiveChannel(e, ch.id, ch.name)}
+                      className="text-[10px] text-red-600 dark:text-red-400 hover:underline"
+                    >
+                      Archive
+                    </button>
                     <span
                       className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
                         ch.type === "PUBLIC"
