@@ -305,9 +305,11 @@ describe('WebsocketGateway', () => {
       });
       socket.rooms.add(`channel:${channelId}`);
 
-      await gateway.handleTypingStart(socket, { channelId });
+      channelsService.findById.mockResolvedValue({ id: channelId } as any);
 
-      expect(usersRepository.findById).not.toHaveBeenCalled();
+      await gateway.handleTypingStart(socket, { workspaceId, channelId });
+
+      expect(channelsService.findById).toHaveBeenCalledWith(workspaceId, channelId, userId);
       expect(socket.to).toHaveBeenCalledWith(`channel:${channelId}`);
       expect(socket.to(`channel:${channelId}`).emit).toHaveBeenCalledWith('typing:started', {
         channelId,
@@ -319,9 +321,19 @@ describe('WebsocketGateway', () => {
     it('should reject when not authenticated', async () => {
       const socket = createMockSocket();
 
-      await gateway.handleTypingStart(socket, { channelId });
+      await gateway.handleTypingStart(socket, { workspaceId, channelId });
 
       expect(socket.emit).toHaveBeenCalledWith('typing:error', { message: 'Not authenticated' });
+    });
+
+    it('should reject invalid workspaceId', async () => {
+      const socket = createMockSocket({
+        data: { user: { id: userId, username: 'testuser' } },
+      });
+
+      await gateway.handleTypingStart(socket, { workspaceId: 'bad', channelId });
+
+      expect(socket.emit).toHaveBeenCalledWith('typing:error', { message: 'Invalid UUID' });
     });
 
     it('should reject invalid channelId', async () => {
@@ -329,7 +341,7 @@ describe('WebsocketGateway', () => {
         data: { user: { id: userId, username: 'testuser' } },
       });
 
-      await gateway.handleTypingStart(socket, { channelId: 'bad' });
+      await gateway.handleTypingStart(socket, { workspaceId, channelId: 'bad' });
 
       expect(socket.emit).toHaveBeenCalledWith('typing:error', { message: 'Invalid UUID' });
     });
@@ -339,7 +351,7 @@ describe('WebsocketGateway', () => {
         data: { user: { id: userId, username: 'testuser' } },
       });
 
-      await gateway.handleTypingStart(socket, { channelId });
+      await gateway.handleTypingStart(socket, { workspaceId, channelId });
 
       expect(socket.emit).toHaveBeenCalledWith('typing:error', {
         message: 'Channel room not joined',
@@ -353,10 +365,35 @@ describe('WebsocketGateway', () => {
       });
       socket.rooms.add(`channel:${channelId}`);
 
-      await gateway.handleTypingStart(socket, { channelId });
+      channelsService.findById.mockResolvedValue({ id: channelId } as any);
+
+      await gateway.handleTypingStart(socket, { workspaceId, channelId });
 
       expect(socket.to).not.toHaveBeenCalled();
       expect(socket.emit).toHaveBeenCalledWith('typing:error', { message: 'User data missing' });
+    });
+
+    it('should leave room and emit error when channel access is revoked', async () => {
+      const socket = createMockSocket({
+        data: { user: { id: userId, username: 'testuser' } },
+      });
+      socket.rooms.add(`channel:${channelId}`);
+
+      channelsService.findById.mockRejectedValue(
+        new NotFoundException('Channel not found'),
+      );
+
+      await gateway.handleTypingStart(socket, { workspaceId, channelId });
+
+      expect(socket.emit).toHaveBeenCalledWith('typing:error', {
+        message: 'Channel access revoked',
+        channelId,
+      });
+      expect(socket.leave).toHaveBeenCalledWith(`channel:${channelId}`);
+      expect(socket.to(`channel:${channelId}`).emit).not.toHaveBeenCalledWith(
+        'typing:started',
+        expect.anything(),
+      );
     });
   });
 
@@ -367,9 +404,11 @@ describe('WebsocketGateway', () => {
       });
       socket.rooms.add(`channel:${channelId}`);
 
-      await gateway.handleTypingStop(socket, { channelId });
+      channelsService.findById.mockResolvedValue({ id: channelId } as any);
 
-      expect(usersRepository.findById).not.toHaveBeenCalled();
+      await gateway.handleTypingStop(socket, { workspaceId, channelId });
+
+      expect(channelsService.findById).toHaveBeenCalledWith(workspaceId, channelId, userId);
       expect(socket.to).toHaveBeenCalledWith(`channel:${channelId}`);
       expect(socket.to(`channel:${channelId}`).emit).toHaveBeenCalledWith('typing:stopped', {
         channelId,
@@ -380,7 +419,7 @@ describe('WebsocketGateway', () => {
     it('should reject when not authenticated', async () => {
       const socket = createMockSocket();
 
-      await gateway.handleTypingStop(socket, { channelId });
+      await gateway.handleTypingStop(socket, { workspaceId, channelId });
 
       expect(socket.emit).toHaveBeenCalledWith('typing:error', { message: 'Not authenticated' });
     });

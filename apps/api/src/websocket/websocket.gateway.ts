@@ -237,21 +237,32 @@ export class WebsocketGateway
   @SubscribeMessage('typing:start')
   async handleTypingStart(
     socket: Socket,
-    payload: { channelId: unknown },
+    payload: { workspaceId: unknown; channelId: unknown },
   ) {
-    this.broadcastTyping(socket, payload.channelId, 'typing:started');
+    await this.broadcastTyping(
+      socket,
+      payload.workspaceId,
+      payload.channelId,
+      'typing:started',
+    );
   }
 
   @SubscribeMessage('typing:stop')
   async handleTypingStop(
     socket: Socket,
-    payload: { channelId: unknown },
+    payload: { workspaceId: unknown; channelId: unknown },
   ) {
-    this.broadcastTyping(socket, payload.channelId, 'typing:stopped');
+    await this.broadcastTyping(
+      socket,
+      payload.workspaceId,
+      payload.channelId,
+      'typing:stopped',
+    );
   }
 
-  private broadcastTyping(
+  private async broadcastTyping(
     socket: Socket,
+    workspaceId: unknown,
     channelId: unknown,
     event: 'typing:started' | 'typing:stopped',
   ) {
@@ -261,14 +272,59 @@ export class WebsocketGateway
       return;
     }
 
-    if (!isValidUUID(channelId)) {
+    if (!isValidUUID(workspaceId) || !isValidUUID(channelId)) {
       socket.emit('typing:error', { message: 'Invalid UUID' });
       return;
     }
 
     const room = `channel:${channelId}`;
     if (!socket.rooms.has(room)) {
-      socket.emit('typing:error', { message: 'Channel room not joined', channelId });
+      socket.emit('typing:error', {
+        message: 'Channel room not joined',
+        channelId,
+      });
+      return;
+    }
+
+    try {
+      await this.channelsService.findById(
+        workspaceId as string,
+        channelId as string,
+        userId,
+      );
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        socket.emit('typing:error', {
+          message: 'Channel access revoked',
+          channelId,
+        });
+        this.presence.removeSocketRoom(socket.id, room);
+        if (
+          !this.presence.hasOtherSocketInRoom(userId, socket.id, room)
+        ) {
+          socket.to(room).emit('presence:offline', {
+            user: { id: userId, username: socket.data.user?.username },
+            status: 'offline',
+          });
+          this.presence.removeUserRoom(userId, room);
+        }
+        await socket.leave(room);
+        return;
+      }
+      this.logger.error(
+        {
+          socketId: socket.id,
+          userId,
+          workspaceId,
+          channelId,
+          error: (error as Error).message,
+        },
+        'Typing broadcast validation error',
+      );
+      socket.emit('typing:error', {
+        message: 'Failed to validate channel access',
+        channelId,
+      });
       return;
     }
 
