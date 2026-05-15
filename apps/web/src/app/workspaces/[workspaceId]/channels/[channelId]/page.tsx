@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { getChannel, archiveChannel, type Channel } from "@/lib/channels-api";
 
@@ -29,6 +29,7 @@ export default function ChannelDetailPage() {
   const channelId =
     typeof params.channelId === "string" ? params.channelId : "";
   const { isLoading: authLoading, isAuthenticated, user, accessToken } = useAuth();
+  const router = useRouter();
   const [channel, setChannel] = useState<ChannelState>({ kind: "idle" });
   const [messages, setMessages] = useState<MessagesState>({ kind: "idle" });
   const [content, setContent] = useState("");
@@ -333,7 +334,7 @@ export default function ChannelDetailPage() {
       await archiveChannel(accessToken, workspaceId, channelId);
       setArchiveState({ kind: "idle" });
       window.dispatchEvent(new Event("channels:changed"));
-      window.location.href = `/workspaces/${workspaceId}`;
+      router.push(`/workspaces/${workspaceId}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to archive channel";
       setArchiveState({ kind: "error", message });
