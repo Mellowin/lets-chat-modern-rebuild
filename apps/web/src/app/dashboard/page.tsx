@@ -62,6 +62,7 @@ export default function DashboardPage() {
       setSlug("");
       setCreateState({ kind: "idle" });
       await loadWorkspaces(accessToken);
+      window.dispatchEvent(new Event("workspaces:changed"));
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to create workspace";
       setCreateState({ kind: "error", message });

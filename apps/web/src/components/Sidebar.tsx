@@ -52,7 +52,17 @@ export default function Sidebar() {
       }
     }
     load(accessToken);
-    return () => { cancelled = true; };
+
+    function handleWorkspacesChanged() {
+      if (!accessToken) return;
+      load(accessToken);
+    }
+
+    window.addEventListener("workspaces:changed", handleWorkspacesChanged);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("workspaces:changed", handleWorkspacesChanged);
+    };
   }, [isAuthenticated, accessToken]);
 
   useEffect(() => {
@@ -73,7 +83,17 @@ export default function Sidebar() {
       }
     }
     load(accessToken, activeWorkspaceId);
-    return () => { cancelled = true; };
+
+    function handleChannelsChanged() {
+      if (!accessToken || !activeWorkspaceId) return;
+      load(accessToken, activeWorkspaceId);
+    }
+
+    window.addEventListener("channels:changed", handleChannelsChanged);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("channels:changed", handleChannelsChanged);
+    };
   }, [isAuthenticated, accessToken, activeWorkspaceId]);
 
   if (authLoading || !isAuthenticated) {

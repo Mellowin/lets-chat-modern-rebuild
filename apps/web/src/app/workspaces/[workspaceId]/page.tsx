@@ -85,6 +85,7 @@ export default function WorkspaceDetailPage() {
       // refresh channel list
       const refreshed = await getChannels(accessToken, workspaceId);
       setChannels({ kind: "success", data: refreshed });
+      window.dispatchEvent(new Event("channels:changed"));
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to create channel";
       setCreateChannelState({ kind: "error", message });
