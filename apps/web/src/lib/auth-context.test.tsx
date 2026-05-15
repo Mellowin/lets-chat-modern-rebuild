@@ -37,13 +37,13 @@ function TestConsumer() {
 
 describe("AuthProvider", () => {
   beforeEach(() => {
-    localStorage.clear();
+    sessionStorage.clear();
     vi.mocked(getMe).mockReset();
     vi.mocked(apiLogout).mockReset();
   });
 
   afterEach(() => {
-    localStorage.clear();
+    sessionStorage.clear();
     vi.clearAllMocks();
   });
 
@@ -62,9 +62,9 @@ describe("AuthProvider", () => {
     expect(screen.getByTestId("user")).toHaveTextContent("null");
   });
 
-  it("initializes from valid accessToken in localStorage", async () => {
-    localStorage.setItem("accessToken", "valid-token");
-    localStorage.setItem("refreshToken", "refresh-token");
+  it("initializes from valid accessToken in sessionStorage", async () => {
+    sessionStorage.setItem("accessToken", "valid-token");
+    sessionStorage.setItem("refreshToken", "refresh-token");
     vi.mocked(getMe).mockResolvedValueOnce({
       id: "u1",
       email: "a@b.com",
@@ -88,8 +88,8 @@ describe("AuthProvider", () => {
   });
 
   it("clears tokens and stays unauthenticated when getMe throws", async () => {
-    localStorage.setItem("accessToken", "bad-token");
-    localStorage.setItem("refreshToken", "refresh-token");
+    sessionStorage.setItem("accessToken", "bad-token");
+    sessionStorage.setItem("refreshToken", "refresh-token");
     vi.mocked(getMe).mockRejectedValueOnce(new Error("Unauthorized"));
 
     render(
@@ -104,8 +104,8 @@ describe("AuthProvider", () => {
 
     expect(screen.getByTestId("auth")).toHaveTextContent("no");
     expect(screen.getByTestId("user")).toHaveTextContent("null");
-    expect(localStorage.getItem("accessToken")).toBeNull();
-    expect(localStorage.getItem("refreshToken")).toBeNull();
+    expect(sessionStorage.getItem("accessToken")).toBeNull();
+    expect(sessionStorage.getItem("refreshToken")).toBeNull();
   });
 
   it("loginSuccess stores tokens and sets authenticated state", async () => {
@@ -121,15 +121,15 @@ describe("AuthProvider", () => {
 
     await userEvent.click(screen.getByTestId("login-btn"));
 
-    expect(localStorage.getItem("accessToken")).toBe("at");
-    expect(localStorage.getItem("refreshToken")).toBe("rt");
+    expect(sessionStorage.getItem("accessToken")).toBe("at");
+    expect(sessionStorage.getItem("refreshToken")).toBe("rt");
     expect(screen.getByTestId("auth")).toHaveTextContent("yes");
     expect(screen.getByTestId("user")).toHaveTextContent("alice (a@b.com)");
   });
 
   it("logout clears tokens and unauthenticates", async () => {
-    localStorage.setItem("accessToken", "at");
-    localStorage.setItem("refreshToken", "rt");
+    sessionStorage.setItem("accessToken", "at");
+    sessionStorage.setItem("refreshToken", "rt");
     vi.mocked(getMe).mockResolvedValueOnce({
       id: "u1",
       email: "a@b.com",
@@ -155,14 +155,14 @@ describe("AuthProvider", () => {
     });
 
     expect(apiLogout).toHaveBeenCalledWith("rt");
-    expect(localStorage.getItem("accessToken")).toBeNull();
-    expect(localStorage.getItem("refreshToken")).toBeNull();
+    expect(sessionStorage.getItem("accessToken")).toBeNull();
+    expect(sessionStorage.getItem("refreshToken")).toBeNull();
     expect(screen.getByTestId("user")).toHaveTextContent("null");
   });
 
   it("logout still clears local state even if backend logout fails", async () => {
-    localStorage.setItem("accessToken", "at");
-    localStorage.setItem("refreshToken", "rt");
+    sessionStorage.setItem("accessToken", "at");
+    sessionStorage.setItem("refreshToken", "rt");
     vi.mocked(getMe).mockResolvedValueOnce({
       id: "u1",
       email: "a@b.com",
@@ -187,8 +187,8 @@ describe("AuthProvider", () => {
       expect(screen.getByTestId("auth")).toHaveTextContent("no");
     });
 
-    expect(localStorage.getItem("accessToken")).toBeNull();
-    expect(localStorage.getItem("refreshToken")).toBeNull();
+    expect(sessionStorage.getItem("accessToken")).toBeNull();
+    expect(sessionStorage.getItem("refreshToken")).toBeNull();
     expect(screen.getByTestId("user")).toHaveTextContent("null");
   });
 

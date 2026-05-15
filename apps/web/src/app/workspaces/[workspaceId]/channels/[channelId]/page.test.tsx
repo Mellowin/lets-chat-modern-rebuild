@@ -64,7 +64,7 @@ function mockChannelAndMessages(messagesData: unknown[] = []) {
 
 describe("ChannelDetailPage — composer", () => {
   beforeEach(() => {
-    localStorage.setItem("accessToken", "token");
+    sessionStorage.setItem("accessToken", "token");
     vi.clearAllMocks();
     socketOnMock.mockReset();
     socketEmitMock.mockReset();
@@ -196,7 +196,7 @@ describe("ChannelDetailPage — composer", () => {
 
 describe("ChannelDetailPage — edit/delete", () => {
   beforeEach(() => {
-    localStorage.setItem("accessToken", "token");
+    sessionStorage.setItem("accessToken", "token");
     vi.clearAllMocks();
     socketOnMock.mockReset();
     socketEmitMock.mockReset();
@@ -378,7 +378,7 @@ describe("ChannelDetailPage — edit/delete", () => {
 
 describe("ChannelDetailPage — WebSocket live events", () => {
   beforeEach(() => {
-    localStorage.setItem("accessToken", "token");
+    sessionStorage.setItem("accessToken", "token");
     vi.clearAllMocks();
     socketOnMock.mockClear();
     socketEmitMock.mockClear();

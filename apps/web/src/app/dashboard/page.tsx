@@ -17,7 +17,7 @@ type CreateState =
   | { kind: "error"; message: string };
 
 export default function DashboardPage() {
-  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const { user, accessToken, isLoading: authLoading, isAuthenticated } = useAuth();
   const [workspaces, setWorkspaces] = useState<WorkspacesState>({ kind: "idle" });
   const [createState, setCreateState] = useState<CreateState>({ kind: "idle" });
   const [name, setName] = useState("");
@@ -36,11 +36,10 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    const token = localStorage.getItem("accessToken");
-    if (!token) return;
+    if (!accessToken) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadWorkspaces(token);
-  }, [isAuthenticated, loadWorkspaces]);
+    loadWorkspaces(accessToken);
+  }, [isAuthenticated, accessToken, loadWorkspaces]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -50,16 +49,15 @@ export default function DashboardPage() {
       setCreateState({ kind: "error", message: "Name and slug are required" });
       return;
     }
-    const token = localStorage.getItem("accessToken");
-    if (!token) return;
+    if (!accessToken) return;
 
     setCreateState({ kind: "loading" });
     try {
-      await createWorkspace(token, { name: trimmedName, slug: trimmedSlug });
+      await createWorkspace(accessToken, { name: trimmedName, slug: trimmedSlug });
       setName("");
       setSlug("");
       setCreateState({ kind: "idle" });
-      await loadWorkspaces(token);
+      await loadWorkspaces(accessToken);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to create workspace";
       setCreateState({ kind: "error", message });

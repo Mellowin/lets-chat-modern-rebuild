@@ -22,7 +22,7 @@ type ChannelsState =
 export default function WorkspaceDetailPage() {
   const params = useParams();
   const workspaceId = typeof params.workspaceId === "string" ? params.workspaceId : "";
-  const { isLoading: authLoading, isAuthenticated } = useAuth();
+  const { accessToken, isLoading: authLoading, isAuthenticated } = useAuth();
   const [detail, setDetail] = useState<DetailState>({ kind: "idle" });
   const [channels, setChannels] = useState<ChannelsState>({ kind: "idle" });
   const [channelName, setChannelName] = useState("");
@@ -34,8 +34,7 @@ export default function WorkspaceDetailPage() {
 
   useEffect(() => {
     if (!isAuthenticated || !workspaceId) return;
-    const token = localStorage.getItem("accessToken");
-    if (!token) return;
+    if (!accessToken) return;
 
     let cancelled = false;
     async function load(t: string, id: string) {
@@ -58,9 +57,9 @@ export default function WorkspaceDetailPage() {
         }
       }
     }
-    load(token, workspaceId);
+    load(accessToken, workspaceId);
     return () => { cancelled = true; };
-  }, [isAuthenticated, workspaceId]);
+  }, [isAuthenticated, accessToken, workspaceId]);
 
   async function handleCreateChannel(e: React.FormEvent) {
     e.preventDefault();
@@ -69,8 +68,7 @@ export default function WorkspaceDetailPage() {
       setCreateChannelState({ kind: "error", message: "Channel name must be at least 2 characters" });
       return;
     }
-    const token = localStorage.getItem("accessToken");
-    if (!token || !workspaceId) return;
+    if (!accessToken || !workspaceId) return;
 
     setCreateChannelState({ kind: "loading" });
     try {
@@ -79,13 +77,13 @@ export default function WorkspaceDetailPage() {
         description: channelDescription.trim() || undefined,
         type: channelType,
       };
-      await createChannel(token, workspaceId, input);
+      await createChannel(accessToken, workspaceId, input);
       setChannelName("");
       setChannelDescription("");
       setChannelType("PUBLIC");
       setCreateChannelState({ kind: "idle" });
       // refresh channel list
-      const refreshed = await getChannels(token, workspaceId);
+      const refreshed = await getChannels(accessToken, workspaceId);
       setChannels({ kind: "success", data: refreshed });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to create channel";

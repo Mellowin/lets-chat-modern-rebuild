@@ -39,8 +39,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     async function init() {
-      const storedAccess = localStorage.getItem("accessToken");
-      const storedRefresh = localStorage.getItem("refreshToken");
+      const storedAccess = sessionStorage.getItem("accessToken");
+      const storedRefresh = sessionStorage.getItem("refreshToken");
       if (storedAccess) {
         try {
           const me = await getMe(storedAccess);
@@ -50,8 +50,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setRefreshToken(storedRefresh);
           }
         } catch {
-          localStorage.removeItem("accessToken");
-          localStorage.removeItem("refreshToken");
+          sessionStorage.removeItem("accessToken");
+          sessionStorage.removeItem("refreshToken");
         }
       }
       if (!cancelled) setIsLoading(false);
@@ -61,20 +61,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const loginSuccess = useCallback((result: AuthResult) => {
-    localStorage.setItem("accessToken", result.accessToken);
-    localStorage.setItem("refreshToken", result.refreshToken);
+    sessionStorage.setItem("accessToken", result.accessToken);
+    sessionStorage.setItem("refreshToken", result.refreshToken);
     setUser(result.user);
     setAccessToken(result.accessToken);
     setRefreshToken(result.refreshToken);
   }, []);
 
   const logout = useCallback(async () => {
-    const rt = localStorage.getItem("refreshToken");
+    const rt = sessionStorage.getItem("refreshToken");
     if (rt) {
       try { await apiLogout(rt); } catch { /* best-effort */ }
     }
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
+    sessionStorage.removeItem("accessToken");
+    sessionStorage.removeItem("refreshToken");
     setUser(null);
     setAccessToken(null);
     setRefreshToken(null);
