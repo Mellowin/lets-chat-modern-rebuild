@@ -31,15 +31,12 @@ export class ChannelsService {
       throw new NotFoundException('Workspace not found');
     }
 
-    const slug = slugify(dto.name);
-    if (slug.length < 2) {
+    const baseSlug = slugify(dto.name);
+    if (baseSlug.length < 2) {
       throw new BadRequestException('Invalid channel name');
     }
 
-    const existing = await this.channels.findBySlug(workspaceId, slug);
-    if (existing) {
-      throw new ConflictException('Channel slug already in use');
-    }
+    const slug = await this.deduplicateChannelSlug(workspaceId, baseSlug);
 
     try {
       return await this.channels.createChannel(
@@ -62,6 +59,19 @@ export class ChannelsService {
       }
       throw error;
     }
+  }
+
+  private async deduplicateChannelSlug(workspaceId: string, baseSlug: string): Promise<string> {
+    let slug = baseSlug;
+    let counter = 2;
+    while (await this.channels.findBySlug(workspaceId, slug)) {
+      slug = `${baseSlug}-${counter}`;
+      counter++;
+      if (counter > 1000) {
+        throw new ConflictException('Unable to generate unique channel slug');
+      }
+    }
+    return slug;
   }
 
   async list(workspaceId: string, userId: string) {

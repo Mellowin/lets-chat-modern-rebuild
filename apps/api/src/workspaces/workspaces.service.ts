@@ -22,12 +22,22 @@ export class WorkspacesService {
     private readonly audit: AuditService,
   ) {}
 
-  async create(dto: CreateWorkspaceDto, userId: string) {
-    const normalizedSlug = (dto.slug?.trim().toLowerCase() || slugify(dto.name));
-    const existing = await this.workspaces.findBySlug(normalizedSlug);
-    if (existing) {
-      throw new ConflictException('Slug already in use');
+  private async deduplicateWorkspaceSlug(baseSlug: string): Promise<string> {
+    let slug = baseSlug;
+    let counter = 2;
+    while (await this.workspaces.findBySlug(slug)) {
+      slug = `${baseSlug}-${counter}`;
+      counter++;
+      if (counter > 1000) {
+        throw new ConflictException('Unable to generate unique slug');
+      }
     }
+    return slug;
+  }
+
+  async create(dto: CreateWorkspaceDto, userId: string) {
+    const baseSlug = dto.slug?.trim().toLowerCase() || slugify(dto.name);
+    const normalizedSlug = await this.deduplicateWorkspaceSlug(baseSlug);
 
     try {
       return await this.workspaces.createWorkspaceWithOwner(
