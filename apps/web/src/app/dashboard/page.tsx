@@ -45,11 +45,11 @@ export default function DashboardPage() {
     e.preventDefault();
     const trimmedName = name.trim();
     const trimmedSlug = slug.trim();
-    if (!trimmedName || !trimmedSlug) {
-      setCreateState({ kind: "error", message: "Name and slug are required" });
+    if (!trimmedName) {
+      setCreateState({ kind: "error", message: "Name is required" });
       return;
     }
-    if (!/^[a-z0-9-]+$/.test(trimmedSlug)) {
+    if (trimmedSlug && !/^[a-z0-9-]+$/.test(trimmedSlug)) {
       setCreateState({ kind: "error", message: "Slug can only contain lowercase Latin letters, numbers and hyphens" });
       return;
     }
@@ -57,7 +57,9 @@ export default function DashboardPage() {
 
     setCreateState({ kind: "loading" });
     try {
-      await createWorkspace(accessToken, { name: trimmedName, slug: trimmedSlug });
+      const input: { name: string; slug?: string } = { name: trimmedName };
+      if (trimmedSlug) input.slug = trimmedSlug;
+      await createWorkspace(accessToken, input);
       setName("");
       setSlug("");
       setCreateState({ kind: "idle" });
@@ -120,7 +122,7 @@ export default function DashboardPage() {
           />
           <input
             type="text"
-            placeholder="slug (e.g. my-team)"
+            placeholder="slug (optional, auto-generated)"
             value={slug}
             onChange={(e) => setSlug(e.target.value)}
             className="flex-1 w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"

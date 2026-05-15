@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, MinLength, MaxLength, Matches } from 'class-validator';
+import { IsString, MinLength, MaxLength, Matches, IsOptional } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class CreateWorkspaceDto {
@@ -12,7 +12,8 @@ export class CreateWorkspaceDto {
   )
   name: string;
 
-  @ApiProperty({ example: 'my-workspace' })
+  @ApiProperty({ example: 'my-workspace', required: false })
+  @IsOptional()
   @IsString()
   @MinLength(3)
   @MaxLength(50)
@@ -22,5 +23,5 @@ export class CreateWorkspaceDto {
   @Transform(({ value }) =>
     typeof value === 'string' ? value.trim().toLowerCase() : value,
   )
-  slug: string;
+  slug?: string;
 }

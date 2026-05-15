@@ -13,7 +13,7 @@ export interface Workspace {
 
 export interface CreateWorkspaceInput {
   name: string;
-  slug: string;
+  slug?: string;
 }
 
 async function parseErrorMessage(res: Response, fallback: string): Promise<string> {

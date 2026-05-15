@@ -8,6 +8,7 @@ import {
 import { Prisma } from '@lets-chat/database';
 import { WorkspacesRepository } from './workspaces.repository';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
+import { slugify } from '../common/transliterate';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
 import { TransferOwnershipDto } from './dto/transfer-ownership.dto';
@@ -22,7 +23,7 @@ export class WorkspacesService {
   ) {}
 
   async create(dto: CreateWorkspaceDto, userId: string) {
-    const normalizedSlug = dto.slug.trim().toLowerCase();
+    const normalizedSlug = (dto.slug?.trim().toLowerCase() || slugify(dto.name));
     const existing = await this.workspaces.findBySlug(normalizedSlug);
     if (existing) {
       throw new ConflictException('Slug already in use');
