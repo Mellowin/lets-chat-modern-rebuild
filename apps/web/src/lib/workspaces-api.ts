@@ -65,6 +65,37 @@ export async function getWorkspace(accessToken: string, workspaceId: string): Pr
   return res.json() as Promise<Workspace>;
 }
 
+export async function archiveWorkspace(
+  accessToken: string,
+  workspaceId: string,
+): Promise<{ success: boolean }> {
+  const res = await fetch(
+    `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/archive`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
+
+  if (!res.ok) {
+    let message = `Failed to archive workspace: ${res.status} ${res.statusText}`;
+    try {
+      const body = await res.json();
+      if (body?.message) message = body.message;
+      else if (body?.error) message = body.error;
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+
+  return res.json() as Promise<{ success: boolean }>;
+}
+
 export async function createWorkspace(
   accessToken: string,
   input: CreateWorkspaceInput,

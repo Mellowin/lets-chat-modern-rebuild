@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { getWorkspaces, createWorkspace, type Workspace } from "@/lib/workspaces-api";
+import { getWorkspaces, createWorkspace, archiveWorkspace, type Workspace } from "@/lib/workspaces-api";
 import { slugify } from "@/lib/transliterate";
 
 type WorkspacesState =
@@ -21,6 +21,7 @@ export default function DashboardPage() {
   const { user, accessToken, isLoading: authLoading, isAuthenticated } = useAuth();
   const [workspaces, setWorkspaces] = useState<WorkspacesState>({ kind: "idle" });
   const [createState, setCreateState] = useState<CreateState>({ kind: "idle" });
+  const [archiveError, setArchiveError] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
 
@@ -66,6 +67,24 @@ export default function DashboardPage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to create workspace";
       setCreateState({ kind: "error", message });
+    }
+  }
+
+  async function handleArchiveWorkspace(e: React.MouseEvent, workspaceId: string, wsName: string) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!window.confirm(`Archive workspace "${wsName}"?\nThis will hide the workspace and all its channels. Only the workspace owner can do this.`)) {
+      return;
+    }
+    if (!accessToken) return;
+    setArchiveError(null);
+    try {
+      await archiveWorkspace(accessToken, workspaceId);
+      await loadWorkspaces(accessToken);
+      window.dispatchEvent(new Event("workspaces:changed"));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to archive workspace";
+      setArchiveError(message);
     }
   }
 
@@ -168,26 +187,47 @@ export default function DashboardPage() {
               No workspaces yet. Create one to get started.
             </p>
           ) : (
-            <ul className="divide-y divide-zinc-200 dark:divide-zinc-800">
-              {workspaces.data.map((ws) => (
-                <li key={ws.id}>
-                  <Link
-                    href={`/workspaces/${ws.id}`}
+            <>
+              {archiveError && (
+                <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
+                  <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+                    <span className="h-2 w-2 rounded-full bg-red-500" />
+                    {archiveError}
+                  </div>
+                </div>
+              )}
+              <ul className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                {workspaces.data.map((ws) => (
+                  <li
+                    key={ws.id}
                     className="flex items-center justify-between py-3 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 -mx-2 px-2 rounded-md transition-colors"
                   >
-                    <div>
-                      <p className="text-sm font-medium">{ws.name}</p>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                        {ws.slug}
-                      </p>
+                    <Link
+                      href={`/workspaces/${ws.id}`}
+                      className="flex-1 min-w-0"
+                    >
+                      <div>
+                        <p className="text-sm font-medium">{ws.name}</p>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                          {ws.slug}
+                        </p>
+                      </div>
+                    </Link>
+                    <div className="flex items-center gap-2 shrink-0 ml-2">
+                      <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                        {new Date(ws.createdAt).toLocaleDateString()}
+                      </span>
+                      <button
+                        onClick={(e) => handleArchiveWorkspace(e, ws.id, ws.name)}
+                        className="text-[10px] text-red-600 dark:text-red-400 hover:underline"
+                      >
+                        Archive
+                      </button>
                     </div>
-                    <span className="text-xs text-zinc-400 dark:text-zinc-500">
-                      {new Date(ws.createdAt).toLocaleDateString()}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
         </div>
       </div>
