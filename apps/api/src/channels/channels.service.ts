@@ -9,6 +9,7 @@ import { ChannelType, Prisma } from '@lets-chat/database';
 import { WorkspacesRepository } from '../workspaces/workspaces.repository';
 import { ChannelsRepository } from './channels.repository';
 import { CreateChannelDto } from './dto/create-channel.dto';
+import { slugify } from '../common/transliterate';
 import { UpdateChannelDto } from './dto/update-channel.dto';
 
 @Injectable()
@@ -30,7 +31,7 @@ export class ChannelsService {
       throw new NotFoundException('Workspace not found');
     }
 
-    const slug = this.slugify(dto.name);
+    const slug = slugify(dto.name);
     if (slug.length < 2) {
       throw new BadRequestException('Invalid channel name');
     }
@@ -155,14 +156,5 @@ export class ChannelsService {
     return { success: true };
   }
 
-  private slugify(name: string): string {
-    return name
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .substring(0, 50);
-  }
+
 }
