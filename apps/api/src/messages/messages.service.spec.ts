@@ -164,6 +164,56 @@ describe('MessagesService', () => {
       expect(result).toHaveLength(1);
       expect(result[0].content).toBe('hello');
     });
+
+    it('throws NotFoundException when channel belongs to another workspace', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId: '99999999-9999-9999-9999-999999999999',
+        type: 'PUBLIC',
+      } as any);
+
+      await expect(
+        service.list(workspaceId, channelId, userId, {}),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('throws NotFoundException for PRIVATE channel when user is not channel member', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PRIVATE',
+      } as any);
+      channelsRepository.findChannelMemberRole.mockResolvedValue(null);
+
+      await expect(
+        service.list(workspaceId, channelId, userId, {}),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('returns messages for PRIVATE channel member', async () => {
+      const messages = [
+        {
+          id: messageId,
+          channelId,
+          content: 'secret',
+          author: { id: userId, username: 'user', displayName: null, avatarUrl: null },
+        },
+      ] as any[];
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PRIVATE',
+      } as any);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      messagesRepository.listForChannel.mockResolvedValue(messages);
+
+      const result = await service.list(workspaceId, channelId, userId, {});
+      expect(result).toHaveLength(1);
+      expect(result[0].content).toBe('secret');
+    });
   });
 
   describe('update', () => {
