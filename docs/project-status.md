@@ -1,7 +1,7 @@
 # Project Status
 
 > Last updated: 2026-05-15  
-> Commit: `adc9e50`
+> Commit: `2c0eeb5`
 
 ---
 
@@ -83,10 +83,10 @@ Use these steps to verify core functionality after deploy or before release:
 
 - **Channels authorization unit tests** added (`channels.service.spec.ts`) — workspace membership, PRIVATE channel access, role-based update/archive (OWNER/ADMIN/MEMBER).
 - **Messages authorization unit tests** added (`messages.service.spec.ts`) — workspace/PRIVATE access, author-only edit with 15-min window, role-based delete permissions.
-- **API tests count:** 191 (10 suites)
+- **WebSocket typing access revalidation** added — `broadcastTyping` revalidates channel membership on every event; revoked access triggers `typing:error`, presence cleanup, and automatic room leave.
+- **API tests count:** 193 (10 suites)
 - **CI:** green ✅
 - **Remaining known risks:**
-  - WebSocket typing room membership after user removal from PRIVATE channel is not yet hardened
   - No full E2E security tests yet
 
 ---
