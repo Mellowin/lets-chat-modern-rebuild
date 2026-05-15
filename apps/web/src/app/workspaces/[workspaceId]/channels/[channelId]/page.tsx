@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -43,6 +43,10 @@ export default function ChannelDetailPage() {
   const [editState, setEditState] = useState<
     { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string }
   >({ kind: "idle" });
+  const [typingUsers, setTypingUsers] = useState<Record<string, { username: string; timeout: number }>>({});
+  const socketRef = useRef<ReturnType<typeof createSocket> | null>(null);
+  const typingTimeoutRef = useRef<number | null>(null);
+
   useEffect(() => {
     if (!isAuthenticated || !workspaceId || !channelId || !accessToken) return;
 
@@ -81,6 +85,7 @@ export default function ChannelDetailPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSocketStatus("connecting");
     const socket = createSocket(accessToken);
+    socketRef.current = socket;
 
     socket.on("connect", () => {
       setSocketStatus("connected");
@@ -129,10 +134,52 @@ export default function ChannelDetailPage() {
       removeMessageFromState(payload.id);
     });
 
+    socket.on("typing:started", (payload: { channelId: string; user: { id: string; username: string } }) => {
+      if (payload.channelId !== channelId) return;
+      if (payload.user.id === user?.id) return;
+      setTypingUsers((prev) => {
+        const next = { ...prev };
+        if (next[payload.user.id]?.timeout) {
+          window.clearTimeout(next[payload.user.id].timeout);
+        }
+        const timeout = window.setTimeout(() => {
+          setTypingUsers((prev2) => {
+            const next2 = { ...prev2 };
+            delete next2[payload.user.id];
+            return next2;
+          });
+        }, 5000);
+        next[payload.user.id] = { username: payload.user.username, timeout };
+        return next;
+      });
+    });
+
+    socket.on("typing:stopped", (payload: { channelId: string; user: { id: string; username: string } }) => {
+      if (payload.channelId !== channelId) return;
+      setTypingUsers((prev) => {
+        const next = { ...prev };
+        if (next[payload.user.id]?.timeout) {
+          window.clearTimeout(next[payload.user.id].timeout);
+        }
+        delete next[payload.user.id];
+        return next;
+      });
+    });
+
     return () => {
+      if (typingTimeoutRef.current) {
+        window.clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
+      }
+      Object.values(typingUsers).forEach((u) => {
+        if (u.timeout) window.clearTimeout(u.timeout);
+      });
+      setTypingUsers({});
       socket.emit("channel:leave", { channelId });
       socket.disconnect();
+      socketRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, workspaceId, channelId, accessToken]);
 
   function appendMessage(msg: Message) {
@@ -249,6 +296,29 @@ export default function ChannelDetailPage() {
     submitMessage();
   }
 
+  function emitTypingStart() {
+    const socket = socketRef.current;
+    if (!socket || !workspaceId || !channelId) return;
+    socket.emit("typing:start", { workspaceId, channelId });
+    if (typingTimeoutRef.current) {
+      window.clearTimeout(typingTimeoutRef.current);
+    }
+    typingTimeoutRef.current = window.setTimeout(() => {
+      socket.emit("typing:stop", { workspaceId, channelId });
+      typingTimeoutRef.current = null;
+    }, 2000);
+  }
+
+  function emitTypingStop() {
+    const socket = socketRef.current;
+    if (!socket || !workspaceId || !channelId) return;
+    if (typingTimeoutRef.current) {
+      window.clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+    socket.emit("typing:stop", { workspaceId, channelId });
+  }
+
   if (authLoading) {
     return (
       <div className="flex flex-1 items-center justify-center p-6">
@@ -349,6 +419,19 @@ export default function ChannelDetailPage() {
       <div className="mt-8 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 p-5">
         <h2 className="text-sm font-semibold">Messages</h2>
 
+        {/* Typing indicator */}
+        {Object.keys(typingUsers).length > 0 && (
+          <div className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+            {Object.values(typingUsers).map((u, i, arr) => (
+              <span key={u.username}>
+                {u.username}
+                {i < arr.length - 1 ? ", " : " "}
+              </span>
+            ))}
+            {Object.keys(typingUsers).length === 1 ? "is typing…" : "are typing…"}
+          </div>
+        )}
+
         {/* Composer */}
         {channel.kind === "success" && (
           <form onSubmit={handleSendMessage} className="mt-4 flex flex-col gap-2">
@@ -356,7 +439,14 @@ export default function ChannelDetailPage() {
               rows={2}
               placeholder="Type a message…"
               value={content}
-              onChange={(e) => setContent(e.target.value)}
+              onChange={(e) => {
+                setContent(e.target.value);
+                if (e.target.value.trim()) {
+                  emitTypingStart();
+                } else {
+                  emitTypingStop();
+                }
+              }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
