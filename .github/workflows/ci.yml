@@ -25,6 +25,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Generate Prisma client
+        run: pnpm --filter @lets-chat/database generate
+
+      - name: Build shared package
+        run: pnpm --filter @lets-chat/shared build
+
+      - name: Build database package
+        run: pnpm --filter @lets-chat/database build
+
       - name: Test API
         run: pnpm --filter api test
 
