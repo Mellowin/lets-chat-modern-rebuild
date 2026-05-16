@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { ChannelType, Prisma } from '@lets-chat/database';
 import { WorkspacesRepository } from '../workspaces/workspaces.repository';
+import { UsersRepository } from '../users/users.repository';
 import { ChannelsRepository } from './channels.repository';
 import { CreateChannelDto } from './dto/create-channel.dto';
 import { slugify } from '../common/transliterate';
@@ -17,6 +18,7 @@ export class ChannelsService {
   constructor(
     private readonly channels: ChannelsRepository,
     private readonly workspaces: WorkspacesRepository,
+    private readonly users: UsersRepository,
   ) {}
 
   async create(
@@ -159,6 +161,97 @@ export class ChannelsService {
         username: member.user.username,
       },
     }));
+  }
+
+  async addChannelMember(
+    workspaceId: string,
+    channelId: string,
+    userId: string,
+    dto: { identifier: string; role?: string },
+  ) {
+    const wsRole = await this.workspaces.findMemberRole(workspaceId, userId);
+    if (!wsRole) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const channel = await this.channels.findActiveById(channelId);
+    if (!channel || channel.workspaceId !== workspaceId) {
+      throw new NotFoundException('Channel not found');
+    }
+
+    const requesterChRole = await this.channels.findChannelMemberRole(
+      channelId,
+      userId,
+    );
+    if (!requesterChRole) {
+      if (channel.type === 'PUBLIC') {
+        throw new ForbiddenException('Insufficient permissions');
+      }
+      throw new NotFoundException('Channel not found');
+    }
+    if (requesterChRole !== 'OWNER' && requesterChRole !== 'ADMIN') {
+      throw new ForbiddenException('Insufficient permissions');
+    }
+
+    const role = (dto.role as 'MEMBER' | 'ADMIN' | 'OWNER') ?? 'MEMBER';
+    if (role === 'OWNER') {
+      throw new BadRequestException('Cannot assign OWNER role');
+    }
+    if (role !== 'MEMBER' && role !== 'ADMIN') {
+      throw new BadRequestException('Invalid role');
+    }
+
+    const identifier = dto.identifier.trim();
+    let targetUser = await this.users.findByUsername(identifier);
+    if (!targetUser) {
+      targetUser = await this.users.findByEmail(identifier);
+    }
+    if (!targetUser) {
+      throw new NotFoundException('User not found');
+    }
+
+    const targetWsMember = await this.workspaces.findActiveMemberByUserId(
+      workspaceId,
+      targetUser.id,
+    );
+    if (!targetWsMember) {
+      throw new NotFoundException('User is not a workspace member');
+    }
+
+    const existingMember = await this.channels.findActiveChannelMemberByUserId(
+      channelId,
+      targetUser.id,
+    );
+    if (existingMember) {
+      throw new ConflictException('User is already a channel member');
+    }
+
+    try {
+      const member = await this.channels.createChannelMember({
+        channelId,
+        userId: targetUser.id,
+        role,
+      });
+
+      return {
+        id: member.id,
+        channelId: member.channelId,
+        role: member.role,
+        joinedAt: member.createdAt,
+        user: {
+          id: member.user.id,
+          username: member.user.username,
+        },
+      };
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('User is already a channel member');
+      }
+      throw error;
+    }
   }
 
   async archive(workspaceId: string, channelId: string, userId: string) {

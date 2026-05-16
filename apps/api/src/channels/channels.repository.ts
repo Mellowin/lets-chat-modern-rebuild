@@ -100,6 +100,42 @@ export class ChannelsRepository {
     });
   }
 
+  async findActiveChannelMemberByUserId(channelId: string, userId: string) {
+    return this.prisma.channelMember.findFirst({
+      where: {
+        channelId,
+        userId,
+        deletedAt: null,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+      },
+    });
+  }
+
+  async createChannelMember(data: {
+    channelId: string;
+    userId: string;
+    role: ChannelRole;
+  }) {
+    return this.prisma.channelMember.create({
+      data,
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+      },
+    });
+  }
+
   async listActiveChannelMembers(channelId: string) {
     return this.prisma.channelMember.findMany({
       where: {

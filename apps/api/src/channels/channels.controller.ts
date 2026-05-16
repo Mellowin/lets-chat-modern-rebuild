@@ -23,6 +23,7 @@ import {
 import { ChannelsService } from './channels.service';
 import { CreateChannelDto } from './dto/create-channel.dto';
 import { UpdateChannelDto } from './dto/update-channel.dto';
+import { AddChannelMemberDto } from './dto/add-channel-member.dto';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUserResponse } from '../auth/auth.service';
@@ -101,6 +102,23 @@ export class ChannelsController {
     @CurrentUser() user: AuthUserResponse,
   ) {
     return this.channels.listChannelMembers(workspaceId, channelId, user.id);
+  }
+
+  @Post(':channelId/members')
+  @ApiOperation({ summary: 'Add channel member' })
+  @ApiCreatedResponse({ description: 'Member added' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiForbiddenResponse({ description: 'Forbidden' })
+  @ApiNotFoundResponse({ description: 'Workspace, channel, or user not found' })
+  @ApiConflictResponse({ description: 'Already a member' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async addMember(
+    @Param('workspaceId') workspaceId: string,
+    @Param('channelId') channelId: string,
+    @Body() dto: AddChannelMemberDto,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.channels.addChannelMember(workspaceId, channelId, user.id, dto);
   }
 
   @Post(':channelId/archive')

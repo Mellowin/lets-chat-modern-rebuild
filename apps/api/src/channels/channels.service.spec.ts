@@ -1,16 +1,21 @@
 import { Test } from '@nestjs/testing';
 import {
+  BadRequestException,
+  ConflictException,
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '@lets-chat/database';
 import { ChannelsService } from './channels.service';
 import { ChannelsRepository } from './channels.repository';
 import { WorkspacesRepository } from '../workspaces/workspaces.repository';
+import { UsersRepository } from '../users/users.repository';
 
 describe('ChannelsService', () => {
   let service: ChannelsService;
   let channelsRepository: jest.Mocked<ChannelsRepository>;
   let workspacesRepository: jest.Mocked<WorkspacesRepository>;
+  let usersRepository: jest.Mocked<UsersRepository>;
 
   const userId = '11111111-1111-1111-1111-111111111111';
   const workspaceId = '22222222-2222-2222-2222-222222222222';
@@ -25,15 +30,27 @@ describe('ChannelsService', () => {
           useValue: {
             findActiveById: jest.fn(),
             findChannelMemberRole: jest.fn(),
+            findActiveChannelMemberByUserId: jest.fn(),
+            createChannelMember: jest.fn(),
             listActiveChannelMembers: jest.fn(),
             updateChannel: jest.fn(),
             archiveChannel: jest.fn(),
           },
         },
         {
+          provide: UsersRepository,
+          useValue: {
+            findById: jest.fn(),
+            findByEmail: jest.fn(),
+            findByUsername: jest.fn(),
+            createUser: jest.fn(),
+          },
+        },
+        {
           provide: WorkspacesRepository,
           useValue: {
             findMemberRole: jest.fn(),
+            findActiveMemberByUserId: jest.fn(),
           },
         },
       ],
@@ -41,6 +58,7 @@ describe('ChannelsService', () => {
 
     service = moduleRef.get(ChannelsService);
     channelsRepository = moduleRef.get(ChannelsRepository);
+    usersRepository = moduleRef.get(UsersRepository);
     workspacesRepository = moduleRef.get(WorkspacesRepository);
   });
 
@@ -358,6 +376,225 @@ describe('ChannelsService', () => {
       expect(result).toHaveLength(2);
       expect(result[0].user.username).toBe('alice');
       expect(result[1].user.username).toBe('bob');
+    });
+  });
+
+  describe('addChannelMember', () => {
+    const targetUserId = '44444444-4444-4444-4444-444444444444';
+    const memberId = '55555555-5555-5555-5555-555555555555';
+
+    it('allows OWNER to add workspace member to channel as MEMBER', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as any);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
+      usersRepository.findByUsername.mockResolvedValue({ id: targetUserId, username: 'alice' } as any);
+      usersRepository.findByEmail.mockResolvedValue(null as any);
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
+        id: 'ws-member-1',
+        workspaceId,
+        role: 'MEMBER',
+        userId: targetUserId,
+      } as any);
+      channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue(null as any);
+      channelsRepository.createChannelMember.mockResolvedValue({
+        id: memberId,
+        channelId,
+        role: 'MEMBER',
+        createdAt: new Date('2026-01-01'),
+        user: { id: targetUserId, username: 'alice' },
+      } as any);
+
+      const result = await service.addChannelMember(workspaceId, channelId, userId, { identifier: 'alice' });
+
+      expect(result.role).toBe('MEMBER');
+      expect(result.user.username).toBe('alice');
+    });
+
+    it('allows ADMIN to add workspace member to channel', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('ADMIN');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as any);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('ADMIN');
+      usersRepository.findByUsername.mockResolvedValue({ id: targetUserId, username: 'bob' } as any);
+      usersRepository.findByEmail.mockResolvedValue(null as any);
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
+        id: 'ws-member-1',
+        workspaceId,
+        role: 'MEMBER',
+        userId: targetUserId,
+      } as any);
+      channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue(null as any);
+      channelsRepository.createChannelMember.mockResolvedValue({
+        id: memberId,
+        channelId,
+        role: 'MEMBER',
+        createdAt: new Date('2026-01-01'),
+        user: { id: targetUserId, username: 'bob' },
+      } as any);
+
+      const result = await service.addChannelMember(workspaceId, channelId, userId, { identifier: 'bob' });
+
+      expect(result.role).toBe('MEMBER');
+      expect(result.user.username).toBe('bob');
+    });
+
+    it('rejects MEMBER requester', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as any);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+
+      await expect(
+        service.addChannelMember(workspaceId, channelId, userId, { identifier: 'alice' }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('rejects non-workspace requester', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue(null);
+
+      await expect(
+        service.addChannelMember(workspaceId, channelId, userId, { identifier: 'alice' }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('rejects channel from another workspace', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId: '99999999-9999-9999-9999-999999999999',
+        type: 'PUBLIC',
+      } as any);
+
+      await expect(
+        service.addChannelMember(workspaceId, channelId, userId, { identifier: 'alice' }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('returns 404 when target user not found', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as any);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
+      usersRepository.findByUsername.mockResolvedValue(null as any);
+      usersRepository.findByEmail.mockResolvedValue(null as any);
+
+      await expect(
+        service.addChannelMember(workspaceId, channelId, userId, { identifier: 'unknown' }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('returns 404 when target user is not workspace member', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as any);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
+      usersRepository.findByUsername.mockResolvedValue({ id: targetUserId, username: 'alice' } as any);
+      usersRepository.findByEmail.mockResolvedValue(null as any);
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue(null as any);
+
+      await expect(
+        service.addChannelMember(workspaceId, channelId, userId, { identifier: 'alice' }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('returns 409 when user is already active channel member', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as any);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
+      usersRepository.findByUsername.mockResolvedValue({ id: targetUserId, username: 'alice' } as any);
+      usersRepository.findByEmail.mockResolvedValue(null as any);
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
+        id: 'ws-member-1',
+        workspaceId,
+        role: 'MEMBER',
+        userId: targetUserId,
+      } as any);
+      channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue({
+        id: 'existing-channel-member',
+        channelId,
+        role: 'MEMBER',
+        userId: targetUserId,
+      } as any);
+
+      await expect(
+        service.addChannelMember(workspaceId, channelId, userId, { identifier: 'alice' }),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('rejects OWNER role assignment', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as any);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
+
+      await expect(
+        service.addChannelMember(workspaceId, channelId, userId, { identifier: 'alice', role: 'OWNER' }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('rejects invalid role', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as any);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
+
+      await expect(
+        service.addChannelMember(workspaceId, channelId, userId, { identifier: 'alice', role: 'GOD' as any }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('maps Prisma P2002 to ConflictException', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as any);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
+      usersRepository.findByUsername.mockResolvedValue({ id: targetUserId, username: 'alice' } as any);
+      usersRepository.findByEmail.mockResolvedValue(null as any);
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
+        id: 'ws-member-1',
+        workspaceId,
+        role: 'MEMBER',
+        userId: targetUserId,
+      } as any);
+      channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue(null as any);
+      const prismaError = new Prisma.PrismaClientKnownRequestError(
+        'Unique constraint failed',
+        { code: 'P2002', clientVersion: '5.22.0' },
+      );
+      channelsRepository.createChannelMember.mockRejectedValue(prismaError);
+
+      await expect(
+        service.addChannelMember(workspaceId, channelId, userId, { identifier: 'alice' }),
+      ).rejects.toBeInstanceOf(ConflictException);
     });
   });
 });
