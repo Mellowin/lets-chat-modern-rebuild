@@ -130,6 +130,37 @@ export class ChannelsService {
     return this.channels.updateChannel(channelId, updateData);
   }
 
+  async listChannelMembers(workspaceId: string, channelId: string, userId: string) {
+    const wsRole = await this.workspaces.findMemberRole(workspaceId, userId);
+    if (!wsRole) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const channel = await this.channels.findActiveById(channelId);
+    if (!channel || channel.workspaceId !== workspaceId) {
+      throw new NotFoundException('Channel not found');
+    }
+
+    if (channel.type === 'PRIVATE') {
+      const chRole = await this.channels.findChannelMemberRole(channelId, userId);
+      if (!chRole) {
+        throw new NotFoundException('Channel not found');
+      }
+    }
+
+    const members = await this.channels.listActiveChannelMembers(channelId);
+    return members.map((member) => ({
+      id: member.id,
+      channelId: member.channelId,
+      role: member.role,
+      joinedAt: member.createdAt,
+      user: {
+        id: member.user.id,
+        username: member.user.username,
+      },
+    }));
+  }
+
   async archive(workspaceId: string, channelId: string, userId: string) {
     const wsRole = await this.workspaces.findMemberRole(workspaceId, userId);
     if (!wsRole) {
@@ -155,6 +186,4 @@ export class ChannelsService {
     await this.channels.archiveChannel(channelId);
     return { success: true };
   }
-
-
 }

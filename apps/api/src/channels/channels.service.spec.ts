@@ -25,6 +25,7 @@ describe('ChannelsService', () => {
           useValue: {
             findActiveById: jest.fn(),
             findChannelMemberRole: jest.fn(),
+            listActiveChannelMembers: jest.fn(),
             updateChannel: jest.fn(),
             archiveChannel: jest.fn(),
           },
@@ -233,6 +234,130 @@ describe('ChannelsService', () => {
 
       const result = await service.archive(workspaceId, channelId, userId);
       expect(result.success).toBe(true);
+    });
+  });
+
+  describe('listChannelMembers', () => {
+    it('allows OWNER to list channel members', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as any);
+      channelsRepository.listActiveChannelMembers.mockResolvedValue([
+        {
+          id: 'member-1',
+          channelId,
+          role: 'OWNER',
+          createdAt: new Date('2026-01-01'),
+          user: { id: userId, username: 'owner' },
+        },
+      ] as any);
+
+      const result = await service.listChannelMembers(workspaceId, channelId, userId);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].role).toBe('OWNER');
+      expect(result[0].user.username).toBe('owner');
+    });
+
+    it('allows workspace member to list PUBLIC channel members', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as any);
+      channelsRepository.listActiveChannelMembers.mockResolvedValue([
+        {
+          id: 'member-1',
+          channelId,
+          role: 'OWNER',
+          createdAt: new Date('2026-01-01'),
+          user: { id: 'user-1', username: 'alice' },
+        },
+        {
+          id: 'member-2',
+          channelId,
+          role: 'MEMBER',
+          createdAt: new Date('2026-01-01'),
+          user: { id: 'user-2', username: 'bob' },
+        },
+      ] as any);
+
+      const result = await service.listChannelMembers(workspaceId, channelId, userId);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].user.username).toBe('alice');
+      expect(result[1].user.username).toBe('bob');
+    });
+
+    it('throws NotFoundException for non-workspace member', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue(null);
+
+      await expect(
+        service.listChannelMembers(workspaceId, channelId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('throws NotFoundException when channel belongs to another workspace', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId: '99999999-9999-9999-9999-999999999999',
+        type: 'PUBLIC',
+      } as any);
+
+      await expect(
+        service.listChannelMembers(workspaceId, channelId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('throws NotFoundException for PRIVATE channel when user is not a channel member', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PRIVATE',
+      } as any);
+      channelsRepository.findChannelMemberRole.mockResolvedValue(null);
+
+      await expect(
+        service.listChannelMembers(workspaceId, channelId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('allows channel member to list PRIVATE channel members', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PRIVATE',
+      } as any);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.listActiveChannelMembers.mockResolvedValue([
+        {
+          id: 'member-1',
+          channelId,
+          role: 'OWNER',
+          createdAt: new Date('2026-01-01'),
+          user: { id: 'user-1', username: 'alice' },
+        },
+        {
+          id: 'member-2',
+          channelId,
+          role: 'MEMBER',
+          createdAt: new Date('2026-01-01'),
+          user: { id: userId, username: 'bob' },
+        },
+      ] as any);
+
+      const result = await service.listChannelMembers(workspaceId, channelId, userId);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].user.username).toBe('alice');
+      expect(result[1].user.username).toBe('bob');
     });
   });
 });

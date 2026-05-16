@@ -100,6 +100,24 @@ export class ChannelsRepository {
     });
   }
 
+  async listActiveChannelMembers(channelId: string) {
+    return this.prisma.channelMember.findMany({
+      where: {
+        channelId,
+        deletedAt: null,
+      },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+      },
+    });
+  }
+
   async archiveChannel(channelId: string) {
     return this.prisma.channel.update({
       where: { id: channelId },

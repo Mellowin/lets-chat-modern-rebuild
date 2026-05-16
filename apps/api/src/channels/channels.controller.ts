@@ -90,6 +90,19 @@ export class ChannelsController {
     return this.channels.update(workspaceId, channelId, dto, user.id);
   }
 
+  @Get(':channelId/members')
+  @ApiOperation({ summary: 'List channel members' })
+  @ApiOkResponse({ description: 'Members list' })
+  @ApiNotFoundResponse({ description: 'Channel not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async listMembers(
+    @Param('workspaceId') workspaceId: string,
+    @Param('channelId') channelId: string,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.channels.listChannelMembers(workspaceId, channelId, user.id);
+  }
+
   @Post(':channelId/archive')
   @HttpCode(200)
   @ApiOperation({ summary: 'Archive channel' })
