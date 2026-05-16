@@ -2,7 +2,7 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import ChannelDetailPage from "./page";
-import { getChannel, getChannelMembers, addChannelMember, type ChannelMember } from "@/lib/channels-api";
+import { getChannel, getChannelMembers, addChannelMember, removeChannelMember, type ChannelMember } from "@/lib/channels-api";
 import { getMessages, createMessage, updateMessage, deleteMessage, Message } from "@/lib/messages-api";
 
 const socketHandlers: Record<string, (...args: unknown[]) => void> = {};
@@ -30,6 +30,7 @@ vi.mock("@/lib/channels-api", () => ({
   getChannel: vi.fn(),
   getChannelMembers: vi.fn(),
   addChannelMember: vi.fn(),
+  removeChannelMember: vi.fn(),
 }));
 
 vi.mock("@/lib/messages-api", () => ({
@@ -632,5 +633,202 @@ describe("ChannelDetailPage — members", () => {
     await userEvent.click(screen.getByRole("button", { name: /Add/i }));
 
     expect(await screen.findByText(/Already a member/i)).toBeInTheDocument();
+  });
+});
+
+
+describe("ChannelDetailPage — remove member", () => {
+  beforeEach(() => {
+    sessionStorage.setItem("accessToken", "token");
+    vi.clearAllMocks();
+    socketOnMock.mockReset();
+    socketEmitMock.mockReset();
+    socketDisconnectMock.mockReset();
+    Object.keys(socketHandlers).forEach((k) => delete socketHandlers[k]);
+  });
+
+  const ownerAlice: ChannelMember = {
+    id: "cm1",
+    channelId: "ch1",
+    role: "OWNER",
+    joinedAt: "2024-01-01T00:00:00Z",
+    user: { id: "u1", username: "alice" },
+  };
+
+  const adminBob: ChannelMember = {
+    id: "cm2",
+    channelId: "ch1",
+    role: "ADMIN",
+    joinedAt: "2024-01-01T00:00:00Z",
+    user: { id: "u2", username: "bob" },
+  };
+
+  const memberCharlie: ChannelMember = {
+    id: "cm3",
+    channelId: "ch1",
+    role: "MEMBER",
+    joinedAt: "2024-01-01T00:00:00Z",
+    user: { id: "u3", username: "charlie" },
+  };
+
+  const regularMember: ChannelMember = {
+    id: "cm4",
+    channelId: "ch1",
+    role: "MEMBER",
+    joinedAt: "2024-01-01T00:00:00Z",
+    user: { id: "u1", username: "alice" },
+  };
+
+  it("OWNER sees Remove for MEMBER", async () => {
+    mockChannelAndMessages([], [ownerAlice, memberCharlie]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("charlie")).toBeInTheDocument();
+    });
+    const removeButtons = screen.getAllByRole("button", { name: /Remove/i });
+    expect(removeButtons.length).toBe(1);
+  });
+
+  it("OWNER sees Remove for ADMIN", async () => {
+    mockChannelAndMessages([], [ownerAlice, adminBob]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("bob")).toBeInTheDocument();
+    });
+    const removeButtons = screen.getAllByRole("button", { name: /Remove/i });
+    expect(removeButtons.length).toBe(1);
+  });
+
+  it("OWNER does not see Remove for OWNER", async () => {
+    mockChannelAndMessages([], [ownerAlice]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("alice")).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("button", { name: /Remove/i })).not.toBeInTheDocument();
+  });
+
+  it("ADMIN sees Remove for MEMBER", async () => {
+    const adminAlice: ChannelMember = {
+      id: "cm1",
+      channelId: "ch1",
+      role: "ADMIN",
+      joinedAt: "2024-01-01T00:00:00Z",
+      user: { id: "u1", username: "alice" },
+    };
+    mockChannelAndMessages([], [adminAlice, memberCharlie]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("charlie")).toBeInTheDocument();
+    });
+    const removeButtons = screen.getAllByRole("button", { name: /Remove/i });
+    expect(removeButtons.length).toBe(1);
+  });
+
+  it("ADMIN does not see Remove for ADMIN", async () => {
+    const adminAlice: ChannelMember = {
+      id: "cm1",
+      channelId: "ch1",
+      role: "ADMIN",
+      joinedAt: "2024-01-01T00:00:00Z",
+      user: { id: "u1", username: "alice" },
+    };
+    mockChannelAndMessages([], [adminAlice, adminBob]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("bob")).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("button", { name: /Remove/i })).not.toBeInTheDocument();
+  });
+
+  it("ADMIN does not see Remove for OWNER", async () => {
+    const adminAlice: ChannelMember = {
+      id: "cm1",
+      channelId: "ch1",
+      role: "ADMIN",
+      joinedAt: "2024-01-01T00:00:00Z",
+      user: { id: "u1", username: "alice" },
+    };
+    const ownerDave: ChannelMember = {
+      id: "cm5",
+      channelId: "ch1",
+      role: "OWNER",
+      joinedAt: "2024-01-01T00:00:00Z",
+      user: { id: "u5", username: "dave" },
+    };
+    mockChannelAndMessages([], [adminAlice, ownerDave]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("dave")).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("button", { name: /Remove/i })).not.toBeInTheDocument();
+  });
+
+  it("MEMBER sees no Remove buttons", async () => {
+    mockChannelAndMessages([], [regularMember, memberCharlie]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("charlie")).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("button", { name: /Remove/i })).not.toBeInTheDocument();
+  });
+
+  it("successful remove calls API and removes user from list", async () => {
+    mockChannelAndMessages([], [ownerAlice, memberCharlie]);
+    vi.mocked(removeChannelMember).mockResolvedValueOnce({ success: true });
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("charlie")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Remove/i }));
+
+    await waitFor(() => {
+      expect(removeChannelMember).toHaveBeenCalledWith("token", "ws1", "ch1", "cm3");
+    });
+
+    expect(screen.queryByText("charlie")).not.toBeInTheDocument();
+  });
+
+  it("shows backend error on remove failure", async () => {
+    mockChannelAndMessages([], [ownerAlice, memberCharlie]);
+    vi.mocked(removeChannelMember).mockRejectedValueOnce(new Error("Member not found"));
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("charlie")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Remove/i }));
+
+    expect(await screen.findByText(/Member not found/i)).toBeInTheDocument();
+  });
+
+  it("cancel confirm does not call API", async () => {
+    mockChannelAndMessages([], [ownerAlice, memberCharlie]);
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("charlie")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Remove/i }));
+
+    expect(removeChannelMember).not.toHaveBeenCalled();
+    expect(screen.getByText("charlie")).toBeInTheDocument();
   });
 });

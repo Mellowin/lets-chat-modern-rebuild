@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { getChannel, getChannelMembers, addChannelMember, archiveChannel, type Channel, type ChannelMember } from "@/lib/channels-api";
+import { getChannel, getChannelMembers, addChannelMember, removeChannelMember, archiveChannel, type Channel, type ChannelMember } from "@/lib/channels-api";
 
 import { getMessages, createMessage, updateMessage, deleteMessage, type Message, type CreateMessageInput, type UpdateMessageInput } from "@/lib/messages-api";
 import { createSocket } from "@/lib/socket-client";
@@ -60,6 +60,11 @@ export default function ChannelDetailPage() {
     | { kind: "loading" }
     | { kind: "error"; message: string }
     | { kind: "success" }
+  >({ kind: "idle" });
+  const [removeMemberState, setRemoveMemberState] = useState<
+    | { kind: "idle" }
+    | { kind: "loading"; memberId: string }
+    | { kind: "error"; message: string }
   >({ kind: "idle" });
   const [typingUsers, setTypingUsers] = useState<Record<string, { username: string; timeout: number }>>({});
   const socketRef = useRef<ReturnType<typeof createSocket> | null>(null);
@@ -369,6 +374,17 @@ export default function ChannelDetailPage() {
   const canManageMembers = myChannelRole === "OWNER" || myChannelRole === "ADMIN";
   const canArchiveChannel = myChannelRole === "OWNER";
 
+  function canRemoveMember(targetRole: string, targetUserId: string) {
+    if (myChannelRole === "OWNER") {
+      if (targetUserId === user?.id) return false;
+      return targetRole === "ADMIN" || targetRole === "MEMBER";
+    }
+    if (myChannelRole === "ADMIN") {
+      return targetRole === "MEMBER";
+    }
+    return false;
+  }
+
   async function handleArchive() {
     if (!channelId || !accessToken || !workspaceId) return;
     const name = channel.kind === "success" ? channel.data.name : "this channel";
@@ -412,6 +428,24 @@ export default function ChannelDetailPage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to add member";
       setAddMemberState({ kind: "error", message });
+    }
+  }
+
+  async function handleRemoveMember(memberId: string, username: string) {
+    if (!window.confirm(`Remove member "${username}" from this channel?`)) return;
+    if (!accessToken || !workspaceId || !channelId) return;
+
+    setRemoveMemberState({ kind: "loading", memberId });
+    try {
+      await removeChannelMember(accessToken, workspaceId, channelId, memberId);
+      setRemoveMemberState({ kind: "idle" });
+      setMembers((prev) => {
+        if (prev.kind !== "success") return prev;
+        return { kind: "success", data: prev.data.filter((m) => m.id !== memberId) };
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to remove member";
+      setRemoveMemberState({ kind: "error", message });
     }
   }
 
@@ -779,20 +813,40 @@ export default function ChannelDetailPage() {
             {members.data.map((m) => (
               <li key={m.id} className="flex items-center justify-between py-2">
                 <span className="text-sm font-medium">{m.user.username}</span>
-                <span
-                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
-                    m.role === "OWNER"
-                      ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400"
-                      : m.role === "ADMIN"
-                        ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400"
-                        : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400"
-                  }`}
-                >
-                  {m.role}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
+                      m.role === "OWNER"
+                        ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400"
+                        : m.role === "ADMIN"
+                          ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400"
+                          : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400"
+                    }`}
+                  >
+                    {m.role}
+                  </span>
+                  {canRemoveMember(m.role, m.user.id) && (
+                    <button
+                      onClick={() => handleRemoveMember(m.id, m.user.username)}
+                      disabled={removeMemberState.kind === "loading" && removeMemberState.memberId === m.id}
+                      className="text-[10px] text-zinc-400 hover:text-red-600 dark:text-zinc-500 dark:hover:text-red-400 underline disabled:opacity-50"
+                    >
+                      {removeMemberState.kind === "loading" && removeMemberState.memberId === m.id ? "Removing…" : "Remove"}
+                    </button>
+                  )}
+                </div>
               </li>
             ))}
           </ul>
+        )}
+
+        {removeMemberState.kind === "error" && (
+          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
+            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+              <span className="h-2 w-2 rounded-full bg-red-500" />
+              {removeMemberState.message}
+            </div>
+          </div>
         )}
       </div>
     </div>
