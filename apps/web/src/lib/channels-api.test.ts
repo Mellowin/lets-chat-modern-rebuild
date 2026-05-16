@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { getChannels, getChannel, createChannel, addChannelMember } from "./channels-api";
+import { getChannels, getChannel, createChannel, addChannelMember, removeChannelMember } from "./channels-api";
 
 const API_BASE = "http://localhost:3001/api/v1";
 
@@ -92,6 +92,25 @@ describe("channels-api", () => {
     it("throws with backend error message", async () => {
       vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ message: "Already a member" }), { status: 409 }));
       await expect(addChannelMember("token", "ws1", "ch1", { identifier: "bob" })).rejects.toThrow("Already a member");
+    });
+  });
+
+  describe("removeChannelMember", () => {
+    it("sends DELETE /workspaces/:wsId/channels/:chId/members/:memberId", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ success: true }), { status: 200 }));
+
+      const result = await removeChannelMember("token", "ws1", "ch1", "cm1");
+
+      expect(fetch).toHaveBeenCalledWith(
+        `${API_BASE}/workspaces/ws1/channels/ch1/members/cm1`,
+        expect.objectContaining({ method: "DELETE" }),
+      );
+      expect(result).toEqual({ success: true });
+    });
+
+    it("throws with backend error message", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ message: "Member not found" }), { status: 404 }));
+      await expect(removeChannelMember("token", "ws1", "ch1", "cm1")).rejects.toThrow("Member not found");
     });
   });
 });
