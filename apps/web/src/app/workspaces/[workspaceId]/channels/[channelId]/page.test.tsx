@@ -2,7 +2,7 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import ChannelDetailPage from "./page";
-import { getChannel } from "@/lib/channels-api";
+import { getChannel, getChannelMembers, addChannelMember, type ChannelMember } from "@/lib/channels-api";
 import { getMessages, createMessage, updateMessage, deleteMessage, Message } from "@/lib/messages-api";
 
 const socketHandlers: Record<string, (...args: unknown[]) => void> = {};
@@ -28,6 +28,8 @@ vi.mock("@/lib/auth-context", () => ({
 
 vi.mock("@/lib/channels-api", () => ({
   getChannel: vi.fn(),
+  getChannelMembers: vi.fn(),
+  addChannelMember: vi.fn(),
 }));
 
 vi.mock("@/lib/messages-api", () => ({
@@ -46,7 +48,7 @@ vi.mock("@/lib/socket-client", () => ({
   })),
 }));
 
-function mockChannelAndMessages(messagesData: unknown[] = []) {
+function mockChannelAndMessages(messagesData: unknown[] = [], membersData: unknown[] = []) {
   vi.mocked(getChannel).mockResolvedValueOnce({
     id: "ch1",
     workspaceId: "ws1",
@@ -60,6 +62,7 @@ function mockChannelAndMessages(messagesData: unknown[] = []) {
     deletedAt: null,
   });
   vi.mocked(getMessages).mockResolvedValueOnce(messagesData as Message[]);
+  vi.mocked(getChannelMembers).mockResolvedValueOnce(membersData as ChannelMember[]);
 }
 
 describe("ChannelDetailPage — composer", () => {
@@ -464,5 +467,167 @@ describe("ChannelDetailPage — WebSocket live events", () => {
     socketHandlers["message:deleted"]({ id: "m1", channelId: "ch-other", deletedAt: "2024-01-02T00:00:00Z" });
 
     expect(screen.getByText("Hello")).toBeInTheDocument();
+  });
+});
+
+
+describe("ChannelDetailPage — members", () => {
+  beforeEach(() => {
+    sessionStorage.setItem("accessToken", "token");
+    vi.clearAllMocks();
+    socketOnMock.mockReset();
+    socketEmitMock.mockReset();
+    socketDisconnectMock.mockReset();
+    Object.keys(socketHandlers).forEach((k) => delete socketHandlers[k]);
+  });
+
+  const ownerMember: ChannelMember = {
+    id: "cm1",
+    channelId: "ch1",
+    role: "OWNER",
+    joinedAt: "2024-01-01T00:00:00Z",
+    user: { id: "u1", username: "alice" },
+  };
+
+  const adminMember: ChannelMember = {
+    id: "cm2",
+    channelId: "ch1",
+    role: "ADMIN",
+    joinedAt: "2024-01-01T00:00:00Z",
+    user: { id: "u2", username: "bob" },
+  };
+
+  const regularMember: ChannelMember = {
+    id: "cm3",
+    channelId: "ch1",
+    role: "MEMBER",
+    joinedAt: "2024-01-01T00:00:00Z",
+    user: { id: "u1", username: "alice" },
+  };
+
+  it("shows member list", async () => {
+    mockChannelAndMessages([], [ownerMember, adminMember]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("alice")).toBeInTheDocument();
+    });
+    expect(screen.getByText("bob")).toBeInTheDocument();
+    expect(screen.getByText("OWNER")).toBeInTheDocument();
+    expect(screen.getByText("ADMIN")).toBeInTheDocument();
+  });
+
+  it("shows add member form for OWNER", async () => {
+    mockChannelAndMessages([], [ownerMember]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: /Add/i })).toBeInTheDocument();
+  });
+
+  it("shows add member form for ADMIN", async () => {
+    const adminAlice: ChannelMember = {
+      id: "cm1",
+      channelId: "ch1",
+      role: "ADMIN",
+      joinedAt: "2024-01-01T00:00:00Z",
+      user: { id: "u1", username: "alice" },
+    };
+    mockChannelAndMessages([], [adminAlice]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
+    });
+  });
+
+  it("hides add member form for MEMBER", async () => {
+    mockChannelAndMessages([], [regularMember]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("alice")).toBeInTheDocument();
+    });
+    expect(screen.queryByPlaceholderText(/Username or email/i)).not.toBeInTheDocument();
+  });
+
+  it("hides archive button for MEMBER", async () => {
+    mockChannelAndMessages([], [regularMember]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "general" })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("button", { name: /Archive/i })).not.toBeInTheDocument();
+  });
+
+  it("shows archive button for OWNER", async () => {
+    mockChannelAndMessages([], [ownerMember]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "general" })).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: /Archive/i })).toBeInTheDocument();
+  });
+
+  it("adds member successfully and updates list", async () => {
+    mockChannelAndMessages([], [ownerMember]);
+    const newMember: ChannelMember = {
+      id: "cm4",
+      channelId: "ch1",
+      role: "MEMBER",
+      joinedAt: "2024-01-02T00:00:00Z",
+      user: { id: "u3", username: "charlie" },
+    };
+    vi.mocked(addChannelMember).mockResolvedValueOnce(newMember);
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Username or email/i), "charlie");
+    await userEvent.click(screen.getByRole("button", { name: /Add/i }));
+
+    await waitFor(() => {
+      expect(addChannelMember).toHaveBeenCalledWith("token", "ws1", "ch1", { identifier: "charlie" });
+    });
+
+    expect(screen.getByText("charlie")).toBeInTheDocument();
+    expect(screen.getByText("Member added successfully.")).toBeInTheDocument();
+  });
+
+  it("shows error on empty add member submit", async () => {
+    mockChannelAndMessages([], [ownerMember]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
+    });
+
+    fireEvent.submit(screen.getByRole("button", { name: /Add/i }));
+
+    expect(await screen.findByText(/Username or email is required/i)).toBeInTheDocument();
+    expect(addChannelMember).not.toHaveBeenCalled();
+  });
+
+  it("shows backend error on add member failure", async () => {
+    mockChannelAndMessages([], [ownerMember]);
+    vi.mocked(addChannelMember).mockRejectedValueOnce(new Error("Already a member"));
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Username or email/i), "bob");
+    await userEvent.click(screen.getByRole("button", { name: /Add/i }));
+
+    expect(await screen.findByText(/Already a member/i)).toBeInTheDocument();
   });
 });

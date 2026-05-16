@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { getChannel, getChannelMembers, archiveChannel, type Channel, type ChannelMember } from "@/lib/channels-api";
+import { getChannel, getChannelMembers, addChannelMember, archiveChannel, type Channel, type ChannelMember } from "@/lib/channels-api";
 
 import { getMessages, createMessage, updateMessage, deleteMessage, type Message, type CreateMessageInput, type UpdateMessageInput } from "@/lib/messages-api";
 import { createSocket } from "@/lib/socket-client";
@@ -53,6 +53,13 @@ export default function ChannelDetailPage() {
   >({ kind: "idle" });
   const [archiveState, setArchiveState] = useState<
     { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string }
+  >({ kind: "idle" });
+  const [addMemberIdentifier, setAddMemberIdentifier] = useState("");
+  const [addMemberState, setAddMemberState] = useState<
+    | { kind: "idle" }
+    | { kind: "loading" }
+    | { kind: "error"; message: string }
+    | { kind: "success" }
   >({ kind: "idle" });
   const [typingUsers, setTypingUsers] = useState<Record<string, { username: string; timeout: number }>>({});
   const socketRef = useRef<ReturnType<typeof createSocket> | null>(null);
@@ -355,6 +362,12 @@ export default function ChannelDetailPage() {
     socket.emit("typing:stop", { workspaceId, channelId });
   }
 
+  const myChannelRole =
+    members.kind === "success"
+      ? members.data.find((m) => m.user.id === user?.id)?.role
+      : undefined;
+  const canManageMembers = myChannelRole === "OWNER" || myChannelRole === "ADMIN";
+
   async function handleArchive() {
     if (!channelId || !accessToken || !workspaceId) return;
     const name = channel.kind === "success" ? channel.data.name : "this channel";
@@ -370,6 +383,34 @@ export default function ChannelDetailPage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to archive channel";
       setArchiveState({ kind: "error", message });
+    }
+  }
+
+  async function handleAddMember(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = addMemberIdentifier.trim();
+    if (!trimmed) {
+      setAddMemberState({ kind: "error", message: "Username or email is required" });
+      return;
+    }
+    if (!accessToken || !workspaceId || !channelId) return;
+
+    setAddMemberState({ kind: "loading" });
+    try {
+      const newMember = await addChannelMember(accessToken, workspaceId, channelId, {
+        identifier: trimmed,
+      });
+      setAddMemberIdentifier("");
+      setAddMemberState({ kind: "success" });
+      setMembers((prev) => {
+        if (prev.kind !== "success") return prev;
+        if (prev.data.some((m) => m.id === newMember.id)) return prev;
+        return { kind: "success", data: [...prev.data, newMember] };
+      });
+      window.setTimeout(() => setAddMemberState({ kind: "idle" }), 2000);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to add member";
+      setAddMemberState({ kind: "error", message });
     }
   }
 
@@ -458,13 +499,15 @@ export default function ChannelDetailPage() {
             >
               {socketStatus}
             </span>
-            <button
-              onClick={handleArchive}
-              disabled={archiveState.kind === "loading"}
-              className="ml-auto inline-flex items-center justify-center rounded-lg border border-red-300 dark:border-red-800 px-3 py-1.5 text-xs font-medium text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-            >
-              {archiveState.kind === "loading" ? "Archiving…" : "Archive"}
-            </button>
+            {canManageMembers && (
+              <button
+                onClick={handleArchive}
+                disabled={archiveState.kind === "loading"}
+                className="ml-auto inline-flex items-center justify-center rounded-lg border border-red-300 dark:border-red-800 px-3 py-1.5 text-xs font-medium text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+              >
+                {archiveState.kind === "loading" ? "Archiving…" : "Archive"}
+              </button>
+            )}
           </div>
           {archiveState.kind === "error" && (
             <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
@@ -664,6 +707,49 @@ export default function ChannelDetailPage() {
       {/* Members */}
       <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
         <h2 className="text-sm font-semibold">Members</h2>
+
+        {canManageMembers && (
+          <form onSubmit={handleAddMember} className="mt-3 flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="Username or email"
+                value={addMemberIdentifier}
+                onChange={(e) => {
+                  setAddMemberIdentifier(e.target.value);
+                  if (addMemberState.kind === "error") {
+                    setAddMemberState({ kind: "idle" });
+                  }
+                }}
+                disabled={addMemberState.kind === "loading"}
+                className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100 disabled:opacity-60"
+              />
+              <button
+                type="submit"
+                disabled={addMemberState.kind === "loading"}
+                className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
+              >
+                {addMemberState.kind === "loading" ? "Adding…" : "Add"}
+              </button>
+            </div>
+            {addMemberState.kind === "error" && (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-2.5 text-sm dark:border-red-900 dark:bg-red-950/30">
+                <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+                  <span className="h-2 w-2 rounded-full bg-red-500" />
+                  {addMemberState.message}
+                </div>
+              </div>
+            )}
+            {addMemberState.kind === "success" && (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
+                <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                  Member added successfully.
+                </div>
+              </div>
+            )}
+          </form>
+        )}
 
         {members.kind === "loading" && (
           <div className="mt-3 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
