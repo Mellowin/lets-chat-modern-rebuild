@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { getChannels, getChannel, createChannel } from "./channels-api";
+import { getChannels, getChannel, createChannel, addChannelMember } from "./channels-api";
 
 const API_BASE = "http://localhost:3001/api/v1";
 
@@ -69,6 +69,29 @@ describe("channels-api", () => {
       await expect(createChannel("token", "ws1", { name: "x" })).rejects.toThrow(
         "Failed to create channel: 500 Internal Server Error",
       );
+    });
+  });
+
+  describe("addChannelMember", () => {
+    it("sends POST /workspaces/:wsId/channels/:chId/members with body", async () => {
+      const mock = { id: "cm1", channelId: "ch1", role: "MEMBER" as const, joinedAt: "2024-01-01T00:00:00Z", user: { id: "u2", username: "bob" } };
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(mock), { status: 201 }));
+
+      const result = await addChannelMember("token", "ws1", "ch1", { identifier: "bob" });
+
+      expect(fetch).toHaveBeenCalledWith(
+        `${API_BASE}/workspaces/ws1/channels/ch1/members`,
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ identifier: "bob" }),
+        }),
+      );
+      expect(result).toEqual(mock);
+    });
+
+    it("throws with backend error message", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ message: "Already a member" }), { status: 409 }));
+      await expect(addChannelMember("token", "ws1", "ch1", { identifier: "bob" })).rejects.toThrow("Already a member");
     });
   });
 });

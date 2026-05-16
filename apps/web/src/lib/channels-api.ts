@@ -27,6 +27,10 @@ export interface ChannelMember {
   user: { id: string; username: string };
 }
 
+export interface AddChannelMemberInput {
+  identifier: string;
+}
+
 export async function getChannels(
   accessToken: string,
   workspaceId: string,
@@ -117,6 +121,40 @@ export async function getChannelMembers(
   }
 
   return res.json() as Promise<ChannelMember[]>;
+}
+
+export async function addChannelMember(
+  accessToken: string,
+  workspaceId: string,
+  channelId: string,
+  input: AddChannelMemberInput,
+): Promise<ChannelMember> {
+  const res = await fetch(
+    `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/members`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(input),
+    },
+  );
+
+  if (!res.ok) {
+    let message = `Failed to add channel member: ${res.status} ${res.statusText}`;
+    try {
+      const body = await res.json();
+      if (body?.message) message = body.message;
+      else if (body?.error) message = body.error;
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+
+  return res.json() as Promise<ChannelMember>;
 }
 
 export async function archiveChannel(
