@@ -367,6 +367,7 @@ export default function ChannelDetailPage() {
       ? members.data.find((m) => m.user.id === user?.id)?.role
       : undefined;
   const canManageMembers = myChannelRole === "OWNER" || myChannelRole === "ADMIN";
+  const canArchiveChannel = myChannelRole === "OWNER";
 
   async function handleArchive() {
     if (!channelId || !accessToken || !workspaceId) return;
@@ -499,7 +500,7 @@ export default function ChannelDetailPage() {
             >
               {socketStatus}
             </span>
-            {canManageMembers && (
+            {canArchiveChannel && (
               <button
                 onClick={handleArchive}
                 disabled={archiveState.kind === "loading"}

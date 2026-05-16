@@ -527,7 +527,7 @@ describe("ChannelDetailPage — members", () => {
     expect(screen.getByRole("button", { name: /Add/i })).toBeInTheDocument();
   });
 
-  it("shows add member form for ADMIN", async () => {
+  it("shows add member form for ADMIN and hides Archive button", async () => {
     const adminAlice: ChannelMember = {
       id: "cm1",
       channelId: "ch1",
@@ -539,8 +539,10 @@ describe("ChannelDetailPage — members", () => {
     render(<ChannelDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "general" })).toBeInTheDocument();
     });
+    expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Archive/i })).not.toBeInTheDocument();
   });
 
   it("hides add member form for MEMBER", async () => {
@@ -553,7 +555,7 @@ describe("ChannelDetailPage — members", () => {
     expect(screen.queryByPlaceholderText(/Username or email/i)).not.toBeInTheDocument();
   });
 
-  it("hides archive button for MEMBER", async () => {
+  it("MEMBER sees neither Archive nor Add member form", async () => {
     mockChannelAndMessages([], [regularMember]);
     render(<ChannelDetailPage />);
 
@@ -561,6 +563,7 @@ describe("ChannelDetailPage — members", () => {
       expect(screen.getByRole("heading", { name: "general" })).toBeInTheDocument();
     });
     expect(screen.queryByRole("button", { name: /Archive/i })).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/Username or email/i)).not.toBeInTheDocument();
   });
 
   it("shows archive button for OWNER", async () => {
