@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@lets-chat/database';
 import { WorkspacesRepository } from './workspaces.repository';
+import { UsersRepository } from '../users/users.repository';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { slugify } from '../common/transliterate';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
@@ -19,6 +20,7 @@ import { AuditAction, AuditEntityType } from '../audit/audit.constants';
 export class WorkspacesService {
   constructor(
     private readonly workspaces: WorkspacesRepository,
+    private readonly users: UsersRepository,
     private readonly audit: AuditService,
   ) {}
 
@@ -335,5 +337,88 @@ export class WorkspacesService {
         username: member.user.username,
       },
     }));
+  }
+
+  async addMember(
+    workspaceId: string,
+    userId: string,
+    dto: { identifier: string; role?: string },
+  ) {
+    const workspace = await this.workspaces.findActiveById(workspaceId);
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const requesterRole = await this.workspaces.findMemberRole(workspaceId, userId);
+    if (!requesterRole) {
+      throw new NotFoundException('Workspace not found');
+    }
+    if (requesterRole !== 'OWNER' && requesterRole !== 'ADMIN') {
+      throw new ForbiddenException('Insufficient permissions');
+    }
+
+    const role = (dto.role as 'MEMBER' | 'ADMIN' | 'OWNER') ?? 'MEMBER';
+    if (role === 'OWNER') {
+      throw new BadRequestException('Cannot assign OWNER role');
+    }
+    if (role !== 'MEMBER' && role !== 'ADMIN') {
+      throw new BadRequestException('Invalid role');
+    }
+
+    const identifier = dto.identifier.trim();
+    let targetUser = await this.users.findByUsername(identifier);
+    if (!targetUser) {
+      targetUser = await this.users.findByEmail(identifier);
+    }
+    if (!targetUser) {
+      throw new NotFoundException('User not found');
+    }
+
+    const existingMember = await this.workspaces.findActiveMemberByUserId(
+      workspaceId,
+      targetUser.id,
+    );
+    if (existingMember) {
+      throw new ConflictException('User is already a member');
+    }
+
+    try {
+      const member = await this.workspaces.createMember({
+        workspaceId,
+        userId: targetUser.id,
+        role,
+      });
+
+      await this.audit.record({
+        actorId: userId,
+        action: AuditAction.WORKSPACE_MEMBER_ADDED,
+        entityType: AuditEntityType.WORKSPACE_MEMBER,
+        entityId: member.id,
+        workspaceId,
+        metadata: {
+          targetUserId: targetUser.id,
+          role: member.role,
+        },
+      });
+
+      return {
+        id: member.id,
+        workspaceId: member.workspaceId,
+        role: member.role,
+        joinedAt: member.createdAt,
+        user: {
+          id: member.user.id,
+          username: member.user.username,
+        },
+      };
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('User is already a member');
+      }
+      throw error;
+    }
   }
 }

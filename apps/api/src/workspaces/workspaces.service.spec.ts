@@ -3,12 +3,14 @@ import { BadRequestException, ConflictException, ForbiddenException, NotFoundExc
 import { Prisma } from '@lets-chat/database';
 import { WorkspacesService } from './workspaces.service';
 import { WorkspacesRepository } from './workspaces.repository';
+import { UsersRepository } from '../users/users.repository';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction, AuditEntityType } from '../audit/audit.constants';
 
 describe('WorkspacesService', () => {
   let service: WorkspacesService;
   let workspacesRepository: jest.Mocked<WorkspacesRepository>;
+  let usersRepository: jest.Mocked<UsersRepository>;
   let auditService: jest.Mocked<AuditService>;
 
   const userId = '11111111-1111-1111-1111-111111111111';
@@ -26,9 +28,19 @@ describe('WorkspacesService', () => {
             listActiveMembers: jest.fn(),
             findActiveMemberById: jest.fn(),
             findActiveMemberByUserId: jest.fn(),
+            createMember: jest.fn(),
             updateMemberRole: jest.fn(),
             softDeleteMember: jest.fn(),
             transferOwnership: jest.fn(),
+          },
+        },
+        {
+          provide: UsersRepository,
+          useValue: {
+            findById: jest.fn(),
+            findByEmail: jest.fn(),
+            findByUsername: jest.fn(),
+            createUser: jest.fn(),
           },
         },
         {
@@ -43,6 +55,7 @@ describe('WorkspacesService', () => {
 
     service = moduleRef.get(WorkspacesService);
     workspacesRepository = moduleRef.get(WorkspacesRepository);
+    usersRepository = moduleRef.get(UsersRepository);
     auditService = moduleRef.get(AuditService);
   });
 
@@ -53,6 +66,217 @@ describe('WorkspacesService', () => {
   const expectAuditNotCalled = () => {
     expect(auditService.record).not.toHaveBeenCalled();
   };
+
+  describe('addMember', () => {
+    const targetUserId = '44444444-4444-4444-4444-444444444444';
+    const memberId = '55555555-5555-5555-5555-555555555555';
+
+    it('should allow OWNER to add existing user by username', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      usersRepository.findByUsername.mockResolvedValue({ id: targetUserId, username: 'alice' } as any);
+      usersRepository.findByEmail.mockResolvedValue(null as any);
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue(null as any);
+      workspacesRepository.createMember.mockResolvedValue({
+        id: memberId,
+        workspaceId,
+        role: 'MEMBER',
+        createdAt: new Date('2026-01-01'),
+        user: { id: targetUserId, username: 'alice' },
+      } as any);
+
+      const result = await service.addMember(workspaceId, userId, { identifier: 'alice' });
+
+      expect(result.role).toBe('MEMBER');
+      expect(result.user.username).toBe('alice');
+      expect(auditService.record).toHaveBeenCalledWith({
+        actorId: userId,
+        action: AuditAction.WORKSPACE_MEMBER_ADDED,
+        entityType: AuditEntityType.WORKSPACE_MEMBER,
+        entityId: memberId,
+        workspaceId,
+        metadata: {
+          targetUserId,
+          role: 'MEMBER',
+        },
+      });
+    });
+
+    it('should allow ADMIN to add existing user', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('ADMIN');
+      usersRepository.findByUsername.mockResolvedValue({ id: targetUserId, username: 'bob' } as any);
+      usersRepository.findByEmail.mockResolvedValue(null as any);
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue(null as any);
+      workspacesRepository.createMember.mockResolvedValue({
+        id: memberId,
+        workspaceId,
+        role: 'MEMBER',
+        createdAt: new Date('2026-01-01'),
+        user: { id: targetUserId, username: 'bob' },
+      } as any);
+
+      const result = await service.addMember(workspaceId, userId, { identifier: 'bob' });
+
+      expect(result.role).toBe('MEMBER');
+      expect(result.user.username).toBe('bob');
+    });
+
+    it('should reject MEMBER requester', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+
+      await expect(
+        service.addMember(workspaceId, userId, { identifier: 'alice' }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expectAuditNotCalled();
+    });
+
+    it('should reject non-member requester', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue(null);
+
+      await expect(
+        service.addMember(workspaceId, userId, { identifier: 'alice' }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expectAuditNotCalled();
+    });
+
+    it('should reject inactive workspace', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue(null);
+
+      await expect(
+        service.addMember(workspaceId, userId, { identifier: 'alice' }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expectAuditNotCalled();
+    });
+
+    it('should reject OWNER role', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+
+      await expect(
+        service.addMember(workspaceId, userId, { identifier: 'alice', role: 'OWNER' }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expectAuditNotCalled();
+    });
+
+    it('should default role to MEMBER', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      usersRepository.findByUsername.mockResolvedValue({ id: targetUserId, username: 'alice' } as any);
+      usersRepository.findByEmail.mockResolvedValue(null as any);
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue(null as any);
+      workspacesRepository.createMember.mockResolvedValue({
+        id: memberId,
+        workspaceId,
+        role: 'MEMBER',
+        createdAt: new Date('2026-01-01'),
+        user: { id: targetUserId, username: 'alice' },
+      } as any);
+
+      const result = await service.addMember(workspaceId, userId, { identifier: 'alice' });
+
+      expect(result.role).toBe('MEMBER');
+    });
+
+    it('should allow adding with ADMIN role', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      usersRepository.findByUsername.mockResolvedValue({ id: targetUserId, username: 'alice' } as any);
+      usersRepository.findByEmail.mockResolvedValue(null as any);
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue(null as any);
+      workspacesRepository.createMember.mockResolvedValue({
+        id: memberId,
+        workspaceId,
+        role: 'ADMIN',
+        createdAt: new Date('2026-01-01'),
+        user: { id: targetUserId, username: 'alice' },
+      } as any);
+
+      const result = await service.addMember(workspaceId, userId, { identifier: 'alice', role: 'ADMIN' });
+
+      expect(result.role).toBe('ADMIN');
+    });
+
+    it('should reject invalid role', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+
+      await expect(
+        service.addMember(workspaceId, userId, { identifier: 'alice', role: 'GOD' as any }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expectAuditNotCalled();
+    });
+
+    it('should return 404 when user not found', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      usersRepository.findByUsername.mockResolvedValue(null as any);
+      usersRepository.findByEmail.mockResolvedValue(null as any);
+
+      await expect(
+        service.addMember(workspaceId, userId, { identifier: 'unknown' }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expectAuditNotCalled();
+    });
+
+    it('should return 409 when user is already active member', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      usersRepository.findByUsername.mockResolvedValue({ id: targetUserId, username: 'alice' } as any);
+      usersRepository.findByEmail.mockResolvedValue(null as any);
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
+        id: 'existing-member-id',
+        workspaceId,
+        role: 'MEMBER',
+        userId: targetUserId,
+      } as any);
+
+      await expect(
+        service.addMember(workspaceId, userId, { identifier: 'alice' }),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expectAuditNotCalled();
+    });
+
+    it('should map Prisma P2002 to ConflictException', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      usersRepository.findByUsername.mockResolvedValue({ id: targetUserId, username: 'alice' } as any);
+      usersRepository.findByEmail.mockResolvedValue(null as any);
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue(null as any);
+      const prismaError = new Prisma.PrismaClientKnownRequestError(
+        'Unique constraint failed',
+        { code: 'P2002', clientVersion: '5.22.0' },
+      );
+      workspacesRepository.createMember.mockRejectedValue(prismaError);
+
+      await expect(
+        service.addMember(workspaceId, userId, { identifier: 'alice' }),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expectAuditNotCalled();
+    });
+
+    it('should find user by email when username lookup fails', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      usersRepository.findByUsername.mockResolvedValue(null as any);
+      usersRepository.findByEmail.mockResolvedValue({ id: targetUserId, username: 'alice', email: 'alice@example.com' } as any);
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue(null as any);
+      workspacesRepository.createMember.mockResolvedValue({
+        id: memberId,
+        workspaceId,
+        role: 'MEMBER',
+        createdAt: new Date('2026-01-01'),
+        user: { id: targetUserId, username: 'alice' },
+      } as any);
+
+      const result = await service.addMember(workspaceId, userId, { identifier: 'alice@example.com' });
+
+      expect(result.user.username).toBe('alice');
+      expect(usersRepository.findByEmail).toHaveBeenCalledWith('alice@example.com');
+    });
+  });
 
   describe('transferOwnership', () => {
     const memberId = '33333333-3333-3333-3333-333333333333';

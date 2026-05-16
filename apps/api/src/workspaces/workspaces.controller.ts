@@ -27,6 +27,7 @@ import { WorkspacesService } from './workspaces.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
+import { AddMemberDto } from './dto/add-member.dto';
 import { TransferOwnershipDto } from './dto/transfer-ownership.dto';
 import { ListAuditLogsQueryDto } from '../audit/dto/list-audit-logs-query.dto';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
@@ -112,6 +113,22 @@ export class WorkspacesController {
     @CurrentUser() user: AuthUserResponse,
   ) {
     return this.workspaces.listMembers(workspaceId, user.id);
+  }
+
+  @Post(':workspaceId/members')
+  @ApiOperation({ summary: 'Add workspace member' })
+  @ApiCreatedResponse({ description: 'Member added' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiForbiddenResponse({ description: 'Forbidden' })
+  @ApiNotFoundResponse({ description: 'Workspace or user not found' })
+  @ApiConflictResponse({ description: 'Already a member' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async addMember(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Body() dto: AddMemberDto,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.workspaces.addMember(workspaceId, user.id, dto);
   }
 
   @Patch(':workspaceId/members/:memberId/role')

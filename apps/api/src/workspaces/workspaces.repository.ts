@@ -180,6 +180,24 @@ export class WorkspacesRepository {
     return result.count;
   }
 
+  async createMember(data: {
+    workspaceId: string;
+    userId: string;
+    role: WorkspaceRole;
+  }) {
+    return this.prisma.workspaceMember.create({
+      data,
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+      },
+    });
+  }
+
   async transferOwnership(data: {
     workspaceId: string;
     currentOwnerMemberId: string;

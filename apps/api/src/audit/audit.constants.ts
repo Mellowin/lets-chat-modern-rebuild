@@ -1,4 +1,5 @@
 export const AuditAction = {
+  WORKSPACE_MEMBER_ADDED: 'workspace.member.added',
   WORKSPACE_MEMBER_ROLE_UPDATED: 'workspace.member.role_updated',
   WORKSPACE_MEMBER_REMOVED: 'workspace.member.removed',
   WORKSPACE_INVITE_CREATED: 'workspace.invite.created',
