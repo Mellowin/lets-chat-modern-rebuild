@@ -28,7 +28,7 @@ type MembersState =
 export default function WorkspaceDetailPage() {
   const params = useParams();
   const workspaceId = typeof params.workspaceId === "string" ? params.workspaceId : "";
-  const { accessToken, isLoading: authLoading, isAuthenticated } = useAuth();
+  const { accessToken, isLoading: authLoading, isAuthenticated, user } = useAuth();
   const [detail, setDetail] = useState<DetailState>({ kind: "idle" });
   const [channels, setChannels] = useState<ChannelsState>({ kind: "idle" });
   const [members, setMembers] = useState<MembersState>({ kind: "idle" });
@@ -426,39 +426,49 @@ export default function WorkspaceDetailPage() {
           </ul>
         )}
 
-        <form onSubmit={handleAddMember} className="mt-4 flex items-center gap-2">
-          <input
-            type="text"
-            placeholder="Username or email"
-            value={memberIdentifier}
-            onChange={(e) => setMemberIdentifier(e.target.value)}
-            className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
-          />
-          <button
-            type="submit"
-            disabled={addMemberState.kind === "loading"}
-            className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
-          >
-            {addMemberState.kind === "loading" ? "Adding…" : "Add member"}
-          </button>
-        </form>
+        {members.kind === "success" && (
+          (() => {
+            const myRole = members.data.find((m) => m.user.id === user?.id)?.role;
+            const canManageMembers = myRole === "OWNER" || myRole === "ADMIN";
+            return canManageMembers ? (
+              <>
+                <form onSubmit={handleAddMember} className="mt-4 flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="Username or email"
+                    value={memberIdentifier}
+                    onChange={(e) => setMemberIdentifier(e.target.value)}
+                    className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
+                  />
+                  <button
+                    type="submit"
+                    disabled={addMemberState.kind === "loading"}
+                    className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
+                  >
+                    {addMemberState.kind === "loading" ? "Adding…" : "Add member"}
+                  </button>
+                </form>
 
-        {addMemberState.kind === "success" && (
-          <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
-            <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              {addMemberState.message}
-            </div>
-          </div>
-        )}
+                {addMemberState.kind === "success" && (
+                  <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
+                    <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                      {addMemberState.message}
+                    </div>
+                  </div>
+                )}
 
-        {addMemberState.kind === "error" && (
-          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-              <span className="h-2 w-2 rounded-full bg-red-500" />
-              {addMemberState.message}
-            </div>
-          </div>
+                {addMemberState.kind === "error" && (
+                  <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
+                    <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+                      <span className="h-2 w-2 rounded-full bg-red-500" />
+                      {addMemberState.message}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : null;
+          })()
         )}
       </div>
     </div>
