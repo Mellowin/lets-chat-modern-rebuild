@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { getChannel, archiveChannel, type Channel } from "@/lib/channels-api";
+import { getChannel, getChannelMembers, archiveChannel, type Channel, type ChannelMember } from "@/lib/channels-api";
 
 import { getMessages, createMessage, updateMessage, deleteMessage, type Message, type CreateMessageInput, type UpdateMessageInput } from "@/lib/messages-api";
 import { createSocket } from "@/lib/socket-client";
@@ -22,6 +22,12 @@ type MessagesState =
   | { kind: "success"; data: Message[] }
   | { kind: "error"; message: string };
 
+type MembersState =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "success"; data: ChannelMember[] }
+  | { kind: "error"; message: string };
+
 export default function ChannelDetailPage() {
   const params = useParams();
   const workspaceId =
@@ -32,6 +38,7 @@ export default function ChannelDetailPage() {
   const router = useRouter();
   const [channel, setChannel] = useState<ChannelState>({ kind: "idle" });
   const [messages, setMessages] = useState<MessagesState>({ kind: "idle" });
+  const [members, setMembers] = useState<MembersState>({ kind: "idle" });
   const [content, setContent] = useState("");
   const [sendState, setSendState] = useState<
     { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string }
@@ -77,6 +84,31 @@ export default function ChannelDetailPage() {
       }
     }
     load(accessToken, workspaceId, channelId);
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, workspaceId, channelId, accessToken]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !workspaceId || !channelId || !accessToken) return;
+
+    let cancelled = false;
+    async function loadMembers(t: string, ws: string, ch: string) {
+      setMembers({ kind: "loading" });
+      try {
+        const memData = await getChannelMembers(t, ws, ch);
+        if (!cancelled) {
+          setMembers({ kind: "success", data: memData });
+        }
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to load members";
+        if (!cancelled) {
+          setMembers({ kind: "error", message });
+        }
+      }
+    }
+    loadMembers(accessToken, workspaceId, channelId);
     return () => {
       cancelled = true;
     };
@@ -623,6 +655,54 @@ export default function ChannelDetailPage() {
                     </p>
                   )}
                 </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* Members */}
+      <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
+        <h2 className="text-sm font-semibold">Members</h2>
+
+        {members.kind === "loading" && (
+          <div className="mt-3 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
+            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
+            Loading members…
+          </div>
+        )}
+
+        {members.kind === "error" && (
+          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
+            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+              <span className="h-2 w-2 rounded-full bg-red-500" />
+              {members.message}
+            </div>
+          </div>
+        )}
+
+        {members.kind === "success" && members.data.length === 0 && (
+          <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
+            No members yet.
+          </p>
+        )}
+
+        {members.kind === "success" && members.data.length > 0 && (
+          <ul className="mt-3 divide-y divide-zinc-200 dark:divide-zinc-800">
+            {members.data.map((m) => (
+              <li key={m.id} className="flex items-center justify-between py-2">
+                <span className="text-sm font-medium">{m.user.username}</span>
+                <span
+                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
+                    m.role === "OWNER"
+                      ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400"
+                      : m.role === "ADMIN"
+                        ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400"
+                        : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400"
+                  }`}
+                >
+                  {m.role}
+                </span>
               </li>
             ))}
           </ul>
