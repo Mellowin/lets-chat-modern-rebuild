@@ -52,31 +52,50 @@ export default function WorkspaceDetailPage() {
     if (!accessToken) return;
 
     let cancelled = false;
-    async function load(t: string, id: string) {
+    async function loadPrimary(t: string, id: string) {
       setDetail({ kind: "loading" });
       setChannels({ kind: "loading" });
-      setMembers({ kind: "loading" });
       try {
-        const [wsData, chData, memData] = await Promise.all([
+        const [wsData, chData] = await Promise.all([
           getWorkspace(t, id),
           getChannels(t, id),
-          getWorkspaceMembers(t, id),
         ]);
         if (!cancelled) {
           setDetail({ kind: "success", data: wsData });
           setChannels({ kind: "success", data: chData });
-          setMembers({ kind: "success", data: memData });
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to load workspace";
         if (!cancelled) {
           setDetail({ kind: "error", message });
           setChannels({ kind: "error", message });
+        }
+      }
+    }
+    loadPrimary(accessToken, workspaceId);
+    return () => { cancelled = true; };
+  }, [isAuthenticated, accessToken, workspaceId]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !workspaceId) return;
+    if (!accessToken) return;
+
+    let cancelled = false;
+    async function loadMembers(t: string, id: string) {
+      setMembers({ kind: "loading" });
+      try {
+        const memData = await getWorkspaceMembers(t, id);
+        if (!cancelled) {
+          setMembers({ kind: "success", data: memData });
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed to load members";
+        if (!cancelled) {
           setMembers({ kind: "error", message });
         }
       }
     }
-    load(accessToken, workspaceId);
+    loadMembers(accessToken, workspaceId);
     return () => { cancelled = true; };
   }, [isAuthenticated, accessToken, workspaceId]);
 
@@ -141,11 +160,26 @@ export default function WorkspaceDetailPage() {
 
     setAddMemberState({ kind: "loading" });
     try {
-      await addWorkspaceMember(accessToken, workspaceId, { identifier: trimmed, role: "MEMBER" });
+      const newMember = await addWorkspaceMember(accessToken, workspaceId, { identifier: trimmed, role: "MEMBER" });
       setMemberIdentifier("");
       setAddMemberState({ kind: "success", message: "Member added" });
-      const refreshed = await getWorkspaceMembers(accessToken, workspaceId);
-      setMembers({ kind: "success", data: refreshed });
+      setMembers((prev) => {
+        if (prev.kind !== "success") return prev;
+        const existingIndex = prev.data.findIndex((m) => m.id === newMember.id);
+        if (existingIndex >= 0) {
+          const next = [...prev.data];
+          next[existingIndex] = newMember;
+          return { kind: "success", data: next };
+        }
+        return { kind: "success", data: [...prev.data, newMember] };
+      });
+      // background refresh in case server state differs
+      try {
+        const refreshed = await getWorkspaceMembers(accessToken, workspaceId);
+        setMembers({ kind: "success", data: refreshed });
+      } catch {
+        // ignore refresh failure; local state already updated
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to add member";
       setAddMemberState({ kind: "error", message });
