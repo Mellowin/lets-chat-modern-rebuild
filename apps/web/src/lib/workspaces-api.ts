@@ -16,6 +16,19 @@ export interface CreateWorkspaceInput {
   slug?: string;
 }
 
+export interface WorkspaceMember {
+  id: string;
+  workspaceId: string;
+  role: "OWNER" | "ADMIN" | "MEMBER";
+  joinedAt: string;
+  user: { id: string; username: string };
+}
+
+export interface AddWorkspaceMemberInput {
+  identifier: string;
+  role?: "MEMBER" | "ADMIN";
+}
+
 async function parseErrorMessage(res: Response, fallback: string): Promise<string> {
   let message = fallback;
   try {
@@ -115,4 +128,51 @@ export async function createWorkspace(
   }
 
   return res.json() as Promise<Workspace>;
+}
+
+export async function getWorkspaceMembers(
+  accessToken: string,
+  workspaceId: string,
+): Promise<WorkspaceMember[]> {
+  const res = await fetch(
+    `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/members`,
+    {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to load members: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<WorkspaceMember[]>;
+}
+
+export async function addWorkspaceMember(
+  accessToken: string,
+  workspaceId: string,
+  input: AddWorkspaceMemberInput,
+): Promise<WorkspaceMember> {
+  const res = await fetch(
+    `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/members`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(input),
+    },
+  );
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to add member: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<WorkspaceMember>;
 }

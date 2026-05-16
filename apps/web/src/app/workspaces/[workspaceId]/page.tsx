@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { getWorkspace, type Workspace } from "@/lib/workspaces-api";
+import { getWorkspace, getWorkspaceMembers, addWorkspaceMember, type Workspace, type WorkspaceMember } from "@/lib/workspaces-api";
 import { getChannels, createChannel, archiveChannel, type Channel, type CreateChannelInput } from "@/lib/channels-api";
 
 type DetailState =
@@ -19,12 +19,26 @@ type ChannelsState =
   | { kind: "success"; data: Channel[] }
   | { kind: "error"; message: string };
 
+type MembersState =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "success"; data: WorkspaceMember[] }
+  | { kind: "error"; message: string };
+
 export default function WorkspaceDetailPage() {
   const params = useParams();
   const workspaceId = typeof params.workspaceId === "string" ? params.workspaceId : "";
   const { accessToken, isLoading: authLoading, isAuthenticated } = useAuth();
   const [detail, setDetail] = useState<DetailState>({ kind: "idle" });
   const [channels, setChannels] = useState<ChannelsState>({ kind: "idle" });
+  const [members, setMembers] = useState<MembersState>({ kind: "idle" });
+  const [memberIdentifier, setMemberIdentifier] = useState("");
+  const [addMemberState, setAddMemberState] = useState<
+    | { kind: "idle" }
+    | { kind: "loading" }
+    | { kind: "success"; message: string }
+    | { kind: "error"; message: string }
+  >({ kind: "idle" });
   const [channelName, setChannelName] = useState("");
   const [channelDescription, setChannelDescription] = useState("");
   const [channelType, setChannelType] = useState<"PUBLIC" | "PRIVATE">("PUBLIC");
@@ -41,20 +55,24 @@ export default function WorkspaceDetailPage() {
     async function load(t: string, id: string) {
       setDetail({ kind: "loading" });
       setChannels({ kind: "loading" });
+      setMembers({ kind: "loading" });
       try {
-        const [wsData, chData] = await Promise.all([
+        const [wsData, chData, memData] = await Promise.all([
           getWorkspace(t, id),
           getChannels(t, id),
+          getWorkspaceMembers(t, id),
         ]);
         if (!cancelled) {
           setDetail({ kind: "success", data: wsData });
           setChannels({ kind: "success", data: chData });
+          setMembers({ kind: "success", data: memData });
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to load workspace";
         if (!cancelled) {
           setDetail({ kind: "error", message });
           setChannels({ kind: "error", message });
+          setMembers({ kind: "error", message });
         }
       }
     }
@@ -109,6 +127,28 @@ export default function WorkspaceDetailPage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to archive channel";
       setArchiveError(message);
+    }
+  }
+
+  async function handleAddMember(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = memberIdentifier.trim();
+    if (!trimmed) {
+      setAddMemberState({ kind: "error", message: "Enter a username or email" });
+      return;
+    }
+    if (!accessToken || !workspaceId) return;
+
+    setAddMemberState({ kind: "loading" });
+    try {
+      await addWorkspaceMember(accessToken, workspaceId, { identifier: trimmed, role: "MEMBER" });
+      setMemberIdentifier("");
+      setAddMemberState({ kind: "success", message: "Member added" });
+      const refreshed = await getWorkspaceMembers(accessToken, workspaceId);
+      setMembers({ kind: "success", data: refreshed });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to add member";
+      setAddMemberState({ kind: "error", message });
     }
   }
 
@@ -302,6 +342,89 @@ export default function WorkspaceDetailPage() {
               </li>
             ))}
           </ul>
+        )}
+      </div>
+
+      {/* Members */}
+      <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
+        <h2 className="text-sm font-semibold">Members</h2>
+
+        {members.kind === "loading" && (
+          <div className="mt-3 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
+            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
+            Loading members…
+          </div>
+        )}
+
+        {members.kind === "error" && (
+          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
+            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+              <span className="h-2 w-2 rounded-full bg-red-500" />
+              {members.message}
+            </div>
+          </div>
+        )}
+
+        {members.kind === "success" && members.data.length === 0 && (
+          <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
+            No members yet.
+          </p>
+        )}
+
+        {members.kind === "success" && members.data.length > 0 && (
+          <ul className="mt-3 divide-y divide-zinc-200 dark:divide-zinc-800">
+            {members.data.map((m) => (
+              <li key={m.id} className="flex items-center justify-between py-2">
+                <span className="text-sm font-medium">{m.user.username}</span>
+                <span
+                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
+                    m.role === "OWNER"
+                      ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400"
+                      : m.role === "ADMIN"
+                        ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400"
+                        : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400"
+                  }`}
+                >
+                  {m.role}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <form onSubmit={handleAddMember} className="mt-4 flex items-center gap-2">
+          <input
+            type="text"
+            placeholder="Username or email"
+            value={memberIdentifier}
+            onChange={(e) => setMemberIdentifier(e.target.value)}
+            className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
+          />
+          <button
+            type="submit"
+            disabled={addMemberState.kind === "loading"}
+            className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
+          >
+            {addMemberState.kind === "loading" ? "Adding…" : "Add member"}
+          </button>
+        </form>
+
+        {addMemberState.kind === "success" && (
+          <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
+            <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              {addMemberState.message}
+            </div>
+          </div>
+        )}
+
+        {addMemberState.kind === "error" && (
+          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
+            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+              <span className="h-2 w-2 rounded-full bg-red-500" />
+              {addMemberState.message}
+            </div>
+          </div>
         )}
       </div>
     </div>
