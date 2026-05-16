@@ -19,6 +19,14 @@ export interface CreateChannelInput {
   type?: "PUBLIC" | "PRIVATE";
 }
 
+export interface ChannelMember {
+  id: string;
+  channelId: string;
+  role: "OWNER" | "ADMIN" | "MEMBER";
+  joinedAt: string;
+  user: { id: string; username: string };
+}
+
 export async function getChannels(
   accessToken: string,
   workspaceId: string,
@@ -78,6 +86,37 @@ export async function getChannel(
   }
 
   return res.json() as Promise<Channel>;
+}
+
+export async function getChannelMembers(
+  accessToken: string,
+  workspaceId: string,
+  channelId: string,
+): Promise<ChannelMember[]> {
+  const res = await fetch(
+    `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/members`,
+    {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
+
+  if (!res.ok) {
+    let message = `Failed to load channel members: ${res.status} ${res.statusText}`;
+    try {
+      const body = await res.json();
+      if (body?.message) message = body.message;
+      else if (body?.error) message = body.error;
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+
+  return res.json() as Promise<ChannelMember[]>;
 }
 
 export async function archiveChannel(
