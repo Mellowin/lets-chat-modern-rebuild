@@ -160,4 +160,29 @@ export class ChannelsRepository {
       data: { deletedAt: new Date() },
     });
   }
+
+  async findActiveChannelMemberById(channelId: string, memberId: string) {
+    return this.prisma.channelMember.findFirst({
+      where: {
+        id: memberId,
+        channelId,
+        deletedAt: null,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
+      },
+    });
+  }
+
+  async softDeleteChannelMember(memberId: string) {
+    return this.prisma.channelMember.update({
+      where: { id: memberId },
+      data: { deletedAt: new Date() },
+    });
+  }
 }

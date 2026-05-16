@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   HttpCode,
@@ -119,6 +120,22 @@ export class ChannelsController {
     @CurrentUser() user: AuthUserResponse,
   ) {
     return this.channels.addChannelMember(workspaceId, channelId, user.id, dto);
+  }
+
+  @Delete(':channelId/members/:memberId')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Remove channel member' })
+  @ApiOkResponse({ description: 'Member removed' })
+  @ApiForbiddenResponse({ description: 'Forbidden' })
+  @ApiNotFoundResponse({ description: 'Not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async removeMember(
+    @Param('workspaceId') workspaceId: string,
+    @Param('channelId') channelId: string,
+    @Param('memberId') memberId: string,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.channels.removeChannelMember(workspaceId, channelId, memberId, user.id);
   }
 
   @Post(':channelId/archive')

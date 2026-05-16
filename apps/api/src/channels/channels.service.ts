@@ -254,6 +254,54 @@ export class ChannelsService {
     }
   }
 
+  async removeChannelMember(
+    workspaceId: string,
+    channelId: string,
+    memberId: string,
+    userId: string,
+  ) {
+    const wsRole = await this.workspaces.findMemberRole(workspaceId, userId);
+    if (!wsRole) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const channel = await this.channels.findActiveById(channelId);
+    if (!channel || channel.workspaceId !== workspaceId) {
+      throw new NotFoundException('Channel not found');
+    }
+
+    const requesterChRole = await this.channels.findChannelMemberRole(
+      channelId,
+      userId,
+    );
+    if (!requesterChRole) {
+      if (channel.type === 'PUBLIC') {
+        throw new ForbiddenException('Insufficient permissions');
+      }
+      throw new NotFoundException('Channel not found');
+    }
+    if (requesterChRole !== 'OWNER' && requesterChRole !== 'ADMIN') {
+      throw new ForbiddenException('Insufficient permissions');
+    }
+
+    const targetMember =
+      await this.channels.findActiveChannelMemberById(channelId, memberId);
+    if (!targetMember) {
+      throw new NotFoundException('Member not found');
+    }
+
+    if (targetMember.role === 'OWNER') {
+      throw new ForbiddenException('Cannot remove channel owner');
+    }
+
+    if (requesterChRole === 'ADMIN' && targetMember.role !== 'MEMBER') {
+      throw new ForbiddenException('Insufficient permissions');
+    }
+
+    await this.channels.softDeleteChannelMember(targetMember.id);
+    return { success: true };
+  }
+
   async archive(workspaceId: string, channelId: string, userId: string) {
     const wsRole = await this.workspaces.findMemberRole(workspaceId, userId);
     if (!wsRole) {
