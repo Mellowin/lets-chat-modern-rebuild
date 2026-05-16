@@ -357,12 +357,14 @@ export default function WorkspaceDetailPage() {
                       {ch.description}
                     </span>
                   )}
-                  <button
-                    onClick={(e) => handleArchiveChannel(e, ch.id, ch.name)}
-                    className="text-[10px] text-red-600 dark:text-red-400 hover:underline"
-                  >
-                    Archive
-                  </button>
+                  {ch.createdById === user?.id && (
+                    <button
+                      onClick={(e) => handleArchiveChannel(e, ch.id, ch.name)}
+                      className="text-[10px] text-red-600 dark:text-red-400 hover:underline"
+                    >
+                      Archive
+                    </button>
+                  )}
                   <span
                     className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
                       ch.type === "PUBLIC"
