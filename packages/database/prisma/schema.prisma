@@ -106,6 +106,8 @@ model WorkspaceMember {
   user      User      @relation(fields: [userId], references: [id])
 
   @@index([workspaceId, userId])
+  // Partial unique index for active members is created via raw SQL migration:
+  // CREATE UNIQUE INDEX idx_workspace_member_active ON "WorkspaceMember" ("workspaceId", "userId") WHERE "deletedAt" IS NULL
   @@index([workspaceId, role])
 }
 
@@ -148,6 +150,8 @@ model ChannelMember {
   user    User    @relation(fields: [userId], references: [id])
 
   @@index([channelId, userId])
+  // Partial unique index for active members is created via raw SQL migration:
+  // CREATE UNIQUE INDEX idx_channel_member_active ON "ChannelMember" ("channelId", "userId") WHERE "deletedAt" IS NULL
   @@index([channelId, role])
 }
 
