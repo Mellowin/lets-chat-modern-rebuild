@@ -164,7 +164,7 @@ export default function WorkspaceDetailPage() {
       setMemberIdentifier("");
       setAddMemberState({ kind: "success", message: "Member added" });
       setMembers((prev) => {
-        if (prev.kind !== "success") return prev;
+        if (prev.kind !== "success") return { kind: "success", data: [newMember] };
         const existingIndex = prev.data.findIndex((m) => m.id === newMember.id);
         if (existingIndex >= 0) {
           const next = [...prev.data];
