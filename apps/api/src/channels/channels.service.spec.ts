@@ -619,15 +619,12 @@ describe('ChannelsService', () => {
         userId: targetUserId,
         user: { id: targetUserId, username: 'bob' },
       } as any);
-      channelsRepository.softDeleteChannelMember.mockResolvedValue({
-        id: targetMemberId,
-        deletedAt: new Date(),
-      } as any);
+      channelsRepository.softDeleteChannelMember.mockResolvedValue(1);
 
       const result = await service.removeChannelMember(workspaceId, channelId, targetMemberId, userId);
 
       expect(result.success).toBe(true);
-      expect(channelsRepository.softDeleteChannelMember).toHaveBeenCalledWith(targetMemberId);
+      expect(channelsRepository.softDeleteChannelMember).toHaveBeenCalledWith(channelId, targetMemberId);
     });
 
     it('OWNER can remove ADMIN', async () => {
@@ -645,10 +642,7 @@ describe('ChannelsService', () => {
         userId: targetUserId,
         user: { id: targetUserId, username: 'bob' },
       } as any);
-      channelsRepository.softDeleteChannelMember.mockResolvedValue({
-        id: targetMemberId,
-        deletedAt: new Date(),
-      } as any);
+      channelsRepository.softDeleteChannelMember.mockResolvedValue(1);
 
       const result = await service.removeChannelMember(workspaceId, channelId, targetMemberId, userId);
 
@@ -670,10 +664,7 @@ describe('ChannelsService', () => {
         userId: targetUserId,
         user: { id: targetUserId, username: 'bob' },
       } as any);
-      channelsRepository.softDeleteChannelMember.mockResolvedValue({
-        id: targetMemberId,
-        deletedAt: new Date(),
-      } as any);
+      channelsRepository.softDeleteChannelMember.mockResolvedValue(1);
 
       const result = await service.removeChannelMember(workspaceId, channelId, targetMemberId, userId);
 
@@ -801,7 +792,7 @@ describe('ChannelsService', () => {
       expect(channelsRepository.softDeleteChannelMember).not.toHaveBeenCalled();
     });
 
-    it('Second remove attempt -> 404', async () => {
+    it('Second remove attempt -> 404 via active check', async () => {
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       channelsRepository.findActiveById.mockResolvedValue({
         id: channelId,
@@ -814,6 +805,29 @@ describe('ChannelsService', () => {
       await expect(
         service.removeChannelMember(workspaceId, channelId, targetMemberId, userId),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('returns 404 when softDeleteChannelMember affects 0 rows', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as any);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
+      channelsRepository.findActiveChannelMemberById.mockResolvedValue({
+        id: targetMemberId,
+        channelId,
+        role: 'MEMBER',
+        userId: targetUserId,
+        user: { id: targetUserId, username: 'bob' },
+      } as any);
+      channelsRepository.softDeleteChannelMember.mockResolvedValue(0);
+
+      await expect(
+        service.removeChannelMember(workspaceId, channelId, targetMemberId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(channelsRepository.softDeleteChannelMember).toHaveBeenCalledWith(channelId, targetMemberId);
     });
   });
 });

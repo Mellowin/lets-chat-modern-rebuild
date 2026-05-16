@@ -179,10 +179,15 @@ export class ChannelsRepository {
     });
   }
 
-  async softDeleteChannelMember(memberId: string) {
-    return this.prisma.channelMember.update({
-      where: { id: memberId },
+  async softDeleteChannelMember(channelId: string, memberId: string) {
+    const result = await this.prisma.channelMember.updateMany({
+      where: {
+        id: memberId,
+        channelId,
+        deletedAt: null,
+      },
       data: { deletedAt: new Date() },
     });
+    return result.count;
   }
 }

@@ -298,7 +298,13 @@ export class ChannelsService {
       throw new ForbiddenException('Insufficient permissions');
     }
 
-    await this.channels.softDeleteChannelMember(targetMember.id);
+    const deletedCount = await this.channels.softDeleteChannelMember(
+      channelId,
+      targetMember.id,
+    );
+    if (deletedCount === 0) {
+      throw new NotFoundException('Member not found');
+    }
     return { success: true };
   }
 
