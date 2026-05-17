@@ -29,6 +29,7 @@ export interface ChannelMember {
 
 export interface AddChannelMemberInput {
   identifier: string;
+  role?: "MEMBER" | "ADMIN";
 }
 
 export async function getChannels(

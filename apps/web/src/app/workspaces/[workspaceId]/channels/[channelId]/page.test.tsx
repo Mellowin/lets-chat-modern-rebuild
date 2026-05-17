@@ -518,7 +518,7 @@ describe("ChannelDetailPage — members", () => {
     expect(screen.getByText("ADMIN")).toBeInTheDocument();
   });
 
-  it("shows add member form for OWNER", async () => {
+  it("shows add member form for OWNER with role select", async () => {
     mockChannelAndMessages([], [ownerMember]);
     render(<ChannelDetailPage />);
 
@@ -526,9 +526,11 @@ describe("ChannelDetailPage — members", () => {
       expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
     });
     expect(screen.getByRole("button", { name: /Add/i })).toBeInTheDocument();
+    expect(screen.getByRole("combobox")).toBeInTheDocument();
+    expect(screen.getByRole("combobox")).toHaveValue("MEMBER");
   });
 
-  it("shows add member form for ADMIN and hides Archive button", async () => {
+  it("shows add member form for ADMIN, hides Archive button and role select", async () => {
     const adminAlice: ChannelMember = {
       id: "cm1",
       channelId: "ch1",
@@ -544,6 +546,7 @@ describe("ChannelDetailPage — members", () => {
     });
     expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Archive/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
   });
 
   it("hides add member form for MEMBER", async () => {
@@ -598,7 +601,7 @@ describe("ChannelDetailPage — members", () => {
     await userEvent.click(screen.getByRole("button", { name: /Add/i }));
 
     await waitFor(() => {
-      expect(addChannelMember).toHaveBeenCalledWith("token", "ws1", "ch1", { identifier: "charlie" });
+      expect(addChannelMember).toHaveBeenCalledWith("token", "ws1", "ch1", { identifier: "charlie", role: "MEMBER" });
     });
 
     expect(screen.getByText("charlie")).toBeInTheDocument();
@@ -633,6 +636,69 @@ describe("ChannelDetailPage — members", () => {
     await userEvent.click(screen.getByRole("button", { name: /Add/i }));
 
     expect(await screen.findByText(/Already a member/i)).toBeInTheDocument();
+  });
+
+  it("OWNER can add member as ADMIN", async () => {
+    mockChannelAndMessages([], [ownerMember]);
+    const newMember: ChannelMember = {
+      id: "cm4",
+      channelId: "ch1",
+      role: "ADMIN",
+      joinedAt: "2024-01-02T00:00:00Z",
+      user: { id: "u3", username: "charlie" },
+    };
+    vi.mocked(addChannelMember).mockResolvedValueOnce(newMember);
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Username or email/i), "charlie");
+    await userEvent.selectOptions(screen.getByRole("combobox"), "ADMIN");
+    await userEvent.click(screen.getByRole("button", { name: /Add/i }));
+
+    await waitFor(() => {
+      expect(addChannelMember).toHaveBeenCalledWith("token", "ws1", "ch1", { identifier: "charlie", role: "ADMIN" });
+    });
+
+    expect(screen.getByText("charlie")).toBeInTheDocument();
+    expect(screen.getByText("ADMIN")).toBeInTheDocument();
+  });
+
+  it("ADMIN add does not send role", async () => {
+    const adminAlice: ChannelMember = {
+      id: "cm1",
+      channelId: "ch1",
+      role: "ADMIN",
+      joinedAt: "2024-01-01T00:00:00Z",
+      user: { id: "u1", username: "alice" },
+    };
+    mockChannelAndMessages([], [adminAlice]);
+    const newMember: ChannelMember = {
+      id: "cm4",
+      channelId: "ch1",
+      role: "MEMBER",
+      joinedAt: "2024-01-02T00:00:00Z",
+      user: { id: "u3", username: "charlie" },
+    };
+    vi.mocked(addChannelMember).mockResolvedValueOnce(newMember);
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Username or email/i), "charlie");
+    await userEvent.click(screen.getByRole("button", { name: /Add/i }));
+
+    await waitFor(() => {
+      expect(addChannelMember).toHaveBeenCalledWith("token", "ws1", "ch1", { identifier: "charlie" });
+    });
+
+    expect(screen.getByText("charlie")).toBeInTheDocument();
   });
 });
 

@@ -55,6 +55,7 @@ export default function ChannelDetailPage() {
     { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string }
   >({ kind: "idle" });
   const [addMemberIdentifier, setAddMemberIdentifier] = useState("");
+  const [addMemberRole, setAddMemberRole] = useState<"MEMBER" | "ADMIN">("MEMBER");
   const [addMemberState, setAddMemberState] = useState<
     | { kind: "idle" }
     | { kind: "loading" }
@@ -414,9 +415,11 @@ export default function ChannelDetailPage() {
 
     setAddMemberState({ kind: "loading" });
     try {
-      const newMember = await addChannelMember(accessToken, workspaceId, channelId, {
-        identifier: trimmed,
-      });
+      const input: { identifier: string; role?: "MEMBER" | "ADMIN" } = { identifier: trimmed };
+      if (myChannelRole === "OWNER") {
+        input.role = addMemberRole;
+      }
+      const newMember = await addChannelMember(accessToken, workspaceId, channelId, input);
       setAddMemberIdentifier("");
       setAddMemberState({ kind: "success" });
       setMembers((prev) => {
@@ -767,6 +770,17 @@ export default function ChannelDetailPage() {
                 {addMemberState.kind === "loading" ? "Adding…" : "Add"}
               </button>
             </div>
+            {myChannelRole === "OWNER" && (
+              <select
+                value={addMemberRole}
+                onChange={(e) => setAddMemberRole(e.target.value as "MEMBER" | "ADMIN")}
+                disabled={addMemberState.kind === "loading"}
+                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100 disabled:opacity-60"
+              >
+                <option value="MEMBER">Member</option>
+                <option value="ADMIN">Admin</option>
+              </select>
+            )}
             {addMemberState.kind === "error" && (
               <div className="rounded-lg border border-red-200 bg-red-50 p-2.5 text-sm dark:border-red-900 dark:bg-red-950/30">
                 <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
