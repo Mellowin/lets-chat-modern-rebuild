@@ -45,7 +45,7 @@ function mockWorkspaceData({ archived = [] as unknown[] } = {}) {
   });
   vi.mocked(getChannels).mockResolvedValue([]);
   vi.mocked(getWorkspaceMembers).mockResolvedValue([
-    { id: "wm1", workspaceId: "ws1", role: "OWNER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice" } },
+    { id: "wm1", workspaceId: "ws1", role: "OWNER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice", displayName: "Alice" } },
   ]);
   vi.mocked(getArchivedChannels).mockResolvedValue(archived as ReturnType<typeof getArchivedChannels> extends Promise<infer T> ? T : never);
 }
@@ -210,5 +210,39 @@ describe("WorkspaceDetailPage — archived channels", () => {
     expect(await screen.findByText(/Only owner can restore channel/i)).toBeInTheDocument();
 
     confirmSpy.mockRestore();
+  });
+});
+
+describe("WorkspaceDetailPage — members", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("shows displayName with @username when displayName is present", async () => {
+    mockWorkspaceData({ archived: [] });
+    vi.mocked(getWorkspaceMembers).mockResolvedValue([
+      { id: "wm1", workspaceId: "ws1", role: "OWNER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice", displayName: "Alice" } },
+    ]);
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Alice")).toBeInTheDocument();
+    });
+    expect(screen.getByText("@alice")).toBeInTheDocument();
+  });
+
+  it("falls back to @username when displayName is absent", async () => {
+    mockWorkspaceData({ archived: [] });
+    vi.mocked(getWorkspaceMembers).mockResolvedValue([
+      { id: "wm1", workspaceId: "ws1", role: "OWNER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice" } },
+    ]);
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("@alice")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Alice")).not.toBeInTheDocument();
   });
 });

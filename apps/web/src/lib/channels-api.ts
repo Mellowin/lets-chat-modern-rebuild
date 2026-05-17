@@ -24,7 +24,7 @@ export interface ChannelMember {
   channelId: string;
   role: "OWNER" | "ADMIN" | "MEMBER";
   joinedAt: string;
-  user: { id: string; username: string };
+  user: { id: string; username: string; displayName?: string | null };
 }
 
 export interface AddChannelMemberInput {

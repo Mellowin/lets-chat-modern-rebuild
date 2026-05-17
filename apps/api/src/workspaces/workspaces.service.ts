@@ -154,6 +154,7 @@ export class WorkspacesService {
       user: {
         id: updated.user.id,
         username: updated.user.username,
+        displayName: updated.user.displayName,
       },
     };
   }
@@ -335,6 +336,7 @@ export class WorkspacesService {
       user: {
         id: member.user.id,
         username: member.user.username,
+        displayName: member.user.displayName,
       },
     }));
   }

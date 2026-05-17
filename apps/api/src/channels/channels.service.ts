@@ -163,6 +163,7 @@ export class ChannelsService {
       user: {
         id: member.user.id,
         username: member.user.username,
+        displayName: member.user.displayName,
       },
     }));
   }
@@ -248,6 +249,7 @@ export class ChannelsService {
         user: {
           id: member.user.id,
           username: member.user.username,
+          displayName: member.user.displayName,
         },
       };
     } catch (error) {

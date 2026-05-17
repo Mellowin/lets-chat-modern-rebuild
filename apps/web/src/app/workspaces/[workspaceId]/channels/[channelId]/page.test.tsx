@@ -487,7 +487,7 @@ describe("ChannelDetailPage — members", () => {
     channelId: "ch1",
     role: "OWNER",
     joinedAt: "2024-01-01T00:00:00Z",
-    user: { id: "u1", username: "alice" },
+    user: { id: "u1", username: "alice", displayName: "Alice" },
   };
 
   const adminMember: ChannelMember = {
@@ -495,7 +495,7 @@ describe("ChannelDetailPage — members", () => {
     channelId: "ch1",
     role: "ADMIN",
     joinedAt: "2024-01-01T00:00:00Z",
-    user: { id: "u2", username: "bob" },
+    user: { id: "u2", username: "bob", displayName: "Bob" },
   };
 
   const regularMember: ChannelMember = {
@@ -503,7 +503,7 @@ describe("ChannelDetailPage — members", () => {
     channelId: "ch1",
     role: "MEMBER",
     joinedAt: "2024-01-01T00:00:00Z",
-    user: { id: "u1", username: "alice" },
+    user: { id: "u1", username: "alice", displayName: "Alice" },
   };
 
   it("shows member list", async () => {
@@ -511,11 +511,38 @@ describe("ChannelDetailPage — members", () => {
     render(<ChannelDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByText("alice")).toBeInTheDocument();
+      expect(screen.getByText("Alice")).toBeInTheDocument();
     });
-    expect(screen.getByText("bob")).toBeInTheDocument();
+    expect(screen.getByText("Bob")).toBeInTheDocument();
     expect(screen.getByText("OWNER")).toBeInTheDocument();
     expect(screen.getByText("ADMIN")).toBeInTheDocument();
+  });
+
+  it("shows displayName with @username when displayName is present", async () => {
+    mockChannelAndMessages([], [ownerMember]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Alice")).toBeInTheDocument();
+    });
+    expect(screen.getByText("@alice")).toBeInTheDocument();
+  });
+
+  it("falls back to @username when displayName is absent", async () => {
+    const noDisplay: ChannelMember = {
+      id: "cm5",
+      channelId: "ch1",
+      role: "MEMBER",
+      joinedAt: "2024-01-01T00:00:00Z",
+      user: { id: "u5", username: "dave" },
+    };
+    mockChannelAndMessages([], [noDisplay]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("@dave")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Dave")).not.toBeInTheDocument();
   });
 
   it("shows add member form for OWNER with role select", async () => {
@@ -536,7 +563,7 @@ describe("ChannelDetailPage — members", () => {
       channelId: "ch1",
       role: "ADMIN",
       joinedAt: "2024-01-01T00:00:00Z",
-      user: { id: "u1", username: "alice" },
+      user: { id: "u1", username: "alice", displayName: "Alice" },
     };
     mockChannelAndMessages([], [adminAlice]);
     render(<ChannelDetailPage />);
@@ -554,7 +581,7 @@ describe("ChannelDetailPage — members", () => {
     render(<ChannelDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByText("alice")).toBeInTheDocument();
+      expect(screen.getByText("Alice")).toBeInTheDocument();
     });
     expect(screen.queryByPlaceholderText(/Username or email/i)).not.toBeInTheDocument();
   });
@@ -587,7 +614,7 @@ describe("ChannelDetailPage — members", () => {
       channelId: "ch1",
       role: "MEMBER",
       joinedAt: "2024-01-02T00:00:00Z",
-      user: { id: "u3", username: "charlie" },
+      user: { id: "u3", username: "charlie", displayName: "Charlie" },
     };
     vi.mocked(addChannelMember).mockResolvedValueOnce(newMember);
 
@@ -604,7 +631,7 @@ describe("ChannelDetailPage — members", () => {
       expect(addChannelMember).toHaveBeenCalledWith("token", "ws1", "ch1", { identifier: "charlie", role: "MEMBER" });
     });
 
-    expect(screen.getByText("charlie")).toBeInTheDocument();
+    expect(screen.getByText("Charlie")).toBeInTheDocument();
     expect(screen.getByText("Member added successfully.")).toBeInTheDocument();
   });
 
@@ -645,7 +672,7 @@ describe("ChannelDetailPage — members", () => {
       channelId: "ch1",
       role: "ADMIN",
       joinedAt: "2024-01-02T00:00:00Z",
-      user: { id: "u3", username: "charlie" },
+      user: { id: "u3", username: "charlie", displayName: "Charlie" },
     };
     vi.mocked(addChannelMember).mockResolvedValueOnce(newMember);
 
@@ -663,7 +690,7 @@ describe("ChannelDetailPage — members", () => {
       expect(addChannelMember).toHaveBeenCalledWith("token", "ws1", "ch1", { identifier: "charlie", role: "ADMIN" });
     });
 
-    expect(screen.getByText("charlie")).toBeInTheDocument();
+    expect(screen.getByText("Charlie")).toBeInTheDocument();
     expect(screen.getByText("ADMIN")).toBeInTheDocument();
   });
 
@@ -673,7 +700,7 @@ describe("ChannelDetailPage — members", () => {
       channelId: "ch1",
       role: "ADMIN",
       joinedAt: "2024-01-01T00:00:00Z",
-      user: { id: "u1", username: "alice" },
+      user: { id: "u1", username: "alice", displayName: "Alice" },
     };
     mockChannelAndMessages([], [adminAlice]);
     const newMember: ChannelMember = {
@@ -681,7 +708,7 @@ describe("ChannelDetailPage — members", () => {
       channelId: "ch1",
       role: "MEMBER",
       joinedAt: "2024-01-02T00:00:00Z",
-      user: { id: "u3", username: "charlie" },
+      user: { id: "u3", username: "charlie", displayName: "Charlie" },
     };
     vi.mocked(addChannelMember).mockResolvedValueOnce(newMember);
 
@@ -698,7 +725,7 @@ describe("ChannelDetailPage — members", () => {
       expect(addChannelMember).toHaveBeenCalledWith("token", "ws1", "ch1", { identifier: "charlie" });
     });
 
-    expect(screen.getByText("charlie")).toBeInTheDocument();
+    expect(screen.getByText("Charlie")).toBeInTheDocument();
   });
 });
 
@@ -718,7 +745,7 @@ describe("ChannelDetailPage — remove member", () => {
     channelId: "ch1",
     role: "OWNER",
     joinedAt: "2024-01-01T00:00:00Z",
-    user: { id: "u1", username: "alice" },
+    user: { id: "u1", username: "alice", displayName: "Alice" },
   };
 
   const adminBob: ChannelMember = {
@@ -726,7 +753,7 @@ describe("ChannelDetailPage — remove member", () => {
     channelId: "ch1",
     role: "ADMIN",
     joinedAt: "2024-01-01T00:00:00Z",
-    user: { id: "u2", username: "bob" },
+    user: { id: "u2", username: "bob", displayName: "Bob" },
   };
 
   const memberCharlie: ChannelMember = {
@@ -734,7 +761,7 @@ describe("ChannelDetailPage — remove member", () => {
     channelId: "ch1",
     role: "MEMBER",
     joinedAt: "2024-01-01T00:00:00Z",
-    user: { id: "u3", username: "charlie" },
+    user: { id: "u3", username: "charlie", displayName: "Charlie" },
   };
 
   const regularMember: ChannelMember = {
@@ -742,7 +769,7 @@ describe("ChannelDetailPage — remove member", () => {
     channelId: "ch1",
     role: "MEMBER",
     joinedAt: "2024-01-01T00:00:00Z",
-    user: { id: "u1", username: "alice" },
+    user: { id: "u1", username: "alice", displayName: "Alice" },
   };
 
   it("OWNER sees Remove for MEMBER", async () => {
@@ -750,7 +777,7 @@ describe("ChannelDetailPage — remove member", () => {
     render(<ChannelDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByText("charlie")).toBeInTheDocument();
+      expect(screen.getByText("Charlie")).toBeInTheDocument();
     });
     const removeButtons = screen.getAllByRole("button", { name: /Remove/i });
     expect(removeButtons.length).toBe(1);
@@ -761,7 +788,7 @@ describe("ChannelDetailPage — remove member", () => {
     render(<ChannelDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByText("bob")).toBeInTheDocument();
+      expect(screen.getByText("Bob")).toBeInTheDocument();
     });
     const removeButtons = screen.getAllByRole("button", { name: /Remove/i });
     expect(removeButtons.length).toBe(1);
@@ -772,7 +799,7 @@ describe("ChannelDetailPage — remove member", () => {
     render(<ChannelDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByText("alice")).toBeInTheDocument();
+      expect(screen.getByText("Alice")).toBeInTheDocument();
     });
     expect(screen.queryByRole("button", { name: /Remove/i })).not.toBeInTheDocument();
   });
@@ -783,13 +810,13 @@ describe("ChannelDetailPage — remove member", () => {
       channelId: "ch1",
       role: "ADMIN",
       joinedAt: "2024-01-01T00:00:00Z",
-      user: { id: "u1", username: "alice" },
+      user: { id: "u1", username: "alice", displayName: "Alice" },
     };
     mockChannelAndMessages([], [adminAlice, memberCharlie]);
     render(<ChannelDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByText("charlie")).toBeInTheDocument();
+      expect(screen.getByText("Charlie")).toBeInTheDocument();
     });
     const removeButtons = screen.getAllByRole("button", { name: /Remove/i });
     expect(removeButtons.length).toBe(1);
@@ -801,13 +828,13 @@ describe("ChannelDetailPage — remove member", () => {
       channelId: "ch1",
       role: "ADMIN",
       joinedAt: "2024-01-01T00:00:00Z",
-      user: { id: "u1", username: "alice" },
+      user: { id: "u1", username: "alice", displayName: "Alice" },
     };
     mockChannelAndMessages([], [adminAlice, adminBob]);
     render(<ChannelDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByText("bob")).toBeInTheDocument();
+      expect(screen.getByText("Bob")).toBeInTheDocument();
     });
     expect(screen.queryByRole("button", { name: /Remove/i })).not.toBeInTheDocument();
   });
@@ -818,20 +845,20 @@ describe("ChannelDetailPage — remove member", () => {
       channelId: "ch1",
       role: "ADMIN",
       joinedAt: "2024-01-01T00:00:00Z",
-      user: { id: "u1", username: "alice" },
+      user: { id: "u1", username: "alice", displayName: "Alice" },
     };
     const ownerDave: ChannelMember = {
       id: "cm5",
       channelId: "ch1",
       role: "OWNER",
       joinedAt: "2024-01-01T00:00:00Z",
-      user: { id: "u5", username: "dave" },
+      user: { id: "u5", username: "dave", displayName: "Dave" },
     };
     mockChannelAndMessages([], [adminAlice, ownerDave]);
     render(<ChannelDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByText("dave")).toBeInTheDocument();
+      expect(screen.getByText("Dave")).toBeInTheDocument();
     });
     expect(screen.queryByRole("button", { name: /Remove/i })).not.toBeInTheDocument();
   });
@@ -841,7 +868,7 @@ describe("ChannelDetailPage — remove member", () => {
     render(<ChannelDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByText("charlie")).toBeInTheDocument();
+      expect(screen.getByText("Charlie")).toBeInTheDocument();
     });
     expect(screen.queryByRole("button", { name: /Remove/i })).not.toBeInTheDocument();
   });
@@ -854,7 +881,7 @@ describe("ChannelDetailPage — remove member", () => {
     render(<ChannelDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByText("charlie")).toBeInTheDocument();
+      expect(screen.getByText("Charlie")).toBeInTheDocument();
     });
 
     await userEvent.click(screen.getByRole("button", { name: /Remove/i }));
@@ -863,7 +890,7 @@ describe("ChannelDetailPage — remove member", () => {
       expect(removeChannelMember).toHaveBeenCalledWith("token", "ws1", "ch1", "cm3");
     });
 
-    expect(screen.queryByText("charlie")).not.toBeInTheDocument();
+    expect(screen.queryByText("Charlie")).not.toBeInTheDocument();
   });
 
   it("shows backend error on remove failure", async () => {
@@ -874,7 +901,7 @@ describe("ChannelDetailPage — remove member", () => {
     render(<ChannelDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByText("charlie")).toBeInTheDocument();
+      expect(screen.getByText("Charlie")).toBeInTheDocument();
     });
 
     await userEvent.click(screen.getByRole("button", { name: /Remove/i }));
@@ -889,12 +916,12 @@ describe("ChannelDetailPage — remove member", () => {
     render(<ChannelDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByText("charlie")).toBeInTheDocument();
+      expect(screen.getByText("Charlie")).toBeInTheDocument();
     });
 
     await userEvent.click(screen.getByRole("button", { name: /Remove/i }));
 
     expect(removeChannelMember).not.toHaveBeenCalled();
-    expect(screen.getByText("charlie")).toBeInTheDocument();
+    expect(screen.getByText("Charlie")).toBeInTheDocument();
   });
 });
