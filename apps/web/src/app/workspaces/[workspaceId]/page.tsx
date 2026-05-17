@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { getWorkspace, getWorkspaceMembers, addWorkspaceMember, type Workspace, type WorkspaceMember } from "@/lib/workspaces-api";
-import { getChannels, createChannel, archiveChannel, type Channel, type CreateChannelInput } from "@/lib/channels-api";
+import { getChannels, getArchivedChannels, createChannel, archiveChannel, restoreChannel, type Channel, type CreateChannelInput } from "@/lib/channels-api";
 
 type DetailState =
   | { kind: "idle" }
@@ -23,6 +23,12 @@ type MembersState =
   | { kind: "idle" }
   | { kind: "loading" }
   | { kind: "success"; data: WorkspaceMember[] }
+  | { kind: "error"; message: string };
+
+type ArchivedChannelsState =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "success"; data: Channel[] }
   | { kind: "error"; message: string };
 
 export default function WorkspaceDetailPage() {
@@ -46,6 +52,9 @@ export default function WorkspaceDetailPage() {
     { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string }
   >({ kind: "idle" });
   const [archiveError, setArchiveError] = useState<string | null>(null);
+  const [archivedChannels, setArchivedChannels] = useState<ArchivedChannelsState>({ kind: "idle" });
+  const [restoringChannelId, setRestoringChannelId] = useState<string | null>(null);
+  const [restoreError, setRestoreError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAuthenticated || !workspaceId) return;
@@ -99,6 +108,29 @@ export default function WorkspaceDetailPage() {
     return () => { cancelled = true; };
   }, [isAuthenticated, accessToken, workspaceId]);
 
+  useEffect(() => {
+    if (!isAuthenticated || !workspaceId) return;
+    if (!accessToken) return;
+
+    let cancelled = false;
+    async function loadArchived(t: string, id: string) {
+      setArchivedChannels({ kind: "loading" });
+      try {
+        const data = await getArchivedChannels(t, id);
+        if (!cancelled) {
+          setArchivedChannels({ kind: "success", data });
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed to load archived channels";
+        if (!cancelled) {
+          setArchivedChannels({ kind: "error", message });
+        }
+      }
+    }
+    loadArchived(accessToken, workspaceId);
+    return () => { cancelled = true; };
+  }, [isAuthenticated, accessToken, workspaceId]);
+
   async function handleCreateChannel(e: React.FormEvent) {
     e.preventDefault();
     const trimmedName = channelName.trim();
@@ -146,6 +178,27 @@ export default function WorkspaceDetailPage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to archive channel";
       setArchiveError(message);
+    }
+  }
+
+  async function handleRestoreChannel(channelId: string, name: string) {
+    if (!window.confirm(`Restore channel "${name}"?`)) return;
+    if (!accessToken || !workspaceId) return;
+    setRestoringChannelId(channelId);
+    setRestoreError(null);
+    try {
+      await restoreChannel(accessToken, workspaceId, channelId);
+      const [active, archived] = await Promise.all([
+        getChannels(accessToken, workspaceId),
+        getArchivedChannels(accessToken, workspaceId),
+      ]);
+      setChannels({ kind: "success", data: active });
+      setArchivedChannels({ kind: "success", data: archived });
+      window.dispatchEvent(new Event("channels:changed"));
+    } catch (err) {
+      setRestoreError(err instanceof Error ? err.message : "Failed to restore channel");
+    } finally {
+      setRestoringChannelId(null);
     }
   }
 
@@ -471,6 +524,69 @@ export default function WorkspaceDetailPage() {
               </>
             ) : null;
           })()
+        )}
+      </div>
+
+      {/* Archived channels */}
+      <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 p-5">
+        <h2 className="text-sm font-semibold">Archived channels</h2>
+
+        {archivedChannels.kind === "loading" && (
+          <div className="mt-3 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
+            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
+            Loading archived channels…
+          </div>
+        )}
+
+        {archivedChannels.kind === "error" && (
+          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
+            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+              <span className="h-2 w-2 rounded-full bg-red-500" />
+              {archivedChannels.message}
+            </div>
+          </div>
+        )}
+
+        {archivedChannels.kind === "success" && archivedChannels.data.length === 0 && (
+          <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
+            No archived channels.
+          </p>
+        )}
+
+        {restoreError && (
+          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
+            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+              <span className="h-2 w-2 rounded-full bg-red-500" />
+              {restoreError}
+            </div>
+          </div>
+        )}
+
+        {archivedChannels.kind === "success" && archivedChannels.data.length > 0 && (
+          <ul className="mt-3 divide-y divide-zinc-200 dark:divide-zinc-800">
+            {archivedChannels.data.map((ch) => (
+              <li key={ch.id} className="flex items-center justify-between py-3 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 -mx-2 px-2 rounded-md transition-colors">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">{ch.name}</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">{ch.slug}</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 ml-2">
+                  {ch.createdById === user?.id && (
+                    <button
+                      onClick={() => handleRestoreChannel(ch.id, ch.name)}
+                      disabled={restoringChannelId === ch.id}
+                      className="text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {restoringChannelId === ch.id ? "Restoring…" : "Restore"}
+                    </button>
+                  )}
+                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${ch.type === "PUBLIC" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400" : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"}`}>
+                    {ch.type}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
     </div>
