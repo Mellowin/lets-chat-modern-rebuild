@@ -329,4 +329,31 @@ export class ChannelsService {
     await this.channels.archiveChannel(channelId);
     return { success: true };
   }
+
+  async restore(workspaceId: string, channelId: string, userId: string) {
+    const wsRole = await this.workspaces.findMemberRole(workspaceId, userId);
+    if (!wsRole) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const channel = await this.channels.findByIdIncludingArchived(channelId);
+    if (!channel || channel.workspaceId !== workspaceId) {
+      throw new NotFoundException('Channel not found');
+    }
+
+    const chRole = await this.channels.findChannelMemberRole(channelId, userId);
+    if (!chRole) {
+      throw new NotFoundException('Channel not found');
+    }
+    if (chRole !== 'OWNER') {
+      throw new ForbiddenException('Only owner can restore channel');
+    }
+
+    if (!channel.deletedAt) {
+      throw new ConflictException('Channel is not archived');
+    }
+
+    await this.channels.restoreChannel(channelId);
+    return { success: true };
+  }
 }

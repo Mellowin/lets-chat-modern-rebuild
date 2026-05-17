@@ -152,4 +152,20 @@ export class ChannelsController {
   ) {
     return this.channels.archive(workspaceId, channelId, user.id);
   }
+
+  @Post(':channelId/restore')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Restore archived channel' })
+  @ApiOkResponse({ description: 'Channel restored' })
+  @ApiConflictResponse({ description: 'Channel is not archived' })
+  @ApiForbiddenResponse({ description: 'Forbidden' })
+  @ApiNotFoundResponse({ description: 'Channel not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async restore(
+    @Param('workspaceId') workspaceId: string,
+    @Param('channelId') channelId: string,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.channels.restore(workspaceId, channelId, user.id);
+  }
 }

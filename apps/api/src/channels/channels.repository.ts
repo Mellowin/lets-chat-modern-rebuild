@@ -148,10 +148,23 @@ export class ChannelsRepository {
     });
   }
 
+  async findByIdIncludingArchived(channelId: string) {
+    return this.prisma.channel.findFirst({
+      where: { id: channelId },
+    });
+  }
+
   async archiveChannel(channelId: string) {
     return this.prisma.channel.update({
       where: { id: channelId },
       data: { deletedAt: new Date() },
+    });
+  }
+
+  async restoreChannel(channelId: string) {
+    return this.prisma.channel.update({
+      where: { id: channelId },
+      data: { deletedAt: null },
     });
   }
 

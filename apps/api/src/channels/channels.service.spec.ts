@@ -34,8 +34,11 @@ describe('ChannelsService', () => {
             findActiveChannelMemberById: jest.fn(),
             createChannelMember: jest.fn(),
             listActiveChannelMembers: jest.fn(),
+            listForWorkspace: jest.fn(),
             updateChannel: jest.fn(),
+            findByIdIncludingArchived: jest.fn(),
             archiveChannel: jest.fn(),
+            restoreChannel: jest.fn(),
             softDeleteChannelMember: jest.fn(),
           },
         },
@@ -269,6 +272,138 @@ describe('ChannelsService', () => {
 
       const result = await service.archive(workspaceId, channelId, userId);
       expect(result.success).toBe(true);
+    });
+  });
+
+  describe('restore', () => {
+    it('OWNER can restore archived channel', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findByIdIncludingArchived.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+        deletedAt: new Date(),
+      } as any);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
+      channelsRepository.restoreChannel.mockResolvedValue({
+        id: channelId,
+        deletedAt: null,
+      } as any);
+
+      const result = await service.restore(workspaceId, channelId, userId);
+      expect(result.success).toBe(true);
+    });
+
+    it('ADMIN cannot restore', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findByIdIncludingArchived.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+        deletedAt: new Date(),
+      } as any);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('ADMIN');
+
+      await expect(
+        service.restore(workspaceId, channelId, userId),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(channelsRepository.restoreChannel).not.toHaveBeenCalled();
+    });
+
+    it('MEMBER cannot restore', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findByIdIncludingArchived.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+        deletedAt: new Date(),
+      } as any);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+
+      await expect(
+        service.restore(workspaceId, channelId, userId),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(channelsRepository.restoreChannel).not.toHaveBeenCalled();
+    });
+
+    it('Non-channel-member cannot restore', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findByIdIncludingArchived.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+        deletedAt: new Date(),
+      } as any);
+      channelsRepository.findChannelMemberRole.mockResolvedValue(null);
+
+      await expect(
+        service.restore(workspaceId, channelId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(channelsRepository.restoreChannel).not.toHaveBeenCalled();
+    });
+
+    it('Non-workspace-member -> 404', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue(null);
+
+      await expect(
+        service.restore(workspaceId, channelId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(channelsRepository.findByIdIncludingArchived).not.toHaveBeenCalled();
+    });
+
+    it('Wrong workspace/channel mismatch -> 404', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findByIdIncludingArchived.mockResolvedValue({
+        id: channelId,
+        workspaceId: '99999999-9999-9999-9999-999999999999',
+        deletedAt: new Date(),
+      } as any);
+
+      await expect(
+        service.restore(workspaceId, channelId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(channelsRepository.restoreChannel).not.toHaveBeenCalled();
+    });
+
+    it('returns 409 when channel is not archived', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findByIdIncludingArchived.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+        deletedAt: null,
+      } as any);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
+
+      await expect(
+        service.restore(workspaceId, channelId, userId),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(channelsRepository.restoreChannel).not.toHaveBeenCalled();
+    });
+
+    it('restored channel appears in list again', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findByIdIncludingArchived.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+        deletedAt: new Date(),
+      } as any);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
+      channelsRepository.restoreChannel.mockResolvedValue({
+        id: channelId,
+        deletedAt: null,
+      } as any);
+      channelsRepository.listForWorkspace.mockResolvedValue([
+        { id: channelId, workspaceId, name: 'general', deletedAt: null },
+      ] as any);
+
+      const restoreResult = await service.restore(workspaceId, channelId, userId);
+      expect(restoreResult.success).toBe(true);
+
+      const listResult = await service.list(workspaceId, userId);
+      expect(listResult).toHaveLength(1);
+      expect(listResult[0].id).toBe(channelId);
     });
   });
 
