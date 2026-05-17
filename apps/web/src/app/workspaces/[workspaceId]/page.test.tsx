@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import WorkspaceDetailPage from "./page";
 import { getWorkspace, getWorkspaceMembers } from "@/lib/workspaces-api";
-import { getChannels, getArchivedChannels, restoreChannel } from "@/lib/channels-api";
+import { getChannels, getArchivedChannels, archiveChannel, restoreChannel } from "@/lib/channels-api";
 
 vi.mock("next/navigation", () => ({
   useParams: () => ({ workspaceId: "ws1" }),
@@ -96,6 +96,42 @@ describe("WorkspaceDetailPage — archived channels", () => {
     await waitFor(() => {
       expect(screen.getByText(/No archived channels/i)).toBeInTheDocument();
     });
+  });
+
+  it("moves channel to archived list immediately after Archive confirm", async () => {
+    mockWorkspaceData({ archived: [] });
+    vi.mocked(getChannels).mockResolvedValue([
+      { id: "ch1", workspaceId: "ws1", name: "general", slug: "general-slug", description: null, type: "PUBLIC", createdById: "u1", createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", deletedAt: null },
+    ]);
+
+    vi.mocked(archiveChannel).mockResolvedValueOnce({ success: true });
+
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Archive/i })).toBeInTheDocument();
+    });
+
+    // Set up refresh mocks after initial load
+    vi.mocked(getChannels).mockResolvedValueOnce([]);
+    vi.mocked(getArchivedChannels).mockResolvedValueOnce([
+      { id: "ch1", workspaceId: "ws1", name: "general", slug: "general-slug", description: null, type: "PUBLIC", createdById: "u1", createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", deletedAt: "2024-02-01T00:00:00Z" },
+    ]);
+
+    await userEvent.click(screen.getByRole("button", { name: /Archive/i }));
+
+    await waitFor(() => {
+      expect(archiveChannel).toHaveBeenCalledWith("token", "ws1", "ch1");
+    });
+
+    // Active channels should be empty
+    expect(screen.getByText(/No channels yet/i)).toBeInTheDocument();
+    // Archived channels should show the moved channel
+    expect(screen.getByText("general")).toBeInTheDocument();
+
+    confirmSpy.mockRestore();
   });
 
   it("restores channel and refreshes both lists on confirm", async () => {

@@ -172,8 +172,12 @@ export default function WorkspaceDetailPage() {
     setArchiveError(null);
     try {
       await archiveChannel(accessToken, workspaceId, channelId);
-      const refreshed = await getChannels(accessToken, workspaceId);
-      setChannels({ kind: "success", data: refreshed });
+      const [active, archived] = await Promise.all([
+        getChannels(accessToken, workspaceId),
+        getArchivedChannels(accessToken, workspaceId),
+      ]);
+      setChannels({ kind: "success", data: active });
+      setArchivedChannels({ kind: "success", data: archived });
       window.dispatchEvent(new Event("channels:changed"));
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to archive channel";
