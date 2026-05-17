@@ -584,6 +584,37 @@ describe('ChannelsService', () => {
     const targetUserId = '44444444-4444-4444-4444-444444444444';
     const memberId = '55555555-5555-5555-5555-555555555555';
 
+    it('allows OWNER to add workspace member to channel as ADMIN', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as any);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
+      usersRepository.findByUsername.mockResolvedValue({ id: targetUserId, username: 'alice' } as any);
+      usersRepository.findByEmail.mockResolvedValue(null as any);
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
+        id: 'ws-member-1',
+        workspaceId,
+        role: 'MEMBER',
+        userId: targetUserId,
+      } as any);
+      channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue(null as any);
+      channelsRepository.createChannelMember.mockResolvedValue({
+        id: memberId,
+        channelId,
+        role: 'ADMIN',
+        createdAt: new Date('2026-01-01'),
+        user: { id: targetUserId, username: 'alice' },
+      } as any);
+
+      const result = await service.addChannelMember(workspaceId, channelId, userId, { identifier: 'alice', role: 'ADMIN' });
+
+      expect(result.role).toBe('ADMIN');
+      expect(result.user.username).toBe('alice');
+    });
+
     it('allows OWNER to add workspace member to channel as MEMBER', async () => {
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       channelsRepository.findActiveById.mockResolvedValue({
@@ -644,6 +675,29 @@ describe('ChannelsService', () => {
 
       expect(result.role).toBe('MEMBER');
       expect(result.user.username).toBe('bob');
+    });
+
+    it('rejects ADMIN requester adding ADMIN', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('ADMIN');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as any);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('ADMIN');
+      usersRepository.findByUsername.mockResolvedValue({ id: targetUserId, username: 'alice' } as any);
+      usersRepository.findByEmail.mockResolvedValue(null as any);
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
+        id: 'ws-member-1',
+        workspaceId,
+        role: 'MEMBER',
+        userId: targetUserId,
+      } as any);
+      channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue(null as any);
+
+      await expect(
+        service.addChannelMember(workspaceId, channelId, userId, { identifier: 'alice', role: 'ADMIN' }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
     });
 
     it('rejects MEMBER requester', async () => {

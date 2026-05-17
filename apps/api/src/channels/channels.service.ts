@@ -204,6 +204,9 @@ export class ChannelsService {
     if (role !== 'MEMBER' && role !== 'ADMIN') {
       throw new BadRequestException('Invalid role');
     }
+    if (requesterChRole === 'ADMIN' && role === 'ADMIN') {
+      throw new ForbiddenException('Insufficient permissions');
+    }
 
     const identifier = dto.identifier.trim();
     let targetUser = await this.users.findByUsername(identifier);
