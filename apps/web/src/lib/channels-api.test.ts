@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { getChannels, getChannel, createChannel, addChannelMember, removeChannelMember, restoreChannel } from "./channels-api";
+import { getChannels, getChannel, getArchivedChannels, createChannel, addChannelMember, removeChannelMember, restoreChannel } from "./channels-api";
 
 const API_BASE = "http://localhost:3001/api/v1";
 
@@ -130,6 +130,26 @@ describe("channels-api", () => {
     it("throws with backend error message", async () => {
       vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ message: "Channel is not archived" }), { status: 409 }));
       await expect(restoreChannel("token", "ws1", "ch1")).rejects.toThrow("Channel is not archived");
+    });
+  });
+
+  describe("getArchivedChannels", () => {
+    it("sends GET /workspaces/:wsId/channels/archived", async () => {
+      const mock = [{ id: "ch1", workspaceId: "ws1", name: "general", slug: "general", description: null, type: "PUBLIC" as const, createdById: "u1", createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", deletedAt: "2024-01-02T00:00:00Z" }];
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(mock), { status: 200 }));
+
+      const result = await getArchivedChannels("token", "ws1");
+
+      expect(fetch).toHaveBeenCalledWith(
+        `${API_BASE}/workspaces/ws1/channels/archived`,
+        expect.objectContaining({ method: "GET" }),
+      );
+      expect(result).toEqual(mock);
+    });
+
+    it("throws with backend error message", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ message: "Workspace not found" }), { status: 404 }));
+      await expect(getArchivedChannels("token", "ws1")).rejects.toThrow("Workspace not found");
     });
   });
 });
