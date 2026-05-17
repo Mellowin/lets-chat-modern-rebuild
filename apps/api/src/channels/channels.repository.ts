@@ -52,18 +52,12 @@ export class ChannelsRepository {
       where: {
         workspaceId,
         deletedAt: null,
-        OR: [
-          { type: 'PUBLIC' },
-          {
-            type: 'PRIVATE',
-            members: {
-              some: {
-                userId,
-                deletedAt: null,
-              },
-            },
+        members: {
+          some: {
+            userId,
+            deletedAt: null,
           },
-        ],
+        },
       },
       orderBy: { createdAt: 'asc' },
     });

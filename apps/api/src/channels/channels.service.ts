@@ -85,14 +85,12 @@ export class ChannelsService {
       throw new NotFoundException('Channel not found');
     }
 
-    if (channel.type === 'PRIVATE') {
-      const chRole = await this.channels.findChannelMemberRole(
-        channelId,
-        userId,
-      );
-      if (!chRole) {
-        throw new NotFoundException('Channel not found');
-      }
+    const chRole = await this.channels.findChannelMemberRole(
+      channelId,
+      userId,
+    );
+    if (!chRole) {
+      throw new NotFoundException('Channel not found');
     }
 
     return channel;
@@ -143,11 +141,9 @@ export class ChannelsService {
       throw new NotFoundException('Channel not found');
     }
 
-    if (channel.type === 'PRIVATE') {
-      const chRole = await this.channels.findChannelMemberRole(channelId, userId);
-      if (!chRole) {
-        throw new NotFoundException('Channel not found');
-      }
+    const chRole = await this.channels.findChannelMemberRole(channelId, userId);
+    if (!chRole) {
+      throw new NotFoundException('Channel not found');
     }
 
     const members = await this.channels.listActiveChannelMembers(channelId);

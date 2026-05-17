@@ -94,6 +94,20 @@ describe('MessagesService', () => {
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
+    it('throws NotFoundException for PUBLIC channel when user is not channel member', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as any);
+      channelsRepository.findChannelMemberRole.mockResolvedValue(null);
+
+      await expect(
+        service.create(workspaceId, channelId, { content: 'hello' }, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
     it('throws NotFoundException for PRIVATE channel when user is not channel member', async () => {
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
       channelsRepository.findActiveById.mockResolvedValue({
@@ -106,6 +120,31 @@ describe('MessagesService', () => {
       await expect(
         service.create(workspaceId, channelId, { content: 'hello' }, userId),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('creates message for PUBLIC channel member', async () => {
+      const message = {
+        id: messageId,
+        channelId,
+        content: 'hello',
+        author: { id: userId, username: 'user', displayName: null, avatarUrl: null },
+      } as any;
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as any);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      messagesRepository.createMessage.mockResolvedValue(message);
+
+      const result = await service.create(
+        workspaceId,
+        channelId,
+        { content: 'hello' },
+        userId,
+      );
+      expect(result.content).toBe('hello');
     });
 
     it('creates message for PRIVATE channel member', async () => {
@@ -143,7 +182,7 @@ describe('MessagesService', () => {
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
-    it('returns messages for channel member', async () => {
+    it('returns messages for PUBLIC channel member', async () => {
       const messages = [
         {
           id: messageId,
@@ -158,11 +197,26 @@ describe('MessagesService', () => {
         workspaceId,
         type: 'PUBLIC',
       } as any);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
       messagesRepository.listForChannel.mockResolvedValue(messages);
 
       const result = await service.list(workspaceId, channelId, userId, {});
       expect(result).toHaveLength(1);
       expect(result[0].content).toBe('hello');
+    });
+
+    it('throws NotFoundException for PUBLIC channel when user is not channel member', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as any);
+      channelsRepository.findChannelMemberRole.mockResolvedValue(null);
+
+      await expect(
+        service.list(workspaceId, channelId, userId, {}),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('throws NotFoundException when channel belongs to another workspace', async () => {
