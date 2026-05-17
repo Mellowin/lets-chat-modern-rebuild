@@ -63,6 +63,22 @@ export class ChannelsRepository {
     });
   }
 
+  async listArchivedForWorkspace(workspaceId: string, userId: string) {
+    return this.prisma.channel.findMany({
+      where: {
+        workspaceId,
+        deletedAt: { not: null },
+        members: {
+          some: {
+            userId,
+            deletedAt: null,
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
   async findActiveById(channelId: string) {
     return this.prisma.channel.findFirst({
       where: { id: channelId, deletedAt: null },

@@ -35,6 +35,7 @@ describe('ChannelsService', () => {
             createChannelMember: jest.fn(),
             listActiveChannelMembers: jest.fn(),
             listForWorkspace: jest.fn(),
+            listArchivedForWorkspace: jest.fn(),
             updateChannel: jest.fn(),
             findByIdIncludingArchived: jest.fn(),
             archiveChannel: jest.fn(),
@@ -272,6 +273,38 @@ describe('ChannelsService', () => {
 
       const result = await service.archive(workspaceId, channelId, userId);
       expect(result.success).toBe(true);
+    });
+  });
+
+  describe('listArchived', () => {
+    it('active channel member sees archived channel', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.listArchivedForWorkspace.mockResolvedValue([
+        { id: channelId, workspaceId, name: 'archived-channel', deletedAt: new Date() },
+      ] as any);
+
+      const result = await service.listArchived(workspaceId, userId);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('archived-channel');
+    });
+
+    it('non-workspace-member -> 404', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue(null);
+
+      await expect(
+        service.listArchived(workspaceId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(channelsRepository.listArchivedForWorkspace).not.toHaveBeenCalled();
+    });
+
+    it('does not return active channels', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.listArchivedForWorkspace.mockResolvedValue([]);
+
+      const result = await service.listArchived(workspaceId, userId);
+
+      expect(result).toHaveLength(0);
     });
   });
 

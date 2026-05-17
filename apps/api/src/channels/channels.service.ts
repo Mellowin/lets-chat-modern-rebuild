@@ -74,6 +74,14 @@ export class ChannelsService {
     return this.channels.listForWorkspace(workspaceId, userId);
   }
 
+  async listArchived(workspaceId: string, userId: string) {
+    const role = await this.workspaces.findMemberRole(workspaceId, userId);
+    if (!role) {
+      throw new NotFoundException('Workspace not found');
+    }
+    return this.channels.listArchivedForWorkspace(workspaceId, userId);
+  }
+
   async findById(workspaceId: string, channelId: string, userId: string) {
     const wsRole = await this.workspaces.findMemberRole(workspaceId, userId);
     if (!wsRole) {

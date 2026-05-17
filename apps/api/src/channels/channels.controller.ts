@@ -63,6 +63,18 @@ export class ChannelsController {
     return this.channels.list(workspaceId, user.id);
   }
 
+  @Get('archived')
+  @ApiOperation({ summary: 'List archived workspace channels' })
+  @ApiOkResponse({ description: 'Archived channels list' })
+  @ApiNotFoundResponse({ description: 'Workspace not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async findArchived(
+    @Param('workspaceId') workspaceId: string,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.channels.listArchived(workspaceId, user.id);
+  }
+
   @Get(':channelId')
   @ApiOperation({ summary: 'Get channel by id' })
   @ApiOkResponse({ description: 'Channel found' })
