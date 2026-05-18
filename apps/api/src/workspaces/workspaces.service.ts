@@ -97,6 +97,29 @@ export class WorkspacesService {
     return { success: true };
   }
 
+  async leaveWorkspace(workspaceId: string, userId: string) {
+    const workspace = await this.workspaces.findActiveById(workspaceId);
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const myMember = await this.workspaces.findActiveMemberByUserId(workspaceId, userId);
+    if (!myMember) {
+      throw new NotFoundException('Workspace member not found');
+    }
+
+    if (myMember.role === 'OWNER') {
+      throw new ForbiddenException('Owner cannot leave workspace');
+    }
+
+    const deletedCount = await this.workspaces.softDeleteMemberByUserId(workspaceId, userId);
+    if (deletedCount === 0) {
+      throw new NotFoundException('Workspace member not found');
+    }
+
+    return { success: true };
+  }
+
   async updateMemberRole(
     workspaceId: string,
     memberId: string,

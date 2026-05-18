@@ -182,6 +182,18 @@ export class WorkspacesRepository {
     return result.count;
   }
 
+  async softDeleteMemberByUserId(workspaceId: string, userId: string) {
+    const result = await this.prisma.workspaceMember.updateMany({
+      where: {
+        workspaceId,
+        userId,
+        deletedAt: null,
+      },
+      data: { deletedAt: new Date() },
+    });
+    return result.count;
+  }
+
   async createMember(data: {
     workspaceId: string;
     userId: string;

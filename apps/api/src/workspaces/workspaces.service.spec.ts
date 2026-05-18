@@ -31,6 +31,7 @@ describe('WorkspacesService', () => {
             createMember: jest.fn(),
             updateMemberRole: jest.fn(),
             softDeleteMember: jest.fn(),
+            softDeleteMemberByUserId: jest.fn(),
             transferOwnership: jest.fn(),
           },
         },
@@ -1204,6 +1205,96 @@ describe('WorkspacesService', () => {
           removedRole: 'MEMBER',
         },
       });
+    });
+  });
+
+  describe('leaveWorkspace', () => {
+    it('should allow MEMBER to leave workspace', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
+        id: 'member-id',
+        workspaceId,
+        role: 'MEMBER',
+        userId,
+        createdAt: new Date('2026-01-01'),
+        user: { id: userId, username: 'alice' },
+      } as any);
+      workspacesRepository.softDeleteMemberByUserId.mockResolvedValue(1);
+
+      const result = await service.leaveWorkspace(workspaceId, userId);
+
+      expect(result).toEqual({ success: true });
+      expect(workspacesRepository.softDeleteMemberByUserId).toHaveBeenCalledWith(workspaceId, userId);
+    });
+
+    it('should allow ADMIN to leave workspace', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
+        id: 'member-id',
+        workspaceId,
+        role: 'ADMIN',
+        userId,
+        createdAt: new Date('2026-01-01'),
+        user: { id: userId, username: 'alice' },
+      } as any);
+      workspacesRepository.softDeleteMemberByUserId.mockResolvedValue(1);
+
+      const result = await service.leaveWorkspace(workspaceId, userId);
+
+      expect(result).toEqual({ success: true });
+    });
+
+    it('should reject OWNER leaving workspace', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
+        id: 'member-id',
+        workspaceId,
+        role: 'OWNER',
+        userId,
+        createdAt: new Date('2026-01-01'),
+        user: { id: userId, username: 'alice' },
+      } as any);
+
+      await expect(
+        service.leaveWorkspace(workspaceId, userId),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(workspacesRepository.softDeleteMemberByUserId).not.toHaveBeenCalled();
+    });
+
+    it('should reject non-workspace-member', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue(null);
+
+      await expect(
+        service.leaveWorkspace(workspaceId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(workspacesRepository.softDeleteMemberByUserId).not.toHaveBeenCalled();
+    });
+
+    it('should reject non-existing workspace', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue(null);
+
+      await expect(
+        service.leaveWorkspace(workspaceId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(workspacesRepository.softDeleteMemberByUserId).not.toHaveBeenCalled();
+    });
+
+    it('should reject when soft delete affects 0 rows', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
+        id: 'member-id',
+        workspaceId,
+        role: 'MEMBER',
+        userId,
+        createdAt: new Date('2026-01-01'),
+        user: { id: userId, username: 'alice' },
+      } as any);
+      workspacesRepository.softDeleteMemberByUserId.mockResolvedValue(0);
+
+      await expect(
+        service.leaveWorkspace(workspaceId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 });

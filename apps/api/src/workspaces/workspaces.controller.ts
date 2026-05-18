@@ -103,6 +103,20 @@ export class WorkspacesController {
     return this.workspaces.archive(workspaceId, user.id);
   }
 
+  @Post(':workspaceId/leave')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Leave workspace' })
+  @ApiOkResponse({ description: 'Left workspace successfully' })
+  @ApiForbiddenResponse({ description: 'Forbidden' })
+  @ApiNotFoundResponse({ description: 'Not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async leave(
+    @Param('workspaceId') workspaceId: string,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.workspaces.leaveWorkspace(workspaceId, user.id);
+  }
+
   @Get(':workspaceId/members')
   @ApiOperation({ summary: 'List workspace members' })
   @ApiOkResponse({ description: 'Members list' })
