@@ -402,12 +402,14 @@ export default function DashboardPage() {
                       <span className="text-xs text-zinc-400 dark:text-zinc-500">
                         {new Date(ws.createdAt).toLocaleDateString()}
                       </span>
-                      <button
-                        onClick={(e) => handleArchiveWorkspace(e, ws.id, ws.name)}
-                        className="text-[10px] text-red-600 dark:text-red-400 hover:underline"
-                      >
-                        Archive
-                      </button>
+                      {ws.ownerId === user?.id && (
+                        <button
+                          onClick={(e) => handleArchiveWorkspace(e, ws.id, ws.name)}
+                          className="text-[10px] text-red-600 dark:text-red-400 hover:underline"
+                        >
+                          Archive
+                        </button>
+                      )}
                     </div>
                   </li>
                 ))}

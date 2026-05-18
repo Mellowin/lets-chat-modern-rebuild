@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import DashboardPage from "./page";
 import { useAuth } from "@/lib/auth-context";
-import { getWorkspaces } from "@/lib/workspaces-api";
+import { getWorkspaces, archiveWorkspace } from "@/lib/workspaces-api";
 import { updateDisplayName } from "@/lib/auth-api";
 import { getPendingInvites, acceptInvite, declineInvite } from "@/lib/invites-api";
 
@@ -112,6 +112,64 @@ describe("DashboardPage — display name", () => {
     await userEvent.click(screen.getByRole("button", { name: /Save/i }));
 
     expect(await screen.findByText(/Too long/i)).toBeInTheDocument();
+  });
+});
+
+describe("DashboardPage — workspace list", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getPendingInvites).mockResolvedValue([]);
+  });
+
+  it("shows Archive button for owned workspace", async () => {
+    mockAuth({ user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, createdAt: "2024-01-01T00:00:00Z" } });
+    vi.mocked(getWorkspaces).mockResolvedValue([
+      { id: "ws1", name: "Owned", slug: "owned", description: null, ownerId: "u1", createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", deletedAt: null },
+    ]);
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Owned")).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: /Archive/i })).toBeInTheDocument();
+  });
+
+  it("hides Archive button for workspace where user is not owner", async () => {
+    mockAuth({ user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, createdAt: "2024-01-01T00:00:00Z" } });
+    vi.mocked(getWorkspaces).mockResolvedValue([
+      { id: "ws1", name: "Member Of", slug: "member-of", description: null, ownerId: "u2", createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", deletedAt: null },
+    ]);
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Member Of")).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("button", { name: /Archive/i })).not.toBeInTheDocument();
+  });
+
+  it("archives owned workspace on confirm", async () => {
+    mockAuth({ user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, createdAt: "2024-01-01T00:00:00Z" } });
+    vi.mocked(getWorkspaces).mockResolvedValue([
+      { id: "ws1", name: "Owned", slug: "owned", description: null, ownerId: "u1", createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", deletedAt: null },
+    ]);
+    vi.mocked(archiveWorkspace).mockResolvedValue({ success: true });
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Archive/i })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Archive/i }));
+
+    await waitFor(() => {
+      expect(archiveWorkspace).toHaveBeenCalledWith("token", "ws1");
+    });
+
+    confirmSpy.mockRestore();
   });
 });
 
