@@ -176,3 +176,33 @@ export async function addWorkspaceMember(
 
   return res.json() as Promise<WorkspaceMember>;
 }
+
+export async function leaveWorkspace(
+  accessToken: string,
+  workspaceId: string,
+): Promise<{ success: boolean }> {
+  const res = await fetch(
+    `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/leave`,
+    {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
+
+  if (!res.ok) {
+    let message = `Failed to leave workspace: ${res.status} ${res.statusText}`;
+    try {
+      const body = await res.json();
+      if (body?.message) message = body.message;
+      else if (body?.error) message = body.error;
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+
+  return res.json() as Promise<{ success: boolean }>;
+}

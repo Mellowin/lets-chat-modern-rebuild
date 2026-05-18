@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { getWorkspaces, getWorkspace, createWorkspace } from "./workspaces-api";
+import { getWorkspaces, getWorkspace, createWorkspace, leaveWorkspace } from "./workspaces-api";
 
 const API_BASE = "http://localhost:3001/api/v1";
 
@@ -73,6 +73,30 @@ describe("workspaces-api", () => {
       await expect(createWorkspace("token", { name: "New", slug: "new" })).rejects.toThrow(
         "Failed to create workspace: 500 Internal Server Error",
       );
+    });
+  });
+
+  describe("leaveWorkspace", () => {
+    it("sends POST /workspaces/:id/leave with Authorization header", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ success: true }), { status: 200 }));
+
+      const result = await leaveWorkspace("token", "ws1");
+
+      expect(fetch).toHaveBeenCalledWith(
+        `${API_BASE}/workspaces/ws1/leave`,
+        expect.objectContaining({
+          method: "POST",
+          headers: { Accept: "application/json", Authorization: "Bearer token" },
+        }),
+      );
+      expect(result).toEqual({ success: true });
+    });
+
+    it("throws with backend error message", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(
+        new Response(JSON.stringify({ message: "Owner cannot leave workspace" }), { status: 403 }),
+      );
+      await expect(leaveWorkspace("token", "ws1")).rejects.toThrow("Owner cannot leave workspace");
     });
   });
 });
