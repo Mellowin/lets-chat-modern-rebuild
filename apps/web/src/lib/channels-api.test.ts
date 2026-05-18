@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { getChannels, getChannel, getArchivedChannels, createChannel, addChannelMember, removeChannelMember, restoreChannel } from "./channels-api";
+import { getChannels, getChannel, getArchivedChannels, createChannel, addChannelMember, removeChannelMember, restoreChannel, leaveChannel } from "./channels-api";
 
 const API_BASE = "http://localhost:3001/api/v1";
 
@@ -150,6 +150,31 @@ describe("channels-api", () => {
     it("throws with backend error message", async () => {
       vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ message: "Workspace not found" }), { status: 404 }));
       await expect(getArchivedChannels("token", "ws1")).rejects.toThrow("Workspace not found");
+    });
+  });
+
+  describe("leaveChannel", () => {
+    it("sends POST /workspaces/:wsId/channels/:chId/leave", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ success: true }), { status: 200 }));
+
+      const result = await leaveChannel("token", "ws1", "ch1");
+
+      expect(fetch).toHaveBeenCalledWith(
+        `${API_BASE}/workspaces/ws1/channels/ch1/leave`,
+        expect.objectContaining({
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            Authorization: "Bearer token",
+          },
+        }),
+      );
+      expect(result).toEqual({ success: true });
+    });
+
+    it("throws with backend error message", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ message: "Owner cannot leave channel" }), { status: 403 }));
+      await expect(leaveChannel("token", "ws1", "ch1")).rejects.toThrow("Owner cannot leave channel");
     });
   });
 });
