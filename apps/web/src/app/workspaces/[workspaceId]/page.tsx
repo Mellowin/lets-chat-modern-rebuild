@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { getWorkspace, getWorkspaceMembers, addWorkspaceMember, leaveWorkspace, type Workspace, type WorkspaceMember } from "@/lib/workspaces-api";
+import { getWorkspace, getWorkspaceMembers, addWorkspaceMember, leaveWorkspace, removeWorkspaceMember, type Workspace, type WorkspaceMember } from "@/lib/workspaces-api";
 import { createWorkspaceInvite } from "@/lib/invites-api";
 import { getChannels, getArchivedChannels, createChannel, archiveChannel, restoreChannel, type Channel, type CreateChannelInput } from "@/lib/channels-api";
 
@@ -57,6 +57,12 @@ export default function WorkspaceDetailPage() {
   const [restoringChannelId, setRestoringChannelId] = useState<string | null>(null);
   const [restoreError, setRestoreError] = useState<string | null>(null);
   const [leaveError, setLeaveError] = useState<string | null>(null);
+  const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
+  const [removeMemberState, setRemoveMemberState] = useState<
+    | { kind: "idle" }
+    | { kind: "success"; message: string }
+    | { kind: "error"; message: string }
+  >({ kind: "idle" });
   const router = useRouter();
 
   useEffect(() => {
@@ -269,6 +275,26 @@ export default function WorkspaceDetailPage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to leave workspace";
       setLeaveError(message);
+    }
+  }
+
+  async function handleRemoveMember(memberId: string, displayName: string) {
+    if (!window.confirm(`Remove "${displayName}" from this workspace?`)) return;
+    if (!accessToken || !workspaceId) return;
+    setRemovingMemberId(memberId);
+    setRemoveMemberState({ kind: "idle" });
+    try {
+      await removeWorkspaceMember(accessToken, workspaceId, memberId);
+      setMembers((prev) => {
+        if (prev.kind !== "success") return prev;
+        return { kind: "success", data: prev.data.filter((m) => m.id !== memberId) };
+      });
+      setRemoveMemberState({ kind: "success", message: "Member removed" });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to remove member";
+      setRemoveMemberState({ kind: "error", message });
+    } finally {
+      setRemovingMemberId(null);
     }
   }
 
@@ -494,29 +520,50 @@ export default function WorkspaceDetailPage() {
         )}
 
         {members.kind === "success" && members.data.length > 0 && (
-          <ul className="mt-3 divide-y divide-zinc-200 dark:divide-zinc-800">
-            {members.data.map((m) => (
-              <li key={m.id} className="flex items-center justify-between py-2">
-                <div className="flex flex-col min-w-0">
-                  <span className="text-sm font-medium truncate">{m.user.displayName?.trim() ? m.user.displayName : `@${m.user.username}`}</span>
-                  {m.user.displayName?.trim() && (
-                    <span className="text-xs text-zinc-500 dark:text-zinc-400 truncate">@{m.user.username}</span>
-                  )}
-                </div>
-                <span
-                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
-                    m.role === "OWNER"
-                      ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400"
-                      : m.role === "ADMIN"
-                        ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400"
-                        : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400"
-                  }`}
-                >
-                  {m.role}
-                </span>
-              </li>
-            ))}
-          </ul>
+          (() => {
+            const myRole = members.data.find((m) => m.user.id === user?.id)?.role;
+            return (
+              <ul className="mt-3 divide-y divide-zinc-200 dark:divide-zinc-800">
+                {members.data.map((m) => {
+                  const canRemove =
+                    (myRole === "OWNER" && m.role !== "OWNER" && m.user.id !== user?.id) ||
+                    (myRole === "ADMIN" && m.role === "MEMBER" && m.user.id !== user?.id);
+                  return (
+                    <li key={m.id} className="flex items-center justify-between py-2">
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-sm font-medium truncate">{m.user.displayName?.trim() ? m.user.displayName : `@${m.user.username}`}</span>
+                        {m.user.displayName?.trim() && (
+                          <span className="text-xs text-zinc-500 dark:text-zinc-400 truncate">@{m.user.username}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0 ml-2">
+                        {canRemove && (
+                          <button
+                            onClick={() => handleRemoveMember(m.id, m.user.displayName?.trim() || `@${m.user.username}`)}
+                            disabled={removingMemberId === m.id}
+                            className="text-[10px] text-red-600 dark:text-red-400 hover:underline disabled:opacity-60 disabled:cursor-not-allowed"
+                          >
+                            {removingMemberId === m.id ? "Removing…" : "Remove"}
+                          </button>
+                        )}
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
+                            m.role === "OWNER"
+                              ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400"
+                              : m.role === "ADMIN"
+                                ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400"
+                                : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400"
+                          }`}
+                        >
+                          {m.role}
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            );
+          })()
         )}
 
         {members.kind === "success" && (
@@ -562,6 +609,24 @@ export default function WorkspaceDetailPage() {
               </>
             ) : null;
           })()
+        )}
+
+        {members.kind === "success" && removeMemberState.kind === "success" && (
+          <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
+            <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              {removeMemberState.message}
+            </div>
+          </div>
+        )}
+
+        {members.kind === "success" && removeMemberState.kind === "error" && (
+          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
+            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+              <span className="h-2 w-2 rounded-full bg-red-500" />
+              {removeMemberState.message}
+            </div>
+          </div>
         )}
 
         {members.kind === "success" && (

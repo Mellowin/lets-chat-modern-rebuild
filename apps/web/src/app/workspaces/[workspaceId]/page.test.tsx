@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import WorkspaceDetailPage from "./page";
-import { getWorkspace, getWorkspaceMembers, addWorkspaceMember, leaveWorkspace } from "@/lib/workspaces-api";
+import { getWorkspace, getWorkspaceMembers, addWorkspaceMember, leaveWorkspace, removeWorkspaceMember } from "@/lib/workspaces-api";
 import { createWorkspaceInvite } from "@/lib/invites-api";
 import { getChannels, getArchivedChannels, archiveChannel, restoreChannel } from "@/lib/channels-api";
 
@@ -13,11 +13,13 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: routerPushMock }),
 }));
 
+const mockAuthUser = { id: "u1", email: "a@b.com", username: "alice" };
+
 vi.mock("@/lib/auth-context", () => ({
   useAuth: () => ({
     isLoading: false,
     isAuthenticated: true,
-    user: { id: "u1", email: "a@b.com", username: "alice" },
+    get user() { return mockAuthUser; },
     accessToken: "token",
   }),
 }));
@@ -27,6 +29,7 @@ vi.mock("@/lib/workspaces-api", () => ({
   getWorkspaceMembers: vi.fn(),
   addWorkspaceMember: vi.fn(),
   leaveWorkspace: vi.fn(),
+  removeWorkspaceMember: vi.fn(),
 }));
 
 vi.mock("@/lib/invites-api", () => ({
@@ -416,6 +419,228 @@ describe("WorkspaceDetailPage — add member / invite", () => {
     // Should still only show alice, not bob
     expect(screen.getAllByText("Alice").length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText("bob@example.com")).not.toBeInTheDocument();
+  });
+});
+
+describe("WorkspaceDetailPage — remove member", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockAuthUser.id = "u1";
+    mockAuthUser.email = "a@b.com";
+    mockAuthUser.username = "alice";
+  });
+
+  function mockWorkspaceWithMembers(members: unknown[]) {
+    mockWorkspaceData({ archived: [] });
+    vi.mocked(getWorkspaceMembers).mockResolvedValue(members as Awaited<ReturnType<typeof getWorkspaceMembers>>);
+  }
+
+  it("OWNER sees Remove button for MEMBER", async () => {
+    mockWorkspaceWithMembers([
+      { id: "wm1", workspaceId: "ws1", role: "OWNER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice", displayName: "Alice" } },
+      { id: "wm2", workspaceId: "ws1", role: "MEMBER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u2", username: "bob", displayName: "Bob" } },
+    ]);
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Bob")).toBeInTheDocument();
+    });
+
+    const removeButtons = screen.getAllByRole("button", { name: /Remove/i });
+    expect(removeButtons).toHaveLength(1);
+  });
+
+  it("OWNER sees Remove button for ADMIN", async () => {
+    mockWorkspaceWithMembers([
+      { id: "wm1", workspaceId: "ws1", role: "OWNER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice", displayName: "Alice" } },
+      { id: "wm2", workspaceId: "ws1", role: "ADMIN", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u2", username: "bob", displayName: "Bob" } },
+    ]);
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Bob")).toBeInTheDocument();
+    });
+
+    const removeButtons = screen.getAllByRole("button", { name: /Remove/i });
+    expect(removeButtons).toHaveLength(1);
+  });
+
+  it("OWNER does not see Remove button for self", async () => {
+    mockWorkspaceWithMembers([
+      { id: "wm1", workspaceId: "ws1", role: "OWNER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice", displayName: "Alice" } },
+    ]);
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Alice")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole("button", { name: /Remove/i })).not.toBeInTheDocument();
+  });
+
+  it("ADMIN sees Remove button for MEMBER", async () => {
+    mockAuthUser.id = "u2";
+    mockAuthUser.email = "b@b.com";
+    mockAuthUser.username = "bob";
+    mockWorkspaceWithMembers([
+      { id: "wm1", workspaceId: "ws1", role: "OWNER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice", displayName: "Alice" } },
+      { id: "wm2", workspaceId: "ws1", role: "ADMIN", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u2", username: "bob", displayName: "Bob" } },
+      { id: "wm3", workspaceId: "ws1", role: "MEMBER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u3", username: "charlie", displayName: "Charlie" } },
+    ]);
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Charlie")).toBeInTheDocument();
+    });
+
+    const removeButtons = screen.getAllByRole("button", { name: /Remove/i });
+    expect(removeButtons).toHaveLength(1);
+  });
+
+  it("ADMIN does not see Remove button for ADMIN", async () => {
+    mockAuthUser.id = "u2";
+    mockAuthUser.email = "b@b.com";
+    mockAuthUser.username = "bob";
+    mockWorkspaceWithMembers([
+      { id: "wm1", workspaceId: "ws1", role: "OWNER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice", displayName: "Alice" } },
+      { id: "wm2", workspaceId: "ws1", role: "ADMIN", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u2", username: "bob", displayName: "Bob" } },
+    ]);
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Bob")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole("button", { name: /Remove/i })).not.toBeInTheDocument();
+  });
+
+  it("ADMIN does not see Remove button for OWNER", async () => {
+    mockAuthUser.id = "u2";
+    mockAuthUser.email = "b@b.com";
+    mockAuthUser.username = "bob";
+    mockWorkspaceWithMembers([
+      { id: "wm1", workspaceId: "ws1", role: "OWNER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice", displayName: "Alice" } },
+      { id: "wm2", workspaceId: "ws1", role: "ADMIN", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u2", username: "bob", displayName: "Bob" } },
+    ]);
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Alice")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole("button", { name: /Remove/i })).not.toBeInTheDocument();
+  });
+
+  it("ADMIN does not see Remove button for self", async () => {
+    mockAuthUser.id = "u2";
+    mockAuthUser.email = "b@b.com";
+    mockAuthUser.username = "bob";
+    mockWorkspaceWithMembers([
+      { id: "wm1", workspaceId: "ws1", role: "OWNER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice", displayName: "Alice" } },
+      { id: "wm2", workspaceId: "ws1", role: "ADMIN", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u2", username: "bob", displayName: "Bob" } },
+    ]);
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Bob")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole("button", { name: /Remove/i })).not.toBeInTheDocument();
+  });
+
+  it("MEMBER sees no Remove buttons", async () => {
+    mockAuthUser.id = "u3";
+    mockAuthUser.email = "c@c.com";
+    mockAuthUser.username = "charlie";
+    mockWorkspaceWithMembers([
+      { id: "wm1", workspaceId: "ws1", role: "OWNER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice", displayName: "Alice" } },
+      { id: "wm2", workspaceId: "ws1", role: "MEMBER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u3", username: "charlie", displayName: "Charlie" } },
+    ]);
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Alice")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole("button", { name: /Remove/i })).not.toBeInTheDocument();
+  });
+
+  it("cancel confirm does not call API", async () => {
+    mockWorkspaceWithMembers([
+      { id: "wm1", workspaceId: "ws1", role: "OWNER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice", displayName: "Alice" } },
+      { id: "wm2", workspaceId: "ws1", role: "MEMBER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u2", username: "bob", displayName: "Bob" } },
+    ]);
+
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Remove/i })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Remove/i }));
+
+    expect(removeWorkspaceMember).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
+  });
+
+  it("success removes member from list and shows Member removed", async () => {
+    mockWorkspaceWithMembers([
+      { id: "wm1", workspaceId: "ws1", role: "OWNER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice", displayName: "Alice" } },
+      { id: "wm2", workspaceId: "ws1", role: "MEMBER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u2", username: "bob", displayName: "Bob" } },
+    ]);
+
+    vi.mocked(removeWorkspaceMember).mockResolvedValue({ success: true });
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Bob")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Remove/i }));
+
+    await waitFor(() => {
+      expect(removeWorkspaceMember).toHaveBeenCalledWith("token", "ws1", "wm2");
+    });
+
+    expect(screen.queryByText("Bob")).not.toBeInTheDocument();
+    expect(screen.getByText(/Member removed/i)).toBeInTheDocument();
+
+    confirmSpy.mockRestore();
+  });
+
+  it("backend error shows inline error and keeps member in list", async () => {
+    mockWorkspaceWithMembers([
+      { id: "wm1", workspaceId: "ws1", role: "OWNER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice", displayName: "Alice" } },
+      { id: "wm2", workspaceId: "ws1", role: "MEMBER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u2", username: "bob", displayName: "Bob" } },
+    ]);
+
+    vi.mocked(removeWorkspaceMember).mockRejectedValue(new Error("Cannot remove workspace owner"));
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Remove/i })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Remove/i }));
+
+    expect(await screen.findByText(/Cannot remove workspace owner/i)).toBeInTheDocument();
+    expect(screen.getByText("Bob")).toBeInTheDocument();
+
+    confirmSpy.mockRestore();
   });
 });
 
