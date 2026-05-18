@@ -33,6 +33,8 @@ describe('WorkspacesService', () => {
             softDeleteMember: jest.fn(),
             softDeleteMemberByUserId: jest.fn(),
             transferOwnership: jest.fn(),
+            findByIdIncludingArchived: jest.fn(),
+            restoreWorkspace: jest.fn(),
           },
         },
         {
@@ -1223,6 +1225,77 @@ describe('WorkspacesService', () => {
       await expect(
         service.removeMember(workspaceId, memberId, userId),
       ).rejects.toBeInstanceOf(NotFoundException);
+      expectAuditNotCalled();
+    });
+  });
+
+  describe('restore', () => {
+    it('should allow OWNER to restore archived workspace', async () => {
+      workspacesRepository.findByIdIncludingArchived
+        .mockResolvedValueOnce({
+          id: workspaceId,
+          name: 'Archived WS',
+          ownerId: userId,
+          deletedAt: new Date('2026-01-01'),
+        } as any)
+        .mockResolvedValueOnce({
+          id: workspaceId,
+          name: 'Archived WS',
+          ownerId: userId,
+          deletedAt: null,
+        } as any);
+      workspacesRepository.restoreWorkspace.mockResolvedValue(1);
+
+      const result = await service.restore(workspaceId, userId);
+
+      expect(result.deletedAt).toBeNull();
+      expect(workspacesRepository.restoreWorkspace).toHaveBeenCalledWith(workspaceId);
+    });
+
+    it('should reject non-owner', async () => {
+      workspacesRepository.findByIdIncludingArchived.mockResolvedValue({
+        id: workspaceId,
+        name: 'Archived WS',
+        ownerId: 'other-owner-id',
+        deletedAt: new Date('2026-01-01'),
+      } as any);
+
+      await expect(service.restore(workspaceId, userId)).rejects.toBeInstanceOf(ForbiddenException);
+      expect(workspacesRepository.restoreWorkspace).not.toHaveBeenCalled();
+      expectAuditNotCalled();
+    });
+
+    it('should reject not found workspace', async () => {
+      workspacesRepository.findByIdIncludingArchived.mockResolvedValue(null);
+
+      await expect(service.restore(workspaceId, userId)).rejects.toBeInstanceOf(NotFoundException);
+      expect(workspacesRepository.restoreWorkspace).not.toHaveBeenCalled();
+      expectAuditNotCalled();
+    });
+
+    it('should reject active workspace', async () => {
+      workspacesRepository.findByIdIncludingArchived.mockResolvedValue({
+        id: workspaceId,
+        name: 'Active WS',
+        ownerId: userId,
+        deletedAt: null,
+      } as any);
+
+      await expect(service.restore(workspaceId, userId)).rejects.toBeInstanceOf(ConflictException);
+      expect(workspacesRepository.restoreWorkspace).not.toHaveBeenCalled();
+      expectAuditNotCalled();
+    });
+
+    it('should reject race condition where restore affects 0 rows', async () => {
+      workspacesRepository.findByIdIncludingArchived.mockResolvedValue({
+        id: workspaceId,
+        name: 'Archived WS',
+        ownerId: userId,
+        deletedAt: new Date('2026-01-01'),
+      } as any);
+      workspacesRepository.restoreWorkspace.mockResolvedValue(0);
+
+      await expect(service.restore(workspaceId, userId)).rejects.toBeInstanceOf(ConflictException);
       expectAuditNotCalled();
     });
   });

@@ -103,6 +103,21 @@ export class WorkspacesController {
     return this.workspaces.archive(workspaceId, user.id);
   }
 
+  @Post(':workspaceId/restore')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Restore archived workspace' })
+  @ApiOkResponse({ description: 'Workspace restored' })
+  @ApiForbiddenResponse({ description: 'Forbidden' })
+  @ApiNotFoundResponse({ description: 'Workspace not found' })
+  @ApiConflictResponse({ description: 'Workspace is not archived' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async restore(
+    @Param('workspaceId') workspaceId: string,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.workspaces.restore(workspaceId, user.id);
+  }
+
   @Post(':workspaceId/leave')
   @HttpCode(200)
   @ApiOperation({ summary: 'Leave workspace' })

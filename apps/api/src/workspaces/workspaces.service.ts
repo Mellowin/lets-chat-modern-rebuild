@@ -97,6 +97,26 @@ export class WorkspacesService {
     return { success: true };
   }
 
+  async restore(workspaceId: string, userId: string) {
+    const workspace = await this.workspaces.findByIdIncludingArchived(workspaceId);
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+    if (workspace.ownerId !== userId) {
+      throw new ForbiddenException('Only owner can restore workspace');
+    }
+    if (workspace.deletedAt === null) {
+      throw new ConflictException('Workspace is not archived');
+    }
+
+    const restoredCount = await this.workspaces.restoreWorkspace(workspaceId);
+    if (restoredCount === 0) {
+      throw new ConflictException('Workspace is not archived');
+    }
+
+    return this.workspaces.findByIdIncludingArchived(workspaceId);
+  }
+
   async leaveWorkspace(workspaceId: string, userId: string) {
     const workspace = await this.workspaces.findActiveById(workspaceId);
     if (!workspace) {

@@ -99,6 +99,20 @@ export class WorkspacesRepository {
     });
   }
 
+  async findByIdIncludingArchived(id: string) {
+    return this.prisma.workspace.findUnique({
+      where: { id },
+    });
+  }
+
+  async restoreWorkspace(id: string) {
+    const result = await this.prisma.workspace.updateMany({
+      where: { id, deletedAt: { not: null } },
+      data: { deletedAt: null },
+    });
+    return result.count;
+  }
+
   async listActiveMembers(workspaceId: string) {
     return this.prisma.workspaceMember.findMany({
       where: {
