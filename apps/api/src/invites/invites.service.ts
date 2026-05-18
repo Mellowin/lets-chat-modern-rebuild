@@ -210,6 +210,143 @@ export class InvitesService {
     return { id: inviteId, deletedAt: revokedAt };
   }
 
+  async listPending(userId: string, userEmail: string) {
+    const invites = await this.invites.findPendingByEmail(userEmail);
+    return invites.map((invite) => ({
+      id: invite.id,
+      workspace: invite.workspace,
+      invitedBy: invite.invitedBy,
+      role: invite.role,
+      expiresAt: invite.expiresAt,
+      createdAt: invite.createdAt,
+    }));
+  }
+
+  async acceptById(inviteId: string, userId: string, userEmail: string) {
+    const invite = await this.invites.findPendingById(inviteId);
+    if (!invite || invite.deletedAt) {
+      throw new NotFoundException('Invite not found');
+    }
+
+    if (invite.usedAt || invite.usedById) {
+      throw new ConflictException('Invite already used');
+    }
+
+    if (invite.expiresAt < new Date()) {
+      throw new GoneException('Invite expired');
+    }
+
+    if (invite.invitedEmail && invite.invitedEmail !== userEmail.toLowerCase()) {
+      throw new ForbiddenException('Email mismatch');
+    }
+
+    if (invite.role === 'OWNER') {
+      throw new BadRequestException('Cannot accept OWNER invite');
+    }
+
+    const workspace = await this.workspaces.findActiveById(invite.workspaceId);
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const existingRole = await this.workspaces.findMemberRole(invite.workspaceId, userId);
+    if (existingRole) {
+      throw new ConflictException('Already a member of this workspace');
+    }
+
+    try {
+      const member = await this.invites.acceptInvite(
+        invite.id,
+        userId,
+        invite.workspaceId,
+        invite.role,
+      );
+
+      await this.audit.record({
+        actorId: userId,
+        action: AuditAction.WORKSPACE_INVITE_ACCEPTED,
+        entityType: AuditEntityType.INVITATION,
+        entityId: invite.id,
+        workspaceId: invite.workspaceId,
+        metadata: {
+          role: invite.role,
+        },
+      });
+
+      return {
+        workspaceId: member.workspaceId,
+        role: member.role,
+        joinedAt: member.createdAt,
+      };
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('Already a member of this workspace');
+      }
+      if (
+        error instanceof Error &&
+        error.message === 'INVITE_ALREADY_USED_OR_REVOKED'
+      ) {
+        const current = await this.invites.findById(invite.id);
+        if (!current || current.deletedAt) {
+          throw new NotFoundException('Invite not found');
+        }
+        if (current.usedAt || current.usedById) {
+          throw new ConflictException('Invite already used');
+        }
+        throw new NotFoundException('Invite not found');
+      }
+      throw error;
+    }
+  }
+
+  async decline(inviteId: string, userId: string, userEmail: string) {
+    const invite = await this.invites.findPendingById(inviteId);
+    if (!invite || invite.deletedAt) {
+      throw new NotFoundException('Invite not found');
+    }
+
+    if (invite.usedAt || invite.usedById) {
+      throw new ConflictException('Invite already used');
+    }
+
+    if (invite.expiresAt < new Date()) {
+      throw new GoneException('Invite expired');
+    }
+
+    if (invite.invitedEmail && invite.invitedEmail !== userEmail.toLowerCase()) {
+      throw new ForbiddenException('Email mismatch');
+    }
+
+    const declinedAt = new Date();
+    const deletedCount = await this.invites.softDeleteIfUnused(inviteId, declinedAt);
+    if (deletedCount === 0) {
+      const current = await this.invites.findById(inviteId);
+      if (!current || current.deletedAt) {
+        throw new NotFoundException('Invite not found');
+      }
+      if (current.usedAt || current.usedById) {
+        throw new ConflictException('Invite already used');
+      }
+      throw new NotFoundException('Invite not found');
+    }
+
+    await this.audit.record({
+      actorId: userId,
+      action: AuditAction.WORKSPACE_INVITE_DECLINED,
+      entityType: AuditEntityType.INVITATION,
+      entityId: inviteId,
+      workspaceId: invite.workspaceId,
+      metadata: {
+        role: invite.role,
+      },
+    });
+
+    return { id: inviteId, deletedAt: declinedAt };
+  }
+
   async list(workspaceId: string, userId: string) {
     const workspace = await this.workspaces.findActiveById(workspaceId);
     if (!workspace) {

@@ -76,4 +76,39 @@ export class InvitesRepository {
       orderBy: { createdAt: 'desc' },
     });
   }
+
+  async findPendingByEmail(email: string) {
+    return this.prisma.invitation.findMany({
+      where: {
+        invitedEmail: email.toLowerCase(),
+        deletedAt: null,
+        usedAt: null,
+        usedById: null,
+        expiresAt: { gt: new Date() },
+      },
+      include: {
+        workspace: {
+          select: { id: true, name: true, slug: true },
+        },
+        invitedBy: {
+          select: { id: true, username: true, displayName: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async findPendingById(id: string) {
+    return this.prisma.invitation.findUnique({
+      where: { id },
+      include: {
+        workspace: {
+          select: { id: true, name: true, slug: true },
+        },
+        invitedBy: {
+          select: { id: true, username: true, displayName: true },
+        },
+      },
+    });
+  }
 }

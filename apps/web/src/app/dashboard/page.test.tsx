@@ -5,6 +5,7 @@ import DashboardPage from "./page";
 import { useAuth } from "@/lib/auth-context";
 import { getWorkspaces, createWorkspace, archiveWorkspace } from "@/lib/workspaces-api";
 import { updateDisplayName } from "@/lib/auth-api";
+import { getPendingInvites, acceptInvite, declineInvite } from "@/lib/invites-api";
 
 vi.mock("@/lib/auth-context", () => ({
   useAuth: vi.fn(),
@@ -18,6 +19,12 @@ vi.mock("@/lib/workspaces-api", () => ({
 
 vi.mock("@/lib/auth-api", () => ({
   updateDisplayName: vi.fn(),
+}));
+
+vi.mock("@/lib/invites-api", () => ({
+  getPendingInvites: vi.fn(),
+  acceptInvite: vi.fn(),
+  declineInvite: vi.fn(),
 }));
 
 function mockAuth(userOverrides?: Partial<ReturnType<typeof useAuth>>) {
@@ -38,6 +45,7 @@ describe("DashboardPage — display name", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getWorkspaces).mockResolvedValue([]);
+    vi.mocked(getPendingInvites).mockResolvedValue([]);
   });
 
   it("renders display name input", async () => {
@@ -104,5 +112,130 @@ describe("DashboardPage — display name", () => {
     await userEvent.click(screen.getByRole("button", { name: /Save/i }));
 
     expect(await screen.findByText(/Too long/i)).toBeInTheDocument();
+  });
+});
+
+describe("DashboardPage — pending invites", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getWorkspaces).mockResolvedValue([]);
+    vi.mocked(getPendingInvites).mockResolvedValue([]);
+  });
+
+  it("shows pending invites", async () => {
+    mockAuth();
+    vi.mocked(getPendingInvites).mockResolvedValue([
+      {
+        id: "invite-1",
+        workspace: { id: "ws-1", name: "Test Workspace", slug: "test" },
+        invitedBy: { id: "u2", username: "bob", displayName: "Bob" },
+        role: "MEMBER",
+        expiresAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Test Workspace")).toBeInTheDocument();
+    });
+    expect(screen.getByText(/Invited by Bob · MEMBER/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Accept/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Decline/i })).toBeInTheDocument();
+  });
+
+  it("shows no pending invitations message when empty", async () => {
+    mockAuth();
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/No pending invitations/i)).toBeInTheDocument();
+    });
+  });
+
+  it("accepts an invite and refreshes workspaces", async () => {
+    mockAuth();
+    vi.mocked(getPendingInvites).mockResolvedValue([
+      {
+        id: "invite-1",
+        workspace: { id: "ws-1", name: "Test Workspace", slug: "test" },
+        invitedBy: { id: "u2", username: "bob", displayName: null },
+        role: "MEMBER",
+        expiresAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+    vi.mocked(acceptInvite).mockResolvedValue({ workspaceId: "ws-1", role: "MEMBER", joinedAt: new Date().toISOString() });
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent").mockImplementation(() => true);
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Accept/i })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Accept/i }));
+
+    await waitFor(() => {
+      expect(acceptInvite).toHaveBeenCalledWith("token", "invite-1");
+    });
+    expect(dispatchSpy).toHaveBeenCalledWith(expect.any(Event));
+    dispatchSpy.mockRestore();
+  });
+
+  it("declines an invite after confirmation", async () => {
+    mockAuth();
+    vi.mocked(getPendingInvites).mockResolvedValue([
+      {
+        id: "invite-1",
+        workspace: { id: "ws-1", name: "Test Workspace", slug: "test" },
+        invitedBy: { id: "u2", username: "bob", displayName: null },
+        role: "MEMBER",
+        expiresAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+    vi.mocked(declineInvite).mockResolvedValue({ id: "invite-1", deletedAt: new Date().toISOString() });
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Decline/i })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Decline/i }));
+
+    await waitFor(() => {
+      expect(declineInvite).toHaveBeenCalledWith("token", "invite-1");
+    });
+    confirmSpy.mockRestore();
+  });
+
+  it("shows error when accepting invite fails", async () => {
+    mockAuth();
+    vi.mocked(getPendingInvites).mockResolvedValue([
+      {
+        id: "invite-1",
+        workspace: { id: "ws-1", name: "Test Workspace", slug: "test" },
+        invitedBy: { id: "u2", username: "bob", displayName: null },
+        role: "MEMBER",
+        expiresAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+    vi.mocked(acceptInvite).mockRejectedValue(new Error("Invite expired"));
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Accept/i })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Accept/i }));
+
+    expect(await screen.findByText(/Invite expired/i)).toBeInTheDocument();
   });
 });

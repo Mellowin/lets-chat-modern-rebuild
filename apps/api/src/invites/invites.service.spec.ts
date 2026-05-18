@@ -30,6 +30,8 @@ describe('InvitesService', () => {
             findById: jest.fn(),
             softDeleteIfUnused: jest.fn(),
             listForWorkspace: jest.fn(),
+            findPendingByEmail: jest.fn(),
+            findPendingById: jest.fn(),
           },
         },
         {
@@ -670,6 +672,251 @@ describe('InvitesService', () => {
         service.accept(rawToken, userId, 'test@example.com'),
       ).rejects.toBeInstanceOf(ConflictException);
       expectAuditNotCalled();
+    });
+  });
+
+  describe('listPending', () => {
+    it('should return pending invites for user email', async () => {
+      invitesRepository.findPendingByEmail.mockResolvedValue([
+        {
+          id: 'invite-1',
+          workspaceId,
+          invitedEmail: 'test@example.com',
+          role: 'MEMBER',
+          expiresAt: new Date(Date.now() + 86400000),
+          usedAt: null,
+          usedById: null,
+          deletedAt: null,
+          createdAt: new Date(),
+          workspace: { id: workspaceId, name: 'Test Workspace', slug: 'test' },
+          invitedBy: { id: 'inviter-id', username: 'inviter', displayName: 'The Inviter' },
+        },
+      ] as any);
+
+      const result = await service.listPending(userId, 'test@example.com');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('invite-1');
+      expect(result[0].workspace.name).toBe('Test Workspace');
+      expect(result[0].invitedBy.username).toBe('inviter');
+      expect(result[0].role).toBe('MEMBER');
+    });
+
+    it('should return empty array when no pending invites', async () => {
+      invitesRepository.findPendingByEmail.mockResolvedValue([]);
+
+      const result = await service.listPending(userId, 'test@example.com');
+
+      expect(result).toEqual([]);
+    });
+  });
+
+  describe('acceptById', () => {
+    const inviteId = '55555555-5555-5555-5555-555555555555';
+
+    function makePendingInvite(overrides: any = {}) {
+      return {
+        id: inviteId,
+        workspaceId,
+        invitedEmail: 'test@example.com',
+        role: 'MEMBER',
+        tokenHash: 'hash',
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        usedAt: null,
+        usedById: null,
+        deletedAt: null,
+        workspace: { id: workspaceId, name: 'Test Workspace', slug: 'test' },
+        invitedBy: { id: 'inviter-id', username: 'inviter', displayName: null },
+        ...overrides,
+      };
+    }
+
+    it('should allow accepting a valid invite by ID', async () => {
+      invitesRepository.findPendingById.mockResolvedValue(makePendingInvite() as any);
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue(null);
+      invitesRepository.acceptInvite.mockResolvedValue({
+        workspaceId,
+        role: 'MEMBER',
+        createdAt: new Date('2026-01-01'),
+      } as any);
+
+      const result = await service.acceptById(inviteId, userId, 'test@example.com');
+
+      expect(result.workspaceId).toBe(workspaceId);
+      expect(result.role).toBe('MEMBER');
+      expect(invitesRepository.acceptInvite).toHaveBeenCalledWith(
+        inviteId,
+        userId,
+        workspaceId,
+        'MEMBER',
+      );
+      expect(auditService.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: AuditAction.WORKSPACE_INVITE_ACCEPTED,
+        }),
+      );
+    });
+
+    it('should reject invalid invite ID', async () => {
+      invitesRepository.findPendingById.mockResolvedValue(null);
+
+      await expect(
+        service.acceptById(inviteId, userId, 'test@example.com'),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expectAuditNotCalled();
+    });
+
+    it('should reject expired invite', async () => {
+      invitesRepository.findPendingById.mockResolvedValue(
+        makePendingInvite({ expiresAt: new Date(Date.now() - 1000) }) as any,
+      );
+
+      await expect(
+        service.acceptById(inviteId, userId, 'test@example.com'),
+      ).rejects.toBeInstanceOf(GoneException);
+      expectAuditNotCalled();
+    });
+
+    it('should reject already used invite', async () => {
+      invitesRepository.findPendingById.mockResolvedValue(
+        makePendingInvite({ usedAt: new Date() }) as any,
+      );
+
+      await expect(
+        service.acceptById(inviteId, userId, 'test@example.com'),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expectAuditNotCalled();
+    });
+
+    it('should reject email mismatch', async () => {
+      invitesRepository.findPendingById.mockResolvedValue(makePendingInvite() as any);
+
+      await expect(
+        service.acceptById(inviteId, userId, 'different@example.com'),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expectAuditNotCalled();
+    });
+
+    it('should reject already workspace member', async () => {
+      invitesRepository.findPendingById.mockResolvedValue(makePendingInvite() as any);
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+
+      await expect(
+        service.acceptById(inviteId, userId, 'test@example.com'),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expectAuditNotCalled();
+    });
+
+    it('should map Prisma P2002 to ConflictException on race condition', async () => {
+      invitesRepository.findPendingById.mockResolvedValue(makePendingInvite() as any);
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue(null);
+
+      const prismaError = new Prisma.PrismaClientKnownRequestError(
+        'Unique constraint failed',
+        { code: 'P2002', clientVersion: '5.22.0' },
+      );
+      invitesRepository.acceptInvite.mockRejectedValue(prismaError);
+
+      await expect(
+        service.acceptById(inviteId, userId, 'test@example.com'),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+  });
+
+  describe('decline', () => {
+    const inviteId = '66666666-6666-6666-6666-666666666666';
+
+    function makePendingInvite(overrides: any = {}) {
+      return {
+        id: inviteId,
+        workspaceId,
+        invitedEmail: 'test@example.com',
+        role: 'MEMBER',
+        tokenHash: 'hash',
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        usedAt: null,
+        usedById: null,
+        deletedAt: null,
+        workspace: { id: workspaceId, name: 'Test Workspace', slug: 'test' },
+        invitedBy: { id: 'inviter-id', username: 'inviter', displayName: null },
+        ...overrides,
+      };
+    }
+
+    it('should allow declining a valid invite', async () => {
+      invitesRepository.findPendingById.mockResolvedValue(makePendingInvite() as any);
+      invitesRepository.softDeleteIfUnused.mockResolvedValue(1);
+
+      const result = await service.decline(inviteId, userId, 'test@example.com');
+
+      expect(result.id).toBe(inviteId);
+      expect(result.deletedAt).toBeInstanceOf(Date);
+      expect(invitesRepository.softDeleteIfUnused).toHaveBeenCalledWith(
+        inviteId,
+        expect.any(Date),
+      );
+      expect(auditService.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: AuditAction.WORKSPACE_INVITE_DECLINED,
+        }),
+      );
+    });
+
+    it('should reject invalid invite ID', async () => {
+      invitesRepository.findPendingById.mockResolvedValue(null);
+
+      await expect(
+        service.decline(inviteId, userId, 'test@example.com'),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expectAuditNotCalled();
+    });
+
+    it('should reject expired invite', async () => {
+      invitesRepository.findPendingById.mockResolvedValue(
+        makePendingInvite({ expiresAt: new Date(Date.now() - 1000) }) as any,
+      );
+
+      await expect(
+        service.decline(inviteId, userId, 'test@example.com'),
+      ).rejects.toBeInstanceOf(GoneException);
+      expectAuditNotCalled();
+    });
+
+    it('should reject email mismatch', async () => {
+      invitesRepository.findPendingById.mockResolvedValue(makePendingInvite() as any);
+
+      await expect(
+        service.decline(inviteId, userId, 'different@example.com'),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expectAuditNotCalled();
+    });
+
+    it('should map race-used invite to ConflictException', async () => {
+      invitesRepository.findPendingById.mockResolvedValue(makePendingInvite() as any);
+      invitesRepository.findById.mockResolvedValue(
+        makePendingInvite({ usedAt: new Date() }) as any,
+      );
+      invitesRepository.softDeleteIfUnused.mockResolvedValue(0);
+
+      await expect(
+        service.decline(inviteId, userId, 'test@example.com'),
+      ).rejects.toBeInstanceOf(ConflictException);
+      expectAuditNotCalled();
+    });
+
+    it('should map race-deleted invite to NotFoundException', async () => {
+      invitesRepository.findPendingById.mockResolvedValue(makePendingInvite() as any);
+      invitesRepository.findById.mockResolvedValue(
+        makePendingInvite({ deletedAt: new Date() }) as any,
+      );
+      invitesRepository.softDeleteIfUnused.mockResolvedValue(0);
+
+      await expect(
+        service.decline(inviteId, userId, 'test@example.com'),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 });

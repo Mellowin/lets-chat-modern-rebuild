@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { getWorkspaces, createWorkspace, archiveWorkspace, type Workspace } from "@/lib/workspaces-api";
 import { updateDisplayName } from "@/lib/auth-api";
+import { getPendingInvites, acceptInvite, declineInvite, type PendingInvite } from "@/lib/invites-api";
 import { slugify } from "@/lib/transliterate";
 
 type WorkspacesState =
@@ -24,6 +25,12 @@ type DisplayNameState =
   | { kind: "success" }
   | { kind: "error"; message: string };
 
+type InvitesState =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "success"; data: PendingInvite[] }
+  | { kind: "error"; message: string };
+
 export default function DashboardPage() {
   const { user, accessToken, isLoading: authLoading, isAuthenticated, setUser } = useAuth();
   const [workspaces, setWorkspaces] = useState<WorkspacesState>({ kind: "idle" });
@@ -33,6 +40,8 @@ export default function DashboardPage() {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [displayNameInput, setDisplayNameInput] = useState("");
+  const [invites, setInvites] = useState<InvitesState>({ kind: "idle" });
+  const [inviteActionError, setInviteActionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user?.displayName) {
@@ -51,12 +60,25 @@ export default function DashboardPage() {
     }
   }, []);
 
+  const loadPendingInvites = useCallback(async (token: string) => {
+    setInvites({ kind: "loading" });
+    try {
+      const data = await getPendingInvites(token);
+      setInvites({ kind: "success", data });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to load invites";
+      setInvites({ kind: "error", message });
+    }
+  }, []);
+
   useEffect(() => {
     if (!isAuthenticated) return;
     if (!accessToken) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadWorkspaces(accessToken);
-  }, [isAuthenticated, accessToken, loadWorkspaces]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadPendingInvites(accessToken);
+  }, [isAuthenticated, accessToken, loadWorkspaces, loadPendingInvites]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -114,6 +136,33 @@ export default function DashboardPage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to archive workspace";
       setArchiveError(message);
+    }
+  }
+
+  async function handleAcceptInvite(inviteId: string) {
+    if (!accessToken) return;
+    setInviteActionError(null);
+    try {
+      await acceptInvite(accessToken, inviteId);
+      await loadPendingInvites(accessToken);
+      await loadWorkspaces(accessToken);
+      window.dispatchEvent(new Event("workspaces:changed"));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to accept invite";
+      setInviteActionError(message);
+    }
+  }
+
+  async function handleDeclineInvite(inviteId: string) {
+    if (!window.confirm("Decline this invitation?")) return;
+    if (!accessToken) return;
+    setInviteActionError(null);
+    try {
+      await declineInvite(accessToken, inviteId);
+      await loadPendingInvites(accessToken);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to decline invite";
+      setInviteActionError(message);
     }
   }
 
@@ -227,6 +276,76 @@ export default function DashboardPage() {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Pending invites */}
+      <div className="mt-8 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold">Pending Invitations</h2>
+        </div>
+        <div className="mt-3">
+          {invites.kind === "idle" || invites.kind === "loading" ? (
+            <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300 py-4">
+              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
+              Loading invites…
+            </div>
+          ) : invites.kind === "error" ? (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
+              <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+                <span className="h-2 w-2 rounded-full bg-red-500" />
+                {invites.message}
+              </div>
+            </div>
+          ) : invites.data.length === 0 ? (
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 py-4">
+              No pending invitations.
+            </p>
+          ) : (
+            <>
+              {inviteActionError && (
+                <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
+                  <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+                    <span className="h-2 w-2 rounded-full bg-red-500" />
+                    {inviteActionError}
+                  </div>
+                </div>
+              )}
+              <ul className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                {invites.data.map((inv) => (
+                  <li
+                    key={inv.id}
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-3 gap-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">{inv.workspace.name}</p>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                        Invited by{" "}
+                        {inv.invitedBy.displayName?.trim()
+                          ? inv.invitedBy.displayName
+                          : `@${inv.invitedBy.username}`}{" "}
+                        · {inv.role}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => handleDeclineInvite(inv.id)}
+                        className="inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                      >
+                        Decline
+                      </button>
+                      <button
+                        onClick={() => handleAcceptInvite(inv.id)}
+                        className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
+                      >
+                        Accept
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Workspace list */}
