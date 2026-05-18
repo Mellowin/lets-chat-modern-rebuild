@@ -30,6 +30,7 @@ export interface AuthUserResponse {
   id: string;
   email: string;
   username: string;
+  displayName: string | null;
   createdAt: Date;
 }
 
@@ -170,11 +171,17 @@ export class AuthService {
     return safe;
   }
 
+  async updateMe(userId: string, displayName: string | null): Promise<AuthUserResponse> {
+    const user = await this.users.updateDisplayName(userId, displayName);
+    return this.toAuthUserResponse(user);
+  }
+
   private toAuthUserResponse(user: User | SafeUser): AuthUserResponse {
     return {
       id: user.id,
       email: user.email,
       username: user.username,
+      displayName: user.displayName ?? null,
       createdAt: user.createdAt,
     };
   }

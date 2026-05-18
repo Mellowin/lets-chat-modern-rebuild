@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, HttpCode, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, HttpCode, UseGuards } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -16,6 +16,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { LogoutDto } from './dto/logout.dto';
+import { UpdateDisplayNameDto } from './dto/update-display-name.dto';
 import { JwtAccessGuard } from './guards/jwt-access.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 
@@ -74,5 +75,20 @@ export class AuthController {
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   async me(@CurrentUser() user: AuthUserResponse): Promise<AuthUserResponse> {
     return user;
+  }
+
+  @Patch('me')
+  @UseGuards(JwtAccessGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update current authenticated user' })
+  @ApiOkResponse({ description: 'User updated successfully' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async updateMe(
+    @CurrentUser() user: AuthUserResponse,
+    @Body() dto: UpdateDisplayNameDto,
+  ): Promise<AuthUserResponse> {
+    const displayName = dto.displayName?.trim() || null;
+    return this.auth.updateMe(user.id, displayName);
   }
 }

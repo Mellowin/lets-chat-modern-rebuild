@@ -4,6 +4,7 @@ export interface AuthUser {
   id: string;
   email: string;
   username: string;
+  displayName: string | null;
   createdAt: string;
 }
 
@@ -92,4 +93,22 @@ export async function logout(refreshToken: string): Promise<{ success: boolean }
   }
 
   return res.json() as Promise<{ success: boolean }>;
+}
+
+export async function updateDisplayName(accessToken: string, displayName: string): Promise<AuthUser> {
+  const res = await fetch(`${API_BASE}/auth/me`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ displayName }),
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to update display name: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<AuthUser>;
 }

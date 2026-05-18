@@ -17,6 +17,7 @@ interface AuthContextValue {
   isLoading: boolean;
   isAuthenticated: boolean;
   loginSuccess: (result: AuthResult) => void;
+  setUser: (user: AuthUser) => void;
   logout: () => Promise<void>;
 }
 
@@ -68,6 +69,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRefreshToken(result.refreshToken);
   }, []);
 
+  const setUserValue = useCallback((u: AuthUser) => {
+    setUser(u);
+  }, []);
+
   const logout = useCallback(async () => {
     const rt = sessionStorage.getItem("refreshToken");
     if (rt) {
@@ -82,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, accessToken, refreshToken, isLoading, isAuthenticated, loginSuccess, logout }}
+      value={{ user, accessToken, refreshToken, isLoading, isAuthenticated, loginSuccess, setUser: setUserValue, logout }}
     >
       {children}
     </AuthContext.Provider>

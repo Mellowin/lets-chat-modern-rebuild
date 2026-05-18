@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { login, register, getMe, logout } from "./auth-api";
+import { login, register, getMe, logout, updateDisplayName } from "./auth-api";
 
 const API_BASE = "http://localhost:3001/api/v1";
 
@@ -15,7 +15,7 @@ describe("auth-api", () => {
   describe("login", () => {
     it("sends POST /auth/login with body", async () => {
       const mockResult = {
-        user: { id: "u1", email: "a@b.com", username: "alice", createdAt: "2024-01-01T00:00:00Z" },
+        user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, createdAt: "2024-01-01T00:00:00Z" },
         accessToken: "at",
         refreshToken: "rt",
       };
@@ -61,7 +61,7 @@ describe("auth-api", () => {
   describe("register", () => {
     it("sends POST /auth/register with body", async () => {
       const mockResult = {
-        user: { id: "u2", email: "b@c.com", username: "bob", createdAt: "2024-01-01T00:00:00Z" },
+        user: { id: "u2", email: "b@c.com", username: "bob", displayName: "Bob", createdAt: "2024-01-01T00:00:00Z" },
         accessToken: "at2",
         refreshToken: "rt2",
       };
@@ -94,7 +94,7 @@ describe("auth-api", () => {
 
   describe("getMe", () => {
     it("sends GET /auth/me with Authorization Bearer token", async () => {
-      const mockUser = { id: "u1", email: "a@b.com", username: "alice", createdAt: "2024-01-01T00:00:00Z" };
+      const mockUser = { id: "u1", email: "a@b.com", username: "alice", displayName: null, createdAt: "2024-01-01T00:00:00Z" };
       vi.mocked(fetch).mockResolvedValueOnce(
         new Response(JSON.stringify(mockUser), { status: 200 }),
       );
@@ -147,6 +147,39 @@ describe("auth-api", () => {
       );
 
       await expect(logout("bad")).rejects.toThrow("Invalid token");
+    });
+  });
+
+  describe("updateDisplayName", () => {
+    it("sends PATCH /auth/me with displayName and Authorization header", async () => {
+      const mockUser = { id: "u1", email: "a@b.com", username: "alice", displayName: "Alice", createdAt: "2024-01-01T00:00:00Z" };
+      vi.mocked(fetch).mockResolvedValueOnce(
+        new Response(JSON.stringify(mockUser), { status: 200 }),
+      );
+
+      const result = await updateDisplayName("my-token", "Alice");
+
+      expect(fetch).toHaveBeenCalledWith(
+        `${API_BASE}/auth/me`,
+        expect.objectContaining({
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            Authorization: "Bearer my-token",
+          },
+          body: JSON.stringify({ displayName: "Alice" }),
+        }),
+      );
+      expect(result).toEqual(mockUser);
+    });
+
+    it("throws with backend error message", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(
+        new Response(JSON.stringify({ message: "Too long" }), { status: 400 }),
+      );
+
+      await expect(updateDisplayName("token", "a".repeat(81))).rejects.toThrow("Too long");
     });
   });
 });

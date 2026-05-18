@@ -50,4 +50,11 @@ export class UsersRepository {
       },
     });
   }
+
+  async updateDisplayName(userId: string, displayName: string | null) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { displayName },
+    });
+  }
 }

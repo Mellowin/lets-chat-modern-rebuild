@@ -10,7 +10,7 @@ vi.mock("@/lib/auth-api", () => ({
 }));
 
 function TestConsumer() {
-  const { isLoading, isAuthenticated, user, loginSuccess, logout } = useAuth();
+  const { isLoading, isAuthenticated, user, loginSuccess, setUser, logout } = useAuth();
   return (
     <div>
       <div data-testid="loading">{isLoading ? "loading" : "done"}</div>
@@ -20,13 +20,21 @@ function TestConsumer() {
         data-testid="login-btn"
         onClick={() =>
           loginSuccess({
-            user: { id: "u1", email: "a@b.com", username: "alice", createdAt: "2024-01-01T00:00:00Z" },
+            user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, createdAt: "2024-01-01T00:00:00Z" },
             accessToken: "at",
             refreshToken: "rt",
           })
         }
       >
         Login
+      </button>
+      <button
+        data-testid="setuser-btn"
+        onClick={() =>
+          setUser({ id: "u1", email: "a@b.com", username: "alice", displayName: "Alice", createdAt: "2024-01-01T00:00:00Z" })
+        }
+      >
+        SetUser
       </button>
       <button data-testid="logout-btn" onClick={() => logout()}>
         Logout
@@ -69,6 +77,7 @@ describe("AuthProvider", () => {
       id: "u1",
       email: "a@b.com",
       username: "alice",
+      displayName: null,
       createdAt: "2024-01-01T00:00:00Z",
     });
 
@@ -134,6 +143,7 @@ describe("AuthProvider", () => {
       id: "u1",
       email: "a@b.com",
       username: "alice",
+      displayName: null,
       createdAt: "2024-01-01T00:00:00Z",
     });
     vi.mocked(apiLogout).mockResolvedValueOnce({ success: true });
@@ -190,6 +200,35 @@ describe("AuthProvider", () => {
     expect(sessionStorage.getItem("accessToken")).toBeNull();
     expect(sessionStorage.getItem("refreshToken")).toBeNull();
     expect(screen.getByTestId("user")).toHaveTextContent("null");
+  });
+
+  it("setUser updates user without touching tokens", async () => {
+    sessionStorage.setItem("accessToken", "at");
+    sessionStorage.setItem("refreshToken", "rt");
+    vi.mocked(getMe).mockResolvedValueOnce({
+      id: "u1",
+      email: "a@b.com",
+      username: "alice",
+      displayName: null,
+      createdAt: "2024-01-01T00:00:00Z",
+    });
+
+    render(
+      <AuthProvider>
+        <TestConsumer />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("auth")).toHaveTextContent("yes");
+    });
+
+    await userEvent.click(screen.getByTestId("setuser-btn"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("user")).toHaveTextContent("alice (a@b.com)");
+    });
+    expect(sessionStorage.getItem("accessToken")).toBe("at");
   });
 
   it("throws when useAuth is called outside AuthProvider", () => {
