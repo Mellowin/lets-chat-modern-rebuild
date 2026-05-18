@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { getWorkspace, getWorkspaceMembers, addWorkspaceMember, type Workspace, type WorkspaceMember } from "@/lib/workspaces-api";
+import { getWorkspace, getWorkspaceMembers, addWorkspaceMember, leaveWorkspace, type Workspace, type WorkspaceMember } from "@/lib/workspaces-api";
 import { createWorkspaceInvite } from "@/lib/invites-api";
 import { getChannels, getArchivedChannels, createChannel, archiveChannel, restoreChannel, type Channel, type CreateChannelInput } from "@/lib/channels-api";
 
@@ -56,6 +56,8 @@ export default function WorkspaceDetailPage() {
   const [archivedChannels, setArchivedChannels] = useState<ArchivedChannelsState>({ kind: "idle" });
   const [restoringChannelId, setRestoringChannelId] = useState<string | null>(null);
   const [restoreError, setRestoreError] = useState<string | null>(null);
+  const [leaveError, setLeaveError] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     if (!isAuthenticated || !workspaceId) return;
@@ -251,6 +253,22 @@ export default function WorkspaceDetailPage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to add member";
       setAddMemberState({ kind: "error", message });
+    }
+  }
+
+  async function handleLeaveWorkspace() {
+    if (!window.confirm(`Leave workspace "${detail.kind === "success" ? detail.data.name : workspaceId}"?`)) {
+      return;
+    }
+    if (!accessToken || !workspaceId) return;
+    setLeaveError(null);
+    try {
+      await leaveWorkspace(accessToken, workspaceId);
+      window.dispatchEvent(new Event("workspaces:changed"));
+      router.push("/dashboard");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to leave workspace";
+      setLeaveError(message);
     }
   }
 
@@ -542,6 +560,31 @@ export default function WorkspaceDetailPage() {
                   </div>
                 )}
               </>
+            ) : null;
+          })()
+        )}
+
+        {members.kind === "success" && (
+          (() => {
+            const myRole = members.data.find((m) => m.user.id === user?.id)?.role;
+            const canLeave = myRole === "MEMBER" || myRole === "ADMIN";
+            return canLeave ? (
+              <div className="mt-4">
+                <button
+                  onClick={handleLeaveWorkspace}
+                  className="text-[10px] text-red-600 dark:text-red-400 hover:underline"
+                >
+                  Leave workspace
+                </button>
+                {leaveError && (
+                  <div className="mt-2 rounded-lg border border-red-200 bg-red-50 p-2 text-[10px] dark:border-red-900 dark:bg-red-950/30">
+                    <div className="flex items-center gap-1 font-medium text-red-800 dark:text-red-400">
+                      <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                      {leaveError}
+                    </div>
+                  </div>
+                )}
+              </div>
             ) : null;
           })()
         )}

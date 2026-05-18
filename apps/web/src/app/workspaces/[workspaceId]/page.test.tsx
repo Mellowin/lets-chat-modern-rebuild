@@ -2,12 +2,15 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import WorkspaceDetailPage from "./page";
-import { getWorkspace, getWorkspaceMembers, addWorkspaceMember } from "@/lib/workspaces-api";
+import { getWorkspace, getWorkspaceMembers, addWorkspaceMember, leaveWorkspace } from "@/lib/workspaces-api";
 import { createWorkspaceInvite } from "@/lib/invites-api";
 import { getChannels, getArchivedChannels, archiveChannel, restoreChannel } from "@/lib/channels-api";
 
+const routerPushMock = vi.fn();
+
 vi.mock("next/navigation", () => ({
   useParams: () => ({ workspaceId: "ws1" }),
+  useRouter: () => ({ push: routerPushMock }),
 }));
 
 vi.mock("@/lib/auth-context", () => ({
@@ -23,6 +26,7 @@ vi.mock("@/lib/workspaces-api", () => ({
   getWorkspace: vi.fn(),
   getWorkspaceMembers: vi.fn(),
   addWorkspaceMember: vi.fn(),
+  leaveWorkspace: vi.fn(),
 }));
 
 vi.mock("@/lib/invites-api", () => ({
@@ -374,5 +378,108 @@ describe("WorkspaceDetailPage — add member / invite", () => {
     // Should still only show alice, not bob
     expect(screen.getAllByText("Alice").length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText("bob@example.com")).not.toBeInTheDocument();
+  });
+});
+
+describe("WorkspaceDetailPage — leave workspace", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    routerPushMock.mockClear();
+  });
+
+  function mockWorkspaceWithRole(role: "OWNER" | "ADMIN" | "MEMBER") {
+    mockWorkspaceData({ archived: [] });
+    vi.mocked(getWorkspaceMembers).mockResolvedValue([
+      { id: "wm1", workspaceId: "ws1", role, joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice", displayName: "Alice" } },
+    ]);
+  }
+
+  it("shows Leave workspace button for MEMBER", async () => {
+    mockWorkspaceWithRole("MEMBER");
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Leave workspace/i })).toBeInTheDocument();
+    });
+  });
+
+  it("shows Leave workspace button for ADMIN", async () => {
+    mockWorkspaceWithRole("ADMIN");
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Leave workspace/i })).toBeInTheDocument();
+    });
+  });
+
+  it("does not show Leave workspace button for OWNER", async () => {
+    mockWorkspaceWithRole("OWNER");
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Alice")).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("button", { name: /Leave workspace/i })).not.toBeInTheDocument();
+  });
+
+  it("does not call API when user cancels confirm", async () => {
+    mockWorkspaceWithRole("MEMBER");
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Leave workspace/i })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Leave workspace/i }));
+
+    expect(leaveWorkspace).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
+  });
+
+  it("calls leaveWorkspace, dispatches event, and redirects on success", async () => {
+    mockWorkspaceWithRole("MEMBER");
+    vi.mocked(leaveWorkspace).mockResolvedValue({ success: true });
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent").mockImplementation(() => true);
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Leave workspace/i })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Leave workspace/i }));
+
+    await waitFor(() => {
+      expect(leaveWorkspace).toHaveBeenCalledWith("token", "ws1");
+    });
+    expect(dispatchSpy).toHaveBeenCalledWith(expect.any(Event));
+    expect(routerPushMock).toHaveBeenCalledWith("/dashboard");
+
+    confirmSpy.mockRestore();
+    dispatchSpy.mockRestore();
+  });
+
+  it("shows error when leave fails", async () => {
+    mockWorkspaceWithRole("MEMBER");
+    vi.mocked(leaveWorkspace).mockRejectedValue(new Error("Owner cannot leave workspace"));
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Leave workspace/i })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Leave workspace/i }));
+
+    expect(await screen.findByText(/Owner cannot leave workspace/i)).toBeInTheDocument();
+
+    confirmSpy.mockRestore();
   });
 });
