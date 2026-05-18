@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { getWorkspaces, getWorkspace, createWorkspace, leaveWorkspace } from "./workspaces-api";
+import { getWorkspaces, getWorkspace, createWorkspace, leaveWorkspace, removeWorkspaceMember } from "./workspaces-api";
 
 const API_BASE = "http://localhost:3001/api/v1";
 
@@ -97,6 +97,37 @@ describe("workspaces-api", () => {
         new Response(JSON.stringify({ message: "Owner cannot leave workspace" }), { status: 403 }),
       );
       await expect(leaveWorkspace("token", "ws1")).rejects.toThrow("Owner cannot leave workspace");
+    });
+  });
+
+  describe("removeWorkspaceMember", () => {
+    it("sends DELETE /workspaces/:id/members/:memberId with Authorization header", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ success: true }), { status: 200 }));
+
+      const result = await removeWorkspaceMember("token", "ws1", "m1");
+
+      expect(fetch).toHaveBeenCalledWith(
+        `${API_BASE}/workspaces/ws1/members/m1`,
+        expect.objectContaining({
+          method: "DELETE",
+          headers: { Accept: "application/json", Authorization: "Bearer token" },
+        }),
+      );
+      expect(result).toEqual({ success: true });
+    });
+
+    it("throws with backend error message for owner removal", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(
+        new Response(JSON.stringify({ message: "Cannot remove workspace owner" }), { status: 400 }),
+      );
+      await expect(removeWorkspaceMember("token", "ws1", "m1")).rejects.toThrow("Cannot remove workspace owner");
+    });
+
+    it("throws with backend error message for admin removing admin", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(
+        new Response(JSON.stringify({ message: "Admin can only remove members" }), { status: 403 }),
+      );
+      await expect(removeWorkspaceMember("token", "ws1", "m1")).rejects.toThrow("Admin can only remove members");
     });
   });
 });
