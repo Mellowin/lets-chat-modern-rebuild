@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { getWorkspace, getWorkspaceMembers, addWorkspaceMember, type Workspace, type WorkspaceMember } from "@/lib/workspaces-api";
+import { createWorkspaceInvite } from "@/lib/invites-api";
 import { getChannels, getArchivedChannels, createChannel, archiveChannel, restoreChannel, type Channel, type CreateChannelInput } from "@/lib/channels-api";
 
 type DetailState =
@@ -206,6 +207,10 @@ export default function WorkspaceDetailPage() {
     }
   }
 
+  function looksLikeEmail(value: string): boolean {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  }
+
   async function handleAddMember(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = memberIdentifier.trim();
@@ -217,25 +222,31 @@ export default function WorkspaceDetailPage() {
 
     setAddMemberState({ kind: "loading" });
     try {
-      const newMember = await addWorkspaceMember(accessToken, workspaceId, { identifier: trimmed, role: "MEMBER" });
-      setMemberIdentifier("");
-      setAddMemberState({ kind: "success", message: "Member added" });
-      setMembers((prev) => {
-        if (prev.kind !== "success") return { kind: "success", data: [newMember] };
-        const existingIndex = prev.data.findIndex((m) => m.id === newMember.id);
-        if (existingIndex >= 0) {
-          const next = [...prev.data];
-          next[existingIndex] = newMember;
-          return { kind: "success", data: next };
+      if (looksLikeEmail(trimmed)) {
+        await createWorkspaceInvite(accessToken, workspaceId, { email: trimmed, role: "MEMBER" });
+        setMemberIdentifier("");
+        setAddMemberState({ kind: "success", message: "Invitation sent" });
+      } else {
+        const newMember = await addWorkspaceMember(accessToken, workspaceId, { identifier: trimmed, role: "MEMBER" });
+        setMemberIdentifier("");
+        setAddMemberState({ kind: "success", message: "Member added" });
+        setMembers((prev) => {
+          if (prev.kind !== "success") return { kind: "success", data: [newMember] };
+          const existingIndex = prev.data.findIndex((m) => m.id === newMember.id);
+          if (existingIndex >= 0) {
+            const next = [...prev.data];
+            next[existingIndex] = newMember;
+            return { kind: "success", data: next };
+          }
+          return { kind: "success", data: [...prev.data, newMember] };
+        });
+        // background refresh in case server state differs
+        try {
+          const refreshed = await getWorkspaceMembers(accessToken, workspaceId);
+          setMembers({ kind: "success", data: refreshed });
+        } catch {
+          // ignore refresh failure; local state already updated
         }
-        return { kind: "success", data: [...prev.data, newMember] };
-      });
-      // background refresh in case server state differs
-      try {
-        const refreshed = await getWorkspaceMembers(accessToken, workspaceId);
-        setMembers({ kind: "success", data: refreshed });
-      } catch {
-        // ignore refresh failure; local state already updated
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to add member";

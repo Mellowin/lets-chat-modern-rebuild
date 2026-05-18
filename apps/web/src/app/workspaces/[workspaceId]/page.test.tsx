@@ -2,7 +2,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import WorkspaceDetailPage from "./page";
-import { getWorkspace, getWorkspaceMembers } from "@/lib/workspaces-api";
+import { getWorkspace, getWorkspaceMembers, addWorkspaceMember } from "@/lib/workspaces-api";
+import { createWorkspaceInvite } from "@/lib/invites-api";
 import { getChannels, getArchivedChannels, archiveChannel, restoreChannel } from "@/lib/channels-api";
 
 vi.mock("next/navigation", () => ({
@@ -22,6 +23,10 @@ vi.mock("@/lib/workspaces-api", () => ({
   getWorkspace: vi.fn(),
   getWorkspaceMembers: vi.fn(),
   addWorkspaceMember: vi.fn(),
+}));
+
+vi.mock("@/lib/invites-api", () => ({
+  createWorkspaceInvite: vi.fn(),
 }));
 
 vi.mock("@/lib/channels-api", () => ({
@@ -244,5 +249,130 @@ describe("WorkspaceDetailPage — members", () => {
       expect(screen.getByText("@alice")).toBeInTheDocument();
     });
     expect(screen.queryByText("Alice")).not.toBeInTheDocument();
+  });
+});
+
+describe("WorkspaceDetailPage — add member / invite", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("calls createWorkspaceInvite for email input and shows Invitation sent", async () => {
+    mockWorkspaceData({ archived: [] });
+    vi.mocked(createWorkspaceInvite).mockResolvedValue({
+      id: "invite-1",
+      workspaceId: "ws1",
+      email: "bob@example.com",
+      role: "MEMBER",
+      token: "token123",
+      expiresAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    });
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Username or email/i), "bob@example.com");
+    await userEvent.click(screen.getByRole("button", { name: /Add member/i }));
+
+    await waitFor(() => {
+      expect(createWorkspaceInvite).toHaveBeenCalledWith("token", "ws1", { email: "bob@example.com", role: "MEMBER" });
+    });
+    expect(addWorkspaceMember).not.toHaveBeenCalled();
+    expect(screen.getByText(/Invitation sent/i)).toBeInTheDocument();
+  });
+
+  it("calls addWorkspaceMember for username input and shows Member added", async () => {
+    mockWorkspaceData({ archived: [] });
+    vi.mocked(addWorkspaceMember).mockResolvedValue({
+      id: "wm2",
+      workspaceId: "ws1",
+      role: "MEMBER",
+      joinedAt: new Date().toISOString(),
+      user: { id: "u2", username: "bob" },
+    });
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Username or email/i), "bob");
+    await userEvent.click(screen.getByRole("button", { name: /Add member/i }));
+
+    await waitFor(() => {
+      expect(addWorkspaceMember).toHaveBeenCalledWith("token", "ws1", { identifier: "bob", role: "MEMBER" });
+    });
+    expect(createWorkspaceInvite).not.toHaveBeenCalled();
+    expect(screen.getByText(/Member added/i)).toBeInTheDocument();
+  });
+
+  it("shows error when email invite fails", async () => {
+    mockWorkspaceData({ archived: [] });
+    vi.mocked(createWorkspaceInvite).mockRejectedValue(new Error("Cannot invite existing member"));
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Username or email/i), "bob@example.com");
+    await userEvent.click(screen.getByRole("button", { name: /Add member/i }));
+
+    expect(await screen.findByText(/Cannot invite existing member/i)).toBeInTheDocument();
+  });
+
+  it("shows error when username add fails", async () => {
+    mockWorkspaceData({ archived: [] });
+    vi.mocked(addWorkspaceMember).mockRejectedValue(new Error("User not found"));
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Username or email/i), "unknown");
+    await userEvent.click(screen.getByRole("button", { name: /Add member/i }));
+
+    expect(await screen.findByText(/User not found/i)).toBeInTheDocument();
+  });
+
+  it("does not append member to list on email invite success", async () => {
+    mockWorkspaceData({ archived: [] });
+    vi.mocked(createWorkspaceInvite).mockResolvedValue({
+      id: "invite-1",
+      workspaceId: "ws1",
+      email: "bob@example.com",
+      role: "MEMBER",
+      token: "token123",
+      expiresAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    });
+    vi.mocked(getWorkspaceMembers).mockResolvedValue([
+      { id: "wm1", workspaceId: "ws1", role: "OWNER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice", displayName: "Alice" } },
+    ]);
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Username or email/i), "bob@example.com");
+    await userEvent.click(screen.getByRole("button", { name: /Add member/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Invitation sent/i)).toBeInTheDocument();
+    });
+
+    // Should still only show alice, not bob
+    expect(screen.getAllByText("Alice").length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText("bob@example.com")).not.toBeInTheDocument();
   });
 });

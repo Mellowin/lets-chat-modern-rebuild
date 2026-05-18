@@ -26,6 +26,31 @@ async function parseErrorMessage(res: Response, fallback: string): Promise<strin
   return message;
 }
 
+export async function createWorkspaceInvite(
+  accessToken: string,
+  workspaceId: string,
+  input: { email: string; role: "ADMIN" | "MEMBER" },
+): Promise<{ id: string; workspaceId: string; email: string; role: string; token: string; expiresAt: string; createdAt: string }> {
+  const res = await fetch(
+    `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/invites`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(input),
+    },
+  );
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to create invite: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<{ id: string; workspaceId: string; email: string; role: string; token: string; expiresAt: string; createdAt: string }>;
+}
+
 export async function getPendingInvites(accessToken: string): Promise<PendingInvite[]> {
   const res = await fetch(`${API_BASE}/invites/pending`, {
     method: "GET",
