@@ -111,4 +111,17 @@ export class InvitesRepository {
       },
     });
   }
+
+  async findPendingByWorkspaceAndEmail(workspaceId: string, email: string) {
+    return this.prisma.invitation.findFirst({
+      where: {
+        workspaceId,
+        invitedEmail: email.toLowerCase(),
+        deletedAt: null,
+        usedAt: null,
+        usedById: null,
+        expiresAt: { gt: new Date() },
+      },
+    });
+  }
 }

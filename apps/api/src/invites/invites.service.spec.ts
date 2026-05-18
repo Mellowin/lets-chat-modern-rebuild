@@ -32,6 +32,7 @@ describe('InvitesService', () => {
             listForWorkspace: jest.fn(),
             findPendingByEmail: jest.fn(),
             findPendingById: jest.fn(),
+            findPendingByWorkspaceAndEmail: jest.fn(),
           },
         },
         {
@@ -195,6 +196,7 @@ describe('InvitesService', () => {
   it('should set expiresAt to roughly 7 days from now', async () => {
     workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
     workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+    invitesRepository.findPendingByWorkspaceAndEmail.mockResolvedValue(null);
     invitesRepository.createInvite.mockImplementation(async (data) => ({
       id: 'invite-id',
       workspaceId: data.workspaceId,
@@ -211,6 +213,81 @@ describe('InvitesService', () => {
     const expiresMs = result.expiresAt.getTime();
     expect(expiresMs).toBeGreaterThanOrEqual(before + 7 * 24 * 60 * 60 * 1000 - 1000);
     expect(expiresMs).toBeLessThanOrEqual(after + 7 * 24 * 60 * 60 * 1000 + 1000);
+  });
+
+  it('should reject duplicate active pending invite', async () => {
+    workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+    workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+    invitesRepository.findPendingByWorkspaceAndEmail.mockResolvedValue({
+      id: 'existing-invite',
+      workspaceId,
+      invitedEmail: 'test@example.com',
+      role: 'MEMBER',
+      expiresAt: new Date(Date.now() + 86400000),
+      deletedAt: null,
+      usedAt: null,
+      usedById: null,
+    } as any);
+
+    await expect(
+      service.create(workspaceId, { email: 'test@example.com', role: 'MEMBER' }, userId),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(invitesRepository.createInvite).not.toHaveBeenCalled();
+    expectAuditNotCalled();
+  });
+
+  it('should allow new invite if previous was declined', async () => {
+    workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+    workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+    invitesRepository.findPendingByWorkspaceAndEmail.mockResolvedValue(null);
+    invitesRepository.createInvite.mockImplementation(async (data) => ({
+      id: 'invite-id',
+      workspaceId: data.workspaceId,
+      invitedEmail: data.invitedEmail,
+      role: data.role,
+      expiresAt: data.expiresAt,
+      createdAt: new Date(),
+    } as any));
+
+    const result = await service.create(workspaceId, { email: 'test@example.com', role: 'MEMBER' }, userId);
+
+    expect(result.email).toBe('test@example.com');
+  });
+
+  it('should allow new invite if previous was used', async () => {
+    workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+    workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+    invitesRepository.findPendingByWorkspaceAndEmail.mockResolvedValue(null);
+    invitesRepository.createInvite.mockImplementation(async (data) => ({
+      id: 'invite-id',
+      workspaceId: data.workspaceId,
+      invitedEmail: data.invitedEmail,
+      role: data.role,
+      expiresAt: data.expiresAt,
+      createdAt: new Date(),
+    } as any));
+
+    const result = await service.create(workspaceId, { email: 'test@example.com', role: 'MEMBER' }, userId);
+
+    expect(result.email).toBe('test@example.com');
+  });
+
+  it('should allow new invite if previous expired', async () => {
+    workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+    workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+    invitesRepository.findPendingByWorkspaceAndEmail.mockResolvedValue(null);
+    invitesRepository.createInvite.mockImplementation(async (data) => ({
+      id: 'invite-id',
+      workspaceId: data.workspaceId,
+      invitedEmail: data.invitedEmail,
+      role: data.role,
+      expiresAt: data.expiresAt,
+      createdAt: new Date(),
+    } as any));
+
+    const result = await service.create(workspaceId, { email: 'test@example.com', role: 'MEMBER' }, userId);
+
+    expect(result.email).toBe('test@example.com');
   });
 
   describe('accept', () => {

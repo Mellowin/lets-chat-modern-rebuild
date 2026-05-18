@@ -40,6 +40,14 @@ export class InvitesService {
       throw new BadRequestException('Cannot create OWNER invite');
     }
 
+    const existingPending = await this.invites.findPendingByWorkspaceAndEmail(
+      workspaceId,
+      dto.email,
+    );
+    if (existingPending) {
+      throw new ConflictException('Invitation already sent');
+    }
+
     const rawToken = randomBytes(32).toString('hex');
     const tokenHash = createHash('sha256').update(rawToken).digest('hex');
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);

@@ -331,6 +331,25 @@ describe("WorkspaceDetailPage — add member / invite", () => {
     expect(await screen.findByText(/Cannot invite existing member/i)).toBeInTheDocument();
   });
 
+  it("shows 'Invitation already sent' for duplicate email invite", async () => {
+    mockWorkspaceData({ archived: [] });
+    vi.mocked(createWorkspaceInvite).mockRejectedValue(new Error("Invitation already sent"));
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Username or email/i), "bob@example.com");
+    await userEvent.click(screen.getByRole("button", { name: /Add member/i }));
+
+    expect(await screen.findByText(/Invitation already sent/i)).toBeInTheDocument();
+    // Should not append anything to members list
+    expect(screen.getAllByText("Alice").length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText("bob@example.com")).not.toBeInTheDocument();
+  });
+
   it("shows error when username add fails", async () => {
     mockWorkspaceData({ archived: [] });
     vi.mocked(addWorkspaceMember).mockRejectedValue(new Error("User not found"));
