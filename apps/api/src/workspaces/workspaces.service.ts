@@ -192,8 +192,8 @@ export class WorkspacesService {
     if (!requesterRole) {
       throw new NotFoundException('Workspace not found');
     }
-    if (requesterRole !== 'OWNER') {
-      throw new ForbiddenException('Only owner can remove members');
+    if (requesterRole !== 'OWNER' && requesterRole !== 'ADMIN') {
+      throw new ForbiddenException('Insufficient permissions');
     }
 
     const targetMember = await this.workspaces.findActiveMemberById(
@@ -201,7 +201,7 @@ export class WorkspacesService {
       workspaceId,
     );
     if (!targetMember) {
-      throw new NotFoundException('Member not found');
+      throw new NotFoundException('Workspace member not found');
     }
     if (targetMember.role === 'OWNER') {
       throw new BadRequestException('Cannot remove workspace owner');
@@ -209,13 +209,16 @@ export class WorkspacesService {
     if (targetMember.userId === userId) {
       throw new BadRequestException('Cannot remove yourself');
     }
+    if (requesterRole === 'ADMIN' && targetMember.role !== 'MEMBER') {
+      throw new ForbiddenException('Admin can only remove members');
+    }
 
     const deletedCount = await this.workspaces.softDeleteMember(
       memberId,
       workspaceId,
     );
     if (deletedCount === 0) {
-      throw new NotFoundException('Member not found');
+      throw new NotFoundException('Workspace member not found');
     }
 
     await this.audit.record({
@@ -230,11 +233,7 @@ export class WorkspacesService {
       },
     });
 
-    return {
-      id: memberId,
-      workspaceId,
-      deletedAt: new Date(),
-    };
+    return { success: true };
   }
 
   async transferOwnership(
