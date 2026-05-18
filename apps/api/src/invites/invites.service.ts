@@ -9,6 +9,7 @@ import {
 import { Prisma } from '@lets-chat/database';
 import { randomBytes, createHash } from 'crypto';
 import { WorkspacesRepository } from '../workspaces/workspaces.repository';
+import { UsersRepository } from '../users/users.repository';
 import { InvitesRepository } from './invites.repository';
 import { CreateInviteDto } from './dto/create-invite.dto';
 import { AuditService } from '../audit/audit.service';
@@ -19,6 +20,7 @@ export class InvitesService {
   constructor(
     private readonly invites: InvitesRepository,
     private readonly workspaces: WorkspacesRepository,
+    private readonly users: UsersRepository,
     private readonly audit: AuditService,
   ) {}
 
@@ -46,6 +48,17 @@ export class InvitesService {
     );
     if (existingPending) {
       throw new ConflictException('Invitation already sent');
+    }
+
+    const targetUser = await this.users.findByEmail(dto.email);
+    if (targetUser) {
+      const existingMember = await this.workspaces.findActiveMemberByUserId(
+        workspaceId,
+        targetUser.id,
+      );
+      if (existingMember) {
+        throw new ConflictException('Already a member of this workspace');
+      }
     }
 
     const rawToken = randomBytes(32).toString('hex');
