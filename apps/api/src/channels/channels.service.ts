@@ -317,6 +317,40 @@ export class ChannelsService {
     return { success: true };
   }
 
+  async leaveChannel(workspaceId: string, channelId: string, userId: string) {
+    const wsRole = await this.workspaces.findMemberRole(workspaceId, userId);
+    if (!wsRole) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const channel = await this.channels.findActiveById(channelId);
+    if (!channel || channel.workspaceId !== workspaceId) {
+      throw new NotFoundException('Channel not found');
+    }
+
+    const member = await this.channels.findActiveChannelMemberByUserId(
+      channelId,
+      userId,
+    );
+    if (!member) {
+      throw new NotFoundException('Channel not found');
+    }
+
+    if (member.role === 'OWNER') {
+      throw new ForbiddenException('Owner cannot leave channel');
+    }
+
+    const deletedCount = await this.channels.softDeleteChannelMember(
+      channelId,
+      member.id,
+    );
+    if (deletedCount === 0) {
+      throw new NotFoundException('Channel not found');
+    }
+
+    return { success: true };
+  }
+
   async archive(workspaceId: string, channelId: string, userId: string) {
     const wsRole = await this.workspaces.findMemberRole(workspaceId, userId);
     if (!wsRole) {

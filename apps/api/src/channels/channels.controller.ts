@@ -150,6 +150,21 @@ export class ChannelsController {
     return this.channels.removeChannelMember(workspaceId, channelId, memberId, user.id);
   }
 
+  @Post(':channelId/leave')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Leave channel' })
+  @ApiOkResponse({ description: 'Left channel successfully' })
+  @ApiForbiddenResponse({ description: 'Forbidden' })
+  @ApiNotFoundResponse({ description: 'Not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async leave(
+    @Param('workspaceId') workspaceId: string,
+    @Param('channelId') channelId: string,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.channels.leaveChannel(workspaceId, channelId, user.id);
+  }
+
   @Post(':channelId/archive')
   @HttpCode(200)
   @ApiOperation({ summary: 'Archive channel' })

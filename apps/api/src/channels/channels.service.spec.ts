@@ -1083,4 +1083,159 @@ describe('ChannelsService', () => {
       expect(channelsRepository.softDeleteChannelMember).toHaveBeenCalledWith(channelId, targetMemberId);
     });
   });
+
+  describe('leaveChannel', () => {
+    const memberId = '77777777-7777-7777-7777-777777777777';
+
+    it('MEMBER can leave channel', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as any);
+      channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue({
+        id: memberId,
+        channelId,
+        role: 'MEMBER',
+        userId,
+        user: { id: userId, username: 'alice' },
+      } as any);
+      channelsRepository.softDeleteChannelMember.mockResolvedValue(1);
+
+      const result = await service.leaveChannel(workspaceId, channelId, userId);
+
+      expect(result.success).toBe(true);
+      expect(channelsRepository.softDeleteChannelMember).toHaveBeenCalledWith(channelId, memberId);
+    });
+
+    it('ADMIN can leave channel', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('ADMIN');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as any);
+      channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue({
+        id: memberId,
+        channelId,
+        role: 'ADMIN',
+        userId,
+        user: { id: userId, username: 'alice' },
+      } as any);
+      channelsRepository.softDeleteChannelMember.mockResolvedValue(1);
+
+      const result = await service.leaveChannel(workspaceId, channelId, userId);
+
+      expect(result.success).toBe(true);
+    });
+
+    it('OWNER cannot leave channel', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as any);
+      channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue({
+        id: memberId,
+        channelId,
+        role: 'OWNER',
+        userId,
+        user: { id: userId, username: 'alice' },
+      } as any);
+
+      await expect(
+        service.leaveChannel(workspaceId, channelId, userId),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(channelsRepository.softDeleteChannelMember).not.toHaveBeenCalled();
+    });
+
+    it('Non-channel-member -> 404', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as any);
+      channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue(null);
+
+      await expect(
+        service.leaveChannel(workspaceId, channelId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(channelsRepository.softDeleteChannelMember).not.toHaveBeenCalled();
+    });
+
+    it('Non-workspace-member -> 404', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue(null);
+
+      await expect(
+        service.leaveChannel(workspaceId, channelId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(channelsRepository.findActiveChannelMemberByUserId).not.toHaveBeenCalled();
+    });
+
+    it('Wrong workspace/channel mismatch -> 404', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId: '99999999-9999-9999-9999-999999999999',
+        type: 'PUBLIC',
+      } as any);
+
+      await expect(
+        service.leaveChannel(workspaceId, channelId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(channelsRepository.findActiveChannelMemberByUserId).not.toHaveBeenCalled();
+    });
+
+    it('After leave, channel no longer appears in listForWorkspace', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as any);
+      channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue({
+        id: memberId,
+        channelId,
+        role: 'MEMBER',
+        userId,
+        user: { id: userId, username: 'alice' },
+      } as any);
+      channelsRepository.softDeleteChannelMember.mockResolvedValue(1);
+      channelsRepository.listForWorkspace.mockResolvedValue([]);
+
+      const leaveResult = await service.leaveChannel(workspaceId, channelId, userId);
+      expect(leaveResult.success).toBe(true);
+
+      const listResult = await service.list(workspaceId, userId);
+      expect(listResult).toEqual([]);
+    });
+
+    it('After leave, messages access returns 404', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as any);
+      channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue({
+        id: memberId,
+        channelId,
+        role: 'MEMBER',
+        userId,
+        user: { id: userId, username: 'alice' },
+      } as any);
+      channelsRepository.softDeleteChannelMember.mockResolvedValue(1);
+      channelsRepository.findChannelMemberRole.mockResolvedValue(null);
+
+      const leaveResult = await service.leaveChannel(workspaceId, channelId, userId);
+      expect(leaveResult.success).toBe(true);
+
+      await expect(
+        service.findById(workspaceId, channelId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
 });
