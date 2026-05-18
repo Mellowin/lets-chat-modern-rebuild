@@ -237,3 +237,34 @@ export async function removeWorkspaceMember(
 
   return res.json() as Promise<{ success: boolean }>;
 }
+
+export async function restoreWorkspace(
+  accessToken: string,
+  workspaceId: string,
+): Promise<Workspace> {
+  const res = await fetch(
+    `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/restore`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
+
+  if (!res.ok) {
+    let message = `Failed to restore workspace: ${res.status} ${res.statusText}`;
+    try {
+      const body = await res.json();
+      if (body?.message) message = body.message;
+      else if (body?.error) message = body.error;
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+
+  return res.json() as Promise<Workspace>;
+}

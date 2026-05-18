@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { getWorkspaces, getWorkspace, createWorkspace, leaveWorkspace, removeWorkspaceMember } from "./workspaces-api";
+import { getWorkspaces, getWorkspace, createWorkspace, leaveWorkspace, removeWorkspaceMember, restoreWorkspace, type Workspace } from "./workspaces-api";
 
 const API_BASE = "http://localhost:3001/api/v1";
 
@@ -128,6 +128,42 @@ describe("workspaces-api", () => {
         new Response(JSON.stringify({ message: "Admin can only remove members" }), { status: 403 }),
       );
       await expect(removeWorkspaceMember("token", "ws1", "m1")).rejects.toThrow("Admin can only remove members");
+    });
+  });
+
+  describe("restoreWorkspace", () => {
+    it("sends POST /workspaces/:id/restore with Authorization header", async () => {
+      const mock: Workspace = { id: "ws1", name: "Restored", slug: "restored", description: null, ownerId: "u1", createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", deletedAt: null };
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(mock), { status: 200 }));
+
+      const result = await restoreWorkspace("token", "ws1");
+
+      expect(fetch).toHaveBeenCalledWith(
+        `${API_BASE}/workspaces/ws1/restore`,
+        expect.objectContaining({
+          method: "POST",
+          headers: expect.objectContaining({
+            Accept: "application/json",
+            Authorization: "Bearer token",
+            "Content-Type": "application/json",
+          }),
+        }),
+      );
+      expect(result.deletedAt).toBeNull();
+    });
+
+    it("throws with backend error message 'Workspace is not archived'", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(
+        new Response(JSON.stringify({ message: "Workspace is not archived" }), { status: 409 }),
+      );
+      await expect(restoreWorkspace("token", "ws1")).rejects.toThrow("Workspace is not archived");
+    });
+
+    it("throws with backend error message 'Only owner can restore workspace'", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(
+        new Response(JSON.stringify({ message: "Only owner can restore workspace" }), { status: 403 }),
+      );
+      await expect(restoreWorkspace("token", "ws1")).rejects.toThrow("Only owner can restore workspace");
     });
   });
 });
