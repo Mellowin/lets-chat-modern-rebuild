@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { getChannel, getChannelMembers, addChannelMember, removeChannelMember, archiveChannel, type Channel, type ChannelMember } from "@/lib/channels-api";
+import { getChannel, getChannelMembers, addChannelMember, removeChannelMember, archiveChannel, leaveChannel, type Channel, type ChannelMember } from "@/lib/channels-api";
 
 import { getMessages, createMessage, updateMessage, deleteMessage, type Message, type CreateMessageInput, type UpdateMessageInput } from "@/lib/messages-api";
 import { createSocket } from "@/lib/socket-client";
@@ -52,6 +52,9 @@ export default function ChannelDetailPage() {
     { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string }
   >({ kind: "idle" });
   const [archiveState, setArchiveState] = useState<
+    { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string }
+  >({ kind: "idle" });
+  const [leaveState, setLeaveState] = useState<
     { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string }
   >({ kind: "idle" });
   const [addMemberIdentifier, setAddMemberIdentifier] = useState("");
@@ -374,6 +377,7 @@ export default function ChannelDetailPage() {
       : undefined;
   const canManageMembers = myChannelRole === "OWNER" || myChannelRole === "ADMIN";
   const canArchiveChannel = myChannelRole === "OWNER";
+  const canLeaveChannel = myChannelRole === "MEMBER" || myChannelRole === "ADMIN";
 
   function canRemoveMember(targetRole: string, targetUserId: string) {
     if (myChannelRole === "OWNER") {
@@ -401,6 +405,24 @@ export default function ChannelDetailPage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to archive channel";
       setArchiveState({ kind: "error", message });
+    }
+  }
+
+  async function handleLeave() {
+    if (!channelId || !accessToken || !workspaceId) return;
+    const name = channel.kind === "success" ? channel.data.name : "this channel";
+    if (!window.confirm(`Leave channel "${name}"?`)) {
+      return;
+    }
+    setLeaveState({ kind: "loading" });
+    try {
+      await leaveChannel(accessToken, workspaceId, channelId);
+      setLeaveState({ kind: "idle" });
+      window.dispatchEvent(new Event("channels:changed"));
+      router.push(`/workspaces/${workspaceId}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to leave channel";
+      setLeaveState({ kind: "error", message });
     }
   }
 
@@ -546,12 +568,29 @@ export default function ChannelDetailPage() {
                 {archiveState.kind === "loading" ? "Archiving…" : "Archive"}
               </button>
             )}
+            {canLeaveChannel && (
+              <button
+                onClick={handleLeave}
+                disabled={leaveState.kind === "loading"}
+                className="ml-auto inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+              >
+                {leaveState.kind === "loading" ? "Leaving…" : "Leave channel"}
+              </button>
+            )}
           </div>
           {archiveState.kind === "error" && (
             <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
               <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
                 <span className="h-2 w-2 rounded-full bg-red-500" />
                 {archiveState.message}
+              </div>
+            </div>
+          )}
+          {leaveState.kind === "error" && (
+            <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
+              <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+                <span className="h-2 w-2 rounded-full bg-red-500" />
+                {leaveState.message}
               </div>
             </div>
           )}

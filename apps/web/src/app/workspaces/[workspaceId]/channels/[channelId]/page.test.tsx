@@ -2,7 +2,7 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import ChannelDetailPage from "./page";
-import { getChannel, getChannelMembers, addChannelMember, removeChannelMember, type ChannelMember } from "@/lib/channels-api";
+import { getChannel, getChannelMembers, addChannelMember, removeChannelMember, leaveChannel, type ChannelMember } from "@/lib/channels-api";
 import { getMessages, createMessage, updateMessage, deleteMessage, Message } from "@/lib/messages-api";
 
 const socketHandlers: Record<string, (...args: unknown[]) => void> = {};
@@ -12,9 +12,11 @@ const socketOnMock = vi.fn((event: string, handler: (...args: unknown[]) => void
 const socketEmitMock = vi.fn();
 const socketDisconnectMock = vi.fn();
 
+const routerPushMock = vi.fn();
+
 vi.mock("next/navigation", () => ({
   useParams: () => ({ workspaceId: "ws1", channelId: "ch1" }),
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: routerPushMock }),
 }));
 
 vi.mock("@/lib/auth-context", () => ({
@@ -31,6 +33,7 @@ vi.mock("@/lib/channels-api", () => ({
   getChannelMembers: vi.fn(),
   addChannelMember: vi.fn(),
   removeChannelMember: vi.fn(),
+  leaveChannel: vi.fn(),
 }));
 
 vi.mock("@/lib/messages-api", () => ({
@@ -605,6 +608,100 @@ describe("ChannelDetailPage — members", () => {
       expect(screen.getByRole("heading", { name: "general" })).toBeInTheDocument();
     });
     expect(screen.getByRole("button", { name: /Archive/i })).toBeInTheDocument();
+  });
+
+  it("MEMBER sees Leave channel button", async () => {
+    mockChannelAndMessages([], [regularMember]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "general" })).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: /Leave channel/i })).toBeInTheDocument();
+  });
+
+  it("ADMIN sees Leave channel button", async () => {
+    const adminAlice: ChannelMember = {
+      id: "cm1",
+      channelId: "ch1",
+      role: "ADMIN",
+      joinedAt: "2024-01-01T00:00:00Z",
+      user: { id: "u1", username: "alice", displayName: "Alice" },
+    };
+    mockChannelAndMessages([], [adminAlice]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "general" })).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: /Leave channel/i })).toBeInTheDocument();
+  });
+
+  it("OWNER does not see Leave channel button", async () => {
+    mockChannelAndMessages([], [ownerMember]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "general" })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("button", { name: /Leave channel/i })).not.toBeInTheDocument();
+  });
+
+  it("successful leave calls API, dispatches event, and redirects", async () => {
+    routerPushMock.mockClear();
+    vi.mocked(leaveChannel).mockResolvedValueOnce({ success: true });
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent").mockImplementation(() => true);
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    mockChannelAndMessages([], [regularMember]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Leave channel/i })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Leave channel/i }));
+
+    await waitFor(() => {
+      expect(leaveChannel).toHaveBeenCalledWith("token", "ws1", "ch1");
+    });
+    expect(dispatchSpy).toHaveBeenCalledWith(expect.any(Event));
+    expect(routerPushMock).toHaveBeenCalledWith("/workspaces/ws1");
+
+    confirmSpy.mockRestore();
+    dispatchSpy.mockRestore();
+  });
+
+  it("cancel confirm does not call leaveChannel", async () => {
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    mockChannelAndMessages([], [regularMember]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Leave channel/i })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Leave channel/i }));
+
+    expect(leaveChannel).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
+  });
+
+  it("shows backend error on leave failure", async () => {
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    vi.mocked(leaveChannel).mockRejectedValueOnce(new Error("Owner cannot leave channel"));
+
+    mockChannelAndMessages([], [regularMember]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Leave channel/i })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Leave channel/i }));
+
+    expect(await screen.findByText(/Owner cannot leave channel/i)).toBeInTheDocument();
+    confirmSpy.mockRestore();
   });
 
   it("adds member successfully and updates list", async () => {
