@@ -411,6 +411,7 @@ export class WorkspacesService {
         user: {
           id: member.user.id,
           username: member.user.username,
+          displayName: member.user.displayName,
         },
       };
     } catch (error) {

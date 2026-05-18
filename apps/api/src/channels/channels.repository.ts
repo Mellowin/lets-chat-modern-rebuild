@@ -140,6 +140,7 @@ export class ChannelsRepository {
           select: {
             id: true,
             username: true,
+            displayName: true,
           },
         },
       },
@@ -158,6 +159,7 @@ export class ChannelsRepository {
           select: {
             id: true,
             username: true,
+            displayName: true,
           },
         },
       },

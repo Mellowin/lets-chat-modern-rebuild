@@ -111,6 +111,7 @@ export class WorkspacesRepository {
           select: {
             id: true,
             username: true,
+            displayName: true,
           },
         },
       },
@@ -162,6 +163,7 @@ export class WorkspacesRepository {
           select: {
             id: true,
             username: true,
+            displayName: true,
           },
         },
       },
@@ -192,6 +194,7 @@ export class WorkspacesRepository {
           select: {
             id: true,
             username: true,
+            displayName: true,
           },
         },
       },
