@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useLayoutEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { getWorkspaces, createWorkspace, archiveWorkspace, type Workspace } from "@/lib/workspaces-api";
@@ -43,8 +43,9 @@ export default function DashboardPage() {
   const [invites, setInvites] = useState<InvitesState>({ kind: "idle" });
   const [inviteActionError, setInviteActionError] = useState<string | null>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (user?.displayName) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDisplayNameInput(user.displayName);
     }
   }, [user?.displayName]);
@@ -76,7 +77,6 @@ export default function DashboardPage() {
     if (!accessToken) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadWorkspaces(accessToken);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadPendingInvites(accessToken);
   }, [isAuthenticated, accessToken, loadWorkspaces, loadPendingInvites]);
 

@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import DashboardPage from "./page";
 import { useAuth } from "@/lib/auth-context";
-import { getWorkspaces, createWorkspace, archiveWorkspace } from "@/lib/workspaces-api";
+import { getWorkspaces } from "@/lib/workspaces-api";
 import { updateDisplayName } from "@/lib/auth-api";
 import { getPendingInvites, acceptInvite, declineInvite } from "@/lib/invites-api";
 
