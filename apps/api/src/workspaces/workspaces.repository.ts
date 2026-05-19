@@ -58,6 +58,16 @@ export class WorkspacesRepository {
     });
   }
 
+  async listArchivedOwnedByUser(userId: string) {
+    return this.prisma.workspace.findMany({
+      where: {
+        ownerId: userId,
+        deletedAt: { not: null },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+  }
+
   async findActiveById(id: string) {
     return this.prisma.workspace.findFirst({
       where: { id, deletedAt: null },

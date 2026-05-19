@@ -35,6 +35,7 @@ describe('WorkspacesService', () => {
             transferOwnership: jest.fn(),
             findByIdIncludingArchived: jest.fn(),
             restoreWorkspace: jest.fn(),
+            listArchivedOwnedByUser: jest.fn(),
           },
         },
         {
@@ -1387,6 +1388,46 @@ describe('WorkspacesService', () => {
       await expect(
         service.leaveWorkspace(workspaceId, userId),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('listArchivedForOwner', () => {
+    it('should return only own archived workspaces', async () => {
+      workspacesRepository.listArchivedOwnedByUser.mockResolvedValue([
+        { id: 'ws-arch', name: 'Old', slug: 'old', ownerId: userId, deletedAt: new Date('2026-01-01'), createdAt: new Date('2025-01-01'), updatedAt: new Date('2026-01-01') } as any,
+      ]);
+
+      const result = await service.listArchivedForOwner(userId);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('ws-arch');
+      expect(workspacesRepository.listArchivedOwnedByUser).toHaveBeenCalledWith(userId);
+    });
+
+    it('should return empty array when no archived workspaces', async () => {
+      workspacesRepository.listArchivedOwnedByUser.mockResolvedValue([]);
+
+      const result = await service.listArchivedForOwner(userId);
+
+      expect(result).toEqual([]);
+    });
+
+    it('should not include active workspaces', async () => {
+      workspacesRepository.listArchivedOwnedByUser.mockResolvedValue([
+        { id: 'ws-arch', name: 'Old', slug: 'old', ownerId: userId, deletedAt: new Date('2026-01-01'), createdAt: new Date('2025-01-01'), updatedAt: new Date('2026-01-01') } as any,
+      ]);
+
+      const result = await service.listArchivedForOwner(userId);
+
+      expect(result.every((ws) => ws.deletedAt !== null)).toBe(true);
+    });
+
+    it('should not include archived workspaces owned by another user', async () => {
+      workspacesRepository.listArchivedOwnedByUser.mockResolvedValue([]);
+
+      const result = await service.listArchivedForOwner(userId);
+
+      expect(result).toEqual([]);
     });
   });
 });

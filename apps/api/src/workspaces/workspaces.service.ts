@@ -54,6 +54,10 @@ export class WorkspacesService {
     return this.workspaces.listForUser(userId);
   }
 
+  async listArchivedForOwner(userId: string) {
+    return this.workspaces.listArchivedOwnedByUser(userId);
+  }
+
   async findById(workspaceId: string, userId: string) {
     const workspace = await this.workspaces.findActiveById(workspaceId);
     if (!workspace) {

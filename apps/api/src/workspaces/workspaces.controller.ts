@@ -62,6 +62,14 @@ export class WorkspacesController {
     return this.workspaces.listForUser(user.id);
   }
 
+  @Get('archived')
+  @ApiOperation({ summary: 'List archived workspaces owned by user' })
+  @ApiOkResponse({ description: 'Archived workspaces list' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async findArchived(@CurrentUser() user: AuthUserResponse) {
+    return this.workspaces.listArchivedForOwner(user.id);
+  }
+
   @Get(':workspaceId')
   @ApiOperation({ summary: 'Get workspace by id' })
   @ApiOkResponse({ description: 'Workspace found' })
