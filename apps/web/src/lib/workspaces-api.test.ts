@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { getWorkspaces, getWorkspace, createWorkspace, leaveWorkspace, removeWorkspaceMember, restoreWorkspace, type Workspace } from "./workspaces-api";
+import { getWorkspaces, getWorkspace, createWorkspace, leaveWorkspace, removeWorkspaceMember, restoreWorkspace, listArchivedWorkspaces, type Workspace } from "./workspaces-api";
 
 const API_BASE = "http://localhost:3001/api/v1";
 
@@ -164,6 +164,33 @@ describe("workspaces-api", () => {
         new Response(JSON.stringify({ message: "Only owner can restore workspace" }), { status: 403 }),
       );
       await expect(restoreWorkspace("token", "ws1")).rejects.toThrow("Only owner can restore workspace");
+    });
+  });
+
+  describe("listArchivedWorkspaces", () => {
+    it("sends GET /workspaces/archived with Authorization header", async () => {
+      const mock: Workspace[] = [
+        { id: "ws1", name: "Old", slug: "old", description: null, ownerId: "u1", createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", deletedAt: "2024-06-01T00:00:00Z" },
+      ];
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(mock), { status: 200 }));
+
+      const result = await listArchivedWorkspaces("token");
+
+      expect(fetch).toHaveBeenCalledWith(
+        `${API_BASE}/workspaces/archived`,
+        expect.objectContaining({
+          method: "GET",
+          headers: { Accept: "application/json", Authorization: "Bearer token" },
+        }),
+      );
+      expect(result).toEqual(mock);
+    });
+
+    it("throws with backend error message", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(
+        new Response(JSON.stringify({ message: "Unauthorized" }), { status: 401 }),
+      );
+      await expect(listArchivedWorkspaces("token")).rejects.toThrow("Unauthorized");
     });
   });
 });

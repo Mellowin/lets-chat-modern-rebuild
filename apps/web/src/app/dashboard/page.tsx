@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { getWorkspaces, createWorkspace, archiveWorkspace, type Workspace } from "@/lib/workspaces-api";
+import { getWorkspaces, createWorkspace, archiveWorkspace, listArchivedWorkspaces, restoreWorkspace, type Workspace } from "@/lib/workspaces-api";
 import { updateDisplayName } from "@/lib/auth-api";
 import { getPendingInvites, acceptInvite, declineInvite, type PendingInvite } from "@/lib/invites-api";
 import { slugify } from "@/lib/transliterate";
@@ -31,6 +31,12 @@ type InvitesState =
   | { kind: "success"; data: PendingInvite[] }
   | { kind: "error"; message: string };
 
+type ArchivedWorkspacesState =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "success"; data: Workspace[] }
+  | { kind: "error"; message: string };
+
 export default function DashboardPage() {
   const { user, accessToken, isLoading: authLoading, isAuthenticated, setUser } = useAuth();
   const [workspaces, setWorkspaces] = useState<WorkspacesState>({ kind: "idle" });
@@ -42,6 +48,8 @@ export default function DashboardPage() {
   const [displayNameInput, setDisplayNameInput] = useState("");
   const [invites, setInvites] = useState<InvitesState>({ kind: "idle" });
   const [inviteActionError, setInviteActionError] = useState<string | null>(null);
+  const [archivedWorkspaces, setArchivedWorkspaces] = useState<ArchivedWorkspacesState>({ kind: "idle" });
+  const [restoreError, setRestoreError] = useState<string | null>(null);
 
   useLayoutEffect(() => {
     if (user?.displayName) {
@@ -72,13 +80,25 @@ export default function DashboardPage() {
     }
   }, []);
 
+  const loadArchivedWorkspaces = useCallback(async (token: string) => {
+    setArchivedWorkspaces({ kind: "loading" });
+    try {
+      const data = await listArchivedWorkspaces(token);
+      setArchivedWorkspaces({ kind: "success", data });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to load archived workspaces";
+      setArchivedWorkspaces({ kind: "error", message });
+    }
+  }, []);
+
   useEffect(() => {
     if (!isAuthenticated) return;
     if (!accessToken) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadWorkspaces(accessToken);
     loadPendingInvites(accessToken);
-  }, [isAuthenticated, accessToken, loadWorkspaces, loadPendingInvites]);
+    loadArchivedWorkspaces(accessToken);
+  }, [isAuthenticated, accessToken, loadWorkspaces, loadPendingInvites, loadArchivedWorkspaces]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -163,6 +183,25 @@ export default function DashboardPage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to decline invite";
       setInviteActionError(message);
+    }
+  }
+
+  async function handleRestoreWorkspace(e: React.MouseEvent, workspaceId: string, wsName: string) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!window.confirm(`Restore workspace "${wsName}"?`)) {
+      return;
+    }
+    if (!accessToken) return;
+    setRestoreError(null);
+    try {
+      await restoreWorkspace(accessToken, workspaceId);
+      await loadWorkspaces(accessToken);
+      await loadArchivedWorkspaces(accessToken);
+      window.dispatchEvent(new Event("workspaces:changed"));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to restore workspace";
+      setRestoreError(message);
     }
   }
 
@@ -410,6 +449,67 @@ export default function DashboardPage() {
                           Archive
                         </button>
                       )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Archived workspaces */}
+      <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-zinc-600 dark:text-zinc-400">Archived Workspaces</h2>
+        </div>
+
+        <div className="mt-3">
+          {archivedWorkspaces.kind === "idle" || archivedWorkspaces.kind === "loading" ? (
+            <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300 py-4">
+              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
+              Loading archived workspaces…
+            </div>
+          ) : archivedWorkspaces.kind === "error" ? (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
+              <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+                <span className="h-2 w-2 rounded-full bg-red-500" />
+                {archivedWorkspaces.message}
+              </div>
+            </div>
+          ) : archivedWorkspaces.data.length === 0 ? (
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 py-4">
+              No archived workspaces.
+            </p>
+          ) : (
+            <>
+              {restoreError && (
+                <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
+                  <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+                    <span className="h-2 w-2 rounded-full bg-red-500" />
+                    {restoreError}
+                  </div>
+                </div>
+              )}
+              <ul className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                {archivedWorkspaces.data.map((ws) => (
+                  <li
+                    key={ws.id}
+                    className="flex items-center justify-between py-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 -mx-2 px-2 rounded-md transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-zinc-600 dark:text-zinc-300">{ws.name}</p>
+                      <p className="text-xs text-zinc-400 dark:text-zinc-500">
+                        {ws.slug} · Archived {ws.deletedAt ? new Date(ws.deletedAt).toLocaleDateString() : ""}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 ml-2">
+                      <button
+                        onClick={(e) => handleRestoreWorkspace(e, ws.id, ws.name)}
+                        className="inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                      >
+                        Restore
+                      </button>
                     </div>
                   </li>
                 ))}

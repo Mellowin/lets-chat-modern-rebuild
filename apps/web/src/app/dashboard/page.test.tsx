@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import DashboardPage from "./page";
 import { useAuth } from "@/lib/auth-context";
-import { getWorkspaces, archiveWorkspace } from "@/lib/workspaces-api";
+import { getWorkspaces, archiveWorkspace, listArchivedWorkspaces, restoreWorkspace } from "@/lib/workspaces-api";
 import { updateDisplayName } from "@/lib/auth-api";
 import { getPendingInvites, acceptInvite, declineInvite } from "@/lib/invites-api";
 
@@ -15,6 +15,8 @@ vi.mock("@/lib/workspaces-api", () => ({
   getWorkspaces: vi.fn(),
   createWorkspace: vi.fn(),
   archiveWorkspace: vi.fn(),
+  listArchivedWorkspaces: vi.fn(),
+  restoreWorkspace: vi.fn(),
 }));
 
 vi.mock("@/lib/auth-api", () => ({
@@ -46,6 +48,7 @@ describe("DashboardPage — display name", () => {
     vi.clearAllMocks();
     vi.mocked(getWorkspaces).mockResolvedValue([]);
     vi.mocked(getPendingInvites).mockResolvedValue([]);
+    vi.mocked(listArchivedWorkspaces).mockResolvedValue([]);
   });
 
   it("renders display name input", async () => {
@@ -119,6 +122,7 @@ describe("DashboardPage — workspace list", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getPendingInvites).mockResolvedValue([]);
+    vi.mocked(listArchivedWorkspaces).mockResolvedValue([]);
   });
 
   it("shows Archive button for owned workspace", async () => {
@@ -178,6 +182,7 @@ describe("DashboardPage — pending invites", () => {
     vi.clearAllMocks();
     vi.mocked(getWorkspaces).mockResolvedValue([]);
     vi.mocked(getPendingInvites).mockResolvedValue([]);
+    vi.mocked(listArchivedWorkspaces).mockResolvedValue([]);
   });
 
   it("shows pending invites", async () => {
@@ -295,5 +300,86 @@ describe("DashboardPage — pending invites", () => {
     await userEvent.click(screen.getByRole("button", { name: /Accept/i }));
 
     expect(await screen.findByText(/Invite expired/i)).toBeInTheDocument();
+  });
+});
+
+describe("DashboardPage — archived workspaces", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getWorkspaces).mockResolvedValue([]);
+    vi.mocked(getPendingInvites).mockResolvedValue([]);
+  });
+
+  it("shows archived workspaces list", async () => {
+    mockAuth();
+    vi.mocked(listArchivedWorkspaces).mockResolvedValue([
+      { id: "ws-arch", name: "Old Project", slug: "old", description: null, ownerId: "u1", createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-06-01T00:00:00Z", deletedAt: "2024-06-01T00:00:00Z" },
+    ]);
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Old Project")).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: /Restore/i })).toBeInTheDocument();
+  });
+
+  it("shows no archived workspaces message when empty", async () => {
+    mockAuth();
+    vi.mocked(listArchivedWorkspaces).mockResolvedValue([]);
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/No archived workspaces/i)).toBeInTheDocument();
+    });
+  });
+
+  it("restores archived workspace on confirm", async () => {
+    mockAuth();
+    vi.mocked(listArchivedWorkspaces).mockResolvedValue([
+      { id: "ws-arch", name: "Old Project", slug: "old", description: null, ownerId: "u1", createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-06-01T00:00:00Z", deletedAt: "2024-06-01T00:00:00Z" },
+    ]);
+    vi.mocked(restoreWorkspace).mockResolvedValue(
+      { id: "ws-arch", name: "Old Project", slug: "old", description: null, ownerId: "u1", createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-06-01T00:00:00Z", deletedAt: null },
+    );
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent").mockImplementation(() => true);
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Restore/i })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Restore/i }));
+
+    await waitFor(() => {
+      expect(restoreWorkspace).toHaveBeenCalledWith("token", "ws-arch");
+    });
+    expect(dispatchSpy).toHaveBeenCalledWith(expect.any(Event));
+
+    confirmSpy.mockRestore();
+    dispatchSpy.mockRestore();
+  });
+
+  it("shows error when restore fails", async () => {
+    mockAuth();
+    vi.mocked(listArchivedWorkspaces).mockResolvedValue([
+      { id: "ws-arch", name: "Old Project", slug: "old", description: null, ownerId: "u1", createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-06-01T00:00:00Z", deletedAt: "2024-06-01T00:00:00Z" },
+    ]);
+    vi.mocked(restoreWorkspace).mockRejectedValue(new Error("Workspace is not archived"));
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Restore/i })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Restore/i }));
+
+    expect(await screen.findByText(/Workspace is not archived/i)).toBeInTheDocument();
+    confirmSpy.mockRestore();
   });
 });

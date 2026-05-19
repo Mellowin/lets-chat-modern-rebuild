@@ -62,6 +62,22 @@ export async function getWorkspaces(accessToken: string): Promise<Workspace[]> {
   return res.json() as Promise<Workspace[]>;
 }
 
+export async function listArchivedWorkspaces(accessToken: string): Promise<Workspace[]> {
+  const res = await fetch(`${API_BASE}/workspaces/archived`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to load archived workspaces: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<Workspace[]>;
+}
+
 export async function getWorkspace(accessToken: string, workspaceId: string): Promise<Workspace> {
   const res = await fetch(`${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}`, {
     method: "GET",
