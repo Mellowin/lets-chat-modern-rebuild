@@ -124,21 +124,15 @@ describe('InvitesService', () => {
     expect(result.role).toBe('MEMBER');
   });
 
-  it('should allow ADMIN to create ADMIN invite', async () => {
+  it('should reject ADMIN creating ADMIN invite by email', async () => {
     workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
     workspacesRepository.findMemberRole.mockResolvedValue('ADMIN');
-    invitesRepository.createInvite.mockImplementation(async (data) => ({
-      id: 'invite-id',
-      workspaceId: data.workspaceId,
-      invitedEmail: data.invitedEmail,
-      role: data.role,
-      expiresAt: data.expiresAt,
-      createdAt: new Date(),
-    } as any));
 
-    const result = await service.create(workspaceId, { email: 'test@example.com', role: 'ADMIN' }, userId);
-
-    expect(result.role).toBe('ADMIN');
+    await expect(
+      service.create(workspaceId, { email: 'test@example.com', role: 'ADMIN' }, userId),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(invitesRepository.createInvite).not.toHaveBeenCalled();
+    expectAuditNotCalled();
   });
 
   it('should reject MEMBER creating invite', async () => {
@@ -460,25 +454,17 @@ describe('InvitesService', () => {
     expectAuditNotCalled();
   });
 
-  it('should allow ADMIN to invite username with role ADMIN', async () => {
+  it('should reject ADMIN inviting username with role ADMIN', async () => {
     const targetUserId = '44444444-4444-4444-4444-444444444444';
     workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
     workspacesRepository.findMemberRole.mockResolvedValue('ADMIN');
     usersRepository.findByUsername.mockResolvedValue({ id: targetUserId, email: 'bob@example.com', username: 'bob' } as any);
-    invitesRepository.findPendingByWorkspaceAndEmail.mockResolvedValue(null);
-    workspacesRepository.findActiveMemberByUserId.mockResolvedValue(null);
-    invitesRepository.createInvite.mockImplementation(async (data) => ({
-      id: 'invite-id',
-      workspaceId: data.workspaceId,
-      invitedEmail: data.invitedEmail,
-      role: data.role,
-      expiresAt: data.expiresAt,
-      createdAt: new Date(),
-    } as any));
 
-    const result = await service.create(workspaceId, { identifier: 'bob', role: 'ADMIN' }, userId);
-
-    expect(result.role).toBe('ADMIN');
+    await expect(
+      service.create(workspaceId, { identifier: 'bob', role: 'ADMIN' }, userId),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(invitesRepository.createInvite).not.toHaveBeenCalled();
+    expectAuditNotCalled();
   });
 
   it('should reject when both email and identifier are missing', async () => {

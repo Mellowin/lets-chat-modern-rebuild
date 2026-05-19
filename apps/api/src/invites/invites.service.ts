@@ -41,6 +41,9 @@ export class InvitesService {
     if ((dto.role as string) === 'OWNER') {
       throw new BadRequestException('Cannot create OWNER invite');
     }
+    if (role === 'ADMIN' && dto.role === 'ADMIN') {
+      throw new ForbiddenException('Admin can only invite members');
+    }
 
     if (!dto.email && !dto.identifier) {
       throw new BadRequestException('Email or identifier is required');
