@@ -29,7 +29,7 @@ async function parseErrorMessage(res: Response, fallback: string): Promise<strin
 export async function createWorkspaceInvite(
   accessToken: string,
   workspaceId: string,
-  input: { email: string; role: "ADMIN" | "MEMBER" },
+  input: { email?: string; identifier?: string; role: "ADMIN" | "MEMBER" },
 ): Promise<{ id: string; workspaceId: string; email: string; role: string; token: string; expiresAt: string; createdAt: string }> {
   const res = await fetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/invites`,

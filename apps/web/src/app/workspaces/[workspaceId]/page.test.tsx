@@ -307,14 +307,16 @@ describe("WorkspaceDetailPage — add member / invite", () => {
     });
   });
 
-  it("OWNER can select ADMIN for username add", async () => {
+  it("OWNER can select ADMIN for username invite", async () => {
     mockWorkspaceData({ archived: [] });
-    vi.mocked(addWorkspaceMember).mockResolvedValue({
-      id: "wm2",
+    vi.mocked(createWorkspaceInvite).mockResolvedValue({
+      id: "invite-1",
       workspaceId: "ws1",
+      email: "bob@example.com",
       role: "ADMIN",
-      joinedAt: new Date().toISOString(),
-      user: { id: "u2", username: "bob" },
+      token: "token123",
+      expiresAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
     });
 
     render(<WorkspaceDetailPage />);
@@ -328,8 +330,10 @@ describe("WorkspaceDetailPage — add member / invite", () => {
     await userEvent.click(screen.getByRole("button", { name: /Add member/i }));
 
     await waitFor(() => {
-      expect(addWorkspaceMember).toHaveBeenCalledWith("token", "ws1", { identifier: "bob", role: "ADMIN" });
+      expect(createWorkspaceInvite).toHaveBeenCalledWith("token", "ws1", { identifier: "bob", role: "ADMIN" });
     });
+    expect(addWorkspaceMember).not.toHaveBeenCalled();
+    expect(screen.getByText(/Invitation sent/i)).toBeInTheDocument();
   });
 
   it("ADMIN does not see role select", async () => {
@@ -351,7 +355,7 @@ describe("WorkspaceDetailPage — add member / invite", () => {
     expect(screen.queryByDisplayValue("MEMBER")).not.toBeInTheDocument();
   });
 
-  it("ADMIN add/invite sends role MEMBER", async () => {
+  it("ADMIN username invite sends role MEMBER", async () => {
     mockAuthUser.id = "u2";
     mockAuthUser.email = "b@b.com";
     mockAuthUser.username = "bob";
@@ -360,12 +364,14 @@ describe("WorkspaceDetailPage — add member / invite", () => {
       { id: "wm1", workspaceId: "ws1", role: "OWNER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice", displayName: "Alice" } },
       { id: "wm2", workspaceId: "ws1", role: "ADMIN", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u2", username: "bob", displayName: "Bob" } },
     ]);
-    vi.mocked(addWorkspaceMember).mockResolvedValue({
-      id: "wm3",
+    vi.mocked(createWorkspaceInvite).mockResolvedValue({
+      id: "invite-1",
       workspaceId: "ws1",
+      email: "charlie@example.com",
       role: "MEMBER",
-      joinedAt: new Date().toISOString(),
-      user: { id: "u3", username: "charlie" },
+      token: "token123",
+      expiresAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
     });
 
     render(<WorkspaceDetailPage />);
@@ -378,8 +384,10 @@ describe("WorkspaceDetailPage — add member / invite", () => {
     await userEvent.click(screen.getByRole("button", { name: /Add member/i }));
 
     await waitFor(() => {
-      expect(addWorkspaceMember).toHaveBeenCalledWith("token", "ws1", { identifier: "charlie", role: "MEMBER" });
+      expect(createWorkspaceInvite).toHaveBeenCalledWith("token", "ws1", { identifier: "charlie", role: "MEMBER" });
     });
+    expect(addWorkspaceMember).not.toHaveBeenCalled();
+    expect(screen.getByText(/Invitation sent/i)).toBeInTheDocument();
   });
 
   it("calls createWorkspaceInvite for email input and shows Invitation sent", async () => {
@@ -410,14 +418,16 @@ describe("WorkspaceDetailPage — add member / invite", () => {
     expect(screen.getByText(/Invitation sent/i)).toBeInTheDocument();
   });
 
-  it("calls addWorkspaceMember for username input and shows Member added", async () => {
+  it("calls createWorkspaceInvite for username input and shows Invitation sent", async () => {
     mockWorkspaceData({ archived: [] });
-    vi.mocked(addWorkspaceMember).mockResolvedValue({
-      id: "wm2",
+    vi.mocked(createWorkspaceInvite).mockResolvedValue({
+      id: "invite-1",
       workspaceId: "ws1",
+      email: "bob@example.com",
       role: "MEMBER",
-      joinedAt: new Date().toISOString(),
-      user: { id: "u2", username: "bob" },
+      token: "token123",
+      expiresAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
     });
 
     render(<WorkspaceDetailPage />);
@@ -430,10 +440,10 @@ describe("WorkspaceDetailPage — add member / invite", () => {
     await userEvent.click(screen.getByRole("button", { name: /Add member/i }));
 
     await waitFor(() => {
-      expect(addWorkspaceMember).toHaveBeenCalledWith("token", "ws1", { identifier: "bob", role: "MEMBER" });
+      expect(createWorkspaceInvite).toHaveBeenCalledWith("token", "ws1", { identifier: "bob", role: "MEMBER" });
     });
-    expect(createWorkspaceInvite).not.toHaveBeenCalled();
-    expect(screen.getByText(/Member added/i)).toBeInTheDocument();
+    expect(addWorkspaceMember).not.toHaveBeenCalled();
+    expect(screen.getByText(/Invitation sent/i)).toBeInTheDocument();
   });
 
   it("shows error when email invite fails", async () => {
@@ -490,9 +500,9 @@ describe("WorkspaceDetailPage — add member / invite", () => {
     expect(screen.queryByText("bob@example.com")).not.toBeInTheDocument();
   });
 
-  it("shows error when username add fails", async () => {
+  it("shows error when username invite fails", async () => {
     mockWorkspaceData({ archived: [] });
-    vi.mocked(addWorkspaceMember).mockRejectedValue(new Error("User not found"));
+    vi.mocked(createWorkspaceInvite).mockRejectedValue(new Error("User not found"));
 
     render(<WorkspaceDetailPage />);
 
@@ -537,6 +547,38 @@ describe("WorkspaceDetailPage — add member / invite", () => {
     // Should still only show alice, not bob
     expect(screen.getAllByText("Alice").length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText("bob@example.com")).not.toBeInTheDocument();
+  });
+
+  it("does not append member to list on username invite success", async () => {
+    mockWorkspaceData({ archived: [] });
+    vi.mocked(createWorkspaceInvite).mockResolvedValue({
+      id: "invite-1",
+      workspaceId: "ws1",
+      email: "bob@example.com",
+      role: "MEMBER",
+      token: "token123",
+      expiresAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    });
+    vi.mocked(getWorkspaceMembers).mockResolvedValue([
+      { id: "wm1", workspaceId: "ws1", role: "OWNER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice", displayName: "Alice" } },
+    ]);
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Username or email/i), "bob");
+    await userEvent.click(screen.getByRole("button", { name: /Add member/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Invitation sent/i)).toBeInTheDocument();
+    });
+
+    expect(screen.getAllByText("Alice").length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText("bob")).not.toBeInTheDocument();
   });
 });
 

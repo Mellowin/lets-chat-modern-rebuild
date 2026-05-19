@@ -6,6 +6,55 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v
 describe("invites-api", () => {
   const token = "test-token";
 
+  describe("createWorkspaceInvite", () => {
+    it("sends POST /workspaces/:id/invites with email", async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ id: "invite-1", workspaceId: "ws1", email: "a@b.com", role: "MEMBER", token: "tok", expiresAt: new Date().toISOString(), createdAt: new Date().toISOString() }),
+      });
+
+      await import("./invites-api").then((m) => m.createWorkspaceInvite(token, "ws1", { email: "a@b.com", role: "MEMBER" }));
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/workspaces/ws1/invites"),
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ email: "a@b.com", role: "MEMBER" }),
+        }),
+      );
+    });
+
+    it("sends POST /workspaces/:id/invites with identifier", async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ id: "invite-1", workspaceId: "ws1", email: "a@b.com", role: "MEMBER", token: "tok", expiresAt: new Date().toISOString(), createdAt: new Date().toISOString() }),
+      });
+
+      await import("./invites-api").then((m) => m.createWorkspaceInvite(token, "ws1", { identifier: "bob", role: "MEMBER" }));
+
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/workspaces/ws1/invites"),
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ identifier: "bob", role: "MEMBER" }),
+        }),
+      );
+    });
+
+    it("throws on error response", async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        statusText: "Not Found",
+        json: () => Promise.resolve({ message: "User not found" }),
+      });
+
+      await expect(
+        import("./invites-api").then((m) => m.createWorkspaceInvite(token, "ws1", { identifier: "unknown", role: "MEMBER" })),
+      ).rejects.toThrow("User not found");
+    });
+  });
+
   describe("getPendingInvites", () => {
     it("returns pending invites on success", async () => {
       const invites = [

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { getWorkspace, getWorkspaceMembers, addWorkspaceMember, leaveWorkspace, removeWorkspaceMember, type Workspace, type WorkspaceMember } from "@/lib/workspaces-api";
+import { getWorkspace, getWorkspaceMembers, leaveWorkspace, removeWorkspaceMember, type Workspace, type WorkspaceMember } from "@/lib/workspaces-api";
 import { createWorkspaceInvite } from "@/lib/invites-api";
 import { getChannels, getArchivedChannels, createChannel, archiveChannel, restoreChannel, type Channel, type CreateChannelInput } from "@/lib/channels-api";
 
@@ -233,33 +233,12 @@ export default function WorkspaceDetailPage() {
     try {
       if (looksLikeEmail(trimmed)) {
         await createWorkspaceInvite(accessToken, workspaceId, { email: trimmed, role: memberRole });
-        setMemberIdentifier("");
-        setMemberRole("MEMBER");
-        setAddMemberState({ kind: "success", message: "Invitation sent" });
       } else {
-        const newMember = await addWorkspaceMember(accessToken, workspaceId, { identifier: trimmed, role: memberRole });
-        setMemberIdentifier("");
-        setMemberRole("MEMBER");
-        setMemberIdentifier("");
-        setAddMemberState({ kind: "success", message: "Member added" });
-        setMembers((prev) => {
-          if (prev.kind !== "success") return { kind: "success", data: [newMember] };
-          const existingIndex = prev.data.findIndex((m) => m.id === newMember.id);
-          if (existingIndex >= 0) {
-            const next = [...prev.data];
-            next[existingIndex] = newMember;
-            return { kind: "success", data: next };
-          }
-          return { kind: "success", data: [...prev.data, newMember] };
-        });
-        // background refresh in case server state differs
-        try {
-          const refreshed = await getWorkspaceMembers(accessToken, workspaceId);
-          setMembers({ kind: "success", data: refreshed });
-        } catch {
-          // ignore refresh failure; local state already updated
-        }
+        await createWorkspaceInvite(accessToken, workspaceId, { identifier: trimmed, role: memberRole });
       }
+      setMemberIdentifier("");
+      setMemberRole("MEMBER");
+      setAddMemberState({ kind: "success", message: "Invitation sent" });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to add member";
       setAddMemberState({ kind: "error", message });
