@@ -42,19 +42,44 @@ export class InvitesService {
       throw new BadRequestException('Cannot create OWNER invite');
     }
 
+    if (!dto.email && !dto.identifier) {
+      throw new BadRequestException('Email or identifier is required');
+    }
+    if (dto.email && dto.identifier) {
+      throw new BadRequestException('Provide either email or identifier, not both');
+    }
+
+    let resolvedEmail: string;
+    let targetUserId: string | undefined;
+
+    if (dto.email) {
+      resolvedEmail = dto.email;
+      const targetUser = await this.users.findByEmail(resolvedEmail);
+      if (targetUser) {
+        targetUserId = targetUser.id;
+      }
+    } else {
+      const identifier = dto.identifier!.replace(/^@/, '');
+      const targetUser = await this.users.findByUsername(identifier);
+      if (!targetUser) {
+        throw new NotFoundException('User not found');
+      }
+      resolvedEmail = targetUser.email;
+      targetUserId = targetUser.id;
+    }
+
     const existingPending = await this.invites.findPendingByWorkspaceAndEmail(
       workspaceId,
-      dto.email,
+      resolvedEmail,
     );
     if (existingPending) {
       throw new ConflictException('Invitation already sent');
     }
 
-    const targetUser = await this.users.findByEmail(dto.email);
-    if (targetUser) {
+    if (targetUserId) {
       const existingMember = await this.workspaces.findActiveMemberByUserId(
         workspaceId,
-        targetUser.id,
+        targetUserId,
       );
       if (existingMember) {
         throw new ConflictException('Already a member of this workspace');
@@ -68,7 +93,7 @@ export class InvitesService {
     const invite = await this.invites.createInvite({
       workspaceId,
       invitedById,
-      invitedEmail: dto.email,
+      invitedEmail: resolvedEmail,
       role: dto.role,
       tokenHash,
       expiresAt,
