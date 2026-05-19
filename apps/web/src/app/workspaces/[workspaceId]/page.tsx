@@ -40,6 +40,7 @@ export default function WorkspaceDetailPage() {
   const [channels, setChannels] = useState<ChannelsState>({ kind: "idle" });
   const [members, setMembers] = useState<MembersState>({ kind: "idle" });
   const [memberIdentifier, setMemberIdentifier] = useState("");
+  const [memberRole, setMemberRole] = useState<"MEMBER" | "ADMIN">("MEMBER");
   const [addMemberState, setAddMemberState] = useState<
     | { kind: "idle" }
     | { kind: "loading" }
@@ -231,11 +232,14 @@ export default function WorkspaceDetailPage() {
     setAddMemberState({ kind: "loading" });
     try {
       if (looksLikeEmail(trimmed)) {
-        await createWorkspaceInvite(accessToken, workspaceId, { email: trimmed, role: "MEMBER" });
+        await createWorkspaceInvite(accessToken, workspaceId, { email: trimmed, role: memberRole });
         setMemberIdentifier("");
+        setMemberRole("MEMBER");
         setAddMemberState({ kind: "success", message: "Invitation sent" });
       } else {
-        const newMember = await addWorkspaceMember(accessToken, workspaceId, { identifier: trimmed, role: "MEMBER" });
+        const newMember = await addWorkspaceMember(accessToken, workspaceId, { identifier: trimmed, role: memberRole });
+        setMemberIdentifier("");
+        setMemberRole("MEMBER");
         setMemberIdentifier("");
         setAddMemberState({ kind: "success", message: "Member added" });
         setMembers((prev) => {
@@ -580,6 +584,16 @@ export default function WorkspaceDetailPage() {
                     onChange={(e) => setMemberIdentifier(e.target.value)}
                     className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
                   />
+                  {myRole === "OWNER" && (
+                    <select
+                      value={memberRole}
+                      onChange={(e) => setMemberRole(e.target.value as "MEMBER" | "ADMIN")}
+                      className="rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
+                    >
+                      <option value="MEMBER">MEMBER</option>
+                      <option value="ADMIN">ADMIN</option>
+                    </select>
+                  )}
                   <button
                     type="submit"
                     disabled={addMemberState.kind === "loading"}
