@@ -7,6 +7,12 @@ import { getWorkspaces, archiveWorkspace, listArchivedWorkspaces, restoreWorkspa
 import { updateDisplayName } from "@/lib/auth-api";
 import { getPendingInvites, acceptInvite, declineInvite } from "@/lib/invites-api";
 
+const routerPushMock = vi.fn();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: routerPushMock }),
+}));
+
 vi.mock("@/lib/auth-context", () => ({
   useAuth: vi.fn(),
 }));
@@ -220,7 +226,7 @@ describe("DashboardPage — pending invites", () => {
     });
   });
 
-  it("accepts an invite and refreshes workspaces", async () => {
+  it("accepts an invite and redirects to workspace", async () => {
     mockAuth();
     vi.mocked(getPendingInvites).mockResolvedValue([
       {
@@ -247,6 +253,7 @@ describe("DashboardPage — pending invites", () => {
       expect(acceptInvite).toHaveBeenCalledWith("token", "invite-1");
     });
     expect(dispatchSpy).toHaveBeenCalledWith(expect.any(Event));
+    expect(routerPushMock).toHaveBeenCalledWith("/workspaces/ws-1");
     dispatchSpy.mockRestore();
   });
 

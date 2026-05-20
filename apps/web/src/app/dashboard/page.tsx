@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { getWorkspaces, createWorkspace, archiveWorkspace, listArchivedWorkspaces, restoreWorkspace, type Workspace } from "@/lib/workspaces-api";
 import { updateDisplayName } from "@/lib/auth-api";
@@ -46,6 +47,7 @@ export default function DashboardPage() {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [displayNameInput, setDisplayNameInput] = useState("");
+  const router = useRouter();
   const [invites, setInvites] = useState<InvitesState>({ kind: "idle" });
   const [inviteActionError, setInviteActionError] = useState<string | null>(null);
   const [archivedWorkspaces, setArchivedWorkspaces] = useState<ArchivedWorkspacesState>({ kind: "idle" });
@@ -159,7 +161,7 @@ export default function DashboardPage() {
     }
   }
 
-  async function handleAcceptInvite(inviteId: string) {
+  async function handleAcceptInvite(inviteId: string, workspaceId: string) {
     if (!accessToken) return;
     setInviteActionError(null);
     try {
@@ -167,6 +169,7 @@ export default function DashboardPage() {
       await loadPendingInvites(accessToken);
       await loadWorkspaces(accessToken);
       window.dispatchEvent(new Event("workspaces:changed"));
+      router.push(`/workspaces/${workspaceId}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to accept invite";
       setInviteActionError(message);
@@ -375,7 +378,7 @@ export default function DashboardPage() {
                         Decline
                       </button>
                       <button
-                        onClick={() => handleAcceptInvite(inv.id)}
+                        onClick={() => handleAcceptInvite(inv.id, inv.workspace.id)}
                         className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
                       >
                         Accept
