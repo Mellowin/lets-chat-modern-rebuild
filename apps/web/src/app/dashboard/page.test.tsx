@@ -203,7 +203,9 @@ describe("DashboardPage — pending invites", () => {
     await waitFor(() => {
       expect(screen.getByText("Test Workspace")).toBeInTheDocument();
     });
-    expect(screen.getByText(/Invited by Bob · MEMBER/i)).toBeInTheDocument();
+    expect(screen.getByText(/Invited by Bob/i)).toBeInTheDocument();
+    expect(screen.getByText(/You will join as MEMBER/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Invited by Bob · MEMBER/i)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Accept/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Decline/i })).toBeInTheDocument();
   });
@@ -275,6 +277,27 @@ describe("DashboardPage — pending invites", () => {
       expect(declineInvite).toHaveBeenCalledWith("token", "invite-1");
     });
     confirmSpy.mockRestore();
+  });
+
+  it("shows 'You will join as ADMIN' for ADMIN invite", async () => {
+    mockAuth();
+    vi.mocked(getPendingInvites).mockResolvedValue([
+      {
+        id: "invite-1",
+        workspace: { id: "ws-1", name: "Test Workspace", slug: "test" },
+        invitedBy: { id: "u2", username: "bob", displayName: "Bob" },
+        role: "ADMIN",
+        expiresAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Invited by Bob/i)).toBeInTheDocument();
+    });
+    expect(screen.getByText(/You will join as ADMIN/i)).toBeInTheDocument();
   });
 
   it("shows error when accepting invite fails", async () => {

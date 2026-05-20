@@ -361,8 +361,10 @@ export default function DashboardPage() {
                         Invited by{" "}
                         {inv.invitedBy.displayName?.trim()
                           ? inv.invitedBy.displayName
-                          : `@${inv.invitedBy.username}`}{" "}
-                        · {inv.role}
+                          : `@${inv.invitedBy.username}`}
+                      </p>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                        You will join as {inv.role}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
