@@ -88,12 +88,16 @@ export default function WorkspaceDetailPage() {
         if (!cancelled) {
           setDetail({ kind: "error", message });
           setChannels({ kind: "error", message });
+          if (message.toLowerCase().includes("workspace not found")) {
+            window.dispatchEvent(new Event("workspaces:changed"));
+            router.push("/dashboard");
+          }
         }
       }
     }
     loadPrimary(accessToken, workspaceId);
     return () => { cancelled = true; };
-  }, [isAuthenticated, accessToken, workspaceId]);
+  }, [isAuthenticated, accessToken, workspaceId, router]);
 
   useEffect(() => {
     if (!isAuthenticated || !workspaceId) return;

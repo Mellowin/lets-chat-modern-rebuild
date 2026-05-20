@@ -96,6 +96,19 @@ export default function ChannelDetailPage() {
         if (!cancelled) {
           setChannel({ kind: "error", message });
           setMessages({ kind: "error", message });
+          const lower = message.toLowerCase();
+          if (
+            lower.includes("channel not found") ||
+            lower.includes("workspace not found") ||
+            lower.includes("forbidden")
+          ) {
+            window.dispatchEvent(new Event("channels:changed"));
+            if (workspaceId) {
+              router.push(`/workspaces/${workspaceId}`);
+            } else {
+              router.push("/dashboard");
+            }
+          }
         }
       }
     }
@@ -103,7 +116,7 @@ export default function ChannelDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, workspaceId, channelId, accessToken]);
+  }, [isAuthenticated, workspaceId, channelId, accessToken, router]);
 
   useEffect(() => {
     if (!isAuthenticated || !workspaceId || !channelId || !accessToken) return;

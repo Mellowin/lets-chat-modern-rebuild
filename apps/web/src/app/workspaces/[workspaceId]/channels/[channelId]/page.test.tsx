@@ -1022,3 +1022,71 @@ describe("ChannelDetailPage — remove member", () => {
     expect(screen.getByText("Charlie")).toBeInTheDocument();
   });
 });
+
+describe("ChannelDetailPage — access lost redirect", () => {
+  beforeEach(() => {
+    sessionStorage.setItem("accessToken", "token");
+    vi.clearAllMocks();
+    socketOnMock.mockReset();
+    socketEmitMock.mockReset();
+    socketDisconnectMock.mockReset();
+  });
+
+  it("redirects to workspace page when channel is not found", async () => {
+    vi.mocked(getChannel).mockRejectedValueOnce(new Error("Channel not found"));
+    vi.mocked(getMessages).mockRejectedValueOnce(new Error("Channel not found"));
+    vi.mocked(getChannelMembers).mockRejectedValueOnce(new Error("Channel not found"));
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent").mockImplementation(() => true);
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(routerPushMock).toHaveBeenCalledWith("/workspaces/ws1");
+    });
+    expect(dispatchSpy).toHaveBeenCalledWith(expect.any(Event));
+    dispatchSpy.mockRestore();
+  });
+
+  it("redirects to workspace page when workspace is not found", async () => {
+    vi.mocked(getChannel).mockRejectedValueOnce(new Error("Workspace not found"));
+    vi.mocked(getMessages).mockRejectedValueOnce(new Error("Workspace not found"));
+    vi.mocked(getChannelMembers).mockRejectedValueOnce(new Error("Workspace not found"));
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent").mockImplementation(() => true);
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(routerPushMock).toHaveBeenCalledWith("/workspaces/ws1");
+    });
+    expect(dispatchSpy).toHaveBeenCalledWith(expect.any(Event));
+    dispatchSpy.mockRestore();
+  });
+
+  it("redirects to workspace page on forbidden access", async () => {
+    vi.mocked(getChannel).mockRejectedValueOnce(new Error("Forbidden"));
+    vi.mocked(getMessages).mockRejectedValueOnce(new Error("Forbidden"));
+    vi.mocked(getChannelMembers).mockRejectedValueOnce(new Error("Forbidden"));
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent").mockImplementation(() => true);
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(routerPushMock).toHaveBeenCalledWith("/workspaces/ws1");
+    });
+    expect(dispatchSpy).toHaveBeenCalledWith(expect.any(Event));
+    dispatchSpy.mockRestore();
+  });
+
+  it("does not redirect on non-access channel errors", async () => {
+    vi.mocked(getChannel).mockRejectedValueOnce(new Error("Network error"));
+    vi.mocked(getMessages).mockRejectedValueOnce(new Error("Network error"));
+    vi.mocked(getChannelMembers).mockRejectedValueOnce(new Error("Network error"));
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/Network error/i).length).toBeGreaterThan(0);
+    });
+    expect(routerPushMock).not.toHaveBeenCalled();
+  });
+});

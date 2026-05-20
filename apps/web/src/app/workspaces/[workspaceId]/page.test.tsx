@@ -905,4 +905,34 @@ describe("WorkspaceDetailPage — leave workspace", () => {
 
     confirmSpy.mockRestore();
   });
+
+  it("redirects to dashboard when workspace is not found", async () => {
+    vi.mocked(getWorkspace).mockRejectedValue(new Error("Workspace not found"));
+    vi.mocked(getChannels).mockRejectedValue(new Error("Workspace not found"));
+    vi.mocked(getWorkspaceMembers).mockRejectedValue(new Error("Workspace not found"));
+    vi.mocked(getArchivedChannels).mockRejectedValue(new Error("Workspace not found"));
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent").mockImplementation(() => true);
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(routerPushMock).toHaveBeenCalledWith("/dashboard");
+    });
+    expect(dispatchSpy).toHaveBeenCalledWith(expect.any(Event));
+    dispatchSpy.mockRestore();
+  });
+
+  it("does not redirect on non-access workspace errors", async () => {
+    vi.mocked(getWorkspace).mockRejectedValue(new Error("Network error"));
+    vi.mocked(getChannels).mockRejectedValue(new Error("Network error"));
+    vi.mocked(getWorkspaceMembers).mockRejectedValue(new Error("Network error"));
+    vi.mocked(getArchivedChannels).mockRejectedValue(new Error("Network error"));
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/Network error/i).length).toBeGreaterThan(0);
+    });
+    expect(routerPushMock).not.toHaveBeenCalled();
+  });
 });
