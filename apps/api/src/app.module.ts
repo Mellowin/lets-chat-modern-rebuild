@@ -16,6 +16,7 @@ import { MessagesModule } from './messages/messages.module';
 import { StorageModule } from './storage/storage.module';
 import { WebsocketModule } from './websocket/websocket.module';
 import { InvitesModule } from './invites/invites.module';
+import { ChannelInvitesModule } from './channel-invites/channel-invites.module';
 import { AuditModule } from './audit/audit.module';
 import { AppController } from './app.controller';
 
@@ -46,6 +47,7 @@ import { AppController } from './app.controller';
     StorageModule,
     WebsocketModule,
     InvitesModule,
+    ChannelInvitesModule,
     AuditModule,
   ],
   controllers: [AppController],

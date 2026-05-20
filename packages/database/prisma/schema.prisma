@@ -62,6 +62,8 @@ model User {
   attachments           Attachment[]
   sentInvitations       Invitation[]  @relation("InvitationSentBy")
   acceptedInvitations   Invitation[]  @relation("InvitationAcceptedBy")
+  sentChannelInvitations     ChannelInvitation[] @relation("ChannelInvitationSentBy")
+  acceptedChannelInvitations ChannelInvitation[] @relation("ChannelInvitationAcceptedBy")
   notifications         Notification[]
   readReceipts          ReadReceipt[]
   refreshTokens         RefreshToken[]
@@ -88,6 +90,7 @@ model Workspace {
   channels    Channel[]
   auditLogs     AuditLog[]
   invitations   Invitation[]
+  channelInvitations ChannelInvitation[]
   notifications Notification[]
 
 }
@@ -127,6 +130,7 @@ model Channel {
   workspace     Workspace       @relation(fields: [workspaceId], references: [id])
   createdBy     User            @relation(fields: [createdById], references: [id])
   members       ChannelMember[]
+  channelInvitations ChannelInvitation[]
   messages      Message[]
   auditLogs     AuditLog[]
   notifications Notification[]
@@ -292,6 +296,30 @@ model Invitation {
   usedBy    User?     @relation("InvitationAcceptedBy", fields: [usedById], references: [id])
 
   @@index([workspaceId, createdAt])
+}
+
+model ChannelInvitation {
+  id           String      @id @default(uuid()) @db.Uuid
+  workspaceId  String      @db.Uuid
+  channelId    String      @db.Uuid
+  invitedById  String      @db.Uuid
+  role         ChannelRole @default(MEMBER)
+  invitedEmail String?
+  tokenHash    String
+  expiresAt    DateTime
+  usedAt       DateTime?
+  usedById     String?     @db.Uuid
+  deletedAt    DateTime?
+  createdAt    DateTime    @default(now())
+
+  // Relations
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+  channel   Channel   @relation(fields: [channelId], references: [id])
+  invitedBy User      @relation("ChannelInvitationSentBy", fields: [invitedById], references: [id])
+  usedBy    User?     @relation("ChannelInvitationAcceptedBy", fields: [usedById], references: [id])
+
+  @@index([workspaceId, createdAt])
+  @@index([channelId, createdAt])
 }
 
 model Notification {

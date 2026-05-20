@@ -7,6 +7,10 @@ export const AuditAction = {
   WORKSPACE_INVITE_REVOKED: 'workspace.invite.revoked',
   WORKSPACE_INVITE_DECLINED: 'workspace.invite.declined',
   WORKSPACE_OWNERSHIP_TRANSFERRED: 'workspace.ownership.transferred',
+  CHANNEL_INVITE_CREATED: 'channel.invite.created',
+  CHANNEL_INVITE_ACCEPTED: 'channel.invite.accepted',
+  CHANNEL_INVITE_REVOKED: 'channel.invite.revoked',
+  CHANNEL_INVITE_DECLINED: 'channel.invite.declined',
 } as const;
 
 export const AuditEntityType = {
@@ -15,4 +19,5 @@ export const AuditEntityType = {
   WORKSPACE: 'workspace',
   CHANNEL: 'channel',
   MESSAGE: 'message',
+  CHANNEL_INVITATION: 'channel_invitation',
 } as const;
