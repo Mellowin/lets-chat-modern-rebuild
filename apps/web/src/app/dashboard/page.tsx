@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { getWorkspaces, createWorkspace, archiveWorkspace, listArchivedWorkspaces, restoreWorkspace, type Workspace } from "@/lib/workspaces-api";
 import { updateDisplayName } from "@/lib/auth-api";
 import { getPendingInvites, acceptInvite, declineInvite, type PendingInvite } from "@/lib/invites-api";
+import { getPendingChannelInvites, acceptChannelInvite, declineChannelInvite, type PendingChannelInvite } from "@/lib/channel-invites-api";
 import { slugify } from "@/lib/transliterate";
 
 type WorkspacesState =
@@ -32,6 +33,12 @@ type InvitesState =
   | { kind: "success"; data: PendingInvite[] }
   | { kind: "error"; message: string };
 
+type ChannelInvitesState =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "success"; data: PendingChannelInvite[] }
+  | { kind: "error"; message: string };
+
 type ArchivedWorkspacesState =
   | { kind: "idle" }
   | { kind: "loading" }
@@ -50,6 +57,8 @@ export default function DashboardPage() {
   const router = useRouter();
   const [invites, setInvites] = useState<InvitesState>({ kind: "idle" });
   const [inviteActionError, setInviteActionError] = useState<string | null>(null);
+  const [channelInvites, setChannelInvites] = useState<ChannelInvitesState>({ kind: "idle" });
+  const [channelInviteActionError, setChannelInviteActionError] = useState<string | null>(null);
   const [archivedWorkspaces, setArchivedWorkspaces] = useState<ArchivedWorkspacesState>({ kind: "idle" });
   const [restoreError, setRestoreError] = useState<string | null>(null);
 
@@ -82,6 +91,17 @@ export default function DashboardPage() {
     }
   }, []);
 
+  const loadPendingChannelInvites = useCallback(async (token: string) => {
+    setChannelInvites({ kind: "loading" });
+    try {
+      const data = await getPendingChannelInvites(token);
+      setChannelInvites({ kind: "success", data });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to load channel invites";
+      setChannelInvites({ kind: "error", message });
+    }
+  }, []);
+
   const loadArchivedWorkspaces = useCallback(async (token: string) => {
     setArchivedWorkspaces({ kind: "loading" });
     try {
@@ -99,8 +119,9 @@ export default function DashboardPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadWorkspaces(accessToken);
     loadPendingInvites(accessToken);
+    loadPendingChannelInvites(accessToken);
     loadArchivedWorkspaces(accessToken);
-  }, [isAuthenticated, accessToken, loadWorkspaces, loadPendingInvites, loadArchivedWorkspaces]);
+  }, [isAuthenticated, accessToken, loadWorkspaces, loadPendingInvites, loadPendingChannelInvites, loadArchivedWorkspaces]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -186,6 +207,33 @@ export default function DashboardPage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to decline invite";
       setInviteActionError(message);
+    }
+  }
+
+  async function handleAcceptChannelInvite(inviteId: string, workspaceId: string, channelId: string) {
+    if (!accessToken) return;
+    setChannelInviteActionError(null);
+    try {
+      await acceptChannelInvite(accessToken, inviteId);
+      await loadPendingChannelInvites(accessToken);
+      window.dispatchEvent(new Event("channels:changed"));
+      router.push(`/workspaces/${workspaceId}/channels/${channelId}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to accept channel invite";
+      setChannelInviteActionError(message);
+    }
+  }
+
+  async function handleDeclineChannelInvite(inviteId: string) {
+    if (!window.confirm("Decline this channel invitation?")) return;
+    if (!accessToken) return;
+    setChannelInviteActionError(null);
+    try {
+      await declineChannelInvite(accessToken, inviteId);
+      await loadPendingChannelInvites(accessToken);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to decline channel invite";
+      setChannelInviteActionError(message);
     }
   }
 
@@ -379,6 +427,79 @@ export default function DashboardPage() {
                       </button>
                       <button
                         onClick={() => handleAcceptInvite(inv.id, inv.workspace.id)}
+                        className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
+                      >
+                        Accept
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Pending channel invites */}
+      <div className="mt-8 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold">Pending Channel Invitations</h2>
+        </div>
+        <div className="mt-3">
+          {channelInvites.kind === "idle" || channelInvites.kind === "loading" ? (
+            <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300 py-4">
+              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
+              Loading channel invites…
+            </div>
+          ) : channelInvites.kind === "error" ? (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
+              <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+                <span className="h-2 w-2 rounded-full bg-red-500" />
+                {channelInvites.message}
+              </div>
+            </div>
+          ) : channelInvites.data.length === 0 ? (
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 py-4">
+              No pending channel invitations.
+            </p>
+          ) : (
+            <>
+              {channelInviteActionError && (
+                <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
+                  <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+                    <span className="h-2 w-2 rounded-full bg-red-500" />
+                    {channelInviteActionError}
+                  </div>
+                </div>
+              )}
+              <ul className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                {channelInvites.data.map((inv) => (
+                  <li
+                    key={inv.id}
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-3 gap-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">{inv.workspace.name}</p>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">{inv.channel.name}</p>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                        Invited by{" "}
+                        {inv.invitedBy.displayName?.trim()
+                          ? inv.invitedBy.displayName
+                          : `@${inv.invitedBy.username}`}
+                      </p>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                        You will join as {inv.role}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => handleDeclineChannelInvite(inv.id)}
+                        className="inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                      >
+                        Decline
+                      </button>
+                      <button
+                        onClick={() => handleAcceptChannelInvite(inv.id, inv.workspace.id, inv.channel.id)}
                         className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
                       >
                         Accept

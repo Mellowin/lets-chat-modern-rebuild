@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import { getWorkspaces, archiveWorkspace, listArchivedWorkspaces, restoreWorkspace } from "@/lib/workspaces-api";
 import { updateDisplayName } from "@/lib/auth-api";
 import { getPendingInvites, acceptInvite, declineInvite } from "@/lib/invites-api";
+import { getPendingChannelInvites, acceptChannelInvite, declineChannelInvite } from "@/lib/channel-invites-api";
 
 const routerPushMock = vi.fn();
 
@@ -35,6 +36,12 @@ vi.mock("@/lib/invites-api", () => ({
   declineInvite: vi.fn(),
 }));
 
+vi.mock("@/lib/channel-invites-api", () => ({
+  getPendingChannelInvites: vi.fn(),
+  acceptChannelInvite: vi.fn(),
+  declineChannelInvite: vi.fn(),
+}));
+
 function mockAuth(userOverrides?: Partial<ReturnType<typeof useAuth>>) {
   vi.mocked(useAuth).mockReturnValue({
     user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, createdAt: "2024-01-01T00:00:00Z" },
@@ -54,6 +61,7 @@ describe("DashboardPage — display name", () => {
     vi.clearAllMocks();
     vi.mocked(getWorkspaces).mockResolvedValue([]);
     vi.mocked(getPendingInvites).mockResolvedValue([]);
+    vi.mocked(getPendingChannelInvites).mockResolvedValue([]);
     vi.mocked(listArchivedWorkspaces).mockResolvedValue([]);
   });
 
@@ -128,6 +136,7 @@ describe("DashboardPage — workspace list", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getPendingInvites).mockResolvedValue([]);
+    vi.mocked(getPendingChannelInvites).mockResolvedValue([]);
     vi.mocked(listArchivedWorkspaces).mockResolvedValue([]);
   });
 
@@ -188,6 +197,7 @@ describe("DashboardPage — pending invites", () => {
     vi.clearAllMocks();
     vi.mocked(getWorkspaces).mockResolvedValue([]);
     vi.mocked(getPendingInvites).mockResolvedValue([]);
+    vi.mocked(getPendingChannelInvites).mockResolvedValue([]);
     vi.mocked(listArchivedWorkspaces).mockResolvedValue([]);
   });
 
@@ -333,11 +343,328 @@ describe("DashboardPage — pending invites", () => {
   });
 });
 
+describe("DashboardPage — pending channel invites", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getWorkspaces).mockResolvedValue([]);
+    vi.mocked(getPendingInvites).mockResolvedValue([]);
+    vi.mocked(getPendingChannelInvites).mockResolvedValue([]);
+    vi.mocked(listArchivedWorkspaces).mockResolvedValue([]);
+  });
+
+  it("shows pending channel invites", async () => {
+    mockAuth();
+    vi.mocked(getPendingChannelInvites).mockResolvedValue([
+      {
+        id: "ch-invite-1",
+        role: "MEMBER",
+        workspace: { id: "ws-1", name: "Test Workspace", slug: "test" },
+        channel: { id: "ch-1", name: "general", slug: "general" },
+        invitedBy: { id: "u2", username: "bob", displayName: "Bob" },
+        expiresAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Test Workspace")).toBeInTheDocument();
+    });
+    expect(screen.getByText("general")).toBeInTheDocument();
+    expect(screen.getByText(/Invited by Bob/i)).toBeInTheDocument();
+    expect(screen.getByText(/You will join as MEMBER/i)).toBeInTheDocument();
+  });
+
+  it("shows workspace name and channel name", async () => {
+    mockAuth();
+    vi.mocked(getPendingChannelInvites).mockResolvedValue([
+      {
+        id: "ch-invite-1",
+        role: "MEMBER",
+        workspace: { id: "ws-1", name: "Acme Corp", slug: "acme" },
+        channel: { id: "ch-1", name: "random", slug: "random" },
+        invitedBy: { id: "u2", username: "bob", displayName: null },
+        expiresAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Acme Corp")).toBeInTheDocument();
+    });
+    expect(screen.getByText("random")).toBeInTheDocument();
+  });
+
+  it("shows inviter separately from role", async () => {
+    mockAuth();
+    vi.mocked(getPendingChannelInvites).mockResolvedValue([
+      {
+        id: "ch-invite-1",
+        role: "MEMBER",
+        workspace: { id: "ws-1", name: "Test", slug: "test" },
+        channel: { id: "ch-1", name: "general", slug: "general" },
+        invitedBy: { id: "u2", username: "bob", displayName: "Bob" },
+        expiresAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Invited by Bob/i)).toBeInTheDocument();
+    });
+    expect(screen.getByText(/You will join as MEMBER/i)).toBeInTheDocument();
+  });
+
+  it("shows 'You will join as MEMBER'", async () => {
+    mockAuth();
+    vi.mocked(getPendingChannelInvites).mockResolvedValue([
+      {
+        id: "ch-invite-1",
+        role: "MEMBER",
+        workspace: { id: "ws-1", name: "Test", slug: "test" },
+        channel: { id: "ch-1", name: "general", slug: "general" },
+        invitedBy: { id: "u2", username: "bob", displayName: null },
+        expiresAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/You will join as MEMBER/i)).toBeInTheDocument();
+    });
+  });
+
+  it("shows 'You will join as ADMIN' for ADMIN invite", async () => {
+    mockAuth();
+    vi.mocked(getPendingChannelInvites).mockResolvedValue([
+      {
+        id: "ch-invite-1",
+        role: "ADMIN",
+        workspace: { id: "ws-1", name: "Test", slug: "test" },
+        channel: { id: "ch-1", name: "general", slug: "general" },
+        invitedBy: { id: "u2", username: "bob", displayName: "Bob" },
+        expiresAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/You will join as ADMIN/i)).toBeInTheDocument();
+    });
+  });
+
+  it("accept calls acceptChannelInvite", async () => {
+    mockAuth();
+    vi.mocked(getPendingChannelInvites).mockResolvedValue([
+      {
+        id: "ch-invite-1",
+        role: "MEMBER",
+        workspace: { id: "ws-1", name: "Test", slug: "test" },
+        channel: { id: "ch-1", name: "general", slug: "general" },
+        invitedBy: { id: "u2", username: "bob", displayName: null },
+        expiresAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+    vi.mocked(acceptChannelInvite).mockResolvedValue({ channelId: "ch-1", workspaceId: "ws-1", role: "MEMBER", joinedAt: new Date().toISOString() });
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getAllByRole("button", { name: /Accept/i }).length).toBeGreaterThanOrEqual(1);
+    });
+
+    const acceptButtons = screen.getAllByRole("button", { name: /Accept/i });
+    await userEvent.click(acceptButtons[acceptButtons.length - 1]);
+
+    await waitFor(() => {
+      expect(acceptChannelInvite).toHaveBeenCalledWith("token", "ch-invite-1");
+    });
+  });
+
+  it("successful accept dispatches channels:changed", async () => {
+    mockAuth();
+    vi.mocked(getPendingChannelInvites).mockResolvedValue([
+      {
+        id: "ch-invite-1",
+        role: "MEMBER",
+        workspace: { id: "ws-1", name: "Test", slug: "test" },
+        channel: { id: "ch-1", name: "general", slug: "general" },
+        invitedBy: { id: "u2", username: "bob", displayName: null },
+        expiresAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+    vi.mocked(acceptChannelInvite).mockResolvedValue({ channelId: "ch-1", workspaceId: "ws-1", role: "MEMBER", joinedAt: new Date().toISOString() });
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent").mockImplementation(() => true);
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getAllByRole("button", { name: /Accept/i }).length).toBeGreaterThanOrEqual(1);
+    });
+
+    const acceptButtons = screen.getAllByRole("button", { name: /Accept/i });
+    await userEvent.click(acceptButtons[acceptButtons.length - 1]);
+
+    await waitFor(() => {
+      expect(acceptChannelInvite).toHaveBeenCalledWith("token", "ch-invite-1");
+    });
+    expect(dispatchSpy).toHaveBeenCalledWith(expect.any(Event));
+    const dispatchedEvents = dispatchSpy.mock.calls.map((call) => (call[0] as Event).type);
+    expect(dispatchedEvents).toContain("channels:changed");
+
+    dispatchSpy.mockRestore();
+  });
+
+  it("successful accept redirects to /workspaces/ws-1/channels/ch-1", async () => {
+    mockAuth();
+    vi.mocked(getPendingChannelInvites).mockResolvedValue([
+      {
+        id: "ch-invite-1",
+        role: "MEMBER",
+        workspace: { id: "ws-1", name: "Test", slug: "test" },
+        channel: { id: "ch-1", name: "general", slug: "general" },
+        invitedBy: { id: "u2", username: "bob", displayName: null },
+        expiresAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+    vi.mocked(acceptChannelInvite).mockResolvedValue({ channelId: "ch-1", workspaceId: "ws-1", role: "MEMBER", joinedAt: new Date().toISOString() });
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getAllByRole("button", { name: /Accept/i }).length).toBeGreaterThanOrEqual(1);
+    });
+
+    const acceptButtons = screen.getAllByRole("button", { name: /Accept/i });
+    await userEvent.click(acceptButtons[acceptButtons.length - 1]);
+
+    await waitFor(() => {
+      expect(routerPushMock).toHaveBeenCalledWith("/workspaces/ws-1/channels/ch-1");
+    });
+  });
+
+  it("accept error shows inline error and does not redirect", async () => {
+    mockAuth();
+    vi.mocked(getPendingChannelInvites).mockResolvedValue([
+      {
+        id: "ch-invite-1",
+        role: "MEMBER",
+        workspace: { id: "ws-1", name: "Test", slug: "test" },
+        channel: { id: "ch-1", name: "general", slug: "general" },
+        invitedBy: { id: "u2", username: "bob", displayName: null },
+        expiresAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+    vi.mocked(acceptChannelInvite).mockRejectedValue(new Error("Invite expired"));
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getAllByRole("button", { name: /Accept/i }).length).toBeGreaterThanOrEqual(1);
+    });
+
+    const acceptButtons = screen.getAllByRole("button", { name: /Accept/i });
+    await userEvent.click(acceptButtons[acceptButtons.length - 1]);
+
+    expect(await screen.findByText(/Invite expired/i)).toBeInTheDocument();
+    expect(routerPushMock).not.toHaveBeenCalledWith("/workspaces/ws-1/channels/ch-1");
+  });
+
+  it("decline calls declineChannelInvite", async () => {
+    mockAuth();
+    vi.mocked(getPendingChannelInvites).mockResolvedValue([
+      {
+        id: "ch-invite-1",
+        role: "MEMBER",
+        workspace: { id: "ws-1", name: "Test", slug: "test" },
+        channel: { id: "ch-1", name: "general", slug: "general" },
+        invitedBy: { id: "u2", username: "bob", displayName: null },
+        expiresAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+    vi.mocked(declineChannelInvite).mockResolvedValue({ id: "ch-invite-1", deletedAt: new Date().toISOString() });
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getAllByRole("button", { name: /Decline/i }).length).toBeGreaterThanOrEqual(1);
+    });
+
+    const declineButtons = screen.getAllByRole("button", { name: /Decline/i });
+    await userEvent.click(declineButtons[declineButtons.length - 1]);
+
+    await waitFor(() => {
+      expect(declineChannelInvite).toHaveBeenCalledWith("token", "ch-invite-1");
+    });
+
+    confirmSpy.mockRestore();
+  });
+
+  it("successful decline removes invite and does not redirect", async () => {
+    mockAuth();
+    vi.mocked(getPendingChannelInvites).mockResolvedValue([
+      {
+        id: "ch-invite-1",
+        role: "MEMBER",
+        workspace: { id: "ws-1", name: "Test", slug: "test" },
+        channel: { id: "ch-1", name: "general", slug: "general" },
+        invitedBy: { id: "u2", username: "bob", displayName: null },
+        expiresAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+    vi.mocked(declineChannelInvite).mockResolvedValue({ id: "ch-invite-1", deletedAt: new Date().toISOString() });
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("general")).toBeInTheDocument();
+    });
+
+    const declineButtons = screen.getAllByRole("button", { name: /Decline/i });
+    await userEvent.click(declineButtons[declineButtons.length - 1]);
+
+    await waitFor(() => {
+      expect(declineChannelInvite).toHaveBeenCalledWith("token", "ch-invite-1");
+    });
+    expect(routerPushMock).not.toHaveBeenCalled();
+
+    confirmSpy.mockRestore();
+  });
+
+  it("shows empty state 'No pending channel invitations.'", async () => {
+    mockAuth();
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/No pending channel invitations/i)).toBeInTheDocument();
+    });
+  });
+});
+
 describe("DashboardPage — archived workspaces", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getWorkspaces).mockResolvedValue([]);
     vi.mocked(getPendingInvites).mockResolvedValue([]);
+    vi.mocked(getPendingChannelInvites).mockResolvedValue([]);
   });
 
   it("shows archived workspaces list", async () => {
