@@ -10,6 +10,7 @@ import {
   HttpCode,
   ParseUUIDPipe,
   UseGuards,
+  GoneException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -22,6 +23,7 @@ import {
   ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiUnauthorizedResponse,
+  ApiGoneResponse,
 } from '@nestjs/swagger';
 import { WorkspacesService } from './workspaces.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
@@ -153,19 +155,15 @@ export class WorkspacesController {
   }
 
   @Post(':workspaceId/members')
-  @ApiOperation({ summary: 'Add workspace member' })
-  @ApiCreatedResponse({ description: 'Member added' })
-  @ApiBadRequestResponse({ description: 'Validation failed' })
-  @ApiForbiddenResponse({ description: 'Forbidden' })
-  @ApiNotFoundResponse({ description: 'Workspace or user not found' })
-  @ApiConflictResponse({ description: 'Already a member' })
+  @ApiOperation({ summary: 'Add workspace member (disabled)' })
+  @ApiGoneResponse({ description: 'Use workspace invitations to add members' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   async addMember(
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
     @Body() dto: AddMemberDto,
     @CurrentUser() user: AuthUserResponse,
   ) {
-    return this.workspaces.addMember(workspaceId, user.id, dto);
+    throw new GoneException('Use workspace invitations to add members');
   }
 
   @Patch(':workspaceId/members/:memberId/role')
