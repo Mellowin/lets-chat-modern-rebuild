@@ -39,6 +39,8 @@ jobs:
 
       - name: Test Web
         run: pnpm --filter web test
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
 
       - name: Lint Web
         run: pnpm --filter web lint
