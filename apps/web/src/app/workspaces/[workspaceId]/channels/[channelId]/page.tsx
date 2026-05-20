@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { getChannel, getChannelMembers, addChannelMember, removeChannelMember, archiveChannel, leaveChannel, type Channel, type ChannelMember } from "@/lib/channels-api";
+import { getChannel, getChannelMembers, removeChannelMember, archiveChannel, leaveChannel, type Channel, type ChannelMember } from "@/lib/channels-api";
+import { createChannelInvite } from "@/lib/channel-invites-api";
 
 import { getMessages, createMessage, updateMessage, deleteMessage, type Message, type CreateMessageInput, type UpdateMessageInput } from "@/lib/messages-api";
 import { createSocket } from "@/lib/socket-client";
@@ -450,21 +451,17 @@ export default function ChannelDetailPage() {
 
     setAddMemberState({ kind: "loading" });
     try {
-      const input: { identifier: string; role?: "MEMBER" | "ADMIN" } = { identifier: trimmed };
-      if (myChannelRole === "OWNER") {
-        input.role = addMemberRole;
-      }
-      const newMember = await addChannelMember(accessToken, workspaceId, channelId, input);
+      const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+      const role = myChannelRole === "OWNER" ? addMemberRole : "MEMBER";
+      const input = isEmail
+        ? { email: trimmed, role }
+        : { identifier: trimmed.replace(/^@/, ""), role };
+      await createChannelInvite(accessToken, workspaceId, channelId, input);
       setAddMemberIdentifier("");
       setAddMemberState({ kind: "success" });
-      setMembers((prev) => {
-        if (prev.kind !== "success") return prev;
-        if (prev.data.some((m) => m.id === newMember.id)) return prev;
-        return { kind: "success", data: [...prev.data, newMember] };
-      });
       window.setTimeout(() => setAddMemberState({ kind: "idle" }), 2000);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to add member";
+      const message = err instanceof Error ? err.message : "Failed to send invitation";
       setAddMemberState({ kind: "error", message });
     }
   }
@@ -845,7 +842,7 @@ export default function ChannelDetailPage() {
               <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
                 <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
                   <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                  Member added successfully.
+                  Channel invitation sent
                 </div>
               </div>
             )}

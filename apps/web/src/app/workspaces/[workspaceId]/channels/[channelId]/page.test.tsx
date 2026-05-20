@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import ChannelDetailPage from "./page";
 import { getChannel, getChannelMembers, addChannelMember, removeChannelMember, leaveChannel, type ChannelMember } from "@/lib/channels-api";
+import { createChannelInvite } from "@/lib/channel-invites-api";
 import { getMessages, createMessage, updateMessage, deleteMessage, Message } from "@/lib/messages-api";
 
 const socketHandlers: Record<string, (...args: unknown[]) => void> = {};
@@ -34,6 +35,10 @@ vi.mock("@/lib/channels-api", () => ({
   addChannelMember: vi.fn(),
   removeChannelMember: vi.fn(),
   leaveChannel: vi.fn(),
+}));
+
+vi.mock("@/lib/channel-invites-api", () => ({
+  createChannelInvite: vi.fn(),
 }));
 
 vi.mock("@/lib/messages-api", () => ({
@@ -704,16 +709,11 @@ describe("ChannelDetailPage — members", () => {
     confirmSpy.mockRestore();
   });
 
-  it("adds member successfully and updates list", async () => {
+  it("sends channel invite for username input and does not append to members list", async () => {
     mockChannelAndMessages([], [ownerMember]);
-    const newMember: ChannelMember = {
-      id: "cm4",
-      channelId: "ch1",
-      role: "MEMBER",
-      joinedAt: "2024-01-02T00:00:00Z",
-      user: { id: "u3", username: "charlie", displayName: "Charlie" },
-    };
-    vi.mocked(addChannelMember).mockResolvedValueOnce(newMember);
+    vi.mocked(createChannelInvite).mockResolvedValueOnce({
+      id: "invite-1", workspaceId: "ws1", channelId: "ch1", email: "charlie@example.com", role: "MEMBER", token: "tok", expiresAt: new Date().toISOString(), createdAt: new Date().toISOString(),
+    });
 
     render(<ChannelDetailPage />);
 
@@ -725,11 +725,11 @@ describe("ChannelDetailPage — members", () => {
     await userEvent.click(screen.getByRole("button", { name: /Add/i }));
 
     await waitFor(() => {
-      expect(addChannelMember).toHaveBeenCalledWith("token", "ws1", "ch1", { identifier: "charlie", role: "MEMBER" });
+      expect(createChannelInvite).toHaveBeenCalledWith("token", "ws1", "ch1", { identifier: "charlie", role: "MEMBER" });
     });
 
-    expect(screen.getByText("Charlie")).toBeInTheDocument();
-    expect(screen.getByText("Member added successfully.")).toBeInTheDocument();
+    expect(addChannelMember).not.toHaveBeenCalled();
+    expect(screen.getByText("Channel invitation sent")).toBeInTheDocument();
   });
 
   it("shows error on empty add member submit", async () => {
@@ -743,12 +743,13 @@ describe("ChannelDetailPage — members", () => {
     fireEvent.submit(screen.getByRole("button", { name: /Add/i }));
 
     expect(await screen.findByText(/Username or email is required/i)).toBeInTheDocument();
+    expect(createChannelInvite).not.toHaveBeenCalled();
     expect(addChannelMember).not.toHaveBeenCalled();
   });
 
-  it("shows backend error on add member failure", async () => {
+  it("shows backend error on invite failure", async () => {
     mockChannelAndMessages([], [ownerMember]);
-    vi.mocked(addChannelMember).mockRejectedValueOnce(new Error("Already a member"));
+    vi.mocked(createChannelInvite).mockRejectedValueOnce(new Error("Already a member of this channel"));
 
     render(<ChannelDetailPage />);
 
@@ -759,19 +760,14 @@ describe("ChannelDetailPage — members", () => {
     await userEvent.type(screen.getByPlaceholderText(/Username or email/i), "bob");
     await userEvent.click(screen.getByRole("button", { name: /Add/i }));
 
-    expect(await screen.findByText(/Already a member/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Already a member of this channel/i)).toBeInTheDocument();
   });
 
-  it("OWNER can add member as ADMIN", async () => {
+  it("OWNER selecting ADMIN sends role ADMIN via createChannelInvite", async () => {
     mockChannelAndMessages([], [ownerMember]);
-    const newMember: ChannelMember = {
-      id: "cm4",
-      channelId: "ch1",
-      role: "ADMIN",
-      joinedAt: "2024-01-02T00:00:00Z",
-      user: { id: "u3", username: "charlie", displayName: "Charlie" },
-    };
-    vi.mocked(addChannelMember).mockResolvedValueOnce(newMember);
+    vi.mocked(createChannelInvite).mockResolvedValueOnce({
+      id: "invite-1", workspaceId: "ws1", channelId: "ch1", email: "charlie@example.com", role: "ADMIN", token: "tok", expiresAt: new Date().toISOString(), createdAt: new Date().toISOString(),
+    });
 
     render(<ChannelDetailPage />);
 
@@ -784,14 +780,13 @@ describe("ChannelDetailPage — members", () => {
     await userEvent.click(screen.getByRole("button", { name: /Add/i }));
 
     await waitFor(() => {
-      expect(addChannelMember).toHaveBeenCalledWith("token", "ws1", "ch1", { identifier: "charlie", role: "ADMIN" });
+      expect(createChannelInvite).toHaveBeenCalledWith("token", "ws1", "ch1", { identifier: "charlie", role: "ADMIN" });
     });
 
-    expect(screen.getByText("Charlie")).toBeInTheDocument();
-    expect(screen.getByText("ADMIN")).toBeInTheDocument();
+    expect(screen.getByText("Channel invitation sent")).toBeInTheDocument();
   });
 
-  it("ADMIN add does not send role", async () => {
+  it("ADMIN invite sends role MEMBER via createChannelInvite", async () => {
     const adminAlice: ChannelMember = {
       id: "cm1",
       channelId: "ch1",
@@ -800,14 +795,9 @@ describe("ChannelDetailPage — members", () => {
       user: { id: "u1", username: "alice", displayName: "Alice" },
     };
     mockChannelAndMessages([], [adminAlice]);
-    const newMember: ChannelMember = {
-      id: "cm4",
-      channelId: "ch1",
-      role: "MEMBER",
-      joinedAt: "2024-01-02T00:00:00Z",
-      user: { id: "u3", username: "charlie", displayName: "Charlie" },
-    };
-    vi.mocked(addChannelMember).mockResolvedValueOnce(newMember);
+    vi.mocked(createChannelInvite).mockResolvedValueOnce({
+      id: "invite-1", workspaceId: "ws1", channelId: "ch1", email: "charlie@example.com", role: "MEMBER", token: "tok", expiresAt: new Date().toISOString(), createdAt: new Date().toISOString(),
+    });
 
     render(<ChannelDetailPage />);
 
@@ -819,10 +809,66 @@ describe("ChannelDetailPage — members", () => {
     await userEvent.click(screen.getByRole("button", { name: /Add/i }));
 
     await waitFor(() => {
-      expect(addChannelMember).toHaveBeenCalledWith("token", "ws1", "ch1", { identifier: "charlie" });
+      expect(createChannelInvite).toHaveBeenCalledWith("token", "ws1", "ch1", { identifier: "charlie", role: "MEMBER" });
     });
 
-    expect(screen.getByText("Charlie")).toBeInTheDocument();
+    expect(screen.getByText("Channel invitation sent")).toBeInTheDocument();
+  });
+
+  it("email input calls createChannelInvite with { email, role }", async () => {
+    mockChannelAndMessages([], [ownerMember]);
+    vi.mocked(createChannelInvite).mockResolvedValueOnce({
+      id: "invite-1", workspaceId: "ws1", channelId: "ch1", email: "bob@example.com", role: "MEMBER", token: "tok", expiresAt: new Date().toISOString(), createdAt: new Date().toISOString(),
+    });
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Username or email/i), "bob@example.com");
+    await userEvent.click(screen.getByRole("button", { name: /Add/i }));
+
+    await waitFor(() => {
+      expect(createChannelInvite).toHaveBeenCalledWith("token", "ws1", "ch1", { email: "bob@example.com", role: "MEMBER" });
+    });
+  });
+
+  it("@username input calls createChannelInvite with identifier stripped of @", async () => {
+    mockChannelAndMessages([], [ownerMember]);
+    vi.mocked(createChannelInvite).mockResolvedValueOnce({
+      id: "invite-1", workspaceId: "ws1", channelId: "ch1", email: "bob@example.com", role: "MEMBER", token: "tok", expiresAt: new Date().toISOString(), createdAt: new Date().toISOString(),
+    });
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Username or email/i), "@bob");
+    await userEvent.click(screen.getByRole("button", { name: /Add/i }));
+
+    await waitFor(() => {
+      expect(createChannelInvite).toHaveBeenCalledWith("token", "ws1", "ch1", { identifier: "bob", role: "MEMBER" });
+    });
+  });
+
+  it("shows backend error 'User must be a workspace member first' inline", async () => {
+    mockChannelAndMessages([], [ownerMember]);
+    vi.mocked(createChannelInvite).mockRejectedValueOnce(new Error("User must be a workspace member first"));
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Username or email/i), "unknown");
+    await userEvent.click(screen.getByRole("button", { name: /Add/i }));
+
+    expect(await screen.findByText(/User must be a workspace member first/i)).toBeInTheDocument();
   });
 });
 
