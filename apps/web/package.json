@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run --exclude **/workspaces/**/page.test.tsx",
+    "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
