@@ -305,7 +305,7 @@ model ChannelInvitation {
   invitedById  String      @db.Uuid
   role         ChannelRole @default(MEMBER)
   invitedEmail String?
-  tokenHash    String
+  tokenHash    String        @unique
   expiresAt    DateTime
   usedAt       DateTime?
   usedById     String?     @db.Uuid
