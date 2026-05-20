@@ -11,7 +11,7 @@ import { ChannelsRepository } from '../channels/channels.repository';
 import { WorkspacesRepository } from '../workspaces/workspaces.repository';
 import { UsersRepository } from '../users/users.repository';
 import { AuditService } from '../audit/audit.service';
-import { AuditAction } from '../audit/audit.constants';
+import { AuditAction, AuditEntityType } from '../audit/audit.constants';
 
 describe('ChannelInvitesService', () => {
   let service: ChannelInvitesService;
@@ -164,7 +164,49 @@ describe('ChannelInvitesService', () => {
       expect(auditService.record).toHaveBeenCalledWith(
         expect.objectContaining({
           action: AuditAction.CHANNEL_INVITE_CREATED,
+          entityType: AuditEntityType.CHANNEL_INVITATION,
         }),
+      );
+    });
+
+    it('should allow re-inviting after previous invite was accepted and member removed', async () => {
+      mockOwnerSetup();
+      usersRepository.findByUsername.mockResolvedValue({
+        id: targetUserId,
+        email: 'bob@example.com',
+        username: 'bob',
+      } as any);
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
+        id: 'wm1',
+      } as any);
+      channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue(
+        null,
+      );
+      channelInvitesRepository.findPendingByChannelAndEmail.mockResolvedValue(
+        null,
+      );
+      channelInvitesRepository.createInvite.mockResolvedValue({
+        id: 'invite-id-2',
+        workspaceId,
+        channelId,
+        invitedEmail: 'bob@example.com',
+        role: 'MEMBER',
+        tokenHash: 'hash2',
+        expiresAt: new Date('2026-12-31'),
+        createdAt: new Date(),
+      } as any);
+
+      const result = await service.create(
+        workspaceId,
+        channelId,
+        { identifier: 'bob', role: 'MEMBER' },
+        userId,
+      );
+
+      expect(result.id).toBe('invite-id-2');
+      expect(channelInvitesRepository.findPendingByChannelAndEmail).toHaveBeenCalledWith(
+        channelId,
+        'bob@example.com',
       );
     });
 
@@ -406,6 +448,10 @@ describe('ChannelInvitesService', () => {
         id: workspaceId,
       } as any);
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+      } as any);
       channelsRepository.findChannelMemberRole.mockResolvedValue(null);
       channelInvitesRepository.acceptInvite.mockResolvedValue({
         channelId,
@@ -424,8 +470,58 @@ describe('ChannelInvitesService', () => {
       expect(auditService.record).toHaveBeenCalledWith(
         expect.objectContaining({
           action: AuditAction.CHANNEL_INVITE_ACCEPTED,
+          entityType: AuditEntityType.CHANNEL_INVITATION,
         }),
       );
+    });
+
+    it('should reject accept when channel is not active', async () => {
+      channelInvitesRepository.findPendingById.mockResolvedValue({
+        id: 'invite-1',
+        workspaceId,
+        channelId,
+        invitedEmail: 'alice@example.com',
+        role: 'MEMBER',
+        expiresAt: new Date('2026-12-31'),
+        deletedAt: null,
+        usedAt: null,
+        usedById: null,
+      } as any);
+      workspacesRepository.findActiveById.mockResolvedValue({
+        id: workspaceId,
+      } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue(null);
+
+      await expect(
+        service.acceptById('invite-1', userId, 'alice@example.com'),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('should reject accept when channel belongs to another workspace', async () => {
+      channelInvitesRepository.findPendingById.mockResolvedValue({
+        id: 'invite-1',
+        workspaceId,
+        channelId,
+        invitedEmail: 'alice@example.com',
+        role: 'MEMBER',
+        expiresAt: new Date('2026-12-31'),
+        deletedAt: null,
+        usedAt: null,
+        usedById: null,
+      } as any);
+      workspacesRepository.findActiveById.mockResolvedValue({
+        id: workspaceId,
+      } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId: 'other-workspace-id',
+      } as any);
+
+      await expect(
+        service.acceptById('invite-1', userId, 'alice@example.com'),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('should reject accept when user is not workspace member', async () => {
@@ -444,6 +540,10 @@ describe('ChannelInvitesService', () => {
         id: workspaceId,
       } as any);
       workspacesRepository.findMemberRole.mockResolvedValue(null);
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+      } as any);
 
       await expect(
         service.acceptById('invite-1', userId, 'alice@example.com'),
@@ -466,6 +566,10 @@ describe('ChannelInvitesService', () => {
         id: workspaceId,
       } as any);
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+      } as any);
       channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
 
       await expect(
@@ -507,6 +611,10 @@ describe('ChannelInvitesService', () => {
         id: workspaceId,
       } as any);
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+      } as any);
       channelsRepository.findChannelMemberRole.mockResolvedValue(null);
       channelInvitesRepository.acceptInvite.mockRejectedValue(
         new Error('INVITE_ALREADY_USED_OR_REVOKED'),
@@ -538,6 +646,10 @@ describe('ChannelInvitesService', () => {
         id: workspaceId,
       } as any);
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+      } as any);
       channelsRepository.findChannelMemberRole.mockResolvedValue(null);
       const prismaError = new Prisma.PrismaClientKnownRequestError(
         'Unique constraint',
@@ -576,6 +688,7 @@ describe('ChannelInvitesService', () => {
       expect(auditService.record).toHaveBeenCalledWith(
         expect.objectContaining({
           action: AuditAction.CHANNEL_INVITE_DECLINED,
+          entityType: AuditEntityType.CHANNEL_INVITATION,
         }),
       );
     });

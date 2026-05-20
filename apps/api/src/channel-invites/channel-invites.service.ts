@@ -145,7 +145,7 @@ export class ChannelInvitesService {
     await this.audit.record({
       actorId: invitedById,
       action: AuditAction.CHANNEL_INVITE_CREATED,
-      entityType: AuditEntityType.INVITATION,
+      entityType: AuditEntityType.CHANNEL_INVITATION,
       entityId: invite.id,
       workspaceId,
       channelId,
@@ -202,6 +202,11 @@ export class ChannelInvitesService {
       throw new ConflictException('User must be a workspace member first');
     }
 
+    const channel = await this.channels.findActiveById(invite.channelId);
+    if (!channel || channel.workspaceId !== invite.workspaceId) {
+      throw new NotFoundException('Channel not found');
+    }
+
     const existingChannelRole = await this.channels.findChannelMemberRole(
       invite.channelId,
       userId,
@@ -221,7 +226,7 @@ export class ChannelInvitesService {
       await this.audit.record({
         actorId: userId,
         action: AuditAction.CHANNEL_INVITE_ACCEPTED,
-        entityType: AuditEntityType.INVITATION,
+        entityType: AuditEntityType.CHANNEL_INVITATION,
         entityId: invite.id,
         workspaceId: invite.workspaceId,
         channelId: invite.channelId,
@@ -298,7 +303,7 @@ export class ChannelInvitesService {
     await this.audit.record({
       actorId: userId,
       action: AuditAction.CHANNEL_INVITE_DECLINED,
-      entityType: AuditEntityType.INVITATION,
+      entityType: AuditEntityType.CHANNEL_INVITATION,
       entityId: inviteId,
       workspaceId: invite.workspaceId,
       channelId: invite.channelId,
