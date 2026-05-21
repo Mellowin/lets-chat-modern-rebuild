@@ -57,4 +57,11 @@ export class UsersRepository {
       data: { displayName },
     });
   }
+
+  async updateAvatar(userId: string, avatarUrl: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { avatarUrl, avatarUpdatedAt: new Date() },
+    });
+  }
 }

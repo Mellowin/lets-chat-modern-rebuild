@@ -46,9 +46,10 @@ model User {
   email         String
   username      String
   passwordHash  String
-  displayName   String?
-  avatarUrl     String?
-  createdAt     DateTime  @default(now())
+  displayName      String?
+  avatarUrl        String?
+  avatarUpdatedAt  DateTime?
+  createdAt        DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   deletedAt     DateTime?
 

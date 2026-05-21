@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, HttpCode, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, HttpCode, UseGuards, ConflictException } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -9,6 +9,7 @@ import {
   ApiConflictResponse,
   ApiBadRequestResponse,
   ApiUnauthorizedResponse,
+  ApiTooManyRequestsResponse,
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import type { AuthUserResponse } from './auth.service';
@@ -17,6 +18,7 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { LogoutDto } from './dto/logout.dto';
 import { UpdateDisplayNameDto } from './dto/update-display-name.dto';
+import { UpdateAvatarDto } from './dto/update-avatar.dto';
 import { JwtAccessGuard } from './guards/jwt-access.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 
@@ -31,6 +33,7 @@ export class AuthController {
   @ApiCreatedResponse({ description: 'User registered successfully' })
   @ApiConflictResponse({ description: 'Email or username already in use' })
   @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiTooManyRequestsResponse({ description: 'Rate limit exceeded' })
   async register(@Body() dto: RegisterDto) {
     return this.auth.register(dto);
   }
@@ -80,7 +83,7 @@ export class AuthController {
   @Patch('me')
   @UseGuards(JwtAccessGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update current authenticated user' })
+  @ApiOperation({ summary: 'Update current authenticated user display name' })
   @ApiOkResponse({ description: 'User updated successfully' })
   @ApiBadRequestResponse({ description: 'Validation failed' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
@@ -90,5 +93,29 @@ export class AuthController {
   ): Promise<AuthUserResponse> {
     const displayName = dto.displayName?.trim() || null;
     return this.auth.updateMe(user.id, displayName);
+  }
+
+  @Patch('me/avatar')
+  @UseGuards(JwtAccessGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update current authenticated user avatar' })
+  @ApiOkResponse({ description: 'Avatar updated successfully' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiConflictResponse({ description: 'Avatar cooldown active' })
+  async updateAvatar(
+    @CurrentUser() user: AuthUserResponse,
+    @Body() dto: UpdateAvatarDto,
+  ): Promise<AuthUserResponse> {
+    const COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+    if (user.avatarUpdatedAt) {
+      const elapsed = Date.now() - new Date(user.avatarUpdatedAt).getTime();
+      if (elapsed < COOLDOWN_MS) {
+        throw new ConflictException('Avatar can be changed once every 7 days');
+      }
+    }
+
+    return this.auth.updateAvatar(user.id, dto.avatarUrl);
   }
 }

@@ -12,6 +12,8 @@ describe('AuthController', () => {
     email: 'u@test.com',
     username: 'user',
     displayName: null,
+    avatarUrl: null,
+    avatarUpdatedAt: null,
     createdAt: new Date(),
   };
 
@@ -27,6 +29,7 @@ describe('AuthController', () => {
             refresh: jest.fn(),
             logout: jest.fn(),
             updateMe: jest.fn(),
+            updateAvatar: jest.fn(),
           },
         },
       ],
@@ -59,5 +62,58 @@ describe('AuthController', () => {
     await controller.updateMe(user as any, { displayName: '   ' });
 
     expect(authService.updateMe).toHaveBeenCalledWith('user-id', null);
+  });
+
+  describe('PATCH /auth/me/avatar', () => {
+    it('allows update when no previous avatarUpdatedAt', async () => {
+      authService.updateAvatar.mockResolvedValue({
+        ...user,
+        avatarUrl: '/avatars/avatar-1.svg',
+        avatarUpdatedAt: new Date(),
+      } as any);
+
+      const result = await controller.updateAvatar(user as any, {
+        avatarUrl: '/avatars/avatar-1.svg',
+      } as any);
+
+      expect(authService.updateAvatar).toHaveBeenCalledWith(
+        'user-id',
+        '/avatars/avatar-1.svg',
+      );
+      expect(result.avatarUrl).toBe('/avatars/avatar-1.svg');
+    });
+
+    it('allows update when avatarUpdatedAt is older than 7 days', async () => {
+      const oldDate = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
+      authService.updateAvatar.mockResolvedValue({
+        ...user,
+        avatarUrl: '/avatars/avatar-2.svg',
+        avatarUpdatedAt: new Date(),
+      } as any);
+
+      const result = await controller.updateAvatar(
+        { ...user, avatarUpdatedAt: oldDate } as any,
+        { avatarUrl: '/avatars/avatar-2.svg' } as any,
+      );
+
+      expect(authService.updateAvatar).toHaveBeenCalledWith(
+        'user-id',
+        '/avatars/avatar-2.svg',
+      );
+      expect(result.avatarUrl).toBe('/avatars/avatar-2.svg');
+    });
+
+    it('blocks update when avatarUpdatedAt is less than 7 days ago', async () => {
+      const recentDate = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+
+      await expect(
+        controller.updateAvatar(
+          { ...user, avatarUpdatedAt: recentDate } as any,
+          { avatarUrl: '/avatars/avatar-3.svg' } as any,
+        ),
+      ).rejects.toThrow('Avatar can be changed once every 7 days');
+
+      expect(authService.updateAvatar).not.toHaveBeenCalled();
+    });
   });
 });

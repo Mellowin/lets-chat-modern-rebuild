@@ -22,6 +22,7 @@ describe('AuthService', () => {
             findByUsername: jest.fn(),
             createUser: jest.fn(),
             updateDisplayName: jest.fn(),
+            updateAvatar: jest.fn(),
           },
         },
         {
@@ -78,12 +79,14 @@ describe('AuthService', () => {
     expect(result.displayName).toBe('John Doe');
   });
 
-  it('toAuthUserResponse includes displayName', () => {
+  it('toAuthUserResponse includes displayName and avatar fields', () => {
     const user = {
       id: 'user-id',
       email: 'u@test.com',
       username: 'user',
       displayName: 'Jane Doe',
+      avatarUrl: '/avatars/avatar-1.svg',
+      avatarUpdatedAt: new Date('2024-01-01'),
       passwordHash: 'hash',
       createdAt: new Date(),
     };
@@ -91,5 +94,65 @@ describe('AuthService', () => {
     const result = (service as any).toAuthUserResponse(user);
 
     expect(result.displayName).toBe('Jane Doe');
+    expect(result.avatarUrl).toBe('/avatars/avatar-1.svg');
+    expect(result.avatarUpdatedAt).toEqual(new Date('2024-01-01'));
+  });
+
+  it('toAuthUserResponse handles null avatar fields', () => {
+    const user = {
+      id: 'user-id',
+      email: 'u@test.com',
+      username: 'user',
+      displayName: null,
+      avatarUrl: null,
+      avatarUpdatedAt: null,
+      passwordHash: 'hash',
+      createdAt: new Date(),
+    };
+
+    const result = (service as any).toAuthUserResponse(user);
+
+    expect(result.avatarUrl).toBeNull();
+    expect(result.avatarUpdatedAt).toBeNull();
+  });
+
+  it('updateAvatar calls users.updateAvatar and returns AuthUserResponse with avatarUrl', async () => {
+    const user = {
+      id: 'user-id',
+      email: 'u@test.com',
+      username: 'user',
+      displayName: null,
+      avatarUrl: '/avatars/avatar-3.svg',
+      avatarUpdatedAt: new Date(),
+      passwordHash: 'hash',
+      createdAt: new Date(),
+    };
+
+    usersRepository.updateAvatar.mockResolvedValue(user as any);
+
+    const result = await service.updateAvatar('user-id', '/avatars/avatar-3.svg');
+
+    expect(usersRepository.updateAvatar).toHaveBeenCalledWith('user-id', '/avatars/avatar-3.svg');
+    expect(result.avatarUrl).toBe('/avatars/avatar-3.svg');
+    expect(result.avatarUpdatedAt).toBeInstanceOf(Date);
+  });
+
+  it('updateAvatar response does not include passwordHash', async () => {
+    const user = {
+      id: 'user-id',
+      email: 'u@test.com',
+      username: 'user',
+      displayName: null,
+      avatarUrl: '/avatars/avatar-1.svg',
+      avatarUpdatedAt: new Date(),
+      passwordHash: 'super-secret-hash',
+      createdAt: new Date(),
+    };
+
+    usersRepository.updateAvatar.mockResolvedValue(user as any);
+
+    const result = await service.updateAvatar('user-id', '/avatars/avatar-1.svg');
+
+    expect(result).not.toHaveProperty('passwordHash');
   });
 });

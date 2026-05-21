@@ -52,6 +52,8 @@ export class JwtAccessGuard implements CanActivate {
     email: string;
     username: string;
     displayName: string | null;
+    avatarUrl: string | null;
+    avatarUpdatedAt: Date | null;
     createdAt: Date;
   }): AuthUserResponse {
     return {
@@ -59,6 +61,8 @@ export class JwtAccessGuard implements CanActivate {
       email: user.email,
       username: user.username,
       displayName: user.displayName,
+      avatarUrl: user.avatarUrl,
+      avatarUpdatedAt: user.avatarUpdatedAt,
       createdAt: user.createdAt,
     };
   }

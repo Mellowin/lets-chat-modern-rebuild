@@ -31,6 +31,8 @@ export interface AuthUserResponse {
   email: string;
   username: string;
   displayName: string | null;
+  avatarUrl: string | null;
+  avatarUpdatedAt: Date | null;
   createdAt: Date;
 }
 
@@ -176,12 +178,19 @@ export class AuthService {
     return this.toAuthUserResponse(user);
   }
 
+  async updateAvatar(userId: string, avatarUrl: string): Promise<AuthUserResponse> {
+    const user = await this.users.updateAvatar(userId, avatarUrl);
+    return this.toAuthUserResponse(user);
+  }
+
   private toAuthUserResponse(user: User | SafeUser): AuthUserResponse {
     return {
       id: user.id,
       email: user.email,
       username: user.username,
       displayName: user.displayName ?? null,
+      avatarUrl: user.avatarUrl ?? null,
+      avatarUpdatedAt: user.avatarUpdatedAt ?? null,
       createdAt: user.createdAt,
     };
   }
