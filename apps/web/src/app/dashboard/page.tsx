@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { getWorkspaces, createWorkspace, archiveWorkspace, listArchivedWorkspaces, restoreWorkspace, type Workspace } from "@/lib/workspaces-api";
-import { updateDisplayName } from "@/lib/auth-api";
+
 import { getPendingInvites, acceptInvite, declineInvite, type PendingInvite } from "@/lib/invites-api";
 import { getPendingChannelInvites, acceptChannelInvite, declineChannelInvite, type PendingChannelInvite } from "@/lib/channel-invites-api";
 import { slugify } from "@/lib/transliterate";
@@ -19,12 +19,6 @@ type WorkspacesState =
 type CreateState =
   | { kind: "idle" }
   | { kind: "loading" }
-  | { kind: "error"; message: string };
-
-type DisplayNameState =
-  | { kind: "idle" }
-  | { kind: "loading" }
-  | { kind: "success" }
   | { kind: "error"; message: string };
 
 type InvitesState =
@@ -46,14 +40,12 @@ type ArchivedWorkspacesState =
   | { kind: "error"; message: string };
 
 export default function DashboardPage() {
-  const { user, accessToken, isLoading: authLoading, isAuthenticated, setUser } = useAuth();
+  const { user, accessToken, isLoading: authLoading, isAuthenticated } = useAuth();
   const [workspaces, setWorkspaces] = useState<WorkspacesState>({ kind: "idle" });
   const [createState, setCreateState] = useState<CreateState>({ kind: "idle" });
-  const [displayNameState, setDisplayNameState] = useState<DisplayNameState>({ kind: "idle" });
   const [archiveError, setArchiveError] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
-  const [displayNameInput, setDisplayNameInput] = useState("");
   const router = useRouter();
   const [invites, setInvites] = useState<InvitesState>({ kind: "idle" });
   const [inviteActionError, setInviteActionError] = useState<string | null>(null);
@@ -61,13 +53,6 @@ export default function DashboardPage() {
   const [channelInviteActionError, setChannelInviteActionError] = useState<string | null>(null);
   const [archivedWorkspaces, setArchivedWorkspaces] = useState<ArchivedWorkspacesState>({ kind: "idle" });
   const [restoreError, setRestoreError] = useState<string | null>(null);
-
-  useLayoutEffect(() => {
-    if (user?.displayName) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setDisplayNameInput(user.displayName);
-    }
-  }, [user?.displayName]);
 
   const loadWorkspaces = useCallback(async (token: string) => {
     setWorkspaces({ kind: "loading" });
@@ -147,20 +132,6 @@ export default function DashboardPage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to create workspace";
       setCreateState({ kind: "error", message });
-    }
-  }
-
-  async function handleUpdateDisplayName(e: React.FormEvent) {
-    e.preventDefault();
-    if (!accessToken) return;
-    setDisplayNameState({ kind: "loading" });
-    try {
-      const updated = await updateDisplayName(accessToken, displayNameInput);
-      setUser(updated);
-      setDisplayNameState({ kind: "success" });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to update display name";
-      setDisplayNameState({ kind: "error", message });
     }
   }
 
@@ -295,41 +266,13 @@ export default function DashboardPage() {
         You are signed in as {user?.email}.
       </p>
 
-      {/* Display name form */}
-      <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
-        <h2 className="text-sm font-semibold">Display name</h2>
-        <form onSubmit={handleUpdateDisplayName} className="mt-3 flex flex-col sm:flex-row items-start gap-3">
-          <input
-            type="text"
-            placeholder="Your display name"
-            value={displayNameInput}
-            onChange={(e) => setDisplayNameInput(e.target.value)}
-            className="flex-1 w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
-          />
-          <button
-            type="submit"
-            disabled={displayNameState.kind === "loading"}
-            className="inline-flex w-full sm:w-auto items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
-          >
-            {displayNameState.kind === "loading" ? "Saving…" : "Save"}
-          </button>
-        </form>
-        {displayNameState.kind === "success" && (
-          <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
-            <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              Display name updated.
-            </div>
-          </div>
-        )}
-        {displayNameState.kind === "error" && (
-          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-2.5 text-sm dark:border-red-900 dark:bg-red-950/30">
-            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-              <span className="h-2 w-2 rounded-full bg-red-500" />
-              {displayNameState.message}
-            </div>
-          </div>
-        )}
+      <div className="mt-4">
+        <Link
+          href="/profile"
+          className="inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+        >
+          Profile settings
+        </Link>
       </div>
 
       {/* Create workspace form */}

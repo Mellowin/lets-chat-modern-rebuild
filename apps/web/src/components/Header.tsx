@@ -21,6 +21,12 @@ export default function Header() {
             <span className="text-sm text-zinc-600 dark:text-zinc-300">
               {user.username}
             </span>
+            <Link
+              href="/profile"
+              className="inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-xs font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            >
+              Profile
+            </Link>
             <button
               onClick={() => logout()}
               className="inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
