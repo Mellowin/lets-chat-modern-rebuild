@@ -4,6 +4,8 @@ import { Prisma } from '@lets-chat/database';
 import { WorkspacesService } from './workspaces.service';
 import { WorkspacesRepository } from './workspaces.repository';
 import { UsersRepository } from '../users/users.repository';
+import { ChannelsRepository } from '../channels/channels.repository';
+import { ChannelInvitesRepository } from '../channel-invites/channel-invites.repository';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction, AuditEntityType } from '../audit/audit.constants';
 
@@ -11,6 +13,8 @@ describe('WorkspacesService', () => {
   let service: WorkspacesService;
   let workspacesRepository: jest.Mocked<WorkspacesRepository>;
   let usersRepository: jest.Mocked<UsersRepository>;
+  let channelsRepository: jest.Mocked<ChannelsRepository>;
+  let channelInvitesRepository: jest.Mocked<ChannelInvitesRepository>;
   let auditService: jest.Mocked<AuditService>;
 
   const userId = '11111111-1111-1111-1111-111111111111';
@@ -48,6 +52,18 @@ describe('WorkspacesService', () => {
           },
         },
         {
+          provide: ChannelsRepository,
+          useValue: {
+            softDeleteChannelMembersByWorkspaceAndUserId: jest.fn(),
+          },
+        },
+        {
+          provide: ChannelInvitesRepository,
+          useValue: {
+            softDeletePendingInvitesByWorkspaceAndEmail: jest.fn(),
+          },
+        },
+        {
           provide: AuditService,
           useValue: {
             record: jest.fn(),
@@ -60,6 +76,8 @@ describe('WorkspacesService', () => {
     service = moduleRef.get(WorkspacesService);
     workspacesRepository = moduleRef.get(WorkspacesRepository);
     usersRepository = moduleRef.get(UsersRepository);
+    channelsRepository = moduleRef.get(ChannelsRepository);
+    channelInvitesRepository = moduleRef.get(ChannelInvitesRepository);
     auditService = moduleRef.get(AuditService);
   });
 
@@ -1012,10 +1030,15 @@ describe('WorkspacesService', () => {
         user: { id: targetUserId, username: 'alice' },
       } as any);
       workspacesRepository.softDeleteMember.mockResolvedValue(1);
+      usersRepository.findById.mockResolvedValue({ id: targetUserId, email: 'alice@example.com' } as any);
+      channelsRepository.softDeleteChannelMembersByWorkspaceAndUserId.mockResolvedValue(1);
+      channelInvitesRepository.softDeletePendingInvitesByWorkspaceAndEmail.mockResolvedValue(0);
 
       const result = await service.removeMember(workspaceId, memberId, userId);
 
       expect(result).toEqual({ success: true });
+      expect(channelsRepository.softDeleteChannelMembersByWorkspaceAndUserId).toHaveBeenCalledWith(workspaceId, targetUserId);
+      expect(channelInvitesRepository.softDeletePendingInvitesByWorkspaceAndEmail).toHaveBeenCalledWith(workspaceId, 'alice@example.com');
       expect(auditService.record).toHaveBeenCalledWith({
         actorId: userId,
         action: AuditAction.WORKSPACE_MEMBER_REMOVED,
@@ -1041,10 +1064,15 @@ describe('WorkspacesService', () => {
         user: { id: targetUserId, username: 'bob' },
       } as any);
       workspacesRepository.softDeleteMember.mockResolvedValue(1);
+      usersRepository.findById.mockResolvedValue({ id: targetUserId, email: 'bob@example.com' } as any);
+      channelsRepository.softDeleteChannelMembersByWorkspaceAndUserId.mockResolvedValue(1);
+      channelInvitesRepository.softDeletePendingInvitesByWorkspaceAndEmail.mockResolvedValue(0);
 
       const result = await service.removeMember(workspaceId, memberId, userId);
 
       expect(result).toEqual({ success: true });
+      expect(channelsRepository.softDeleteChannelMembersByWorkspaceAndUserId).toHaveBeenCalledWith(workspaceId, targetUserId);
+      expect(channelInvitesRepository.softDeletePendingInvitesByWorkspaceAndEmail).toHaveBeenCalledWith(workspaceId, 'bob@example.com');
       expect(auditService.record).toHaveBeenCalledWith({
         actorId: userId,
         action: AuditAction.WORKSPACE_MEMBER_REMOVED,
@@ -1070,10 +1098,15 @@ describe('WorkspacesService', () => {
         user: { id: targetUserId, username: 'alice' },
       } as any);
       workspacesRepository.softDeleteMember.mockResolvedValue(1);
+      usersRepository.findById.mockResolvedValue({ id: targetUserId, email: 'alice@example.com' } as any);
+      channelsRepository.softDeleteChannelMembersByWorkspaceAndUserId.mockResolvedValue(1);
+      channelInvitesRepository.softDeletePendingInvitesByWorkspaceAndEmail.mockResolvedValue(0);
 
       const result = await service.removeMember(workspaceId, memberId, userId);
 
       expect(result).toEqual({ success: true });
+      expect(channelsRepository.softDeleteChannelMembersByWorkspaceAndUserId).toHaveBeenCalledWith(workspaceId, targetUserId);
+      expect(channelInvitesRepository.softDeletePendingInvitesByWorkspaceAndEmail).toHaveBeenCalledWith(workspaceId, 'alice@example.com');
       expect(auditService.record).toHaveBeenCalledWith({
         actorId: userId,
         action: AuditAction.WORKSPACE_MEMBER_REMOVED,
@@ -1227,6 +1260,29 @@ describe('WorkspacesService', () => {
         service.removeMember(workspaceId, memberId, userId),
       ).rejects.toBeInstanceOf(NotFoundException);
       expectAuditNotCalled();
+      expect(channelsRepository.softDeleteChannelMembersByWorkspaceAndUserId).not.toHaveBeenCalled();
+      expect(channelInvitesRepository.softDeletePendingInvitesByWorkspaceAndEmail).not.toHaveBeenCalled();
+    });
+
+    it('should not call cleanup when target user is not found', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      workspacesRepository.findActiveMemberById.mockResolvedValue({
+        id: memberId,
+        workspaceId,
+        role: 'MEMBER',
+        userId: targetUserId,
+        createdAt: new Date('2026-01-01'),
+        user: { id: targetUserId, username: 'alice' },
+      } as any);
+      workspacesRepository.softDeleteMember.mockResolvedValue(1);
+      usersRepository.findById.mockResolvedValue(null);
+
+      const result = await service.removeMember(workspaceId, memberId, userId);
+
+      expect(result).toEqual({ success: true });
+      expect(channelsRepository.softDeleteChannelMembersByWorkspaceAndUserId).not.toHaveBeenCalled();
+      expect(channelInvitesRepository.softDeletePendingInvitesByWorkspaceAndEmail).not.toHaveBeenCalled();
     });
   });
 
@@ -1302,7 +1358,7 @@ describe('WorkspacesService', () => {
   });
 
   describe('leaveWorkspace', () => {
-    it('should allow MEMBER to leave workspace', async () => {
+    it('should allow MEMBER to leave workspace and cleanup channel access', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: 'member-id',
@@ -1313,14 +1369,19 @@ describe('WorkspacesService', () => {
         user: { id: userId, username: 'alice' },
       } as any);
       workspacesRepository.softDeleteMemberByUserId.mockResolvedValue(1);
+      usersRepository.findById.mockResolvedValue({ id: userId, email: 'alice@example.com' } as any);
+      channelsRepository.softDeleteChannelMembersByWorkspaceAndUserId.mockResolvedValue(2);
+      channelInvitesRepository.softDeletePendingInvitesByWorkspaceAndEmail.mockResolvedValue(1);
 
       const result = await service.leaveWorkspace(workspaceId, userId);
 
       expect(result).toEqual({ success: true });
       expect(workspacesRepository.softDeleteMemberByUserId).toHaveBeenCalledWith(workspaceId, userId);
+      expect(channelsRepository.softDeleteChannelMembersByWorkspaceAndUserId).toHaveBeenCalledWith(workspaceId, userId);
+      expect(channelInvitesRepository.softDeletePendingInvitesByWorkspaceAndEmail).toHaveBeenCalledWith(workspaceId, 'alice@example.com');
     });
 
-    it('should allow ADMIN to leave workspace', async () => {
+    it('should allow ADMIN to leave workspace and cleanup channel access', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: 'member-id',
@@ -1331,10 +1392,15 @@ describe('WorkspacesService', () => {
         user: { id: userId, username: 'alice' },
       } as any);
       workspacesRepository.softDeleteMemberByUserId.mockResolvedValue(1);
+      usersRepository.findById.mockResolvedValue({ id: userId, email: 'alice@example.com' } as any);
+      channelsRepository.softDeleteChannelMembersByWorkspaceAndUserId.mockResolvedValue(2);
+      channelInvitesRepository.softDeletePendingInvitesByWorkspaceAndEmail.mockResolvedValue(0);
 
       const result = await service.leaveWorkspace(workspaceId, userId);
 
       expect(result).toEqual({ success: true });
+      expect(channelsRepository.softDeleteChannelMembersByWorkspaceAndUserId).toHaveBeenCalledWith(workspaceId, userId);
+      expect(channelInvitesRepository.softDeletePendingInvitesByWorkspaceAndEmail).toHaveBeenCalledWith(workspaceId, 'alice@example.com');
     });
 
     it('should reject OWNER leaving workspace', async () => {
@@ -1352,6 +1418,7 @@ describe('WorkspacesService', () => {
         service.leaveWorkspace(workspaceId, userId),
       ).rejects.toBeInstanceOf(ForbiddenException);
       expect(workspacesRepository.softDeleteMemberByUserId).not.toHaveBeenCalled();
+      expect(channelsRepository.softDeleteChannelMembersByWorkspaceAndUserId).not.toHaveBeenCalled();
     });
 
     it('should reject non-workspace-member', async () => {
@@ -1362,6 +1429,7 @@ describe('WorkspacesService', () => {
         service.leaveWorkspace(workspaceId, userId),
       ).rejects.toBeInstanceOf(NotFoundException);
       expect(workspacesRepository.softDeleteMemberByUserId).not.toHaveBeenCalled();
+      expect(channelsRepository.softDeleteChannelMembersByWorkspaceAndUserId).not.toHaveBeenCalled();
     });
 
     it('should reject non-existing workspace', async () => {
@@ -1371,6 +1439,7 @@ describe('WorkspacesService', () => {
         service.leaveWorkspace(workspaceId, userId),
       ).rejects.toBeInstanceOf(NotFoundException);
       expect(workspacesRepository.softDeleteMemberByUserId).not.toHaveBeenCalled();
+      expect(channelsRepository.softDeleteChannelMembersByWorkspaceAndUserId).not.toHaveBeenCalled();
     });
 
     it('should reject when soft delete affects 0 rows', async () => {
@@ -1388,6 +1457,28 @@ describe('WorkspacesService', () => {
       await expect(
         service.leaveWorkspace(workspaceId, userId),
       ).rejects.toBeInstanceOf(NotFoundException);
+      expect(channelsRepository.softDeleteChannelMembersByWorkspaceAndUserId).not.toHaveBeenCalled();
+      expect(channelInvitesRepository.softDeletePendingInvitesByWorkspaceAndEmail).not.toHaveBeenCalled();
+    });
+
+    it('should not call cleanup when user is not found', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
+        id: 'member-id',
+        workspaceId,
+        role: 'MEMBER',
+        userId,
+        createdAt: new Date('2026-01-01'),
+        user: { id: userId, username: 'alice' },
+      } as any);
+      workspacesRepository.softDeleteMemberByUserId.mockResolvedValue(1);
+      usersRepository.findById.mockResolvedValue(null);
+
+      const result = await service.leaveWorkspace(workspaceId, userId);
+
+      expect(result).toEqual({ success: true });
+      expect(channelsRepository.softDeleteChannelMembersByWorkspaceAndUserId).not.toHaveBeenCalled();
+      expect(channelInvitesRepository.softDeletePendingInvitesByWorkspaceAndEmail).not.toHaveBeenCalled();
     });
   });
 

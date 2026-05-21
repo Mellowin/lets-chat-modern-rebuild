@@ -8,6 +8,8 @@ import {
 import { Prisma } from '@lets-chat/database';
 import { WorkspacesRepository } from './workspaces.repository';
 import { UsersRepository } from '../users/users.repository';
+import { ChannelsRepository } from '../channels/channels.repository';
+import { ChannelInvitesRepository } from '../channel-invites/channel-invites.repository';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { slugify } from '../common/transliterate';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
@@ -21,6 +23,8 @@ export class WorkspacesService {
   constructor(
     private readonly workspaces: WorkspacesRepository,
     private readonly users: UsersRepository,
+    private readonly channels: ChannelsRepository,
+    private readonly channelInvites: ChannelInvitesRepository,
     private readonly audit: AuditService,
   ) {}
 
@@ -141,6 +145,18 @@ export class WorkspacesService {
       throw new NotFoundException('Workspace member not found');
     }
 
+    const user = await this.users.findById(userId);
+    if (user) {
+      await this.channels.softDeleteChannelMembersByWorkspaceAndUserId(
+        workspaceId,
+        userId,
+      );
+      await this.channelInvites.softDeletePendingInvitesByWorkspaceAndEmail(
+        workspaceId,
+        user.email,
+      );
+    }
+
     return { success: true };
   }
 
@@ -243,6 +259,18 @@ export class WorkspacesService {
     );
     if (deletedCount === 0) {
       throw new NotFoundException('Workspace member not found');
+    }
+
+    const targetUser = await this.users.findById(targetMember.userId);
+    if (targetUser) {
+      await this.channels.softDeleteChannelMembersByWorkspaceAndUserId(
+        workspaceId,
+        targetMember.userId,
+      );
+      await this.channelInvites.softDeletePendingInvitesByWorkspaceAndEmail(
+        workspaceId,
+        targetUser.email,
+      );
     }
 
     await this.audit.record({

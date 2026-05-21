@@ -113,6 +113,23 @@ export class ChannelInvitesRepository {
     return result.count;
   }
 
+  async softDeletePendingInvitesByWorkspaceAndEmail(
+    workspaceId: string,
+    email: string,
+  ): Promise<number> {
+    const result = await this.prisma.channelInvitation.updateMany({
+      where: {
+        workspaceId,
+        invitedEmail: email.toLowerCase(),
+        deletedAt: null,
+        usedAt: null,
+        usedById: null,
+      },
+      data: { deletedAt: new Date() },
+    });
+    return result.count;
+  }
+
   async listForChannel(channelId: string) {
     return this.prisma.channelInvitation.findMany({
       where: { channelId },

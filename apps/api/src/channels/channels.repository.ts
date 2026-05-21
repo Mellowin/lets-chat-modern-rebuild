@@ -215,4 +215,22 @@ export class ChannelsRepository {
     });
     return result.count;
   }
+
+  async softDeleteChannelMembersByWorkspaceAndUserId(
+    workspaceId: string,
+    userId: string,
+  ) {
+    const result = await this.prisma.channelMember.updateMany({
+      where: {
+        userId,
+        deletedAt: null,
+        channel: {
+          workspaceId,
+          deletedAt: null,
+        },
+      },
+      data: { deletedAt: new Date() },
+    });
+    return result.count;
+  }
 }

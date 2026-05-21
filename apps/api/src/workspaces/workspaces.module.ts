@@ -5,11 +5,18 @@ import { AuditModule } from '../audit/audit.module';
 import { WorkspacesService } from './workspaces.service';
 import { WorkspacesRepository } from './workspaces.repository';
 import { WorkspacesController } from './workspaces.controller';
+import { ChannelsRepository } from '../channels/channels.repository';
+import { ChannelInvitesRepository } from '../channel-invites/channel-invites.repository';
 
 @Module({
   imports: [AuthModule, UsersModule, AuditModule],
   controllers: [WorkspacesController],
-  providers: [WorkspacesService, WorkspacesRepository],
+  providers: [
+    WorkspacesService,
+    WorkspacesRepository,
+    ChannelsRepository,
+    ChannelInvitesRepository,
+  ],
   exports: [WorkspacesService, WorkspacesRepository],
 })
 export class WorkspacesModule {}
