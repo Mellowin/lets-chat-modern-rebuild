@@ -1264,7 +1264,7 @@ describe('WorkspacesService', () => {
       expect(channelInvitesRepository.softDeletePendingInvitesByWorkspaceAndEmail).not.toHaveBeenCalled();
     });
 
-    it('should not call cleanup when target user is not found', async () => {
+    it('should still cleanup channel memberships when target user is not found', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       workspacesRepository.findActiveMemberById.mockResolvedValue({
@@ -1281,7 +1281,7 @@ describe('WorkspacesService', () => {
       const result = await service.removeMember(workspaceId, memberId, userId);
 
       expect(result).toEqual({ success: true });
-      expect(channelsRepository.softDeleteChannelMembersByWorkspaceAndUserId).not.toHaveBeenCalled();
+      expect(channelsRepository.softDeleteChannelMembersByWorkspaceAndUserId).toHaveBeenCalledWith(workspaceId, targetUserId);
       expect(channelInvitesRepository.softDeletePendingInvitesByWorkspaceAndEmail).not.toHaveBeenCalled();
     });
   });
@@ -1461,7 +1461,7 @@ describe('WorkspacesService', () => {
       expect(channelInvitesRepository.softDeletePendingInvitesByWorkspaceAndEmail).not.toHaveBeenCalled();
     });
 
-    it('should not call cleanup when user is not found', async () => {
+    it('should still cleanup channel memberships when user is not found', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({ id: workspaceId } as any);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: 'member-id',
@@ -1477,7 +1477,7 @@ describe('WorkspacesService', () => {
       const result = await service.leaveWorkspace(workspaceId, userId);
 
       expect(result).toEqual({ success: true });
-      expect(channelsRepository.softDeleteChannelMembersByWorkspaceAndUserId).not.toHaveBeenCalled();
+      expect(channelsRepository.softDeleteChannelMembersByWorkspaceAndUserId).toHaveBeenCalledWith(workspaceId, userId);
       expect(channelInvitesRepository.softDeletePendingInvitesByWorkspaceAndEmail).not.toHaveBeenCalled();
     });
   });

@@ -145,12 +145,13 @@ export class WorkspacesService {
       throw new NotFoundException('Workspace member not found');
     }
 
+    await this.channels.softDeleteChannelMembersByWorkspaceAndUserId(
+      workspaceId,
+      userId,
+    );
+
     const user = await this.users.findById(userId);
     if (user) {
-      await this.channels.softDeleteChannelMembersByWorkspaceAndUserId(
-        workspaceId,
-        userId,
-      );
       await this.channelInvites.softDeletePendingInvitesByWorkspaceAndEmail(
         workspaceId,
         user.email,
@@ -261,12 +262,13 @@ export class WorkspacesService {
       throw new NotFoundException('Workspace member not found');
     }
 
+    await this.channels.softDeleteChannelMembersByWorkspaceAndUserId(
+      workspaceId,
+      targetMember.userId,
+    );
+
     const targetUser = await this.users.findById(targetMember.userId);
     if (targetUser) {
-      await this.channels.softDeleteChannelMembersByWorkspaceAndUserId(
-        workspaceId,
-        targetMember.userId,
-      );
       await this.channelInvites.softDeletePendingInvitesByWorkspaceAndEmail(
         workspaceId,
         targetUser.email,
