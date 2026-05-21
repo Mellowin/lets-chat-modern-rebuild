@@ -8,6 +8,7 @@ import {
   Param,
   HttpCode,
   UseGuards,
+  GoneException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -20,6 +21,7 @@ import {
   ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiUnauthorizedResponse,
+  ApiGoneResponse,
 } from '@nestjs/swagger';
 import { ChannelsService } from './channels.service';
 import { CreateChannelDto } from './dto/create-channel.dto';
@@ -118,12 +120,8 @@ export class ChannelsController {
   }
 
   @Post(':channelId/members')
-  @ApiOperation({ summary: 'Add channel member' })
-  @ApiCreatedResponse({ description: 'Member added' })
-  @ApiBadRequestResponse({ description: 'Validation failed' })
-  @ApiForbiddenResponse({ description: 'Forbidden' })
-  @ApiNotFoundResponse({ description: 'Workspace, channel, or user not found' })
-  @ApiConflictResponse({ description: 'Already a member' })
+  @ApiOperation({ summary: 'Add channel member (disabled)' })
+  @ApiGoneResponse({ description: 'Use channel invitations to add members' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   async addMember(
     @Param('workspaceId') workspaceId: string,
@@ -131,7 +129,7 @@ export class ChannelsController {
     @Body() dto: AddChannelMemberDto,
     @CurrentUser() user: AuthUserResponse,
   ) {
-    return this.channels.addChannelMember(workspaceId, channelId, user.id, dto);
+    throw new GoneException('Use channel invitations to add members');
   }
 
   @Delete(':channelId/members/:memberId')
