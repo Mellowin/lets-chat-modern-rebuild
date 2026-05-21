@@ -6,9 +6,10 @@ import { ChannelsRepository } from '../channels/channels.repository';
 import { WorkspacesRepository } from '../workspaces/workspaces.repository';
 import { UsersRepository } from '../users/users.repository';
 import { AuditModule } from '../audit/audit.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [AuditModule],
+  imports: [AuditModule, AuthModule],
   controllers: [ChannelInvitesController],
   providers: [
     ChannelInvitesService,
