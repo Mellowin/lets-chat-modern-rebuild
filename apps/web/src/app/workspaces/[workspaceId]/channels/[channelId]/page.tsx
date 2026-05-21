@@ -171,18 +171,32 @@ export default function ChannelDetailPage() {
     });
 
     socket.on("channel:error", (data: { message?: string }) => {
-      setSocketStatus("error");
-      console.error("Channel error:", data?.message);
+      const msg = (data?.message ?? "").toLowerCase();
+      const isAccessLoss =
+        msg.includes("channel not found") ||
+        msg.includes("workspace not found") ||
+        msg.includes("forbidden") ||
+        msg.includes("insufficient permissions");
+
+      if (isAccessLoss) {
+        setSocketStatus("error");
+        socket.disconnect();
+        window.dispatchEvent(new Event("channels:changed"));
+        router.push(`/workspaces/${workspaceId}`);
+      } else {
+        setSocketStatus("error");
+        console.error("Channel error:", data?.message);
+      }
     });
 
-    socket.on("auth:error", (data: { message?: string }) => {
+    socket.on("auth:error", () => {
       setSocketStatus("error");
-      console.error("Auth error:", data?.message);
+      socket.disconnect();
     });
 
     socket.on("auth:expired", () => {
       setSocketStatus("error");
-      console.error("Auth expired");
+      socket.disconnect();
     });
 
     socket.on("message:created", (msg: Message) => {

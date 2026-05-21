@@ -1136,3 +1136,151 @@ describe("ChannelDetailPage — access lost redirect", () => {
     expect(routerPushMock).not.toHaveBeenCalled();
   });
 });
+
+describe("ChannelDetailPage — socket access-loss handling", () => {
+  beforeEach(() => {
+    sessionStorage.setItem("accessToken", "token");
+    vi.clearAllMocks();
+    socketOnMock.mockClear();
+    socketEmitMock.mockClear();
+    socketDisconnectMock.mockClear();
+    Object.keys(socketHandlers).forEach((k) => delete socketHandlers[k]);
+    routerPushMock.mockClear();
+  });
+
+  const ownMessage = {
+    id: "m1",
+    channelId: "ch1",
+    content: "Hello",
+    parentId: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    editedAt: null,
+    author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+  };
+
+  it("channel:error 'Channel not found' dispatches channels:changed, disconnects, and redirects", async () => {
+    mockChannelAndMessages([ownMessage]);
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent").mockImplementation(() => true);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(socketHandlers["channel:error"]).toBeDefined();
+    });
+
+    socketHandlers["channel:error"]({ message: "Channel not found" });
+
+    await waitFor(() => {
+      expect(socketDisconnectMock).toHaveBeenCalled();
+    });
+    expect(dispatchSpy).toHaveBeenCalledWith(expect.any(Event));
+    expect(routerPushMock).toHaveBeenCalledWith("/workspaces/ws1");
+    dispatchSpy.mockRestore();
+  });
+
+  it("channel:error 'Forbidden' redirects to workspace", async () => {
+    mockChannelAndMessages([ownMessage]);
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent").mockImplementation(() => true);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(socketHandlers["channel:error"]).toBeDefined();
+    });
+
+    socketHandlers["channel:error"]({ message: "Forbidden" });
+
+    await waitFor(() => {
+      expect(routerPushMock).toHaveBeenCalledWith("/workspaces/ws1");
+    });
+    dispatchSpy.mockRestore();
+  });
+
+  it("channel:error 'Insufficient permissions' redirects to workspace", async () => {
+    mockChannelAndMessages([ownMessage]);
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent").mockImplementation(() => true);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(socketHandlers["channel:error"]).toBeDefined();
+    });
+
+    socketHandlers["channel:error"]({ message: "Insufficient permissions" });
+
+    await waitFor(() => {
+      expect(routerPushMock).toHaveBeenCalledWith("/workspaces/ws1");
+    });
+    dispatchSpy.mockRestore();
+  });
+
+  it("access-loss channel:error does not call console.error", async () => {
+    mockChannelAndMessages([ownMessage]);
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(socketHandlers["channel:error"]).toBeDefined();
+    });
+
+    socketHandlers["channel:error"]({ message: "Channel not found" });
+
+    await waitFor(() => {
+      expect(routerPushMock).toHaveBeenCalledWith("/workspaces/ws1");
+    });
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("unexpected channel:error still calls console.error", async () => {
+    mockChannelAndMessages([ownMessage]);
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(socketHandlers["channel:error"]).toBeDefined();
+    });
+
+    socketHandlers["channel:error"]({ message: "Unknown socket failure" });
+
+    await waitFor(() => {
+      expect(consoleErrorSpy).toHaveBeenCalledWith("Channel error:", "Unknown socket failure");
+    });
+    expect(routerPushMock).not.toHaveBeenCalled();
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("auth:error disconnects socket without console.error", async () => {
+    mockChannelAndMessages([ownMessage]);
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(socketHandlers["auth:error"]).toBeDefined();
+    });
+
+    socketHandlers["auth:error"]({ message: "Token invalid" });
+
+    await waitFor(() => {
+      expect(socketDisconnectMock).toHaveBeenCalled();
+    });
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("auth:expired disconnects socket without console.error", async () => {
+    mockChannelAndMessages([ownMessage]);
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(socketHandlers["auth:expired"]).toBeDefined();
+    });
+
+    socketHandlers["auth:expired"]();
+
+    await waitFor(() => {
+      expect(socketDisconnectMock).toHaveBeenCalled();
+    });
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
+    consoleErrorSpy.mockRestore();
+  });
+});
