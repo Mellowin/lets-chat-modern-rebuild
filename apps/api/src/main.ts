@@ -1,11 +1,18 @@
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, ConsoleLogger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
+class FilteredLogger extends ConsoleLogger {
+  warn(message: unknown, context?: string): void {
+    if (context === 'LegacyRouteConverter') return;
+    super.warn(message, context);
+  }
+}
+
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { logger: new FilteredLogger() });
   const configService = app.get(ConfigService);
 
   app.setGlobalPrefix('api/v1');
