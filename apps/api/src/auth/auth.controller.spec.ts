@@ -65,6 +65,10 @@ describe('AuthController', () => {
   });
 
   describe('PATCH /auth/me/avatar', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
     it('allows update when no previous avatarUpdatedAt', async () => {
       authService.updateAvatar.mockResolvedValue({
         ...user,
@@ -110,6 +114,45 @@ describe('AuthController', () => {
         controller.updateAvatar(
           { ...user, avatarUpdatedAt: recentDate } as any,
           { avatarUrl: '/avatars/avatar-3.svg' } as any,
+        ),
+      ).rejects.toThrow('Avatar can be changed once every 7 days');
+
+      expect(authService.updateAvatar).not.toHaveBeenCalled();
+    });
+
+    it('allows update when avatarUpdatedAt is exactly 7 days ago', async () => {
+      const fixedNow = 1_000_000_000_000;
+      jest.spyOn(Date, 'now').mockReturnValue(fixedNow);
+
+      const exactlySevenDaysAgo = new Date(fixedNow - 7 * 24 * 60 * 60 * 1000);
+      authService.updateAvatar.mockResolvedValue({
+        ...user,
+        avatarUrl: '/avatars/avatar-4.svg',
+        avatarUpdatedAt: new Date(fixedNow),
+      } as any);
+
+      const result = await controller.updateAvatar(
+        { ...user, avatarUpdatedAt: exactlySevenDaysAgo } as any,
+        { avatarUrl: '/avatars/avatar-4.svg' } as any,
+      );
+
+      expect(authService.updateAvatar).toHaveBeenCalledWith(
+        'user-id',
+        '/avatars/avatar-4.svg',
+      );
+      expect(result.avatarUrl).toBe('/avatars/avatar-4.svg');
+    });
+
+    it('blocks update when avatarUpdatedAt is 7 days minus 1 millisecond ago', async () => {
+      const fixedNow = 1_000_000_000_000;
+      jest.spyOn(Date, 'now').mockReturnValue(fixedNow);
+
+      const justUnderSevenDays = new Date(fixedNow - 7 * 24 * 60 * 60 * 1000 + 1);
+
+      await expect(
+        controller.updateAvatar(
+          { ...user, avatarUpdatedAt: justUnderSevenDays } as any,
+          { avatarUrl: '/avatars/avatar-5.svg' } as any,
         ),
       ).rejects.toThrow('Avatar can be changed once every 7 days');
 
