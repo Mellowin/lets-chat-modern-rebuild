@@ -46,9 +46,9 @@ describe('AuthController', () => {
     authService.updateMe.mockResolvedValue({
       ...user,
       displayName: 'John Doe',
-    } as any);
+    });
 
-    await controller.updateMe(user as any, { displayName: '  John Doe  ' });
+    await controller.updateMe(user, { displayName: '  John Doe  ' });
 
     expect(authService.updateMe).toHaveBeenCalledWith('user-id', 'John Doe');
   });
@@ -57,9 +57,9 @@ describe('AuthController', () => {
     authService.updateMe.mockResolvedValue({
       ...user,
       displayName: null,
-    } as any);
+    });
 
-    await controller.updateMe(user as any, { displayName: '   ' });
+    await controller.updateMe(user, { displayName: '   ' });
 
     expect(authService.updateMe).toHaveBeenCalledWith('user-id', null);
   });
@@ -74,14 +74,11 @@ describe('AuthController', () => {
         ...user,
         avatarUrl: '/avatars/avatar-1.svg',
         avatarUpdatedAt: new Date(),
-      } as any);
+      });
 
-      const result = await controller.updateAvatar(
-        user as any,
-        {
-          avatarUrl: '/avatars/avatar-1.svg',
-        } as any,
-      );
+      const result = await controller.updateAvatar(user, {
+        avatarUrl: '/avatars/avatar-1.svg',
+      });
 
       expect(authService.updateAvatar).toHaveBeenCalledWith(
         'user-id',
@@ -96,11 +93,11 @@ describe('AuthController', () => {
         ...user,
         avatarUrl: '/avatars/avatar-2.svg',
         avatarUpdatedAt: new Date(),
-      } as any);
+      });
 
       const result = await controller.updateAvatar(
-        { ...user, avatarUpdatedAt: oldDate } as any,
-        { avatarUrl: '/avatars/avatar-2.svg' } as any,
+        { ...user, avatarUpdatedAt: oldDate },
+        { avatarUrl: '/avatars/avatar-2.svg' },
       );
 
       expect(authService.updateAvatar).toHaveBeenCalledWith(
@@ -132,11 +129,11 @@ describe('AuthController', () => {
         ...user,
         avatarUrl: '/avatars/avatar-4.svg',
         avatarUpdatedAt: new Date(fixedNow),
-      } as any);
+      });
 
       const result = await controller.updateAvatar(
-        { ...user, avatarUpdatedAt: exactlySevenDaysAgo } as any,
-        { avatarUrl: '/avatars/avatar-4.svg' } as any,
+        { ...user, avatarUpdatedAt: exactlySevenDaysAgo },
+        { avatarUrl: '/avatars/avatar-4.svg' },
       );
 
       expect(authService.updateAvatar).toHaveBeenCalledWith(
