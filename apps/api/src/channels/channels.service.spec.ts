@@ -621,7 +621,7 @@ describe('ChannelsService', () => {
         id: targetUserId,
         username: 'alice',
       } as any);
-      usersRepository.findByEmail.mockResolvedValue(null as any);
+      usersRepository.findByEmail.mockResolvedValue(null);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: 'ws-member-1',
         workspaceId,
@@ -629,7 +629,7 @@ describe('ChannelsService', () => {
         userId: targetUserId,
       } as any);
       channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue(
-        null as any,
+        null,
       );
       channelsRepository.createChannelMember.mockResolvedValue({
         id: memberId,
@@ -662,7 +662,7 @@ describe('ChannelsService', () => {
         id: targetUserId,
         username: 'alice',
       } as any);
-      usersRepository.findByEmail.mockResolvedValue(null as any);
+      usersRepository.findByEmail.mockResolvedValue(null);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: 'ws-member-1',
         workspaceId,
@@ -670,7 +670,7 @@ describe('ChannelsService', () => {
         userId: targetUserId,
       } as any);
       channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue(
-        null as any,
+        null,
       );
       channelsRepository.createChannelMember.mockResolvedValue({
         id: memberId,
@@ -703,7 +703,7 @@ describe('ChannelsService', () => {
         id: targetUserId,
         username: 'bob',
       } as any);
-      usersRepository.findByEmail.mockResolvedValue(null as any);
+      usersRepository.findByEmail.mockResolvedValue(null);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: 'ws-member-1',
         workspaceId,
@@ -711,7 +711,7 @@ describe('ChannelsService', () => {
         userId: targetUserId,
       } as any);
       channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue(
-        null as any,
+        null,
       );
       channelsRepository.createChannelMember.mockResolvedValue({
         id: memberId,
@@ -744,7 +744,7 @@ describe('ChannelsService', () => {
         id: targetUserId,
         username: 'alice',
       } as any);
-      usersRepository.findByEmail.mockResolvedValue(null as any);
+      usersRepository.findByEmail.mockResolvedValue(null);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: 'ws-member-1',
         workspaceId,
@@ -752,7 +752,7 @@ describe('ChannelsService', () => {
         userId: targetUserId,
       } as any);
       channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue(
-        null as any,
+        null,
       );
 
       await expect(
@@ -812,8 +812,8 @@ describe('ChannelsService', () => {
         type: 'PUBLIC',
       } as any);
       channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
-      usersRepository.findByUsername.mockResolvedValue(null as any);
-      usersRepository.findByEmail.mockResolvedValue(null as any);
+      usersRepository.findByUsername.mockResolvedValue(null);
+      usersRepository.findByEmail.mockResolvedValue(null);
 
       await expect(
         service.addChannelMember(workspaceId, channelId, userId, {
@@ -834,10 +834,8 @@ describe('ChannelsService', () => {
         id: targetUserId,
         username: 'alice',
       } as any);
-      usersRepository.findByEmail.mockResolvedValue(null as any);
-      workspacesRepository.findActiveMemberByUserId.mockResolvedValue(
-        null as any,
-      );
+      usersRepository.findByEmail.mockResolvedValue(null);
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue(null);
 
       await expect(
         service.addChannelMember(workspaceId, channelId, userId, {
@@ -858,7 +856,7 @@ describe('ChannelsService', () => {
         id: targetUserId,
         username: 'alice',
       } as any);
-      usersRepository.findByEmail.mockResolvedValue(null as any);
+      usersRepository.findByEmail.mockResolvedValue(null);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: 'ws-member-1',
         workspaceId,
@@ -925,7 +923,7 @@ describe('ChannelsService', () => {
         id: targetUserId,
         username: 'alice',
       } as any);
-      usersRepository.findByEmail.mockResolvedValue(null as any);
+      usersRepository.findByEmail.mockResolvedValue(null);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: 'ws-member-1',
         workspaceId,
@@ -933,7 +931,7 @@ describe('ChannelsService', () => {
         userId: targetUserId,
       } as any);
       channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue(
-        null as any,
+        null,
       );
       const prismaError = new Prisma.PrismaClientKnownRequestError(
         'Unique constraint failed',
