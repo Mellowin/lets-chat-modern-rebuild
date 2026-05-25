@@ -659,7 +659,7 @@ describe('WebsocketGateway', () => {
       ).toBe(false);
     });
 
-    it('should emit presence:offline on last socket disconnect', async () => {
+    it('should emit presence:offline on last socket disconnect', () => {
       const socket = createMockSocket({
         id: 'socket-f',
         data: { user: { id: userId, username: 'testuser' } },
@@ -686,7 +686,7 @@ describe('WebsocketGateway', () => {
       });
     });
 
-    it('should emit room offline on disconnect when no other socket in that room', async () => {
+    it('should emit room offline on disconnect when no other socket in that room', () => {
       const socket1 = createMockSocket({
         id: 'socket-g1',
         data: { user: { id: userId, username: 'testuser' } },
@@ -741,7 +741,7 @@ describe('WebsocketGateway', () => {
       expect(gateway['presence']['userRooms'].has(userId)).toBe(false);
     });
 
-    it('should not emit offline on disconnect when another socket still in same room', async () => {
+    it('should not emit offline on disconnect when another socket still in same room', () => {
       const socket1 = createMockSocket({
         id: 'socket-h1',
         data: { user: { id: userId, username: 'testuser' } },

@@ -85,7 +85,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Get current authenticated user' })
   @ApiOkResponse({ description: 'Current user returned successfully' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
-  async me(@CurrentUser() user: AuthUserResponse): Promise<AuthUserResponse> {
+  me(@CurrentUser() user: AuthUserResponse): AuthUserResponse {
     return user;
   }
 

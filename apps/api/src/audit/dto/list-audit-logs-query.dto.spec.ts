@@ -3,7 +3,7 @@ import { validate } from 'class-validator';
 import { ListAuditLogsQueryDto } from './list-audit-logs-query.dto';
 
 describe('ListAuditLogsQueryDto', () => {
-  async function validateDto(obj: Record<string, unknown>) {
+  function validateDto(obj: Record<string, unknown>) {
     const dto = plainToInstance(ListAuditLogsQueryDto, obj);
     return validate(dto);
   }
@@ -13,7 +13,7 @@ describe('ListAuditLogsQueryDto', () => {
     expect(errors).toHaveLength(0);
   });
 
-  it('should default limit to 50 when missing', async () => {
+  it('should default limit to 50 when missing', () => {
     const dto = plainToInstance(ListAuditLogsQueryDto, {});
     expect(dto.limit).toBe(50);
   });

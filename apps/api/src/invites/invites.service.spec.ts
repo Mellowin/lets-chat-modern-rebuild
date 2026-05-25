@@ -88,7 +88,7 @@ describe('InvitesService', () => {
     } as any);
     workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
     invitesRepository.createInvite.mockImplementation(
-      async (data) =>
+      (data) =>
         ({
           id: 'invite-id',
           workspaceId: data.workspaceId,
@@ -128,7 +128,7 @@ describe('InvitesService', () => {
     } as any);
     workspacesRepository.findMemberRole.mockResolvedValue('ADMIN');
     invitesRepository.createInvite.mockImplementation(
-      async (data) =>
+      (data) =>
         ({
           id: 'invite-id',
           workspaceId: data.workspaceId,
@@ -232,7 +232,7 @@ describe('InvitesService', () => {
     } as any);
     workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
     invitesRepository.createInvite.mockImplementation(
-      async (data) =>
+      (data) =>
         ({
           id: 'invite-id',
           workspaceId: data.workspaceId,
@@ -266,7 +266,7 @@ describe('InvitesService', () => {
     workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
     invitesRepository.findPendingByWorkspaceAndEmail.mockResolvedValue(null);
     invitesRepository.createInvite.mockImplementation(
-      async (data) =>
+      (data) =>
         ({
           id: 'invite-id',
           workspaceId: data.workspaceId,
@@ -328,7 +328,7 @@ describe('InvitesService', () => {
     workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
     invitesRepository.findPendingByWorkspaceAndEmail.mockResolvedValue(null);
     invitesRepository.createInvite.mockImplementation(
-      async (data) =>
+      (data) =>
         ({
           id: 'invite-id',
           workspaceId: data.workspaceId,
@@ -355,7 +355,7 @@ describe('InvitesService', () => {
     workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
     invitesRepository.findPendingByWorkspaceAndEmail.mockResolvedValue(null);
     invitesRepository.createInvite.mockImplementation(
-      async (data) =>
+      (data) =>
         ({
           id: 'invite-id',
           workspaceId: data.workspaceId,
@@ -382,7 +382,7 @@ describe('InvitesService', () => {
     workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
     invitesRepository.findPendingByWorkspaceAndEmail.mockResolvedValue(null);
     invitesRepository.createInvite.mockImplementation(
-      async (data) =>
+      (data) =>
         ({
           id: 'invite-id',
           workspaceId: data.workspaceId,
@@ -444,7 +444,7 @@ describe('InvitesService', () => {
     } as any);
     workspacesRepository.findActiveMemberByUserId.mockResolvedValue(null);
     invitesRepository.createInvite.mockImplementation(
-      async (data) =>
+      (data) =>
         ({
           id: 'invite-id',
           workspaceId: data.workspaceId,
@@ -472,7 +472,7 @@ describe('InvitesService', () => {
     invitesRepository.findPendingByWorkspaceAndEmail.mockResolvedValue(null);
     usersRepository.findByEmail.mockResolvedValue(null);
     invitesRepository.createInvite.mockImplementation(
-      async (data) =>
+      (data) =>
         ({
           id: 'invite-id',
           workspaceId: data.workspaceId,
@@ -506,7 +506,7 @@ describe('InvitesService', () => {
     } as any);
     workspacesRepository.findActiveMemberByUserId.mockResolvedValue(null);
     invitesRepository.createInvite.mockImplementation(
-      async (data) =>
+      (data) =>
         ({
           id: 'invite-id',
           workspaceId: data.workspaceId,
@@ -541,7 +541,7 @@ describe('InvitesService', () => {
     } as any);
     workspacesRepository.findActiveMemberByUserId.mockResolvedValue(null);
     invitesRepository.createInvite.mockImplementation(
-      async (data) =>
+      (data) =>
         ({
           id: 'invite-id',
           workspaceId: data.workspaceId,

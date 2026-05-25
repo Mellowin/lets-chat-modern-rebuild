@@ -123,6 +123,7 @@ export class ChannelsController {
   @ApiOperation({ summary: 'Add channel member (disabled)' })
   @ApiGoneResponse({ description: 'Use channel invitations to add members' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  // eslint-disable-next-line @typescript-eslint/require-await
   async addMember(
     @Param('workspaceId') workspaceId: string,
     @Param('channelId') channelId: string,

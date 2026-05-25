@@ -158,6 +158,7 @@ export class WorkspacesController {
   @ApiOperation({ summary: 'Add workspace member (disabled)' })
   @ApiGoneResponse({ description: 'Use workspace invitations to add members' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  // eslint-disable-next-line @typescript-eslint/require-await
   async addMember(
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
     @Body() dto: AddMemberDto,
