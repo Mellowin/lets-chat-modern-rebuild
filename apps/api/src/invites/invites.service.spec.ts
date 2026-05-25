@@ -710,7 +710,7 @@ describe('InvitesService', () => {
     }
 
     it('should allow accepting a valid invite', async () => {
-      invitesRepository.findByTokenHash.mockResolvedValue(makeInvite() as any);
+      invitesRepository.findByTokenHash.mockResolvedValue(makeInvite());
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
       } as any);
@@ -754,7 +754,7 @@ describe('InvitesService', () => {
 
     it('should reject expired invite', async () => {
       invitesRepository.findByTokenHash.mockResolvedValue(
-        makeInvite({ expiresAt: new Date(Date.now() - 1000) }) as any,
+        makeInvite({ expiresAt: new Date(Date.now() - 1000) }),
       );
 
       await expect(
@@ -765,7 +765,7 @@ describe('InvitesService', () => {
 
     it('should reject already used invite', async () => {
       invitesRepository.findByTokenHash.mockResolvedValue(
-        makeInvite({ usedAt: new Date() }) as any,
+        makeInvite({ usedAt: new Date() }),
       );
 
       await expect(
@@ -775,7 +775,7 @@ describe('InvitesService', () => {
     });
 
     it('should reject email mismatch', async () => {
-      invitesRepository.findByTokenHash.mockResolvedValue(makeInvite() as any);
+      invitesRepository.findByTokenHash.mockResolvedValue(makeInvite());
 
       await expect(
         service.accept(rawToken, userId, 'different@example.com'),
@@ -784,7 +784,7 @@ describe('InvitesService', () => {
     });
 
     it('should reject already workspace member', async () => {
-      invitesRepository.findByTokenHash.mockResolvedValue(makeInvite() as any);
+      invitesRepository.findByTokenHash.mockResolvedValue(makeInvite());
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
       } as any);
@@ -797,7 +797,7 @@ describe('InvitesService', () => {
     });
 
     it('should reject accept for inactive workspace', async () => {
-      invitesRepository.findByTokenHash.mockResolvedValue(makeInvite() as any);
+      invitesRepository.findByTokenHash.mockResolvedValue(makeInvite());
       workspacesRepository.findActiveById.mockResolvedValue(null);
 
       await expect(
@@ -809,7 +809,7 @@ describe('InvitesService', () => {
 
     it('should reject OWNER invite', async () => {
       invitesRepository.findByTokenHash.mockResolvedValue(
-        makeInvite({ role: 'OWNER' }) as any,
+        makeInvite({ role: 'OWNER' }),
       );
 
       await expect(
@@ -819,7 +819,7 @@ describe('InvitesService', () => {
     });
 
     it('should hash token before lookup', async () => {
-      invitesRepository.findByTokenHash.mockResolvedValue(makeInvite() as any);
+      invitesRepository.findByTokenHash.mockResolvedValue(makeInvite());
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
       } as any);
@@ -839,7 +839,7 @@ describe('InvitesService', () => {
     });
 
     it('should map Prisma P2002 to ConflictException on race condition', async () => {
-      invitesRepository.findByTokenHash.mockResolvedValue(makeInvite() as any);
+      invitesRepository.findByTokenHash.mockResolvedValue(makeInvite());
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
       } as any);
@@ -880,7 +880,7 @@ describe('InvitesService', () => {
         id: workspaceId,
       } as any);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
-      invitesRepository.findById.mockResolvedValue(makeInvite() as any);
+      invitesRepository.findById.mockResolvedValue(makeInvite());
       invitesRepository.softDeleteIfUnused.mockResolvedValue(1);
 
       const result = await service.revoke(workspaceId, inviteId, userId);
@@ -908,7 +908,7 @@ describe('InvitesService', () => {
         id: workspaceId,
       } as any);
       workspacesRepository.findMemberRole.mockResolvedValue('ADMIN');
-      invitesRepository.findById.mockResolvedValue(makeInvite() as any);
+      invitesRepository.findById.mockResolvedValue(makeInvite());
       invitesRepository.softDeleteIfUnused.mockResolvedValue(1);
 
       const result = await service.revoke(workspaceId, inviteId, userId);
@@ -951,7 +951,7 @@ describe('InvitesService', () => {
       } as any);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       invitesRepository.findById.mockResolvedValue(
-        makeInvite({ workspaceId: 'other-workspace-id' }) as any,
+        makeInvite({ workspaceId: 'other-workspace-id' }),
       );
 
       await expect(
@@ -966,7 +966,7 @@ describe('InvitesService', () => {
       } as any);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       invitesRepository.findById.mockResolvedValue(
-        makeInvite({ usedAt: new Date() }) as any,
+        makeInvite({ usedAt: new Date() }),
       );
 
       await expect(
@@ -981,7 +981,7 @@ describe('InvitesService', () => {
       } as any);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       invitesRepository.findById.mockResolvedValue(
-        makeInvite({ deletedAt: new Date() }) as any,
+        makeInvite({ deletedAt: new Date() }),
       );
 
       await expect(
@@ -996,8 +996,8 @@ describe('InvitesService', () => {
       } as any);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       invitesRepository.findById
-        .mockResolvedValueOnce(makeInvite() as any)
-        .mockResolvedValueOnce(makeInvite({ usedAt: new Date() }) as any);
+        .mockResolvedValueOnce(makeInvite())
+        .mockResolvedValueOnce(makeInvite({ usedAt: new Date() }));
       invitesRepository.softDeleteIfUnused.mockResolvedValue(0);
 
       await expect(
@@ -1012,8 +1012,8 @@ describe('InvitesService', () => {
       } as any);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       invitesRepository.findById
-        .mockResolvedValueOnce(makeInvite() as any)
-        .mockResolvedValueOnce(makeInvite({ deletedAt: new Date() }) as any);
+        .mockResolvedValueOnce(makeInvite())
+        .mockResolvedValueOnce(makeInvite({ deletedAt: new Date() }));
       invitesRepository.softDeleteIfUnused.mockResolvedValue(0);
 
       await expect(
@@ -1160,7 +1160,7 @@ describe('InvitesService', () => {
     }
 
     it('should reject accept if invite was revoked between validation and transaction', async () => {
-      invitesRepository.findByTokenHash.mockResolvedValue(makeInvite() as any);
+      invitesRepository.findByTokenHash.mockResolvedValue(makeInvite());
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
       } as any);
@@ -1169,7 +1169,7 @@ describe('InvitesService', () => {
         new Error('INVITE_ALREADY_USED_OR_REVOKED'),
       );
       invitesRepository.findById.mockResolvedValue(
-        makeInvite({ deletedAt: new Date() }) as any,
+        makeInvite({ deletedAt: new Date() }),
       );
 
       await expect(
@@ -1179,7 +1179,7 @@ describe('InvitesService', () => {
     });
 
     it('should reject accept if invite was used between validation and transaction', async () => {
-      invitesRepository.findByTokenHash.mockResolvedValue(makeInvite() as any);
+      invitesRepository.findByTokenHash.mockResolvedValue(makeInvite());
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
       } as any);
@@ -1188,7 +1188,7 @@ describe('InvitesService', () => {
         new Error('INVITE_ALREADY_USED_OR_REVOKED'),
       );
       invitesRepository.findById.mockResolvedValue(
-        makeInvite({ usedAt: new Date() }) as any,
+        makeInvite({ usedAt: new Date() }),
       );
 
       await expect(
@@ -1259,9 +1259,7 @@ describe('InvitesService', () => {
     }
 
     it('should allow accepting a valid invite by ID', async () => {
-      invitesRepository.findPendingById.mockResolvedValue(
-        makePendingInvite() as any,
-      );
+      invitesRepository.findPendingById.mockResolvedValue(makePendingInvite());
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
       } as any);
@@ -1304,7 +1302,7 @@ describe('InvitesService', () => {
 
     it('should reject expired invite', async () => {
       invitesRepository.findPendingById.mockResolvedValue(
-        makePendingInvite({ expiresAt: new Date(Date.now() - 1000) }) as any,
+        makePendingInvite({ expiresAt: new Date(Date.now() - 1000) }),
       );
 
       await expect(
@@ -1315,7 +1313,7 @@ describe('InvitesService', () => {
 
     it('should reject already used invite', async () => {
       invitesRepository.findPendingById.mockResolvedValue(
-        makePendingInvite({ usedAt: new Date() }) as any,
+        makePendingInvite({ usedAt: new Date() }),
       );
 
       await expect(
@@ -1325,9 +1323,7 @@ describe('InvitesService', () => {
     });
 
     it('should reject email mismatch', async () => {
-      invitesRepository.findPendingById.mockResolvedValue(
-        makePendingInvite() as any,
-      );
+      invitesRepository.findPendingById.mockResolvedValue(makePendingInvite());
 
       await expect(
         service.acceptById(inviteId, userId, 'different@example.com'),
@@ -1336,9 +1332,7 @@ describe('InvitesService', () => {
     });
 
     it('should reject already workspace member', async () => {
-      invitesRepository.findPendingById.mockResolvedValue(
-        makePendingInvite() as any,
-      );
+      invitesRepository.findPendingById.mockResolvedValue(makePendingInvite());
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
       } as any);
@@ -1351,9 +1345,7 @@ describe('InvitesService', () => {
     });
 
     it('should map Prisma P2002 to ConflictException on race condition', async () => {
-      invitesRepository.findPendingById.mockResolvedValue(
-        makePendingInvite() as any,
-      );
+      invitesRepository.findPendingById.mockResolvedValue(makePendingInvite());
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
       } as any);
@@ -1392,9 +1384,7 @@ describe('InvitesService', () => {
     }
 
     it('should allow declining a valid invite', async () => {
-      invitesRepository.findPendingById.mockResolvedValue(
-        makePendingInvite() as any,
-      );
+      invitesRepository.findPendingById.mockResolvedValue(makePendingInvite());
       invitesRepository.softDeleteIfUnused.mockResolvedValue(1);
 
       const result = await service.decline(
@@ -1427,7 +1417,7 @@ describe('InvitesService', () => {
 
     it('should reject expired invite', async () => {
       invitesRepository.findPendingById.mockResolvedValue(
-        makePendingInvite({ expiresAt: new Date(Date.now() - 1000) }) as any,
+        makePendingInvite({ expiresAt: new Date(Date.now() - 1000) }),
       );
 
       await expect(
@@ -1437,9 +1427,7 @@ describe('InvitesService', () => {
     });
 
     it('should reject email mismatch', async () => {
-      invitesRepository.findPendingById.mockResolvedValue(
-        makePendingInvite() as any,
-      );
+      invitesRepository.findPendingById.mockResolvedValue(makePendingInvite());
 
       await expect(
         service.decline(inviteId, userId, 'different@example.com'),
@@ -1448,11 +1436,9 @@ describe('InvitesService', () => {
     });
 
     it('should map race-used invite to ConflictException', async () => {
-      invitesRepository.findPendingById.mockResolvedValue(
-        makePendingInvite() as any,
-      );
+      invitesRepository.findPendingById.mockResolvedValue(makePendingInvite());
       invitesRepository.findById.mockResolvedValue(
-        makePendingInvite({ usedAt: new Date() }) as any,
+        makePendingInvite({ usedAt: new Date() }),
       );
       invitesRepository.softDeleteIfUnused.mockResolvedValue(0);
 
@@ -1463,11 +1449,9 @@ describe('InvitesService', () => {
     });
 
     it('should map race-deleted invite to NotFoundException', async () => {
-      invitesRepository.findPendingById.mockResolvedValue(
-        makePendingInvite() as any,
-      );
+      invitesRepository.findPendingById.mockResolvedValue(makePendingInvite());
       invitesRepository.findById.mockResolvedValue(
-        makePendingInvite({ deletedAt: new Date() }) as any,
+        makePendingInvite({ deletedAt: new Date() }),
       );
       invitesRepository.softDeleteIfUnused.mockResolvedValue(0);
 
