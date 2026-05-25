@@ -158,6 +158,7 @@ export class WorkspacesController {
   @ApiOperation({ summary: 'Add workspace member (disabled)' })
   @ApiGoneResponse({ description: 'Use workspace invitations to add members' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  /* eslint-disable @typescript-eslint/no-unused-vars */
   // eslint-disable-next-line @typescript-eslint/require-await
   async addMember(
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
@@ -166,6 +167,7 @@ export class WorkspacesController {
   ) {
     throw new GoneException('Use workspace invitations to add members');
   }
+  /* eslint-enable @typescript-eslint/no-unused-vars */
 
   @Patch(':workspaceId/members/:memberId/role')
   @ApiOperation({ summary: 'Update workspace member role' })

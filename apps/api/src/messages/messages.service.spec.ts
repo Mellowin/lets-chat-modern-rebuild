@@ -15,7 +15,6 @@ describe('MessagesService', () => {
   let messagesRepository: jest.Mocked<MessagesRepository>;
   let workspacesRepository: jest.Mocked<WorkspacesRepository>;
   let channelsRepository: jest.Mocked<ChannelsRepository>;
-  let websocketEvents: jest.Mocked<WebsocketEventsService>;
 
   const userId = '11111111-1111-1111-1111-111111111111';
   const otherUserId = '22222222-2222-2222-2222-222222222222';
@@ -65,7 +64,6 @@ describe('MessagesService', () => {
     messagesRepository = moduleRef.get(MessagesRepository);
     workspacesRepository = moduleRef.get(WorkspacesRepository);
     channelsRepository = moduleRef.get(ChannelsRepository);
-    websocketEvents = moduleRef.get(WebsocketEventsService);
   });
 
   afterEach(() => {

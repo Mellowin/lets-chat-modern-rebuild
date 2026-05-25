@@ -123,6 +123,7 @@ export class ChannelsController {
   @ApiOperation({ summary: 'Add channel member (disabled)' })
   @ApiGoneResponse({ description: 'Use channel invitations to add members' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  /* eslint-disable @typescript-eslint/no-unused-vars */
   // eslint-disable-next-line @typescript-eslint/require-await
   async addMember(
     @Param('workspaceId') workspaceId: string,
@@ -132,6 +133,7 @@ export class ChannelsController {
   ) {
     throw new GoneException('Use channel invitations to add members');
   }
+  /* eslint-enable @typescript-eslint/no-unused-vars */
 
   @Delete(':channelId/members/:memberId')
   @HttpCode(200)
