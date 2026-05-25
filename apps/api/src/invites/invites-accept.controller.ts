@@ -36,9 +36,7 @@ export class InvitesAcceptController {
   @ApiOperation({ summary: 'List pending invites for current user' })
   @ApiOkResponse({ description: 'Pending invites list' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
-  async listPending(
-    @CurrentUser() user: AuthUserResponse,
-  ) {
+  async listPending(@CurrentUser() user: AuthUserResponse) {
     return this.invites.listPending(user.id, user.email);
   }
 

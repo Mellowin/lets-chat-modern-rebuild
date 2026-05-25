@@ -106,7 +106,8 @@ export class WorkspacesService {
   }
 
   async restore(workspaceId: string, userId: string) {
-    const workspace = await this.workspaces.findByIdIncludingArchived(workspaceId);
+    const workspace =
+      await this.workspaces.findByIdIncludingArchived(workspaceId);
     if (!workspace) {
       throw new NotFoundException('Workspace not found');
     }
@@ -131,7 +132,10 @@ export class WorkspacesService {
       throw new NotFoundException('Workspace not found');
     }
 
-    const myMember = await this.workspaces.findActiveMemberByUserId(workspaceId, userId);
+    const myMember = await this.workspaces.findActiveMemberByUserId(
+      workspaceId,
+      userId,
+    );
     if (!myMember) {
       throw new NotFoundException('Workspace member not found');
     }
@@ -140,7 +144,10 @@ export class WorkspacesService {
       throw new ForbiddenException('Owner cannot leave workspace');
     }
 
-    const deletedCount = await this.workspaces.softDeleteMemberByUserId(workspaceId, userId);
+    const deletedCount = await this.workspaces.softDeleteMemberByUserId(
+      workspaceId,
+      userId,
+    );
     if (deletedCount === 0) {
       throw new NotFoundException('Workspace member not found');
     }
@@ -172,7 +179,10 @@ export class WorkspacesService {
       throw new NotFoundException('Workspace not found');
     }
 
-    const requesterRole = await this.workspaces.findMemberRole(workspaceId, userId);
+    const requesterRole = await this.workspaces.findMemberRole(
+      workspaceId,
+      userId,
+    );
     if (!requesterRole) {
       throw new NotFoundException('Workspace not found');
     }
@@ -229,7 +239,10 @@ export class WorkspacesService {
       throw new NotFoundException('Workspace not found');
     }
 
-    const requesterRole = await this.workspaces.findMemberRole(workspaceId, userId);
+    const requesterRole = await this.workspaces.findMemberRole(
+      workspaceId,
+      userId,
+    );
     if (!requesterRole) {
       throw new NotFoundException('Workspace not found');
     }
@@ -300,7 +313,10 @@ export class WorkspacesService {
       throw new NotFoundException('Workspace not found');
     }
 
-    const requesterRole = await this.workspaces.findMemberRole(workspaceId, userId);
+    const requesterRole = await this.workspaces.findMemberRole(
+      workspaceId,
+      userId,
+    );
     if (!requesterRole) {
       throw new NotFoundException('Workspace not found');
     }
@@ -427,7 +443,10 @@ export class WorkspacesService {
       throw new NotFoundException('Workspace not found');
     }
 
-    const requesterRole = await this.workspaces.findMemberRole(workspaceId, userId);
+    const requesterRole = await this.workspaces.findMemberRole(
+      workspaceId,
+      userId,
+    );
     if (!requesterRole) {
       throw new NotFoundException('Workspace not found');
     }

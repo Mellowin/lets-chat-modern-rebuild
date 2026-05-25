@@ -29,7 +29,9 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUserResponse } from '../auth/auth.service';
 
 @ApiTags('Reactions')
-@Controller('workspaces/:workspaceId/channels/:channelId/messages/:messageId/reactions')
+@Controller(
+  'workspaces/:workspaceId/channels/:channelId/messages/:messageId/reactions',
+)
 @UseGuards(JwtAccessGuard)
 @ApiBearerAuth()
 export class ReactionsController {

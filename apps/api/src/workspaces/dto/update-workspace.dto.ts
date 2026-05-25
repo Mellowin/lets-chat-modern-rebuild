@@ -7,8 +7,6 @@ export class UpdateWorkspaceDto {
   @IsString()
   @MinLength(2)
   @MaxLength(80)
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   name: string;
 }

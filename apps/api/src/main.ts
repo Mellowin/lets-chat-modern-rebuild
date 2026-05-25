@@ -12,7 +12,9 @@ class FilteredLogger extends ConsoleLogger {
 }
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { logger: new FilteredLogger() });
+  const app = await NestFactory.create(AppModule, {
+    logger: new FilteredLogger(),
+  });
   const configService = app.get(ConfigService);
 
   app.setGlobalPrefix('api/v1');

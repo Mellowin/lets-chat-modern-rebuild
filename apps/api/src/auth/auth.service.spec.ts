@@ -75,7 +75,10 @@ describe('AuthService', () => {
 
     const result = await service.updateMe('user-id', 'John Doe');
 
-    expect(usersRepository.updateDisplayName).toHaveBeenCalledWith('user-id', 'John Doe');
+    expect(usersRepository.updateDisplayName).toHaveBeenCalledWith(
+      'user-id',
+      'John Doe',
+    );
     expect(result.displayName).toBe('John Doe');
   });
 
@@ -130,9 +133,15 @@ describe('AuthService', () => {
 
     usersRepository.updateAvatar.mockResolvedValue(user as any);
 
-    const result = await service.updateAvatar('user-id', '/avatars/avatar-3.svg');
+    const result = await service.updateAvatar(
+      'user-id',
+      '/avatars/avatar-3.svg',
+    );
 
-    expect(usersRepository.updateAvatar).toHaveBeenCalledWith('user-id', '/avatars/avatar-3.svg');
+    expect(usersRepository.updateAvatar).toHaveBeenCalledWith(
+      'user-id',
+      '/avatars/avatar-3.svg',
+    );
     expect(result.avatarUrl).toBe('/avatars/avatar-3.svg');
     expect(result.avatarUpdatedAt).toBeInstanceOf(Date);
   });
@@ -151,7 +160,10 @@ describe('AuthService', () => {
 
     usersRepository.updateAvatar.mockResolvedValue(user as any);
 
-    const result = await service.updateAvatar('user-id', '/avatars/avatar-1.svg');
+    const result = await service.updateAvatar(
+      'user-id',
+      '/avatars/avatar-1.svg',
+    );
 
     expect(result).not.toHaveProperty('passwordHash');
   });

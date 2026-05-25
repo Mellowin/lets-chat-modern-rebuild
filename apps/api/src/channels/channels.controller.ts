@@ -145,7 +145,12 @@ export class ChannelsController {
     @Param('memberId') memberId: string,
     @CurrentUser() user: AuthUserResponse,
   ) {
-    return this.channels.removeChannelMember(workspaceId, channelId, memberId, user.id);
+    return this.channels.removeChannelMember(
+      workspaceId,
+      channelId,
+      memberId,
+      user.id,
+    );
   }
 
   @Post(':channelId/leave')

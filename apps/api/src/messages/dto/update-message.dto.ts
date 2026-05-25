@@ -7,8 +7,6 @@ export class UpdateMessageDto {
   @IsString()
   @MinLength(1)
   @MaxLength(4000)
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   content: string;
 }

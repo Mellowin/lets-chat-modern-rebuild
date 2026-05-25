@@ -52,7 +52,12 @@ export class ReactionsService {
     if (deleted) {
       try {
         const restored = await this.reactions.restore(deleted.id);
-        await this.broadcastReactionAdded(channelId, messageId, restored.emoji, userId);
+        await this.broadcastReactionAdded(
+          channelId,
+          messageId,
+          restored.emoji,
+          userId,
+        );
         return restored;
       } catch (error) {
         if (
@@ -71,7 +76,12 @@ export class ReactionsService {
         userId,
         emoji: dto.emoji,
       });
-      await this.broadcastReactionAdded(channelId, messageId, created.emoji, userId);
+      await this.broadcastReactionAdded(
+        channelId,
+        messageId,
+        created.emoji,
+        userId,
+      );
       return created;
     } catch (error) {
       if (
@@ -109,7 +119,12 @@ export class ReactionsService {
     }
 
     await this.reactions.softDelete(active.id);
-    await this.broadcastReactionRemoved(channelId, messageId, active.emoji, userId);
+    await this.broadcastReactionRemoved(
+      channelId,
+      messageId,
+      active.emoji,
+      userId,
+    );
   }
 
   async listReactions(
@@ -180,7 +195,11 @@ export class ReactionsService {
 
   private async validateMessage(channelId: string, messageId: string) {
     const message = await this.messages.findById(messageId);
-    if (!message || message.channelId !== channelId || message.deletedAt !== null) {
+    if (
+      !message ||
+      message.channelId !== channelId ||
+      message.deletedAt !== null
+    ) {
       throw new NotFoundException('Message not found');
     }
   }

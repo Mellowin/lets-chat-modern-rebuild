@@ -7,7 +7,12 @@ describe('InvitesController', () => {
   let controller: InvitesController;
   let invitesService: jest.Mocked<InvitesService>;
 
-  const user = { id: 'user-id', email: 'u@test.com', username: 'user', createdAt: new Date() };
+  const user = {
+    id: 'user-id',
+    email: 'u@test.com',
+    username: 'user',
+    createdAt: new Date(),
+  };
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -39,7 +44,15 @@ describe('InvitesController', () => {
 
   it('should call create service method', async () => {
     invitesService.create.mockResolvedValue({} as any);
-    await controller.create('workspace-id', { email: 'test@test.com', role: 'MEMBER' }, user as any);
-    expect(invitesService.create).toHaveBeenCalledWith('workspace-id', { email: 'test@test.com', role: 'MEMBER' }, 'user-id');
+    await controller.create(
+      'workspace-id',
+      { email: 'test@test.com', role: 'MEMBER' },
+      user as any,
+    );
+    expect(invitesService.create).toHaveBeenCalledWith(
+      'workspace-id',
+      { email: 'test@test.com', role: 'MEMBER' },
+      'user-id',
+    );
   });
 });

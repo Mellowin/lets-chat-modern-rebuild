@@ -33,7 +33,8 @@ import { AppController } from './app.controller';
     LoggerModule.forRoot({
       pinoHttp: {
         genReqId: (req) =>
-          normalizeRequestId(req.headers['x-request-id']) || crypto.randomUUID(),
+          normalizeRequestId(req.headers['x-request-id']) ||
+          crypto.randomUUID(),
         customProps: (req) => ({ requestId: req.id }),
       },
     }),

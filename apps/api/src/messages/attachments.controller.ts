@@ -69,7 +69,9 @@ export class AttachmentsController {
     type: CompleteAttachmentResponseDto,
   })
   @ApiConflictResponse({ description: 'Upload not completed' })
-  @ApiUnprocessableEntityResponse({ description: 'Size or content-type mismatch' })
+  @ApiUnprocessableEntityResponse({
+    description: 'Size or content-type mismatch',
+  })
   @ApiNotFoundResponse({ description: 'Attachment or message not found' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   async complete(

@@ -204,10 +204,9 @@ describe('ChannelInvitesService', () => {
       );
 
       expect(result.id).toBe('invite-id-2');
-      expect(channelInvitesRepository.findPendingByChannelAndEmail).toHaveBeenCalledWith(
-        channelId,
-        'bob@example.com',
-      );
+      expect(
+        channelInvitesRepository.findPendingByChannelAndEmail,
+      ).toHaveBeenCalledWith(channelId, 'bob@example.com');
     });
 
     it('should allow OWNER to create channel invite by email for existing workspace member', async () => {

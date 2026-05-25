@@ -73,8 +73,12 @@ export class MessagesController {
   @ApiOperation({ summary: 'Update message' })
   @ApiOkResponse({ description: 'Message updated' })
   @ApiBadRequestResponse({ description: 'Validation failed' })
-  @ApiForbiddenResponse({ description: 'Only the author can edit this message' })
-  @ApiUnprocessableEntityResponse({ description: 'Message edit window has expired' })
+  @ApiForbiddenResponse({
+    description: 'Only the author can edit this message',
+  })
+  @ApiUnprocessableEntityResponse({
+    description: 'Message edit window has expired',
+  })
   @ApiNotFoundResponse({ description: 'Message or channel not found' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   async update(
@@ -84,7 +88,13 @@ export class MessagesController {
     @Body() dto: UpdateMessageDto,
     @CurrentUser() user: AuthUserResponse,
   ) {
-    return this.messages.update(workspaceId, channelId, messageId, dto, user.id);
+    return this.messages.update(
+      workspaceId,
+      channelId,
+      messageId,
+      dto,
+      user.id,
+    );
   }
 
   @Delete(':messageId')

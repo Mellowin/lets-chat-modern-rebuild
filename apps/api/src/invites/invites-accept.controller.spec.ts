@@ -41,24 +41,50 @@ describe('InvitesAcceptController', () => {
   it('should call listPending service method', async () => {
     invitesService.listPending.mockResolvedValue([]);
     await controller.listPending(user as any);
-    expect(invitesService.listPending).toHaveBeenCalledWith('user-id', 'u@test.com');
+    expect(invitesService.listPending).toHaveBeenCalledWith(
+      'user-id',
+      'u@test.com',
+    );
   });
 
   it('should call acceptById service method', async () => {
-    invitesService.acceptById.mockResolvedValue({ workspaceId: 'ws-id', role: 'MEMBER', joinedAt: new Date() });
+    invitesService.acceptById.mockResolvedValue({
+      workspaceId: 'ws-id',
+      role: 'MEMBER',
+      joinedAt: new Date(),
+    });
     await controller.acceptById('invite-id', user as any);
-    expect(invitesService.acceptById).toHaveBeenCalledWith('invite-id', 'user-id', 'u@test.com');
+    expect(invitesService.acceptById).toHaveBeenCalledWith(
+      'invite-id',
+      'user-id',
+      'u@test.com',
+    );
   });
 
   it('should call decline service method', async () => {
-    invitesService.decline.mockResolvedValue({ id: 'invite-id', deletedAt: new Date() });
+    invitesService.decline.mockResolvedValue({
+      id: 'invite-id',
+      deletedAt: new Date(),
+    });
     await controller.decline('invite-id', user as any);
-    expect(invitesService.decline).toHaveBeenCalledWith('invite-id', 'user-id', 'u@test.com');
+    expect(invitesService.decline).toHaveBeenCalledWith(
+      'invite-id',
+      'user-id',
+      'u@test.com',
+    );
   });
 
   it('should call accept service method', async () => {
-    invitesService.accept.mockResolvedValue({ workspaceId: 'ws-id', role: 'MEMBER', joinedAt: new Date() });
+    invitesService.accept.mockResolvedValue({
+      workspaceId: 'ws-id',
+      role: 'MEMBER',
+      joinedAt: new Date(),
+    });
     await controller.accept({ token: 'token123' }, user as any);
-    expect(invitesService.accept).toHaveBeenCalledWith('token123', 'user-id', 'u@test.com');
+    expect(invitesService.accept).toHaveBeenCalledWith(
+      'token123',
+      'user-id',
+      'u@test.com',
+    );
   });
 });

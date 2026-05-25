@@ -14,18 +14,14 @@ export class CreateChannelDto {
   @IsString()
   @MinLength(2)
   @MaxLength(80)
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   name: string;
 
   @ApiProperty({ example: 'General discussion', required: false })
   @IsOptional()
   @IsString()
   @MaxLength(300)
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   description?: string;
 
   @ApiProperty({ example: 'PUBLIC', enum: ChannelType, required: false })

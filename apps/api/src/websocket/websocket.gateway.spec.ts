@@ -93,7 +93,11 @@ describe('WebsocketGateway', () => {
         handshake: { auth: { token: ' valid-token ' } } as any,
       });
 
-      tokenService.verifyAccessToken.mockResolvedValue({ sub: userId, email: 'test@test.com', jti: 'jti-1' });
+      tokenService.verifyAccessToken.mockResolvedValue({
+        sub: userId,
+        email: 'test@test.com',
+        jti: 'jti-1',
+      });
       usersRepository.findById.mockResolvedValue({
         id: userId,
         email: 'test@test.com',
@@ -102,7 +106,9 @@ describe('WebsocketGateway', () => {
 
       await gateway.handleConnection(socket);
 
-      expect(tokenService.verifyAccessToken).toHaveBeenCalledWith('valid-token');
+      expect(tokenService.verifyAccessToken).toHaveBeenCalledWith(
+        'valid-token',
+      );
       expect(socket.data.user).toEqual({
         id: userId,
         email: 'test@test.com',
@@ -117,7 +123,9 @@ describe('WebsocketGateway', () => {
 
       await gateway.handleConnection(socket);
 
-      expect(socket.emit).toHaveBeenCalledWith('auth:error', { message: 'Access token missing' });
+      expect(socket.emit).toHaveBeenCalledWith('auth:error', {
+        message: 'Access token missing',
+      });
       expect(socket.disconnect).toHaveBeenCalledWith(true);
     });
 
@@ -128,7 +136,9 @@ describe('WebsocketGateway', () => {
 
       await gateway.handleConnection(socket);
 
-      expect(socket.emit).toHaveBeenCalledWith('auth:error', { message: 'Access token missing' });
+      expect(socket.emit).toHaveBeenCalledWith('auth:error', {
+        message: 'Access token missing',
+      });
       expect(socket.disconnect).toHaveBeenCalledWith(true);
     });
 
@@ -139,7 +149,9 @@ describe('WebsocketGateway', () => {
 
       await gateway.handleConnection(socket);
 
-      expect(socket.emit).toHaveBeenCalledWith('auth:error', { message: 'Access token missing' });
+      expect(socket.emit).toHaveBeenCalledWith('auth:error', {
+        message: 'Access token missing',
+      });
       expect(socket.disconnect).toHaveBeenCalledWith(true);
     });
 
@@ -150,7 +162,9 @@ describe('WebsocketGateway', () => {
 
       await gateway.handleConnection(socket);
 
-      expect(socket.emit).toHaveBeenCalledWith('auth:error', { message: 'Access token missing' });
+      expect(socket.emit).toHaveBeenCalledWith('auth:error', {
+        message: 'Access token missing',
+      });
       expect(socket.disconnect).toHaveBeenCalledWith(true);
     });
 
@@ -163,7 +177,9 @@ describe('WebsocketGateway', () => {
 
       await gateway.handleConnection(socket);
 
-      expect(socket.emit).toHaveBeenCalledWith('auth:expired', { message: 'Invalid or expired access token' });
+      expect(socket.emit).toHaveBeenCalledWith('auth:expired', {
+        message: 'Invalid or expired access token',
+      });
       expect(socket.disconnect).toHaveBeenCalledWith(true);
     });
 
@@ -172,12 +188,18 @@ describe('WebsocketGateway', () => {
         handshake: { auth: { token: 'valid' } } as any,
       });
 
-      tokenService.verifyAccessToken.mockResolvedValue({ sub: userId, email: 'test@test.com', jti: 'jti-1' });
+      tokenService.verifyAccessToken.mockResolvedValue({
+        sub: userId,
+        email: 'test@test.com',
+        jti: 'jti-1',
+      });
       usersRepository.findById.mockResolvedValue(null);
 
       await gateway.handleConnection(socket);
 
-      expect(socket.emit).toHaveBeenCalledWith('auth:error', { message: 'User not found' });
+      expect(socket.emit).toHaveBeenCalledWith('auth:error', {
+        message: 'User not found',
+      });
       expect(socket.disconnect).toHaveBeenCalledWith(true);
     });
   });
@@ -192,9 +214,16 @@ describe('WebsocketGateway', () => {
 
       await gateway.handleChannelJoin(socket, { workspaceId, channelId });
 
-      expect(channelsService.findById).toHaveBeenCalledWith(workspaceId, channelId, userId);
+      expect(channelsService.findById).toHaveBeenCalledWith(
+        workspaceId,
+        channelId,
+        userId,
+      );
       expect(socket.join).toHaveBeenCalledWith(`channel:${channelId}`);
-      expect(socket.emit).toHaveBeenCalledWith('channel:joined', { workspaceId, channelId });
+      expect(socket.emit).toHaveBeenCalledWith('channel:joined', {
+        workspaceId,
+        channelId,
+      });
     });
 
     it('should reject when not authenticated', async () => {
@@ -202,7 +231,9 @@ describe('WebsocketGateway', () => {
 
       await gateway.handleChannelJoin(socket, { workspaceId, channelId });
 
-      expect(socket.emit).toHaveBeenCalledWith('channel:error', { message: 'Not authenticated' });
+      expect(socket.emit).toHaveBeenCalledWith('channel:error', {
+        message: 'Not authenticated',
+      });
       expect(channelsService.findById).not.toHaveBeenCalled();
     });
 
@@ -211,9 +242,14 @@ describe('WebsocketGateway', () => {
         data: { user: { id: userId } },
       });
 
-      await gateway.handleChannelJoin(socket, { workspaceId: 'bad', channelId });
+      await gateway.handleChannelJoin(socket, {
+        workspaceId: 'bad',
+        channelId,
+      });
 
-      expect(socket.emit).toHaveBeenCalledWith('channel:error', { message: 'Invalid UUID' });
+      expect(socket.emit).toHaveBeenCalledWith('channel:error', {
+        message: 'Invalid UUID',
+      });
       expect(channelsService.findById).not.toHaveBeenCalled();
     });
 
@@ -222,9 +258,14 @@ describe('WebsocketGateway', () => {
         data: { user: { id: userId } },
       });
 
-      await gateway.handleChannelJoin(socket, { workspaceId, channelId: 'bad' });
+      await gateway.handleChannelJoin(socket, {
+        workspaceId,
+        channelId: 'bad',
+      });
 
-      expect(socket.emit).toHaveBeenCalledWith('channel:error', { message: 'Invalid UUID' });
+      expect(socket.emit).toHaveBeenCalledWith('channel:error', {
+        message: 'Invalid UUID',
+      });
       expect(channelsService.findById).not.toHaveBeenCalled();
     });
 
@@ -233,11 +274,15 @@ describe('WebsocketGateway', () => {
         data: { user: { id: userId } },
       });
 
-      channelsService.findById.mockRejectedValue(new NotFoundException('Channel not found'));
+      channelsService.findById.mockRejectedValue(
+        new NotFoundException('Channel not found'),
+      );
 
       await gateway.handleChannelJoin(socket, { workspaceId, channelId });
 
-      expect(socket.emit).toHaveBeenCalledWith('channel:error', { message: 'Channel not found' });
+      expect(socket.emit).toHaveBeenCalledWith('channel:error', {
+        message: 'Channel not found',
+      });
     });
 
     it('should emit generic error on unexpected failure', async () => {
@@ -249,7 +294,9 @@ describe('WebsocketGateway', () => {
 
       await gateway.handleChannelJoin(socket, { workspaceId, channelId });
 
-      expect(socket.emit).toHaveBeenCalledWith('channel:error', { message: 'Failed to join channel' });
+      expect(socket.emit).toHaveBeenCalledWith('channel:error', {
+        message: 'Failed to join channel',
+      });
     });
   });
 
@@ -271,7 +318,9 @@ describe('WebsocketGateway', () => {
 
       await gateway.handleChannelLeave(socket, { channelId });
 
-      expect(socket.emit).toHaveBeenCalledWith('channel:error', { message: 'Not authenticated' });
+      expect(socket.emit).toHaveBeenCalledWith('channel:error', {
+        message: 'Not authenticated',
+      });
     });
 
     it('should reject invalid channelId', async () => {
@@ -281,7 +330,9 @@ describe('WebsocketGateway', () => {
 
       await gateway.handleChannelLeave(socket, { channelId: 'bad' });
 
-      expect(socket.emit).toHaveBeenCalledWith('channel:error', { message: 'Invalid UUID' });
+      expect(socket.emit).toHaveBeenCalledWith('channel:error', {
+        message: 'Invalid UUID',
+      });
     });
 
     it('should reject when room not joined', async () => {
@@ -309,13 +360,23 @@ describe('WebsocketGateway', () => {
 
       await gateway.handleTypingStart(socket, { workspaceId, channelId });
 
-      expect(channelsService.findById).toHaveBeenCalledWith(workspaceId, channelId, userId);
-      expect(socket.to).toHaveBeenCalledWith(`channel:${channelId}`);
-      expect(socket.to(`channel:${channelId}`).emit).toHaveBeenCalledWith('typing:started', {
+      expect(channelsService.findById).toHaveBeenCalledWith(
+        workspaceId,
         channelId,
-        user: { id: userId, username: 'testuser' },
-      });
-      expect(socket.emit).not.toHaveBeenCalledWith('typing:start', expect.anything());
+        userId,
+      );
+      expect(socket.to).toHaveBeenCalledWith(`channel:${channelId}`);
+      expect(socket.to(`channel:${channelId}`).emit).toHaveBeenCalledWith(
+        'typing:started',
+        {
+          channelId,
+          user: { id: userId, username: 'testuser' },
+        },
+      );
+      expect(socket.emit).not.toHaveBeenCalledWith(
+        'typing:start',
+        expect.anything(),
+      );
     });
 
     it('should reject when not authenticated', async () => {
@@ -323,7 +384,9 @@ describe('WebsocketGateway', () => {
 
       await gateway.handleTypingStart(socket, { workspaceId, channelId });
 
-      expect(socket.emit).toHaveBeenCalledWith('typing:error', { message: 'Not authenticated' });
+      expect(socket.emit).toHaveBeenCalledWith('typing:error', {
+        message: 'Not authenticated',
+      });
     });
 
     it('should reject invalid workspaceId', async () => {
@@ -331,9 +394,14 @@ describe('WebsocketGateway', () => {
         data: { user: { id: userId, username: 'testuser' } },
       });
 
-      await gateway.handleTypingStart(socket, { workspaceId: 'bad', channelId });
+      await gateway.handleTypingStart(socket, {
+        workspaceId: 'bad',
+        channelId,
+      });
 
-      expect(socket.emit).toHaveBeenCalledWith('typing:error', { message: 'Invalid UUID' });
+      expect(socket.emit).toHaveBeenCalledWith('typing:error', {
+        message: 'Invalid UUID',
+      });
     });
 
     it('should reject invalid channelId', async () => {
@@ -341,9 +409,14 @@ describe('WebsocketGateway', () => {
         data: { user: { id: userId, username: 'testuser' } },
       });
 
-      await gateway.handleTypingStart(socket, { workspaceId, channelId: 'bad' });
+      await gateway.handleTypingStart(socket, {
+        workspaceId,
+        channelId: 'bad',
+      });
 
-      expect(socket.emit).toHaveBeenCalledWith('typing:error', { message: 'Invalid UUID' });
+      expect(socket.emit).toHaveBeenCalledWith('typing:error', {
+        message: 'Invalid UUID',
+      });
     });
 
     it('should reject when room not joined', async () => {
@@ -370,7 +443,9 @@ describe('WebsocketGateway', () => {
       await gateway.handleTypingStart(socket, { workspaceId, channelId });
 
       expect(socket.to).not.toHaveBeenCalled();
-      expect(socket.emit).toHaveBeenCalledWith('typing:error', { message: 'User data missing' });
+      expect(socket.emit).toHaveBeenCalledWith('typing:error', {
+        message: 'User data missing',
+      });
     });
 
     it('should leave room and emit error when channel access is revoked', async () => {
@@ -408,12 +483,19 @@ describe('WebsocketGateway', () => {
 
       await gateway.handleTypingStop(socket, { workspaceId, channelId });
 
-      expect(channelsService.findById).toHaveBeenCalledWith(workspaceId, channelId, userId);
-      expect(socket.to).toHaveBeenCalledWith(`channel:${channelId}`);
-      expect(socket.to(`channel:${channelId}`).emit).toHaveBeenCalledWith('typing:stopped', {
+      expect(channelsService.findById).toHaveBeenCalledWith(
+        workspaceId,
         channelId,
-        user: { id: userId, username: 'testuser' },
-      });
+        userId,
+      );
+      expect(socket.to).toHaveBeenCalledWith(`channel:${channelId}`);
+      expect(socket.to(`channel:${channelId}`).emit).toHaveBeenCalledWith(
+        'typing:stopped',
+        {
+          channelId,
+          user: { id: userId, username: 'testuser' },
+        },
+      );
     });
 
     it('should reject when not authenticated', async () => {
@@ -421,7 +503,9 @@ describe('WebsocketGateway', () => {
 
       await gateway.handleTypingStop(socket, { workspaceId, channelId });
 
-      expect(socket.emit).toHaveBeenCalledWith('typing:error', { message: 'Not authenticated' });
+      expect(socket.emit).toHaveBeenCalledWith('typing:error', {
+        message: 'Not authenticated',
+      });
     });
   });
 
@@ -432,7 +516,11 @@ describe('WebsocketGateway', () => {
         handshake: { auth: { token: 'valid' } } as any,
       });
 
-      tokenService.verifyAccessToken.mockResolvedValue({ sub: userId, email: 'test@test.com', jti: 'jti-1' });
+      tokenService.verifyAccessToken.mockResolvedValue({
+        sub: userId,
+        email: 'test@test.com',
+        jti: 'jti-1',
+      });
       usersRepository.findById.mockResolvedValue({
         id: userId,
         email: 'test@test.com',
@@ -441,7 +529,9 @@ describe('WebsocketGateway', () => {
 
       await gateway.handleConnection(socket);
 
-      expect(gateway['presence']['userSockets'].get(userId)).toContain('socket-a');
+      expect(gateway['presence']['userSockets'].get(userId)).toContain(
+        'socket-a',
+      );
     });
 
     it('should not track unauthenticated socket', async () => {
@@ -466,11 +556,16 @@ describe('WebsocketGateway', () => {
       await gateway.handleChannelJoin(socket, { workspaceId, channelId });
 
       expect(socket.to).toHaveBeenCalledWith(`channel:${channelId}`);
-      expect(socket.to(`channel:${channelId}`).emit).toHaveBeenCalledWith('presence:online', {
-        user: { id: userId, username: 'testuser' },
-        status: 'online',
-      });
-      expect(gateway['presence']['userRooms'].get(userId)).toContain(`channel:${channelId}`);
+      expect(socket.to(`channel:${channelId}`).emit).toHaveBeenCalledWith(
+        'presence:online',
+        {
+          user: { id: userId, username: 'testuser' },
+          status: 'online',
+        },
+      );
+      expect(gateway['presence']['userRooms'].get(userId)).toContain(
+        `channel:${channelId}`,
+      );
     });
 
     it('should emit presence:offline on channel leave when no other socket in room', async () => {
@@ -479,19 +574,35 @@ describe('WebsocketGateway', () => {
         data: { user: { id: userId, username: 'testuser' } },
       });
       socket.rooms.add(`channel:${channelId}`);
-      gateway['presence']['userSockets'].set(userId, new Set(['socket-d1', 'socket-d2']));
-      gateway['presence']['socketRooms'].set('socket-d1', new Set([`channel:${channelId}`]));
+      gateway['presence']['userSockets'].set(
+        userId,
+        new Set(['socket-d1', 'socket-d2']),
+      );
+      gateway['presence']['socketRooms'].set(
+        'socket-d1',
+        new Set([`channel:${channelId}`]),
+      );
       gateway['presence']['socketRooms'].set('socket-d2', new Set());
-      gateway['presence']['userRooms'].set(userId, new Set([`channel:${channelId}`]));
+      gateway['presence']['userRooms'].set(
+        userId,
+        new Set([`channel:${channelId}`]),
+      );
 
       await gateway.handleChannelLeave(socket, { channelId });
 
       expect(socket.to).toHaveBeenCalledWith(`channel:${channelId}`);
-      expect(socket.to(`channel:${channelId}`).emit).toHaveBeenCalledWith('presence:offline', {
-        user: { id: userId, username: 'testuser' },
-        status: 'offline',
-      });
-      expect(gateway['presence']['userRooms'].get(userId)?.has(`channel:${channelId}`)).toBe(false);
+      expect(socket.to(`channel:${channelId}`).emit).toHaveBeenCalledWith(
+        'presence:offline',
+        {
+          user: { id: userId, username: 'testuser' },
+          status: 'offline',
+        },
+      );
+      expect(
+        gateway['presence']['userRooms']
+          .get(userId)
+          ?.has(`channel:${channelId}`),
+      ).toBe(false);
     });
 
     it('should not emit offline on leave when another socket still in room', async () => {
@@ -505,24 +616,47 @@ describe('WebsocketGateway', () => {
       });
       socket1.rooms.add(`channel:${channelId}`);
       socket2.rooms.add(`channel:${channelId}`);
-      gateway['presence']['userSockets'].set(userId, new Set(['socket-e1', 'socket-e2']));
-      gateway['presence']['socketRooms'].set('socket-e1', new Set([`channel:${channelId}`]));
-      gateway['presence']['socketRooms'].set('socket-e2', new Set([`channel:${channelId}`]));
-      gateway['presence']['userRooms'].set(userId, new Set([`channel:${channelId}`]));
+      gateway['presence']['userSockets'].set(
+        userId,
+        new Set(['socket-e1', 'socket-e2']),
+      );
+      gateway['presence']['socketRooms'].set(
+        'socket-e1',
+        new Set([`channel:${channelId}`]),
+      );
+      gateway['presence']['socketRooms'].set(
+        'socket-e2',
+        new Set([`channel:${channelId}`]),
+      );
+      gateway['presence']['userRooms'].set(
+        userId,
+        new Set([`channel:${channelId}`]),
+      );
 
       await gateway.handleChannelLeave(socket1, { channelId });
 
       expect(socket1.to).not.toHaveBeenCalled();
-      expect(gateway['presence']['userRooms'].get(userId)?.has(`channel:${channelId}`)).toBe(true);
+      expect(
+        gateway['presence']['userRooms']
+          .get(userId)
+          ?.has(`channel:${channelId}`),
+      ).toBe(true);
 
       await gateway.handleChannelLeave(socket2, { channelId });
 
       expect(socket2.to).toHaveBeenCalledWith(`channel:${channelId}`);
-      expect(socket2.to(`channel:${channelId}`).emit).toHaveBeenCalledWith('presence:offline', {
-        user: { id: userId, username: 'testuser' },
-        status: 'offline',
-      });
-      expect(gateway['presence']['userRooms'].get(userId)?.has(`channel:${channelId}`)).toBe(false);
+      expect(socket2.to(`channel:${channelId}`).emit).toHaveBeenCalledWith(
+        'presence:offline',
+        {
+          user: { id: userId, username: 'testuser' },
+          status: 'offline',
+        },
+      );
+      expect(
+        gateway['presence']['userRooms']
+          .get(userId)
+          ?.has(`channel:${channelId}`),
+      ).toBe(false);
     });
 
     it('should emit presence:offline on last socket disconnect', async () => {
@@ -531,14 +665,22 @@ describe('WebsocketGateway', () => {
         data: { user: { id: userId, username: 'testuser' } },
       });
       gateway['presence']['userSockets'].set(userId, new Set(['socket-f']));
-      gateway['presence']['socketRooms'].set('socket-f', new Set([`channel:${channelId}`]));
-      gateway['presence']['userRooms'].set(userId, new Set([`channel:${channelId}`]));
+      gateway['presence']['socketRooms'].set(
+        'socket-f',
+        new Set([`channel:${channelId}`]),
+      );
+      gateway['presence']['userRooms'].set(
+        userId,
+        new Set([`channel:${channelId}`]),
+      );
 
       gateway.handleDisconnect(socket);
 
       expect(gateway['presence']['userSockets'].has(userId)).toBe(false);
       expect(gateway.server.to).toHaveBeenCalledWith(`channel:${channelId}`);
-      expect(gateway.server.to(`channel:${channelId}`).emit).toHaveBeenCalledWith('presence:offline', {
+      expect(
+        gateway.server.to(`channel:${channelId}`).emit,
+      ).toHaveBeenCalledWith('presence:offline', {
         user: { id: userId, username: 'testuser' },
         status: 'offline',
       });
@@ -556,7 +698,10 @@ describe('WebsocketGateway', () => {
       const room1 = `channel:${channelId}`;
       const room2 = `channel:44444444-4444-4444-4444-444444444444`;
 
-      gateway['presence']['userSockets'].set(userId, new Set(['socket-g1', 'socket-g2']));
+      gateway['presence']['userSockets'].set(
+        userId,
+        new Set(['socket-g1', 'socket-g2']),
+      );
       gateway['presence']['socketRooms'].set('socket-g1', new Set([room1]));
       gateway['presence']['socketRooms'].set('socket-g2', new Set([room2]));
       gateway['presence']['userRooms'].set(userId, new Set([room1, room2]));
@@ -564,23 +709,35 @@ describe('WebsocketGateway', () => {
       gateway.handleDisconnect(socket1);
 
       expect(gateway['presence']['userSockets'].has(userId)).toBe(true);
-      expect(gateway['presence']['userSockets'].get(userId)).toContain('socket-g2');
+      expect(gateway['presence']['userSockets'].get(userId)).toContain(
+        'socket-g2',
+      );
       expect(gateway.server.to).toHaveBeenCalledWith(room1);
-      expect(gateway.server.to(room1).emit).toHaveBeenCalledWith('presence:offline', {
-        user: { id: userId, username: 'testuser' },
-        status: 'offline',
-      });
-      expect(gateway['presence']['userRooms'].get(userId)?.has(room1)).toBe(false);
-      expect(gateway['presence']['userRooms'].get(userId)?.has(room2)).toBe(true);
+      expect(gateway.server.to(room1).emit).toHaveBeenCalledWith(
+        'presence:offline',
+        {
+          user: { id: userId, username: 'testuser' },
+          status: 'offline',
+        },
+      );
+      expect(gateway['presence']['userRooms'].get(userId)?.has(room1)).toBe(
+        false,
+      );
+      expect(gateway['presence']['userRooms'].get(userId)?.has(room2)).toBe(
+        true,
+      );
 
       gateway.handleDisconnect(socket2);
 
       expect(gateway['presence']['userSockets'].has(userId)).toBe(false);
       expect(gateway.server.to).toHaveBeenCalledWith(room2);
-      expect(gateway.server.to(room2).emit).toHaveBeenCalledWith('presence:offline', {
-        user: { id: userId, username: 'testuser' },
-        status: 'offline',
-      });
+      expect(gateway.server.to(room2).emit).toHaveBeenCalledWith(
+        'presence:offline',
+        {
+          user: { id: userId, username: 'testuser' },
+          status: 'offline',
+        },
+      );
       expect(gateway['presence']['userRooms'].has(userId)).toBe(false);
     });
 
@@ -595,7 +752,10 @@ describe('WebsocketGateway', () => {
       });
       const room = `channel:${channelId}`;
 
-      gateway['presence']['userSockets'].set(userId, new Set(['socket-h1', 'socket-h2']));
+      gateway['presence']['userSockets'].set(
+        userId,
+        new Set(['socket-h1', 'socket-h2']),
+      );
       gateway['presence']['socketRooms'].set('socket-h1', new Set([room]));
       gateway['presence']['socketRooms'].set('socket-h2', new Set([room]));
       gateway['presence']['userRooms'].set(userId, new Set([room]));
@@ -604,16 +764,21 @@ describe('WebsocketGateway', () => {
 
       expect(gateway['presence']['userSockets'].has(userId)).toBe(true);
       expect(gateway.server.to).not.toHaveBeenCalled();
-      expect(gateway['presence']['userRooms'].get(userId)?.has(room)).toBe(true);
+      expect(gateway['presence']['userRooms'].get(userId)?.has(room)).toBe(
+        true,
+      );
 
       gateway.handleDisconnect(socket2);
 
       expect(gateway['presence']['userSockets'].has(userId)).toBe(false);
       expect(gateway.server.to).toHaveBeenCalledWith(room);
-      expect(gateway.server.to(room).emit).toHaveBeenCalledWith('presence:offline', {
-        user: { id: userId, username: 'testuser' },
-        status: 'offline',
-      });
+      expect(gateway.server.to(room).emit).toHaveBeenCalledWith(
+        'presence:offline',
+        {
+          user: { id: userId, username: 'testuser' },
+          status: 'offline',
+        },
+      );
       expect(gateway['presence']['userRooms'].has(userId)).toBe(false);
     });
   });
@@ -623,7 +788,10 @@ describe('WebsocketGateway', () => {
       gateway.broadcastToRoom('channel:1', 'test:event', { foo: 'bar' });
 
       expect(gateway.server.to).toHaveBeenCalledWith('channel:1');
-      expect(gateway.server.to('channel:1').emit).toHaveBeenCalledWith('test:event', { foo: 'bar' });
+      expect(gateway.server.to('channel:1').emit).toHaveBeenCalledWith(
+        'test:event',
+        { foo: 'bar' },
+      );
     });
   });
 });

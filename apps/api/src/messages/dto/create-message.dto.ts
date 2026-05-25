@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional, IsUUID, MinLength, MaxLength } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsUUID,
+  MinLength,
+  MaxLength,
+} from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class CreateMessageDto {
@@ -7,9 +13,7 @@ export class CreateMessageDto {
   @IsString()
   @MinLength(1)
   @MaxLength(4000)
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   content: string;
 
   @ApiProperty({

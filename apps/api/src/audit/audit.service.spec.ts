@@ -179,11 +179,21 @@ describe('AuditService', () => {
   });
 
   it('should use string constants for actions', () => {
-    expect(AuditAction.WORKSPACE_MEMBER_ROLE_UPDATED).toBe('workspace.member.role_updated');
-    expect(AuditAction.WORKSPACE_MEMBER_REMOVED).toBe('workspace.member.removed');
-    expect(AuditAction.WORKSPACE_INVITE_CREATED).toBe('workspace.invite.created');
-    expect(AuditAction.WORKSPACE_INVITE_ACCEPTED).toBe('workspace.invite.accepted');
-    expect(AuditAction.WORKSPACE_INVITE_REVOKED).toBe('workspace.invite.revoked');
+    expect(AuditAction.WORKSPACE_MEMBER_ROLE_UPDATED).toBe(
+      'workspace.member.role_updated',
+    );
+    expect(AuditAction.WORKSPACE_MEMBER_REMOVED).toBe(
+      'workspace.member.removed',
+    );
+    expect(AuditAction.WORKSPACE_INVITE_CREATED).toBe(
+      'workspace.invite.created',
+    );
+    expect(AuditAction.WORKSPACE_INVITE_ACCEPTED).toBe(
+      'workspace.invite.accepted',
+    );
+    expect(AuditAction.WORKSPACE_INVITE_REVOKED).toBe(
+      'workspace.invite.revoked',
+    );
   });
 
   it('should use string constants for entity types', () => {

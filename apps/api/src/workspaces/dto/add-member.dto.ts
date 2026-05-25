@@ -8,7 +8,11 @@ export class AddMemberDto {
   @IsNotEmpty()
   identifier!: string;
 
-  @ApiPropertyOptional({ description: 'Role to assign', enum: WorkspaceRole, default: WorkspaceRole.MEMBER })
+  @ApiPropertyOptional({
+    description: 'Role to assign',
+    enum: WorkspaceRole,
+    default: WorkspaceRole.MEMBER,
+  })
   @IsOptional()
   @IsEnum(WorkspaceRole)
   role?: WorkspaceRole;

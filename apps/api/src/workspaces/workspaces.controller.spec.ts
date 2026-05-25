@@ -8,7 +8,13 @@ describe('WorkspacesController', () => {
   let controller: WorkspacesController;
   let workspacesService: jest.Mocked<WorkspacesService>;
 
-  const user = { id: 'user-id', email: 'u@test.com', username: 'user', displayName: null, createdAt: new Date() };
+  const user = {
+    id: 'user-id',
+    email: 'u@test.com',
+    username: 'user',
+    displayName: null,
+    createdAt: new Date(),
+  };
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -33,17 +39,29 @@ describe('WorkspacesController', () => {
   describe('addMember', () => {
     it('should throw GoneException with message about workspace invitations', async () => {
       await expect(
-        controller.addMember('workspace-id', { identifier: 'alice', role: 'MEMBER' } as any, user as any),
+        controller.addMember(
+          'workspace-id',
+          { identifier: 'alice', role: 'MEMBER' } as any,
+          user as any,
+        ),
       ).rejects.toBeInstanceOf(GoneException);
 
       await expect(
-        controller.addMember('workspace-id', { identifier: 'alice', role: 'MEMBER' } as any, user as any),
+        controller.addMember(
+          'workspace-id',
+          { identifier: 'alice', role: 'MEMBER' } as any,
+          user as any,
+        ),
       ).rejects.toThrow('Use workspace invitations to add members');
     });
 
     it('should not call workspaces.addMember', async () => {
       try {
-        await controller.addMember('workspace-id', { identifier: 'alice', role: 'MEMBER' } as any, user as any);
+        await controller.addMember(
+          'workspace-id',
+          { identifier: 'alice', role: 'MEMBER' } as any,
+          user as any,
+        );
       } catch {
         // expected
       }

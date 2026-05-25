@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ChannelsService } from '../channels/channels.service';
 import { UsersRepository } from '../users/users.repository';
 import { MessagesRepository } from './messages.repository';
@@ -82,7 +78,11 @@ export class ReadReceiptsService {
 
   private async validateMessage(channelId: string, messageId: string) {
     const message = await this.messages.findById(messageId);
-    if (!message || message.channelId !== channelId || message.deletedAt !== null) {
+    if (
+      !message ||
+      message.channelId !== channelId ||
+      message.deletedAt !== null
+    ) {
       throw new NotFoundException('Message not found');
     }
   }

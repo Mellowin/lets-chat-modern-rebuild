@@ -130,14 +130,18 @@ describe('Channels E2E Security', () => {
 
     it('non-member cannot list messages from private channel', () => {
       return request(app.getHttpServer())
-        .get(`/workspaces/${workspace.id}/channels/${privateChannel.id}/messages`)
+        .get(
+          `/workspaces/${workspace.id}/channels/${privateChannel.id}/messages`,
+        )
         .set('Authorization', `Bearer ${tokenB}`)
         .expect(404);
     });
 
     it('non-member cannot create message in private channel', () => {
       return request(app.getHttpServer())
-        .post(`/workspaces/${workspace.id}/channels/${privateChannel.id}/messages`)
+        .post(
+          `/workspaces/${workspace.id}/channels/${privateChannel.id}/messages`,
+        )
         .set('Authorization', `Bearer ${tokenB}`)
         .send({ content: 'hello' })
         .expect(404);
@@ -145,14 +149,18 @@ describe('Channels E2E Security', () => {
 
     it('member can list messages from private channel', () => {
       return request(app.getHttpServer())
-        .get(`/workspaces/${workspace.id}/channels/${privateChannel.id}/messages`)
+        .get(
+          `/workspaces/${workspace.id}/channels/${privateChannel.id}/messages`,
+        )
         .set('Authorization', `Bearer ${tokenA}`)
         .expect(200);
     });
 
     it('member can create message in private channel', () => {
       return request(app.getHttpServer())
-        .post(`/workspaces/${workspace.id}/channels/${privateChannel.id}/messages`)
+        .post(
+          `/workspaces/${workspace.id}/channels/${privateChannel.id}/messages`,
+        )
         .set('Authorization', `Bearer ${tokenA}`)
         .send({ content: 'hello from member' })
         .expect(201);

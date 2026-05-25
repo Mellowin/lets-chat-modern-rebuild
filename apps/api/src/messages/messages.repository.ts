@@ -61,7 +61,12 @@ export class MessagesRepository {
     });
   }
 
-  async updateMessage(messageId: string, oldContent: string, newContent: string, editedById: string) {
+  async updateMessage(
+    messageId: string,
+    oldContent: string,
+    newContent: string,
+    editedById: string,
+  ) {
     const [, updated] = await this.prisma.$transaction([
       this.prisma.messageEdit.create({
         data: { messageId, oldContent, newContent, editedById },

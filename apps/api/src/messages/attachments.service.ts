@@ -46,11 +46,7 @@ export class AttachmentsService {
     });
 
     const { uploadUrl, expiresInSeconds } =
-      await this.storage.getPresignedUploadUrl(
-        objectKey,
-        dto.mimeType,
-        300,
-      );
+      await this.storage.getPresignedUploadUrl(objectKey, dto.mimeType, 300);
 
     return {
       attachmentId: attachment.id,
@@ -152,10 +148,7 @@ export class AttachmentsService {
     }
 
     const { downloadUrl, expiresInSeconds } =
-      await this.storage.getPresignedDownloadUrl(
-        attachment.storageKey,
-        300,
-      );
+      await this.storage.getPresignedDownloadUrl(attachment.storageKey, 300);
 
     return {
       attachmentId: attachment.id,
@@ -169,7 +162,11 @@ export class AttachmentsService {
 
   private async validateMessage(channelId: string, messageId: string) {
     const message = await this.messages.findById(messageId);
-    if (!message || message.channelId !== channelId || message.deletedAt !== null) {
+    if (
+      !message ||
+      message.channelId !== channelId ||
+      message.deletedAt !== null
+    ) {
       throw new NotFoundException('Message not found');
     }
   }

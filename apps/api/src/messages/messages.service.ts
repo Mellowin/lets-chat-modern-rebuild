@@ -64,10 +64,7 @@ export class MessagesService {
       throw new NotFoundException('Channel not found');
     }
 
-    const chRole = await this.channels.findChannelMemberRole(
-      channelId,
-      userId,
-    );
+    const chRole = await this.channels.findChannelMemberRole(channelId, userId);
     if (!chRole) {
       throw new NotFoundException('Channel not found');
     }
@@ -118,7 +115,11 @@ export class MessagesService {
 
     const limit = Math.min(query.limit ?? 50, 100);
     const before = query.before ? new Date(query.before) : undefined;
-    const messages = await this.messages.listForChannel(channelId, limit, before);
+    const messages = await this.messages.listForChannel(
+      channelId,
+      limit,
+      before,
+    );
     return messages.map((m) => this.toMessageResponse(m));
   }
 
@@ -132,7 +133,11 @@ export class MessagesService {
     await this.validateChannelAccess(workspaceId, channelId, userId);
 
     const message = await this.messages.findById(messageId);
-    if (!message || message.channelId !== channelId || message.deletedAt !== null) {
+    if (
+      !message ||
+      message.channelId !== channelId ||
+      message.deletedAt !== null
+    ) {
       throw new NotFoundException('Message not found');
     }
     if (message.authorId !== userId) {
@@ -144,7 +149,12 @@ export class MessagesService {
       throw new UnprocessableEntityException('Message edit window has expired');
     }
 
-    const updated = await this.messages.updateMessage(messageId, message.content, dto.content, userId);
+    const updated = await this.messages.updateMessage(
+      messageId,
+      message.content,
+      dto.content,
+      userId,
+    );
     const response = this.toMessageResponse(updated);
     this.websocketEvents.broadcastMessageUpdated(channelId, response);
     return response;
@@ -159,12 +169,19 @@ export class MessagesService {
     await this.validateChannelAccess(workspaceId, channelId, userId);
 
     const message = await this.messages.findById(messageId);
-    if (!message || message.channelId !== channelId || message.deletedAt !== null) {
+    if (
+      !message ||
+      message.channelId !== channelId ||
+      message.deletedAt !== null
+    ) {
       throw new NotFoundException('Message not found');
     }
 
     if (message.authorId !== userId) {
-      const chRole = await this.channels.findChannelMemberRole(channelId, userId);
+      const chRole = await this.channels.findChannelMemberRole(
+        channelId,
+        userId,
+      );
       if (chRole !== 'OWNER' && chRole !== 'ADMIN') {
         throw new ForbiddenException('Insufficient permissions');
       }

@@ -16,9 +16,7 @@ export class SearchMessagesQueryDto {
   @IsString()
   @MinLength(2)
   @MaxLength(100)
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   q: string;
 
   @ApiPropertyOptional({ example: '19ffa642-dbb6-4bfd-be0f-c971e11a2cb0' })

@@ -21,9 +21,42 @@ import { AttachmentsRepository } from './attachments.repository';
 import { AttachmentsController } from './attachments.controller';
 
 @Module({
-  imports: [AuthModule, UsersModule, WorkspacesModule, ChannelsModule, StorageModule, WebsocketModule],
-  controllers: [MessagesController, ReactionsController, ReadReceiptsController, SearchController, AttachmentsController],
-  providers: [MessagesService, MessagesRepository, ReactionsService, ReactionsRepository, ReadReceiptsService, ReadReceiptsRepository, MessagesSearchService, AttachmentsService, AttachmentsRepository],
-  exports: [MessagesService, MessagesRepository, ReactionsService, ReactionsRepository, ReadReceiptsService, ReadReceiptsRepository, MessagesSearchService, AttachmentsService, AttachmentsRepository],
+  imports: [
+    AuthModule,
+    UsersModule,
+    WorkspacesModule,
+    ChannelsModule,
+    StorageModule,
+    WebsocketModule,
+  ],
+  controllers: [
+    MessagesController,
+    ReactionsController,
+    ReadReceiptsController,
+    SearchController,
+    AttachmentsController,
+  ],
+  providers: [
+    MessagesService,
+    MessagesRepository,
+    ReactionsService,
+    ReactionsRepository,
+    ReadReceiptsService,
+    ReadReceiptsRepository,
+    MessagesSearchService,
+    AttachmentsService,
+    AttachmentsRepository,
+  ],
+  exports: [
+    MessagesService,
+    MessagesRepository,
+    ReactionsService,
+    ReactionsRepository,
+    ReadReceiptsService,
+    ReadReceiptsRepository,
+    MessagesSearchService,
+    AttachmentsService,
+    AttachmentsRepository,
+  ],
 })
 export class MessagesModule {}

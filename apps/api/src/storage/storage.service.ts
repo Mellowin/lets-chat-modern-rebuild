@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  OnModuleInit,
-} from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   S3Client,
@@ -29,8 +25,7 @@ export class StorageService implements OnModuleInit {
         accessKeyId: this.config.getOrThrow<string>('S3_ACCESS_KEY'),
         secretAccessKey: this.config.getOrThrow<string>('S3_SECRET_KEY'),
       },
-      forcePathStyle:
-        this.config.get<boolean>('S3_FORCE_PATH_STYLE') ?? true,
+      forcePathStyle: this.config.get<boolean>('S3_FORCE_PATH_STYLE') ?? true,
     });
     this.bucket = this.config.getOrThrow<string>('S3_BUCKET');
   }
@@ -89,10 +84,7 @@ export class StorageService implements OnModuleInit {
     return { uploadUrl, objectKey, expiresInSeconds };
   }
 
-  async getPresignedDownloadUrl(
-    objectKey: string,
-    expiresInSeconds = 300,
-  ) {
+  async getPresignedDownloadUrl(objectKey: string, expiresInSeconds = 300) {
     const command = new GetObjectCommand({
       Bucket: this.bucket,
       Key: objectKey,

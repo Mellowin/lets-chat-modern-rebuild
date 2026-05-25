@@ -20,7 +20,9 @@ const websocketCorsOrigin = process.env.CORS_ORIGIN
 function isValidUUID(value: unknown): value is string {
   return (
     typeof value === 'string' &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      value,
+    )
   );
 }
 
@@ -67,7 +69,10 @@ export class WebsocketGateway
       const token = this.getHandshakeToken(socket);
 
       if (!token) {
-        this.logger.warn({ socketId }, 'Socket connection rejected: missing or malformed token');
+        this.logger.warn(
+          { socketId },
+          'Socket connection rejected: missing or malformed token',
+        );
         socket.emit('auth:error', { message: 'Access token missing' });
         socket.disconnect(true);
         return;
@@ -77,15 +82,23 @@ export class WebsocketGateway
       try {
         payload = await this.tokenService.verifyAccessToken(token);
       } catch {
-        this.logger.warn({ socketId }, 'Socket connection rejected: invalid or expired token');
-        socket.emit('auth:expired', { message: 'Invalid or expired access token' });
+        this.logger.warn(
+          { socketId },
+          'Socket connection rejected: invalid or expired token',
+        );
+        socket.emit('auth:expired', {
+          message: 'Invalid or expired access token',
+        });
         socket.disconnect(true);
         return;
       }
 
       const user = await this.usersRepository.findById(payload.sub);
       if (!user) {
-        this.logger.warn({ socketId, userId: payload.sub }, 'Socket connection rejected: user not found');
+        this.logger.warn(
+          { socketId, userId: payload.sub },
+          'Socket connection rejected: user not found',
+        );
         socket.emit('auth:error', { message: 'User not found' });
         socket.disconnect(true);
         return;
@@ -169,7 +182,13 @@ export class WebsocketGateway
         return;
       }
       this.logger.error(
-        { socketId: socket.id, userId, workspaceId, channelId, error: (error as Error).message },
+        {
+          socketId: socket.id,
+          userId,
+          workspaceId,
+          channelId,
+          error: (error as Error).message,
+        },
         'Channel join error',
       );
       socket.emit('channel:error', { message: 'Failed to join channel' });
@@ -186,15 +205,15 @@ export class WebsocketGateway
       status: 'online',
     });
 
-    this.logger.log({ socketId: socket.id, userId, channelId }, 'Joined channel room');
+    this.logger.log(
+      { socketId: socket.id, userId, channelId },
+      'Joined channel room',
+    );
     socket.emit('channel:joined', { workspaceId, channelId });
   }
 
   @SubscribeMessage('channel:leave')
-  async handleChannelLeave(
-    socket: Socket,
-    payload: { channelId: unknown },
-  ) {
+  async handleChannelLeave(socket: Socket, payload: { channelId: unknown }) {
     const userId = this.getUserId(socket);
     if (!userId) {
       socket.emit('channel:error', { message: 'Not authenticated' });
@@ -230,7 +249,10 @@ export class WebsocketGateway
 
     await socket.leave(room);
 
-    this.logger.log({ socketId: socket.id, userId, channelId }, 'Left channel room');
+    this.logger.log(
+      { socketId: socket.id, userId, channelId },
+      'Left channel room',
+    );
     socket.emit('channel:left', { channelId });
   }
 
@@ -299,9 +321,7 @@ export class WebsocketGateway
           channelId,
         });
         this.presence.removeSocketRoom(socket.id, room);
-        if (
-          !this.presence.hasOtherSocketInRoom(userId, socket.id, room)
-        ) {
+        if (!this.presence.hasOtherSocketInRoom(userId, socket.id, room)) {
           socket.to(room).emit('presence:offline', {
             user: { id: userId, username: socket.data.user?.username },
             status: 'offline',

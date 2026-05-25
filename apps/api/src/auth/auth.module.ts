@@ -11,7 +11,19 @@ import { RefreshTokensRepository } from './refresh-tokens.repository';
 @Module({
   imports: [JwtModule.register({}), UsersModule],
   controllers: [AuthController],
-  providers: [PasswordService, TokenService, AuthService, JwtAccessGuard, RefreshTokensRepository],
-  exports: [PasswordService, TokenService, AuthService, JwtAccessGuard, RefreshTokensRepository],
+  providers: [
+    PasswordService,
+    TokenService,
+    AuthService,
+    JwtAccessGuard,
+    RefreshTokensRepository,
+  ],
+  exports: [
+    PasswordService,
+    TokenService,
+    AuthService,
+    JwtAccessGuard,
+    RefreshTokensRepository,
+  ],
 })
 export class AuthModule {}

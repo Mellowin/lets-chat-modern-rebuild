@@ -127,7 +127,12 @@ describe('MessagesService', () => {
         id: messageId,
         channelId,
         content: 'hello',
-        author: { id: userId, username: 'user', displayName: null, avatarUrl: null },
+        author: {
+          id: userId,
+          username: 'user',
+          displayName: null,
+          avatarUrl: null,
+        },
       } as any;
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
       channelsRepository.findActiveById.mockResolvedValue({
@@ -152,7 +157,12 @@ describe('MessagesService', () => {
         id: messageId,
         channelId,
         content: 'hello',
-        author: { id: userId, username: 'user', displayName: null, avatarUrl: null },
+        author: {
+          id: userId,
+          username: 'user',
+          displayName: null,
+          avatarUrl: null,
+        },
       } as any;
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
       channelsRepository.findActiveById.mockResolvedValue({
@@ -188,7 +198,12 @@ describe('MessagesService', () => {
           id: messageId,
           channelId,
           content: 'hello',
-          author: { id: userId, username: 'user', displayName: null, avatarUrl: null },
+          author: {
+            id: userId,
+            username: 'user',
+            displayName: null,
+            avatarUrl: null,
+          },
         },
       ] as any[];
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
@@ -252,7 +267,12 @@ describe('MessagesService', () => {
           id: messageId,
           channelId,
           content: 'secret',
-          author: { id: userId, username: 'user', displayName: null, avatarUrl: null },
+          author: {
+            id: userId,
+            username: 'user',
+            displayName: null,
+            avatarUrl: null,
+          },
         },
       ] as any[];
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
@@ -288,7 +308,13 @@ describe('MessagesService', () => {
       } as any);
 
       await expect(
-        service.update(workspaceId, channelId, messageId, { content: 'edited' }, userId),
+        service.update(
+          workspaceId,
+          channelId,
+          messageId,
+          { content: 'edited' },
+          userId,
+        ),
       ).rejects.toBeInstanceOf(ForbiddenException);
     });
 
@@ -297,7 +323,12 @@ describe('MessagesService', () => {
         id: messageId,
         channelId,
         content: 'edited',
-        author: { id: userId, username: 'user', displayName: null, avatarUrl: null },
+        author: {
+          id: userId,
+          username: 'user',
+          displayName: null,
+          avatarUrl: null,
+        },
       } as any;
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
       channelsRepository.findActiveById.mockResolvedValue({
@@ -342,7 +373,13 @@ describe('MessagesService', () => {
       } as any);
 
       await expect(
-        service.update(workspaceId, channelId, messageId, { content: 'edited' }, userId),
+        service.update(
+          workspaceId,
+          channelId,
+          messageId,
+          { content: 'edited' },
+          userId,
+        ),
       ).rejects.toBeInstanceOf(UnprocessableEntityException);
     });
 
@@ -363,7 +400,13 @@ describe('MessagesService', () => {
       } as any);
 
       await expect(
-        service.update(workspaceId, channelId, messageId, { content: 'edited' }, userId),
+        service.update(
+          workspaceId,
+          channelId,
+          messageId,
+          { content: 'edited' },
+          userId,
+        ),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
@@ -384,7 +427,13 @@ describe('MessagesService', () => {
       } as any);
 
       await expect(
-        service.update(workspaceId, channelId, messageId, { content: 'edited' }, userId),
+        service.update(
+          workspaceId,
+          channelId,
+          messageId,
+          { content: 'edited' },
+          userId,
+        ),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
   });

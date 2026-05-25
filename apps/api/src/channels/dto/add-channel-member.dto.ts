@@ -8,7 +8,11 @@ export class AddChannelMemberDto {
   @IsNotEmpty()
   identifier!: string;
 
-  @ApiPropertyOptional({ description: 'Role to assign', enum: ChannelRole, default: ChannelRole.MEMBER })
+  @ApiPropertyOptional({
+    description: 'Role to assign',
+    enum: ChannelRole,
+    default: ChannelRole.MEMBER,
+  })
   @IsOptional()
   @IsEnum(ChannelRole)
   role?: ChannelRole;

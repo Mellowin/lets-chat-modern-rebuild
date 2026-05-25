@@ -83,7 +83,11 @@ export class AuthService {
     }
 
     const authUser = this.toAuthUserResponse(user);
-    const payload: JwtPayload = { sub: user.id, email: user.email, jti: randomUUID() };
+    const payload: JwtPayload = {
+      sub: user.id,
+      email: user.email,
+      jti: randomUUID(),
+    };
 
     const [accessToken, refreshToken] = await Promise.all([
       this.token.signAccessToken(payload),
@@ -96,8 +100,15 @@ export class AuthService {
   }
 
   async login(input: LoginInput): Promise<AuthResult> {
-    const user = await this.validateUserCredentials(input.email, input.password);
-    const payload: JwtPayload = { sub: user.id, email: user.email, jti: randomUUID() };
+    const user = await this.validateUserCredentials(
+      input.email,
+      input.password,
+    );
+    const payload: JwtPayload = {
+      sub: user.id,
+      email: user.email,
+      jti: randomUUID(),
+    };
 
     const [accessToken, refreshToken] = await Promise.all([
       this.token.signAccessToken(payload),
@@ -129,7 +140,11 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    const newPayload: JwtPayload = { sub: user.id, email: user.email, jti: randomUUID() };
+    const newPayload: JwtPayload = {
+      sub: user.id,
+      email: user.email,
+      jti: randomUUID(),
+    };
     const [accessToken, newRefreshToken] = await Promise.all([
       this.token.signAccessToken(newPayload),
       this.token.signRefreshToken(newPayload),
@@ -160,7 +175,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const valid = await this.password.verifyPassword(password, user.passwordHash);
+    const valid = await this.password.verifyPassword(
+      password,
+      user.passwordHash,
+    );
     if (!valid) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -173,12 +191,18 @@ export class AuthService {
     return safe;
   }
 
-  async updateMe(userId: string, displayName: string | null): Promise<AuthUserResponse> {
+  async updateMe(
+    userId: string,
+    displayName: string | null,
+  ): Promise<AuthUserResponse> {
     const user = await this.users.updateDisplayName(userId, displayName);
     return this.toAuthUserResponse(user);
   }
 
-  async updateAvatar(userId: string, avatarUrl: string): Promise<AuthUserResponse> {
+  async updateAvatar(
+    userId: string,
+    avatarUrl: string,
+  ): Promise<AuthUserResponse> {
     const user = await this.users.updateAvatar(userId, avatarUrl);
     return this.toAuthUserResponse(user);
   }
@@ -208,7 +232,10 @@ export class AuthService {
     return new Date(Date.now() + msValue);
   }
 
-  private async persistRefreshToken(userId: string, token: string): Promise<void> {
+  private async persistRefreshToken(
+    userId: string,
+    token: string,
+  ): Promise<void> {
     const tokenHash = this.hashRefreshToken(token);
     const expiresAt = this.getRefreshExpiryDate();
     await this.refreshTokens.createToken({ userId, tokenHash, expiresAt });

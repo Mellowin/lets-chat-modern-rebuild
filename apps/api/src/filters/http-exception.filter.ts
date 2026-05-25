@@ -48,9 +48,13 @@ export class HttpExceptionFilter implements ExceptionFilter {
       } else if (typeof response === 'object' && response !== null) {
         const resp = response as Record<string, unknown>;
         message = (resp.message as string) || message;
-        code = (resp.error as string)?.replace(/\s+/g, '_').toUpperCase() || code;
+        code =
+          (resp.error as string)?.replace(/\s+/g, '_').toUpperCase() || code;
 
-        if (statusCode === HttpStatus.BAD_REQUEST && Array.isArray(resp.message)) {
+        if (
+          statusCode === HttpStatus.BAD_REQUEST &&
+          Array.isArray(resp.message)
+        ) {
           code = 'VALIDATION_ERROR';
           message = 'Validation failed';
           details = resp.message;

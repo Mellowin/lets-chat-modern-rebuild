@@ -26,7 +26,11 @@ export class WebsocketEventsService {
     },
   ) {
     try {
-      this.gateway.broadcastToRoom(`channel:${channelId}`, 'message:created', payload);
+      this.gateway.broadcastToRoom(
+        `channel:${channelId}`,
+        'message:created',
+        payload,
+      );
     } catch (error) {
       this.logger.error(
         { channelId, messageId: payload.id, error: (error as Error).message },
@@ -54,7 +58,11 @@ export class WebsocketEventsService {
     },
   ) {
     try {
-      this.gateway.broadcastToRoom(`channel:${channelId}`, 'message:updated', payload);
+      this.gateway.broadcastToRoom(
+        `channel:${channelId}`,
+        'message:updated',
+        payload,
+      );
     } catch (error) {
       this.logger.error(
         { channelId, messageId: payload.id, error: (error as Error).message },
@@ -72,7 +80,11 @@ export class WebsocketEventsService {
     },
   ) {
     try {
-      this.gateway.broadcastToRoom(`channel:${channelId}`, 'message:deleted', payload);
+      this.gateway.broadcastToRoom(
+        `channel:${channelId}`,
+        'message:deleted',
+        payload,
+      );
     } catch (error) {
       this.logger.error(
         { channelId, messageId: payload.id, error: (error as Error).message },
@@ -94,10 +106,18 @@ export class WebsocketEventsService {
     },
   ) {
     try {
-      this.gateway.broadcastToRoom(`channel:${channelId}`, 'reaction:added', payload);
+      this.gateway.broadcastToRoom(
+        `channel:${channelId}`,
+        'reaction:added',
+        payload,
+      );
     } catch (error) {
       this.logger.error(
-        { channelId, messageId: payload.messageId, error: (error as Error).message },
+        {
+          channelId,
+          messageId: payload.messageId,
+          error: (error as Error).message,
+        },
         'Failed to broadcast reaction:added',
       );
     }
@@ -116,10 +136,18 @@ export class WebsocketEventsService {
     },
   ) {
     try {
-      this.gateway.broadcastToRoom(`channel:${channelId}`, 'reaction:removed', payload);
+      this.gateway.broadcastToRoom(
+        `channel:${channelId}`,
+        'reaction:removed',
+        payload,
+      );
     } catch (error) {
       this.logger.error(
-        { channelId, messageId: payload.messageId, error: (error as Error).message },
+        {
+          channelId,
+          messageId: payload.messageId,
+          error: (error as Error).message,
+        },
         'Failed to broadcast reaction:removed',
       );
     }
@@ -138,10 +166,18 @@ export class WebsocketEventsService {
     },
   ) {
     try {
-      this.gateway.broadcastToRoom(`channel:${channelId}`, 'read:updated', payload);
+      this.gateway.broadcastToRoom(
+        `channel:${channelId}`,
+        'read:updated',
+        payload,
+      );
     } catch (error) {
       this.logger.error(
-        { channelId, messageId: payload.messageId, error: (error as Error).message },
+        {
+          channelId,
+          messageId: payload.messageId,
+          error: (error as Error).message,
+        },
         'Failed to broadcast read:updated',
       );
     }

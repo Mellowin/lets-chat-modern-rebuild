@@ -5,11 +5,7 @@ import { PrismaService } from '@lets-chat/database';
 export class ReadReceiptsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async upsert(data: {
-    messageId: string;
-    userId: string;
-    channelId: string;
-  }) {
+  async upsert(data: { messageId: string; userId: string; channelId: string }) {
     return this.prisma.readReceipt.upsert({
       where: {
         messageId_userId: {

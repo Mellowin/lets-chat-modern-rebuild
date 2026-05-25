@@ -21,11 +21,7 @@ export class ChannelsService {
     private readonly users: UsersRepository,
   ) {}
 
-  async create(
-    workspaceId: string,
-    dto: CreateChannelDto,
-    userId: string,
-  ) {
+  async create(workspaceId: string, dto: CreateChannelDto, userId: string) {
     // Any active WorkspaceMember may create a channel.
     // The creator receives ChannelMember OWNER role.
     const role = await this.workspaces.findMemberRole(workspaceId, userId);
@@ -93,10 +89,7 @@ export class ChannelsService {
       throw new NotFoundException('Channel not found');
     }
 
-    const chRole = await this.channels.findChannelMemberRole(
-      channelId,
-      userId,
-    );
+    const chRole = await this.channels.findChannelMemberRole(channelId, userId);
     if (!chRole) {
       throw new NotFoundException('Channel not found');
     }
@@ -138,7 +131,11 @@ export class ChannelsService {
     return this.channels.updateChannel(channelId, updateData);
   }
 
-  async listChannelMembers(workspaceId: string, channelId: string, userId: string) {
+  async listChannelMembers(
+    workspaceId: string,
+    channelId: string,
+    userId: string,
+  ) {
     const wsRole = await this.workspaces.findMemberRole(workspaceId, userId);
     if (!wsRole) {
       throw new NotFoundException('Workspace not found');
@@ -293,8 +290,10 @@ export class ChannelsService {
       throw new ForbiddenException('Insufficient permissions');
     }
 
-    const targetMember =
-      await this.channels.findActiveChannelMemberById(channelId, memberId);
+    const targetMember = await this.channels.findActiveChannelMemberById(
+      channelId,
+      memberId,
+    );
     if (!targetMember) {
       throw new NotFoundException('Member not found');
     }

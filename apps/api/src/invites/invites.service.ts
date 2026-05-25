@@ -49,7 +49,9 @@ export class InvitesService {
       throw new BadRequestException('Email or identifier is required');
     }
     if (dto.email && dto.identifier) {
-      throw new BadRequestException('Provide either email or identifier, not both');
+      throw new BadRequestException(
+        'Provide either email or identifier, not both',
+      );
     }
 
     let resolvedEmail: string;
@@ -141,7 +143,10 @@ export class InvitesService {
       throw new GoneException('Invite expired');
     }
 
-    if (invite.invitedEmail && invite.invitedEmail !== userEmail.toLowerCase()) {
+    if (
+      invite.invitedEmail &&
+      invite.invitedEmail !== userEmail.toLowerCase()
+    ) {
       throw new ForbiddenException('Email mismatch');
     }
 
@@ -154,7 +159,10 @@ export class InvitesService {
       throw new NotFoundException('Workspace not found');
     }
 
-    const existingRole = await this.workspaces.findMemberRole(invite.workspaceId, userId);
+    const existingRole = await this.workspaces.findMemberRole(
+      invite.workspaceId,
+      userId,
+    );
     if (existingRole) {
       throw new ConflictException('Already a member of this workspace');
     }
@@ -233,7 +241,10 @@ export class InvitesService {
     }
 
     const revokedAt = new Date();
-    const deletedCount = await this.invites.softDeleteIfUnused(inviteId, revokedAt);
+    const deletedCount = await this.invites.softDeleteIfUnused(
+      inviteId,
+      revokedAt,
+    );
     if (deletedCount === 0) {
       const current = await this.invites.findById(inviteId);
       if (!current || current.deletedAt) {
@@ -285,7 +296,10 @@ export class InvitesService {
       throw new GoneException('Invite expired');
     }
 
-    if (invite.invitedEmail && invite.invitedEmail !== userEmail.toLowerCase()) {
+    if (
+      invite.invitedEmail &&
+      invite.invitedEmail !== userEmail.toLowerCase()
+    ) {
       throw new ForbiddenException('Email mismatch');
     }
 
@@ -298,7 +312,10 @@ export class InvitesService {
       throw new NotFoundException('Workspace not found');
     }
 
-    const existingRole = await this.workspaces.findMemberRole(invite.workspaceId, userId);
+    const existingRole = await this.workspaces.findMemberRole(
+      invite.workspaceId,
+      userId,
+    );
     if (existingRole) {
       throw new ConflictException('Already a member of this workspace');
     }
@@ -365,12 +382,18 @@ export class InvitesService {
       throw new GoneException('Invite expired');
     }
 
-    if (invite.invitedEmail && invite.invitedEmail !== userEmail.toLowerCase()) {
+    if (
+      invite.invitedEmail &&
+      invite.invitedEmail !== userEmail.toLowerCase()
+    ) {
       throw new ForbiddenException('Email mismatch');
     }
 
     const declinedAt = new Date();
-    const deletedCount = await this.invites.softDeleteIfUnused(inviteId, declinedAt);
+    const deletedCount = await this.invites.softDeleteIfUnused(
+      inviteId,
+      declinedAt,
+    );
     if (deletedCount === 0) {
       const current = await this.invites.findById(inviteId);
       if (!current || current.deletedAt) {

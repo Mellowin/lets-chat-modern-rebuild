@@ -179,7 +179,12 @@ export class WorkspacesController {
     @Body() dto: UpdateMemberRoleDto,
     @CurrentUser() user: AuthUserResponse,
   ) {
-    return this.workspaces.updateMemberRole(workspaceId, memberId, dto, user.id);
+    return this.workspaces.updateMemberRole(
+      workspaceId,
+      memberId,
+      dto,
+      user.id,
+    );
   }
 
   @Delete(':workspaceId/members/:memberId')
@@ -225,6 +230,10 @@ export class WorkspacesController {
     @Query() query: ListAuditLogsQueryDto,
     @CurrentUser() user: AuthUserResponse,
   ) {
-    return this.workspaces.listAuditLogs(workspaceId, user.id, query.limit ?? 50);
+    return this.workspaces.listAuditLogs(
+      workspaceId,
+      user.id,
+      query.limit ?? 50,
+    );
   }
 }

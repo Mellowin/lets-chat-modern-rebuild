@@ -30,7 +30,9 @@ describe('UpdateAvatarDto', () => {
   });
 
   it('rejects external URL https://evil.com/avatar.svg', async () => {
-    const errors = await validateDto({ avatarUrl: 'https://evil.com/avatar.svg' });
+    const errors = await validateDto({
+      avatarUrl: 'https://evil.com/avatar.svg',
+    });
     expect(errors).toHaveLength(1);
     expect(errors[0].property).toBe('avatarUrl');
     expect(errors[0].constraints).toMatchObject({

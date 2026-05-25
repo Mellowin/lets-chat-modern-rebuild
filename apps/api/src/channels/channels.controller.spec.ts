@@ -8,7 +8,13 @@ describe('ChannelsController', () => {
   let controller: ChannelsController;
   let channelsService: jest.Mocked<ChannelsService>;
 
-  const user = { id: 'user-id', email: 'u@test.com', username: 'user', displayName: null, createdAt: new Date() };
+  const user = {
+    id: 'user-id',
+    email: 'u@test.com',
+    username: 'user',
+    displayName: null,
+    createdAt: new Date(),
+  };
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -33,17 +39,32 @@ describe('ChannelsController', () => {
   describe('addMember', () => {
     it('should throw GoneException with message about channel invitations', async () => {
       await expect(
-        controller.addMember('workspace-id', 'channel-id', { identifier: 'alice', role: 'MEMBER' } as any, user as any),
+        controller.addMember(
+          'workspace-id',
+          'channel-id',
+          { identifier: 'alice', role: 'MEMBER' } as any,
+          user as any,
+        ),
       ).rejects.toBeInstanceOf(GoneException);
 
       await expect(
-        controller.addMember('workspace-id', 'channel-id', { identifier: 'alice', role: 'MEMBER' } as any, user as any),
+        controller.addMember(
+          'workspace-id',
+          'channel-id',
+          { identifier: 'alice', role: 'MEMBER' } as any,
+          user as any,
+        ),
       ).rejects.toThrow('Use channel invitations to add members');
     });
 
     it('should not call channels.addChannelMember', async () => {
       try {
-        await controller.addMember('workspace-id', 'channel-id', { identifier: 'alice', role: 'MEMBER' } as any, user as any);
+        await controller.addMember(
+          'workspace-id',
+          'channel-id',
+          { identifier: 'alice', role: 'MEMBER' } as any,
+          user as any,
+        );
       } catch {
         // expected
       }

@@ -76,9 +76,12 @@ describe('AuthController', () => {
         avatarUpdatedAt: new Date(),
       } as any);
 
-      const result = await controller.updateAvatar(user as any, {
-        avatarUrl: '/avatars/avatar-1.svg',
-      } as any);
+      const result = await controller.updateAvatar(
+        user as any,
+        {
+          avatarUrl: '/avatars/avatar-1.svg',
+        } as any,
+      );
 
       expect(authService.updateAvatar).toHaveBeenCalledWith(
         'user-id',
@@ -147,7 +150,9 @@ describe('AuthController', () => {
       const fixedNow = 1_000_000_000_000;
       jest.spyOn(Date, 'now').mockReturnValue(fixedNow);
 
-      const justUnderSevenDays = new Date(fixedNow - 7 * 24 * 60 * 60 * 1000 + 1);
+      const justUnderSevenDays = new Date(
+        fixedNow - 7 * 24 * 60 * 60 * 1000 + 1,
+      );
 
       await expect(
         controller.updateAvatar(

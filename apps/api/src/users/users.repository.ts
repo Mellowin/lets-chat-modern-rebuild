@@ -37,7 +37,12 @@ export class UsersRepository {
 
   async findByUsername(username: string) {
     return this.prisma.user.findFirst({
-      where: { username: { equals: this.normalizeUsername(username), mode: 'insensitive' } },
+      where: {
+        username: {
+          equals: this.normalizeUsername(username),
+          mode: 'insensitive',
+        },
+      },
     });
   }
 
