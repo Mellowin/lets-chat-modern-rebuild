@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import LoginPage from "./page";
@@ -96,10 +96,17 @@ describe("LoginPage", () => {
     expect(screen.getByRole("button")).toHaveTextContent(/Signing in…/i);
     expect(screen.getByRole("button")).toBeDisabled();
 
-    resolveLogin!({
-      user: { id: "u1", email: "a@b.com", username: "alice", createdAt: "2024-01-01T00:00:00Z" },
-      accessToken: "at",
-      refreshToken: "rt",
+    await act(async () => {
+      resolveLogin!({
+        user: { id: "u1", email: "a@b.com", username: "alice", createdAt: "2024-01-01T00:00:00Z" },
+        accessToken: "at",
+        refreshToken: "rt",
+      });
     });
+
+    await waitFor(() => {
+      expect(loginSuccessMock).toHaveBeenCalled();
+    });
+    expect(pushMock).toHaveBeenCalledWith("/dashboard");
   });
 });
