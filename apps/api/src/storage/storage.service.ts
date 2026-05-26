@@ -41,7 +41,9 @@ export class StorageService implements OnModuleInit {
     } catch (error) {
       if (
         error instanceof NotFound ||
-        (error instanceof Error && error.name === 'NotFound')
+        (typeof error === 'object' &&
+          error !== null &&
+          (error as Record<string, unknown>).name === 'NotFound')
       ) {
         try {
           await this.client.send(

@@ -12,12 +12,15 @@ import { StorageService } from '../storage/storage.service';
 import { PresignAttachmentDto } from './dto/presign-attachment.dto';
 import { randomUUID } from 'crypto';
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
 function isAwsNotFoundError(error: unknown): boolean {
-  if (!(error instanceof Error)) return false;
+  if (!isRecord(error)) return false;
   if (error.name === 'NotFound') return true;
-  const metadata = (error as { $metadata?: { httpStatusCode?: number } })
-    .$metadata;
-  return metadata?.httpStatusCode === 404;
+  const metadata = error.$metadata;
+  return isRecord(metadata) && metadata.httpStatusCode === 404;
 }
 
 @Injectable()
