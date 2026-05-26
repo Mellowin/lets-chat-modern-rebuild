@@ -107,10 +107,8 @@ describe('WorkspacesService', () => {
         id: targetUserId,
         username: 'alice',
       } as any);
-      usersRepository.findByEmail.mockResolvedValue(null as any);
-      workspacesRepository.findActiveMemberByUserId.mockResolvedValue(
-        null as any,
-      );
+      usersRepository.findByEmail.mockResolvedValue(null);
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue(null);
       workspacesRepository.createMember.mockResolvedValue({
         id: memberId,
         workspaceId,
@@ -147,10 +145,8 @@ describe('WorkspacesService', () => {
         id: targetUserId,
         username: 'bob',
       } as any);
-      usersRepository.findByEmail.mockResolvedValue(null as any);
-      workspacesRepository.findActiveMemberByUserId.mockResolvedValue(
-        null as any,
-      );
+      usersRepository.findByEmail.mockResolvedValue(null);
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue(null);
       workspacesRepository.createMember.mockResolvedValue({
         id: memberId,
         workspaceId,
@@ -224,10 +220,8 @@ describe('WorkspacesService', () => {
         id: targetUserId,
         username: 'alice',
       } as any);
-      usersRepository.findByEmail.mockResolvedValue(null as any);
-      workspacesRepository.findActiveMemberByUserId.mockResolvedValue(
-        null as any,
-      );
+      usersRepository.findByEmail.mockResolvedValue(null);
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue(null);
       workspacesRepository.createMember.mockResolvedValue({
         id: memberId,
         workspaceId,
@@ -252,10 +246,8 @@ describe('WorkspacesService', () => {
         id: targetUserId,
         username: 'alice',
       } as any);
-      usersRepository.findByEmail.mockResolvedValue(null as any);
-      workspacesRepository.findActiveMemberByUserId.mockResolvedValue(
-        null as any,
-      );
+      usersRepository.findByEmail.mockResolvedValue(null);
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue(null);
       workspacesRepository.createMember.mockResolvedValue({
         id: memberId,
         workspaceId,
@@ -292,8 +284,8 @@ describe('WorkspacesService', () => {
         id: workspaceId,
       } as any);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
-      usersRepository.findByUsername.mockResolvedValue(null as any);
-      usersRepository.findByEmail.mockResolvedValue(null as any);
+      usersRepository.findByUsername.mockResolvedValue(null);
+      usersRepository.findByEmail.mockResolvedValue(null);
 
       await expect(
         service.addMember(workspaceId, userId, { identifier: 'unknown' }),
@@ -310,7 +302,7 @@ describe('WorkspacesService', () => {
         id: targetUserId,
         username: 'alice',
       } as any);
-      usersRepository.findByEmail.mockResolvedValue(null as any);
+      usersRepository.findByEmail.mockResolvedValue(null);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: 'existing-member-id',
         workspaceId,
@@ -333,10 +325,8 @@ describe('WorkspacesService', () => {
         id: targetUserId,
         username: 'alice',
       } as any);
-      usersRepository.findByEmail.mockResolvedValue(null as any);
-      workspacesRepository.findActiveMemberByUserId.mockResolvedValue(
-        null as any,
-      );
+      usersRepository.findByEmail.mockResolvedValue(null);
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue(null);
       const prismaError = new Prisma.PrismaClientKnownRequestError(
         'Unique constraint failed',
         { code: 'P2002', clientVersion: '5.22.0' },
@@ -354,15 +344,13 @@ describe('WorkspacesService', () => {
         id: workspaceId,
       } as any);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
-      usersRepository.findByUsername.mockResolvedValue(null as any);
+      usersRepository.findByUsername.mockResolvedValue(null);
       usersRepository.findByEmail.mockResolvedValue({
         id: targetUserId,
         username: 'alice',
         email: 'alice@example.com',
       } as any);
-      workspacesRepository.findActiveMemberByUserId.mockResolvedValue(
-        null as any,
-      );
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue(null);
       workspacesRepository.createMember.mockResolvedValue({
         id: memberId,
         workspaceId,
@@ -759,7 +747,7 @@ describe('WorkspacesService', () => {
           createdAt: new Date('2026-01-01'),
           actor: { id: userId, username: 'owner' },
         },
-      ] as any);
+      ]);
 
       const result = await service.listAuditLogs(workspaceId, userId, 50);
 
@@ -828,7 +816,7 @@ describe('WorkspacesService', () => {
           createdAt: new Date('2026-01-01'),
           actor: null,
         },
-      ] as any);
+      ]);
 
       const result = await service.listAuditLogs(workspaceId, userId, 50);
 
