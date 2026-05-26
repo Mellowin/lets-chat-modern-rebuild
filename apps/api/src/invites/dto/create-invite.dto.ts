@@ -6,7 +6,7 @@ export class CreateInviteDto {
   @ApiProperty({ example: 'user@example.com', required: false })
   @IsEmail()
   @IsOptional()
-  @Transform(({ value }) =>
+  @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim().toLowerCase() : value,
   )
   email?: string;
@@ -14,14 +14,14 @@ export class CreateInviteDto {
   @ApiProperty({ example: 'alice', required: false })
   @IsString()
   @IsOptional()
-  @Transform(({ value }) =>
+  @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim().replace(/^@/, '') : value,
   )
   identifier?: string;
 
   @ApiProperty({ example: 'MEMBER', enum: ['ADMIN', 'MEMBER'] })
   @IsIn(['ADMIN', 'MEMBER'])
-  @Transform(({ value }) =>
+  @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.toUpperCase() : value,
   )
   role: 'ADMIN' | 'MEMBER';

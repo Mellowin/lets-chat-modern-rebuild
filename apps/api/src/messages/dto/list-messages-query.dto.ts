@@ -8,7 +8,7 @@ export class ListMessagesQueryDto {
   @IsInt()
   @Min(1)
   @Max(100)
-  @Transform(({ value }) =>
+  @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? parseInt(value, 10) : value,
   )
   limit?: number = 50;

@@ -23,7 +23,9 @@ export class PresignAttachmentDto {
   @IsString()
   @MinLength(1)
   @MaxLength(255)
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
   filename: string;
 
   @ApiProperty({ example: 'application/pdf' })
