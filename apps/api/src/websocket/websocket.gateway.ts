@@ -26,6 +26,20 @@ function isValidUUID(value: unknown): value is string {
   );
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+type SocketUser = {
+  id: string;
+  email: string;
+  username: string;
+};
+
+type SocketDataWithUser = {
+  user?: SocketUser;
+};
+
 @WebSocketGateway({
   cors: {
     origin: websocketCorsOrigin,
@@ -48,7 +62,13 @@ export class WebsocketGateway
   ) {}
 
   private getHandshakeToken(socket: Socket): string | null {
-    const token = socket.handshake.auth?.token;
+    const auth: unknown = socket.handshake.auth;
+
+    if (!isRecord(auth)) {
+      return null;
+    }
+
+    const token = auth.token;
 
     if (typeof token !== 'string') {
       return null;
@@ -58,8 +78,16 @@ export class WebsocketGateway
     return trimmed.length > 0 ? trimmed : null;
   }
 
+  private getSocketData(socket: Socket): SocketDataWithUser {
+    return socket.data as SocketDataWithUser;
+  }
+
+  private getSocketUser(socket: Socket): SocketUser | undefined {
+    return this.getSocketData(socket).user;
+  }
+
   private getUserId(socket: Socket): string | undefined {
-    return socket.data.user?.id;
+    return this.getSocketUser(socket)?.id;
   }
 
   async handleConnection(socket: Socket) {
@@ -104,7 +132,7 @@ export class WebsocketGateway
         return;
       }
 
-      socket.data.user = {
+      this.getSocketData(socket).user = {
         id: user.id,
         email: user.email,
         username: user.username,
@@ -126,7 +154,7 @@ export class WebsocketGateway
 
   handleDisconnect(socket: Socket) {
     const socketId = socket.id;
-    const userId = socket.data.user?.id;
+    const userId = this.getSocketUser(socket)?.id;
     const rooms = this.presence.getSocketRooms(socketId);
 
     this.presence.clearSocket(socketId);
@@ -137,7 +165,10 @@ export class WebsocketGateway
       for (const room of rooms) {
         if (!this.presence.hasOtherSocketInRoom(userId, socketId, room)) {
           this.server.to(room).emit('presence:offline', {
-            user: { id: userId, username: socket.data.user?.username },
+            user: {
+              id: userId,
+              username: this.getSocketUser(socket)?.username,
+            },
             status: 'offline',
           });
           this.presence.removeUserRoom(userId, room);
@@ -201,7 +232,7 @@ export class WebsocketGateway
     this.presence.addUserRoom(userId, room);
 
     socket.to(room).emit('presence:online', {
-      user: { id: userId, username: socket.data.user?.username },
+      user: { id: userId, username: this.getSocketUser(socket)?.username },
       status: 'online',
     });
 
@@ -241,7 +272,7 @@ export class WebsocketGateway
 
     if (!this.presence.hasOtherSocketInRoom(userId, socket.id, room)) {
       socket.to(room).emit('presence:offline', {
-        user: { id: userId, username: socket.data.user?.username },
+        user: { id: userId, username: this.getSocketUser(socket)?.username },
         status: 'offline',
       });
       this.presence.removeUserRoom(userId, room);
@@ -319,7 +350,10 @@ export class WebsocketGateway
         this.presence.removeSocketRoom(socket.id, room);
         if (!this.presence.hasOtherSocketInRoom(userId, socket.id, room)) {
           socket.to(room).emit('presence:offline', {
-            user: { id: userId, username: socket.data.user?.username },
+            user: {
+              id: userId,
+              username: this.getSocketUser(socket)?.username,
+            },
             status: 'offline',
           });
           this.presence.removeUserRoom(userId, room);
@@ -344,7 +378,7 @@ export class WebsocketGateway
       return;
     }
 
-    const user = socket.data.user;
+    const user = this.getSocketUser(socket);
     if (!user?.username) {
       socket.emit('typing:error', { message: 'User data missing' });
       return;
