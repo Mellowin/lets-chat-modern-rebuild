@@ -60,9 +60,10 @@ export class InvitesService {
     if (dto.email) {
       resolvedEmail = dto.email;
       const targetUser = await this.users.findByEmail(resolvedEmail);
-      if (targetUser) {
-        targetUserId = targetUser.id;
+      if (!targetUser) {
+        throw new NotFoundException('User not found');
       }
+      targetUserId = targetUser.id;
     } else {
       const identifier = dto.identifier!.replace(/^@/, '');
       const targetUser = await this.users.findByUsername(identifier);
