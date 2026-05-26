@@ -14,6 +14,32 @@ import { ChannelInvitesRepository } from '../channel-invites/channel-invites.rep
 import { AuditService } from '../audit/audit.service';
 import { AuditAction, AuditEntityType } from '../audit/audit.constants';
 
+type ActiveWorkspace = NonNullable<
+  Awaited<ReturnType<WorkspacesRepository['findActiveById']>>
+>;
+type ListedMember = Awaited<
+  ReturnType<WorkspacesRepository['listActiveMembers']>
+>[number];
+type FoundMember = NonNullable<
+  Awaited<ReturnType<WorkspacesRepository['findActiveMemberByUserId']>>
+>;
+type FoundMemberById = NonNullable<
+  Awaited<ReturnType<WorkspacesRepository['findActiveMemberById']>>
+>;
+type CreatedMember = Awaited<ReturnType<WorkspacesRepository['createMember']>>;
+type UpdatedMember = Awaited<
+  ReturnType<WorkspacesRepository['updateMemberRole']>
+>;
+type ListedWorkspace = Awaited<
+  ReturnType<WorkspacesRepository['listForUser']>
+>[number];
+type WorkspaceWithArchive = NonNullable<
+  Awaited<ReturnType<WorkspacesRepository['findByIdIncludingArchived']>>
+>;
+type FoundUser = NonNullable<
+  Awaited<ReturnType<UsersRepository['findByUsername']>>
+>;
+
 describe('WorkspacesService', () => {
   let service: WorkspacesService;
   let workspacesRepository: jest.Mocked<WorkspacesRepository>;
@@ -101,12 +127,12 @@ describe('WorkspacesService', () => {
     it('should allow OWNER to add existing user by username', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       usersRepository.findByUsername.mockResolvedValue({
         id: targetUserId,
         username: 'alice',
-      } as any);
+      } as FoundUser);
       usersRepository.findByEmail.mockResolvedValue(null);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue(null);
       workspacesRepository.createMember.mockResolvedValue({
@@ -115,7 +141,7 @@ describe('WorkspacesService', () => {
         role: 'MEMBER',
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'alice' },
-      } as any);
+      } as CreatedMember);
 
       const result = await service.addMember(workspaceId, userId, {
         identifier: 'alice',
@@ -139,12 +165,12 @@ describe('WorkspacesService', () => {
     it('should allow ADMIN to add existing user', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('ADMIN');
       usersRepository.findByUsername.mockResolvedValue({
         id: targetUserId,
         username: 'bob',
-      } as any);
+      } as FoundUser);
       usersRepository.findByEmail.mockResolvedValue(null);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue(null);
       workspacesRepository.createMember.mockResolvedValue({
@@ -153,7 +179,7 @@ describe('WorkspacesService', () => {
         role: 'MEMBER',
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'bob' },
-      } as any);
+      } as CreatedMember);
 
       const result = await service.addMember(workspaceId, userId, {
         identifier: 'bob',
@@ -166,7 +192,7 @@ describe('WorkspacesService', () => {
     it('should reject MEMBER requester', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
 
       await expect(
@@ -178,7 +204,7 @@ describe('WorkspacesService', () => {
     it('should reject non-member requester', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue(null);
 
       await expect(
@@ -199,7 +225,7 @@ describe('WorkspacesService', () => {
     it('should reject OWNER role', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
 
       await expect(
@@ -214,12 +240,12 @@ describe('WorkspacesService', () => {
     it('should default role to MEMBER', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       usersRepository.findByUsername.mockResolvedValue({
         id: targetUserId,
         username: 'alice',
-      } as any);
+      } as FoundUser);
       usersRepository.findByEmail.mockResolvedValue(null);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue(null);
       workspacesRepository.createMember.mockResolvedValue({
@@ -228,7 +254,7 @@ describe('WorkspacesService', () => {
         role: 'MEMBER',
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'alice' },
-      } as any);
+      } as CreatedMember);
 
       const result = await service.addMember(workspaceId, userId, {
         identifier: 'alice',
@@ -240,12 +266,12 @@ describe('WorkspacesService', () => {
     it('should allow adding with ADMIN role', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       usersRepository.findByUsername.mockResolvedValue({
         id: targetUserId,
         username: 'alice',
-      } as any);
+      } as FoundUser);
       usersRepository.findByEmail.mockResolvedValue(null);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue(null);
       workspacesRepository.createMember.mockResolvedValue({
@@ -254,7 +280,7 @@ describe('WorkspacesService', () => {
         role: 'ADMIN',
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'alice' },
-      } as any);
+      } as CreatedMember);
 
       const result = await service.addMember(workspaceId, userId, {
         identifier: 'alice',
@@ -267,13 +293,13 @@ describe('WorkspacesService', () => {
     it('should reject invalid role', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
 
       await expect(
         service.addMember(workspaceId, userId, {
           identifier: 'alice',
-          role: 'GOD' as any,
+          role: 'GOD',
         }),
       ).rejects.toBeInstanceOf(BadRequestException);
       expectAuditNotCalled();
@@ -282,7 +308,7 @@ describe('WorkspacesService', () => {
     it('should return 404 when user not found', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       usersRepository.findByUsername.mockResolvedValue(null);
       usersRepository.findByEmail.mockResolvedValue(null);
@@ -296,19 +322,19 @@ describe('WorkspacesService', () => {
     it('should return 409 when user is already active member', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       usersRepository.findByUsername.mockResolvedValue({
         id: targetUserId,
         username: 'alice',
-      } as any);
+      } as FoundUser);
       usersRepository.findByEmail.mockResolvedValue(null);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: 'existing-member-id',
         workspaceId,
         role: 'MEMBER',
         userId: targetUserId,
-      } as any);
+      } as FoundMember);
 
       await expect(
         service.addMember(workspaceId, userId, { identifier: 'alice' }),
@@ -319,12 +345,12 @@ describe('WorkspacesService', () => {
     it('should map Prisma P2002 to ConflictException', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       usersRepository.findByUsername.mockResolvedValue({
         id: targetUserId,
         username: 'alice',
-      } as any);
+      } as FoundUser);
       usersRepository.findByEmail.mockResolvedValue(null);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue(null);
       const prismaError = new Prisma.PrismaClientKnownRequestError(
@@ -342,14 +368,14 @@ describe('WorkspacesService', () => {
     it('should find user by email when username lookup fails', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       usersRepository.findByUsername.mockResolvedValue(null);
       usersRepository.findByEmail.mockResolvedValue({
         id: targetUserId,
         username: 'alice',
         email: 'alice@example.com',
-      } as any);
+      } as FoundUser);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue(null);
       workspacesRepository.createMember.mockResolvedValue({
         id: memberId,
@@ -357,7 +383,7 @@ describe('WorkspacesService', () => {
         role: 'MEMBER',
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'alice' },
-      } as any);
+      } as CreatedMember);
 
       const result = await service.addMember(workspaceId, userId, {
         identifier: 'alice@example.com',
@@ -377,7 +403,7 @@ describe('WorkspacesService', () => {
     it('should allow OWNER to transfer ownership to MEMBER', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       workspacesRepository.findActiveMemberById.mockResolvedValue({
         id: memberId,
@@ -386,14 +412,14 @@ describe('WorkspacesService', () => {
         userId: targetUserId,
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'alice' },
-      } as any);
+      } as FoundMemberById);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: userId,
         workspaceId,
         role: 'OWNER',
         userId,
         user: { id: userId, username: 'owner' },
-      } as any);
+      } as FoundMember);
       workspacesRepository.transferOwnership.mockResolvedValue({
         workspaceId,
         previousOwner: { id: userId, userId, role: 'ADMIN' },
@@ -411,7 +437,7 @@ describe('WorkspacesService', () => {
     it('should allow OWNER to transfer ownership to ADMIN', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       workspacesRepository.findActiveMemberById.mockResolvedValue({
         id: memberId,
@@ -420,14 +446,14 @@ describe('WorkspacesService', () => {
         userId: targetUserId,
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'bob' },
-      } as any);
+      } as FoundMemberById);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: userId,
         workspaceId,
         role: 'OWNER',
         userId,
         user: { id: userId, username: 'owner' },
-      } as any);
+      } as FoundMember);
       workspacesRepository.transferOwnership.mockResolvedValue({
         workspaceId,
         previousOwner: { id: userId, userId, role: 'ADMIN' },
@@ -445,7 +471,7 @@ describe('WorkspacesService', () => {
     it('should reject ADMIN requester', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('ADMIN');
 
       await expect(
@@ -457,7 +483,7 @@ describe('WorkspacesService', () => {
     it('should reject MEMBER requester', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
 
       await expect(
@@ -469,7 +495,7 @@ describe('WorkspacesService', () => {
     it('should reject non-member requester', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue(null);
 
       await expect(
@@ -490,7 +516,7 @@ describe('WorkspacesService', () => {
     it('should reject target member from another workspace', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       workspacesRepository.findActiveMemberById.mockResolvedValue(null);
 
@@ -503,7 +529,7 @@ describe('WorkspacesService', () => {
     it('should reject deleted target member', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       workspacesRepository.findActiveMemberById.mockResolvedValue(null);
 
@@ -516,7 +542,7 @@ describe('WorkspacesService', () => {
     it('should reject transfer to self', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       workspacesRepository.findActiveMemberById.mockResolvedValue({
         id: memberId,
@@ -525,7 +551,7 @@ describe('WorkspacesService', () => {
         userId,
         createdAt: new Date('2026-01-01'),
         user: { id: userId, username: 'owner' },
-      } as any);
+      } as FoundMemberById);
 
       await expect(
         service.transferOwnership(workspaceId, userId, { memberId }),
@@ -536,7 +562,7 @@ describe('WorkspacesService', () => {
     it('should reject target already OWNER', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       workspacesRepository.findActiveMemberById.mockResolvedValue({
         id: memberId,
@@ -545,7 +571,7 @@ describe('WorkspacesService', () => {
         userId: targetUserId,
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'owner' },
-      } as any);
+      } as FoundMemberById);
 
       await expect(
         service.transferOwnership(workspaceId, userId, { memberId }),
@@ -556,7 +582,7 @@ describe('WorkspacesService', () => {
     it('should map race condition on old owner to ConflictException', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       workspacesRepository.findActiveMemberById.mockResolvedValue({
         id: memberId,
@@ -565,14 +591,14 @@ describe('WorkspacesService', () => {
         userId: targetUserId,
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'alice' },
-      } as any);
+      } as FoundMemberById);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: userId,
         workspaceId,
         role: 'OWNER',
         userId,
         user: { id: userId, username: 'owner' },
-      } as any);
+      } as FoundMember);
       workspacesRepository.transferOwnership.mockRejectedValue(
         new Error('OWNERSHIP_STATE_CHANGED'),
       );
@@ -586,7 +612,7 @@ describe('WorkspacesService', () => {
     it('should map race condition on target to ConflictException', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       workspacesRepository.findActiveMemberById.mockResolvedValue({
         id: memberId,
@@ -595,14 +621,14 @@ describe('WorkspacesService', () => {
         userId: targetUserId,
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'alice' },
-      } as any);
+      } as FoundMemberById);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: userId,
         workspaceId,
         role: 'OWNER',
         userId,
         user: { id: userId, username: 'owner' },
-      } as any);
+      } as FoundMember);
       workspacesRepository.transferOwnership.mockRejectedValue(
         new Error('TARGET_STATE_CHANGED'),
       );
@@ -616,7 +642,7 @@ describe('WorkspacesService', () => {
     it('should map workspace state change to ConflictException', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       workspacesRepository.findActiveMemberById.mockResolvedValue({
         id: memberId,
@@ -625,14 +651,14 @@ describe('WorkspacesService', () => {
         userId: targetUserId,
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'alice' },
-      } as any);
+      } as FoundMemberById);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: userId,
         workspaceId,
         role: 'OWNER',
         userId,
         user: { id: userId, username: 'owner' },
-      } as any);
+      } as FoundMember);
       workspacesRepository.transferOwnership.mockRejectedValue(
         new Error('WORKSPACE_STATE_CHANGED'),
       );
@@ -646,7 +672,7 @@ describe('WorkspacesService', () => {
     it('should map Prisma P2002 to ConflictException', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       workspacesRepository.findActiveMemberById.mockResolvedValue({
         id: memberId,
@@ -655,14 +681,14 @@ describe('WorkspacesService', () => {
         userId: targetUserId,
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'alice' },
-      } as any);
+      } as FoundMemberById);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: userId,
         workspaceId,
         role: 'OWNER',
         userId,
         user: { id: userId, username: 'owner' },
-      } as any);
+      } as FoundMember);
       const prismaError = new Prisma.PrismaClientKnownRequestError(
         'Unique constraint failed',
         { code: 'P2002', clientVersion: '5.22.0' },
@@ -678,7 +704,7 @@ describe('WorkspacesService', () => {
     it('should record audit after successful transfer', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       workspacesRepository.findActiveMemberById.mockResolvedValue({
         id: memberId,
@@ -687,14 +713,14 @@ describe('WorkspacesService', () => {
         userId: targetUserId,
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'alice' },
-      } as any);
+      } as FoundMemberById);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: userId,
         workspaceId,
         role: 'OWNER',
         userId,
         user: { id: userId, username: 'owner' },
-      } as any);
+      } as FoundMember);
       workspacesRepository.transferOwnership.mockResolvedValue({
         workspaceId,
         previousOwner: { id: userId, userId, role: 'ADMIN' },
@@ -733,7 +759,7 @@ describe('WorkspacesService', () => {
     it('should allow OWNER to list audit logs', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       auditService.listForWorkspace.mockResolvedValue([
         {
@@ -760,7 +786,7 @@ describe('WorkspacesService', () => {
     it('should allow ADMIN to list audit logs', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('ADMIN');
       auditService.listForWorkspace.mockResolvedValue([]);
 
@@ -772,7 +798,7 @@ describe('WorkspacesService', () => {
     it('should reject MEMBER requester', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
 
       await expect(
@@ -783,7 +809,7 @@ describe('WorkspacesService', () => {
     it('should reject non-member requester', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue(null);
 
       await expect(
@@ -802,7 +828,7 @@ describe('WorkspacesService', () => {
     it('should return actor null for system action', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       auditService.listForWorkspace.mockResolvedValue([
         {
@@ -827,7 +853,7 @@ describe('WorkspacesService', () => {
     it('should pass limit to audit service', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       auditService.listForWorkspace.mockResolvedValue([]);
 
@@ -844,7 +870,7 @@ describe('WorkspacesService', () => {
     it('should allow OWNER to list members', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       workspacesRepository.listActiveMembers.mockResolvedValue([
         {
@@ -854,7 +880,7 @@ describe('WorkspacesService', () => {
           createdAt: new Date('2026-01-01'),
           user: { id: userId, username: 'owner' },
         },
-      ] as any);
+      ] as ListedMember[]);
 
       const result = await service.listMembers(workspaceId, userId);
 
@@ -867,7 +893,7 @@ describe('WorkspacesService', () => {
     it('should allow ADMIN to list members', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('ADMIN');
       workspacesRepository.listActiveMembers.mockResolvedValue([]);
 
@@ -879,7 +905,7 @@ describe('WorkspacesService', () => {
     it('should allow MEMBER to list members', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
       workspacesRepository.listActiveMembers.mockResolvedValue([]);
 
@@ -891,7 +917,7 @@ describe('WorkspacesService', () => {
     it('should reject non-member', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue(null);
 
       await expect(
@@ -910,7 +936,7 @@ describe('WorkspacesService', () => {
     it('should only return active members', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
       workspacesRepository.listActiveMembers.mockResolvedValue([
         {
@@ -927,7 +953,7 @@ describe('WorkspacesService', () => {
           createdAt: new Date(),
           user: { id: 'user-2', username: 'bob' },
         },
-      ] as any);
+      ] as ListedMember[]);
 
       const result = await service.listMembers(workspaceId, userId);
 
@@ -944,7 +970,7 @@ describe('WorkspacesService', () => {
     it('should allow OWNER to promote MEMBER to ADMIN', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       workspacesRepository.findActiveMemberById.mockResolvedValue({
         id: memberId,
@@ -953,14 +979,14 @@ describe('WorkspacesService', () => {
         userId: targetUserId,
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'alice' },
-      } as any);
+      } as FoundMemberById);
       workspacesRepository.updateMemberRole.mockResolvedValue({
         id: memberId,
         workspaceId,
         role: 'ADMIN',
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'alice' },
-      } as any);
+      } as UpdatedMember);
 
       const result = await service.updateMemberRole(
         workspaceId,
@@ -989,7 +1015,7 @@ describe('WorkspacesService', () => {
     it('should allow OWNER to demote ADMIN to MEMBER', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       workspacesRepository.findActiveMemberById.mockResolvedValue({
         id: memberId,
@@ -998,14 +1024,14 @@ describe('WorkspacesService', () => {
         userId: targetUserId,
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'bob' },
-      } as any);
+      } as FoundMemberById);
       workspacesRepository.updateMemberRole.mockResolvedValue({
         id: memberId,
         workspaceId,
         role: 'MEMBER',
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'bob' },
-      } as any);
+      } as UpdatedMember);
 
       const result = await service.updateMemberRole(
         workspaceId,
@@ -1032,7 +1058,7 @@ describe('WorkspacesService', () => {
     it('should reject ADMIN requester', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('ADMIN');
 
       await expect(
@@ -1049,7 +1075,7 @@ describe('WorkspacesService', () => {
     it('should reject MEMBER requester', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
 
       await expect(
@@ -1066,7 +1092,7 @@ describe('WorkspacesService', () => {
     it('should reject non-member requester', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue(null);
 
       await expect(
@@ -1097,7 +1123,7 @@ describe('WorkspacesService', () => {
     it('should reject target member from another workspace', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       workspacesRepository.findActiveMemberById.mockResolvedValue(null);
 
@@ -1115,7 +1141,7 @@ describe('WorkspacesService', () => {
     it('should reject deleted target member', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       workspacesRepository.findActiveMemberById.mockResolvedValue(null);
 
@@ -1133,7 +1159,7 @@ describe('WorkspacesService', () => {
     it('should reject changing role of current OWNER', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       workspacesRepository.findActiveMemberById.mockResolvedValue({
         id: memberId,
@@ -1141,7 +1167,7 @@ describe('WorkspacesService', () => {
         role: 'OWNER',
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'owner' },
-      } as any);
+      } as FoundMemberById);
 
       await expect(
         service.updateMemberRole(
@@ -1157,7 +1183,7 @@ describe('WorkspacesService', () => {
     it('should reject OWNER role in body', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       workspacesRepository.findActiveMemberById.mockResolvedValue({
         id: memberId,
@@ -1166,7 +1192,7 @@ describe('WorkspacesService', () => {
         userId: targetUserId,
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'alice' },
-      } as any);
+      } as FoundMemberById);
 
       await expect(
         service.updateMemberRole(
@@ -1182,7 +1208,7 @@ describe('WorkspacesService', () => {
     it('should return updated member without passwordHash', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       workspacesRepository.findActiveMemberById.mockResolvedValue({
         id: memberId,
@@ -1191,14 +1217,14 @@ describe('WorkspacesService', () => {
         userId: targetUserId,
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'alice' },
-      } as any);
+      } as FoundMemberById);
       workspacesRepository.updateMemberRole.mockResolvedValue({
         id: memberId,
         workspaceId,
         role: 'ADMIN',
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'alice' },
-      } as any);
+      } as UpdatedMember);
 
       const result = await service.updateMemberRole(
         workspaceId,
@@ -1211,7 +1237,7 @@ describe('WorkspacesService', () => {
         id: memberId,
         workspaceId,
         role: 'ADMIN',
-        joinedAt: expect.any(Date),
+        joinedAt: expect.any(Date) as Date,
         user: {
           id: targetUserId,
           username: 'alice',
@@ -1240,7 +1266,7 @@ describe('WorkspacesService', () => {
     it('should allow OWNER to remove MEMBER', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       workspacesRepository.findActiveMemberById.mockResolvedValue({
         id: memberId,
@@ -1249,12 +1275,12 @@ describe('WorkspacesService', () => {
         userId: targetUserId,
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'alice' },
-      } as any);
+      } as FoundMemberById);
       workspacesRepository.softDeleteMember.mockResolvedValue(1);
       usersRepository.findById.mockResolvedValue({
         id: targetUserId,
         email: 'alice@example.com',
-      } as any);
+      } as FoundMemberById);
       channelsRepository.softDeleteChannelMembersByWorkspaceAndUserId.mockResolvedValue(
         1,
       );
@@ -1287,7 +1313,7 @@ describe('WorkspacesService', () => {
     it('should allow OWNER to remove ADMIN', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       workspacesRepository.findActiveMemberById.mockResolvedValue({
         id: memberId,
@@ -1296,12 +1322,12 @@ describe('WorkspacesService', () => {
         userId: targetUserId,
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'bob' },
-      } as any);
+      } as FoundMemberById);
       workspacesRepository.softDeleteMember.mockResolvedValue(1);
       usersRepository.findById.mockResolvedValue({
         id: targetUserId,
         email: 'bob@example.com',
-      } as any);
+      } as FoundMemberById);
       channelsRepository.softDeleteChannelMembersByWorkspaceAndUserId.mockResolvedValue(
         1,
       );
@@ -1334,7 +1360,7 @@ describe('WorkspacesService', () => {
     it('should allow ADMIN to remove MEMBER', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('ADMIN');
       workspacesRepository.findActiveMemberById.mockResolvedValue({
         id: memberId,
@@ -1343,12 +1369,12 @@ describe('WorkspacesService', () => {
         userId: targetUserId,
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'alice' },
-      } as any);
+      } as FoundMemberById);
       workspacesRepository.softDeleteMember.mockResolvedValue(1);
       usersRepository.findById.mockResolvedValue({
         id: targetUserId,
         email: 'alice@example.com',
-      } as any);
+      } as FoundMemberById);
       channelsRepository.softDeleteChannelMembersByWorkspaceAndUserId.mockResolvedValue(
         1,
       );
@@ -1381,7 +1407,7 @@ describe('WorkspacesService', () => {
     it('should reject ADMIN removing ADMIN', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('ADMIN');
       workspacesRepository.findActiveMemberById.mockResolvedValue({
         id: memberId,
@@ -1390,7 +1416,7 @@ describe('WorkspacesService', () => {
         userId: targetUserId,
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'bob' },
-      } as any);
+      } as FoundMemberById);
 
       await expect(
         service.removeMember(workspaceId, memberId, userId),
@@ -1401,7 +1427,7 @@ describe('WorkspacesService', () => {
     it('should reject ADMIN removing OWNER', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('ADMIN');
       workspacesRepository.findActiveMemberById.mockResolvedValue({
         id: memberId,
@@ -1410,7 +1436,7 @@ describe('WorkspacesService', () => {
         userId: targetUserId,
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'owner' },
-      } as any);
+      } as FoundMemberById);
 
       await expect(
         service.removeMember(workspaceId, memberId, userId),
@@ -1421,7 +1447,7 @@ describe('WorkspacesService', () => {
     it('should reject MEMBER requester', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
 
       await expect(
@@ -1433,7 +1459,7 @@ describe('WorkspacesService', () => {
     it('should reject non-member requester', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue(null);
 
       await expect(
@@ -1454,7 +1480,7 @@ describe('WorkspacesService', () => {
     it('should reject target member from another workspace', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       workspacesRepository.findActiveMemberById.mockResolvedValue(null);
 
@@ -1467,7 +1493,7 @@ describe('WorkspacesService', () => {
     it('should reject already deleted target member', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       workspacesRepository.findActiveMemberById.mockResolvedValue(null);
 
@@ -1480,7 +1506,7 @@ describe('WorkspacesService', () => {
     it('should reject removing workspace OWNER', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       workspacesRepository.findActiveMemberById.mockResolvedValue({
         id: memberId,
@@ -1489,7 +1515,7 @@ describe('WorkspacesService', () => {
         userId: targetUserId,
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'owner' },
-      } as any);
+      } as FoundMemberById);
 
       await expect(
         service.removeMember(workspaceId, memberId, userId),
@@ -1500,7 +1526,7 @@ describe('WorkspacesService', () => {
     it('should reject self-removal', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       workspacesRepository.findActiveMemberById.mockResolvedValue({
         id: memberId,
@@ -1509,7 +1535,7 @@ describe('WorkspacesService', () => {
         userId,
         createdAt: new Date('2026-01-01'),
         user: { id: userId, username: 'owner' },
-      } as any);
+      } as FoundMemberById);
 
       await expect(
         service.removeMember(workspaceId, memberId, userId),
@@ -1520,7 +1546,7 @@ describe('WorkspacesService', () => {
     it('should reject when soft delete affects 0 rows', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       workspacesRepository.findActiveMemberById.mockResolvedValue({
         id: memberId,
@@ -1529,7 +1555,7 @@ describe('WorkspacesService', () => {
         userId: targetUserId,
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'alice' },
-      } as any);
+      } as FoundMemberById);
       workspacesRepository.softDeleteMember.mockResolvedValue(0);
 
       await expect(
@@ -1547,7 +1573,7 @@ describe('WorkspacesService', () => {
     it('should still cleanup channel memberships when target user is not found', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       workspacesRepository.findActiveMemberById.mockResolvedValue({
         id: memberId,
@@ -1556,7 +1582,7 @@ describe('WorkspacesService', () => {
         userId: targetUserId,
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'alice' },
-      } as any);
+      } as FoundMemberById);
       workspacesRepository.softDeleteMember.mockResolvedValue(1);
       usersRepository.findById.mockResolvedValue(null);
 
@@ -1580,13 +1606,13 @@ describe('WorkspacesService', () => {
           name: 'Archived WS',
           ownerId: userId,
           deletedAt: new Date('2026-01-01'),
-        } as any)
+        } as WorkspaceWithArchive)
         .mockResolvedValueOnce({
           id: workspaceId,
           name: 'Archived WS',
           ownerId: userId,
           deletedAt: null,
-        } as any);
+        } as WorkspaceWithArchive);
       workspacesRepository.restoreWorkspace.mockResolvedValue(1);
 
       const result = await service.restore(workspaceId, userId);
@@ -1603,7 +1629,7 @@ describe('WorkspacesService', () => {
         name: 'Archived WS',
         ownerId: 'other-owner-id',
         deletedAt: new Date('2026-01-01'),
-      } as any);
+      } as WorkspaceWithArchive);
 
       await expect(service.restore(workspaceId, userId)).rejects.toBeInstanceOf(
         ForbiddenException,
@@ -1628,7 +1654,7 @@ describe('WorkspacesService', () => {
         name: 'Active WS',
         ownerId: userId,
         deletedAt: null,
-      } as any);
+      } as WorkspaceWithArchive);
 
       await expect(service.restore(workspaceId, userId)).rejects.toBeInstanceOf(
         ConflictException,
@@ -1643,7 +1669,7 @@ describe('WorkspacesService', () => {
         name: 'Archived WS',
         ownerId: userId,
         deletedAt: new Date('2026-01-01'),
-      } as any);
+      } as WorkspaceWithArchive);
       workspacesRepository.restoreWorkspace.mockResolvedValue(0);
 
       await expect(service.restore(workspaceId, userId)).rejects.toBeInstanceOf(
@@ -1657,7 +1683,7 @@ describe('WorkspacesService', () => {
     it('should allow MEMBER to leave workspace and cleanup channel access', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: 'member-id',
         workspaceId,
@@ -1665,12 +1691,12 @@ describe('WorkspacesService', () => {
         userId,
         createdAt: new Date('2026-01-01'),
         user: { id: userId, username: 'alice' },
-      } as any);
+      } as FoundMember);
       workspacesRepository.softDeleteMemberByUserId.mockResolvedValue(1);
       usersRepository.findById.mockResolvedValue({
         id: userId,
         email: 'alice@example.com',
-      } as any);
+      } as FoundMember);
       channelsRepository.softDeleteChannelMembersByWorkspaceAndUserId.mockResolvedValue(
         2,
       );
@@ -1695,7 +1721,7 @@ describe('WorkspacesService', () => {
     it('should allow ADMIN to leave workspace and cleanup channel access', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: 'member-id',
         workspaceId,
@@ -1703,12 +1729,12 @@ describe('WorkspacesService', () => {
         userId,
         createdAt: new Date('2026-01-01'),
         user: { id: userId, username: 'alice' },
-      } as any);
+      } as FoundMember);
       workspacesRepository.softDeleteMemberByUserId.mockResolvedValue(1);
       usersRepository.findById.mockResolvedValue({
         id: userId,
         email: 'alice@example.com',
-      } as any);
+      } as FoundMember);
       channelsRepository.softDeleteChannelMembersByWorkspaceAndUserId.mockResolvedValue(
         2,
       );
@@ -1730,7 +1756,7 @@ describe('WorkspacesService', () => {
     it('should reject OWNER leaving workspace', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: 'member-id',
         workspaceId,
@@ -1738,7 +1764,7 @@ describe('WorkspacesService', () => {
         userId,
         createdAt: new Date('2026-01-01'),
         user: { id: userId, username: 'alice' },
-      } as any);
+      } as FoundMember);
 
       await expect(
         service.leaveWorkspace(workspaceId, userId),
@@ -1754,7 +1780,7 @@ describe('WorkspacesService', () => {
     it('should reject non-workspace-member', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue(null);
 
       await expect(
@@ -1785,7 +1811,7 @@ describe('WorkspacesService', () => {
     it('should reject when soft delete affects 0 rows', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: 'member-id',
         workspaceId,
@@ -1793,7 +1819,7 @@ describe('WorkspacesService', () => {
         userId,
         createdAt: new Date('2026-01-01'),
         user: { id: userId, username: 'alice' },
-      } as any);
+      } as FoundMember);
       workspacesRepository.softDeleteMemberByUserId.mockResolvedValue(0);
 
       await expect(
@@ -1810,7 +1836,7 @@ describe('WorkspacesService', () => {
     it('should still cleanup channel memberships when user is not found', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as any);
+      } as ActiveWorkspace);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: 'member-id',
         workspaceId,
@@ -1818,7 +1844,7 @@ describe('WorkspacesService', () => {
         userId,
         createdAt: new Date('2026-01-01'),
         user: { id: userId, username: 'alice' },
-      } as any);
+      } as FoundMember);
       workspacesRepository.softDeleteMemberByUserId.mockResolvedValue(1);
       usersRepository.findById.mockResolvedValue(null);
 
@@ -1845,7 +1871,7 @@ describe('WorkspacesService', () => {
           deletedAt: new Date('2026-01-01'),
           createdAt: new Date('2025-01-01'),
           updatedAt: new Date('2026-01-01'),
-        } as any,
+        } as ListedWorkspace[],
       ]);
 
       const result = await service.listArchivedForOwner(userId);
@@ -1875,7 +1901,7 @@ describe('WorkspacesService', () => {
           deletedAt: new Date('2026-01-01'),
           createdAt: new Date('2025-01-01'),
           updatedAt: new Date('2026-01-01'),
-        } as any,
+        } as ListedWorkspace[],
       ]);
 
       const result = await service.listArchivedForOwner(userId);
