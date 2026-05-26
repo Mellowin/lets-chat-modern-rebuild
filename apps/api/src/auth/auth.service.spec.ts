@@ -1,5 +1,6 @@
 import { Test } from '@nestjs/testing';
-import { AuthService } from './auth.service';
+import { AuthService, AuthUserResponse } from './auth.service';
+import { User } from '@lets-chat/database';
 import { UsersRepository } from '../users/users.repository';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
@@ -71,7 +72,7 @@ describe('AuthService', () => {
       createdAt: new Date(),
     };
 
-    usersRepository.updateDisplayName.mockResolvedValue(user as any);
+    usersRepository.updateDisplayName.mockResolvedValue(user as User);
 
     const result = await service.updateMe('user-id', 'John Doe');
 
@@ -94,7 +95,10 @@ describe('AuthService', () => {
       createdAt: new Date(),
     };
 
-    const result = (service as any).toAuthUserResponse(user);
+    const servicePrivate = service as unknown as {
+      toAuthUserResponse: (user: unknown) => AuthUserResponse;
+    };
+    const result = servicePrivate.toAuthUserResponse(user);
 
     expect(result.displayName).toBe('Jane Doe');
     expect(result.avatarUrl).toBe('/avatars/avatar-1.svg');
@@ -113,7 +117,10 @@ describe('AuthService', () => {
       createdAt: new Date(),
     };
 
-    const result = (service as any).toAuthUserResponse(user);
+    const servicePrivate = service as unknown as {
+      toAuthUserResponse: (user: unknown) => AuthUserResponse;
+    };
+    const result = servicePrivate.toAuthUserResponse(user);
 
     expect(result.avatarUrl).toBeNull();
     expect(result.avatarUpdatedAt).toBeNull();
@@ -131,7 +138,7 @@ describe('AuthService', () => {
       createdAt: new Date(),
     };
 
-    usersRepository.updateAvatar.mockResolvedValue(user as any);
+    usersRepository.updateAvatar.mockResolvedValue(user as User);
 
     const result = await service.updateAvatar(
       'user-id',
@@ -158,7 +165,7 @@ describe('AuthService', () => {
       createdAt: new Date(),
     };
 
-    usersRepository.updateAvatar.mockResolvedValue(user as any);
+    usersRepository.updateAvatar.mockResolvedValue(user as User);
 
     const result = await service.updateAvatar(
       'user-id',
