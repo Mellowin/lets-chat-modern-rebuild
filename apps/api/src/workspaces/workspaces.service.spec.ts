@@ -39,6 +39,9 @@ type WorkspaceWithArchive = NonNullable<
 type FoundUser = NonNullable<
   Awaited<ReturnType<UsersRepository['findByUsername']>>
 >;
+type FoundUserById = NonNullable<
+  Awaited<ReturnType<UsersRepository['findById']>>
+>;
 
 describe('WorkspacesService', () => {
   let service: WorkspacesService;
@@ -1280,7 +1283,7 @@ describe('WorkspacesService', () => {
       usersRepository.findById.mockResolvedValue({
         id: targetUserId,
         email: 'alice@example.com',
-      } as FoundMemberById);
+      } as FoundUserById);
       channelsRepository.softDeleteChannelMembersByWorkspaceAndUserId.mockResolvedValue(
         1,
       );
@@ -1327,7 +1330,7 @@ describe('WorkspacesService', () => {
       usersRepository.findById.mockResolvedValue({
         id: targetUserId,
         email: 'bob@example.com',
-      } as FoundMemberById);
+      } as FoundUserById);
       channelsRepository.softDeleteChannelMembersByWorkspaceAndUserId.mockResolvedValue(
         1,
       );
@@ -1374,7 +1377,7 @@ describe('WorkspacesService', () => {
       usersRepository.findById.mockResolvedValue({
         id: targetUserId,
         email: 'alice@example.com',
-      } as FoundMemberById);
+      } as FoundUserById);
       channelsRepository.softDeleteChannelMembersByWorkspaceAndUserId.mockResolvedValue(
         1,
       );
@@ -1696,7 +1699,7 @@ describe('WorkspacesService', () => {
       usersRepository.findById.mockResolvedValue({
         id: userId,
         email: 'alice@example.com',
-      } as FoundMember);
+      } as FoundUserById);
       channelsRepository.softDeleteChannelMembersByWorkspaceAndUserId.mockResolvedValue(
         2,
       );
@@ -1734,7 +1737,7 @@ describe('WorkspacesService', () => {
       usersRepository.findById.mockResolvedValue({
         id: userId,
         email: 'alice@example.com',
-      } as FoundMember);
+      } as FoundUserById);
       channelsRepository.softDeleteChannelMembersByWorkspaceAndUserId.mockResolvedValue(
         2,
       );
