@@ -6,6 +6,44 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@lets-chat/database';
+
+type ActiveChannel = NonNullable<
+  Awaited<ReturnType<ChannelsRepository['findActiveById']>>
+>;
+type UpdatedChannel = Awaited<ReturnType<ChannelsRepository['updateChannel']>>;
+type ArchivedChannel = Awaited<
+  ReturnType<ChannelsRepository['archiveChannel']>
+>;
+type RestoredChannel = Awaited<
+  ReturnType<ChannelsRepository['restoreChannel']>
+>;
+type ChannelWithArchive = NonNullable<
+  Awaited<ReturnType<ChannelsRepository['findByIdIncludingArchived']>>
+>;
+type ListedChannel = Awaited<
+  ReturnType<ChannelsRepository['listForWorkspace']>
+>[number];
+type ArchivedChannelList = Awaited<
+  ReturnType<ChannelsRepository['listArchivedForWorkspace']>
+>;
+type ChannelMemberWithUser = Awaited<
+  ReturnType<ChannelsRepository['listActiveChannelMembers']>
+>[number];
+type CreatedChannelMember = Awaited<
+  ReturnType<ChannelsRepository['createChannelMember']>
+>;
+type FoundChannelMember = NonNullable<
+  Awaited<ReturnType<ChannelsRepository['findActiveChannelMemberByUserId']>>
+>;
+type FoundChannelMemberById = NonNullable<
+  Awaited<ReturnType<ChannelsRepository['findActiveChannelMemberById']>>
+>;
+type FoundUser = NonNullable<
+  Awaited<ReturnType<UsersRepository['findByUsername']>>
+>;
+type WorkspaceMember = NonNullable<
+  Awaited<ReturnType<WorkspacesRepository['findActiveMemberByUserId']>>
+>;
 import { ChannelsService } from './channels.service';
 import { ChannelsRepository } from './channels.repository';
 import { WorkspacesRepository } from '../workspaces/workspaces.repository';
@@ -87,7 +125,7 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId: '99999999-9999-9999-9999-999999999999',
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
 
       await expect(
         service.findById(workspaceId, channelId, userId),
@@ -100,7 +138,7 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PRIVATE',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue(null);
 
       await expect(
@@ -113,7 +151,7 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any;
+      } as ActiveChannel;
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
       channelsRepository.findActiveById.mockResolvedValue(channel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
@@ -128,7 +166,7 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue(null);
 
       await expect(
@@ -141,7 +179,7 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PRIVATE',
-      } as any;
+      } as ActiveChannel;
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
       channelsRepository.findActiveById.mockResolvedValue(channel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
@@ -166,7 +204,7 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue(null);
 
       await expect(
@@ -180,7 +218,7 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
 
       await expect(
@@ -189,13 +227,13 @@ describe('ChannelsService', () => {
     });
 
     it('updates channel for ADMIN role', async () => {
-      const updated = { id: channelId, name: 'New Name' } as any;
+      const updated = { id: channelId, name: 'New Name' } as UpdatedChannel;
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
       channelsRepository.findActiveById.mockResolvedValue({
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('ADMIN');
       channelsRepository.updateChannel.mockResolvedValue(updated);
 
@@ -209,13 +247,13 @@ describe('ChannelsService', () => {
     });
 
     it('updates channel for OWNER role', async () => {
-      const updated = { id: channelId, name: 'New Name' } as any;
+      const updated = { id: channelId, name: 'New Name' } as UpdatedChannel;
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
       channelsRepository.findActiveById.mockResolvedValue({
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
       channelsRepository.updateChannel.mockResolvedValue(updated);
 
@@ -236,7 +274,7 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
 
       await expect(
@@ -250,7 +288,7 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('ADMIN');
 
       await expect(
@@ -264,12 +302,12 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
       channelsRepository.archiveChannel.mockResolvedValue({
         id: channelId,
         deletedAt: new Date(),
-      } as any);
+      } as ArchivedChannel);
 
       const result = await service.archive(workspaceId, channelId, userId);
       expect(result.success).toBe(true);
@@ -286,7 +324,7 @@ describe('ChannelsService', () => {
           name: 'archived-channel',
           deletedAt: new Date(),
         },
-      ] as any);
+      ] as ArchivedChannelList);
 
       const result = await service.listArchived(workspaceId, userId);
 
@@ -323,12 +361,12 @@ describe('ChannelsService', () => {
         workspaceId,
         type: 'PUBLIC',
         deletedAt: new Date(),
-      } as any);
+      } as ChannelWithArchive);
       channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
       channelsRepository.restoreChannel.mockResolvedValue({
         id: channelId,
         deletedAt: null,
-      } as any);
+      } as RestoredChannel);
 
       const result = await service.restore(workspaceId, channelId, userId);
       expect(result.success).toBe(true);
@@ -341,7 +379,7 @@ describe('ChannelsService', () => {
         workspaceId,
         type: 'PUBLIC',
         deletedAt: new Date(),
-      } as any);
+      } as ChannelWithArchive);
       channelsRepository.findChannelMemberRole.mockResolvedValue('ADMIN');
 
       await expect(
@@ -357,7 +395,7 @@ describe('ChannelsService', () => {
         workspaceId,
         type: 'PUBLIC',
         deletedAt: new Date(),
-      } as any);
+      } as ChannelWithArchive);
       channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
 
       await expect(
@@ -373,7 +411,7 @@ describe('ChannelsService', () => {
         workspaceId,
         type: 'PUBLIC',
         deletedAt: new Date(),
-      } as any);
+      } as ChannelWithArchive);
       channelsRepository.findChannelMemberRole.mockResolvedValue(null);
 
       await expect(
@@ -399,7 +437,7 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId: '99999999-9999-9999-9999-999999999999',
         deletedAt: new Date(),
-      } as any);
+      } as ChannelWithArchive);
 
       await expect(
         service.restore(workspaceId, channelId, userId),
@@ -414,7 +452,7 @@ describe('ChannelsService', () => {
         workspaceId,
         type: 'PUBLIC',
         deletedAt: null,
-      } as any);
+      } as ChannelWithArchive);
       channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
 
       await expect(
@@ -430,15 +468,15 @@ describe('ChannelsService', () => {
         workspaceId,
         type: 'PUBLIC',
         deletedAt: new Date(),
-      } as any);
+      } as ChannelWithArchive);
       channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
       channelsRepository.restoreChannel.mockResolvedValue({
         id: channelId,
         deletedAt: null,
-      } as any);
+      } as RestoredChannel);
       channelsRepository.listForWorkspace.mockResolvedValue([
         { id: channelId, workspaceId, name: 'general', deletedAt: null },
-      ] as any);
+      ] as ListedChannel[]);
 
       const restoreResult = await service.restore(
         workspaceId,
@@ -460,7 +498,7 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
       channelsRepository.listActiveChannelMembers.mockResolvedValue([
         {
@@ -470,7 +508,7 @@ describe('ChannelsService', () => {
           createdAt: new Date('2026-01-01'),
           user: { id: userId, username: 'owner' },
         },
-      ] as any);
+      ] as ChannelMemberWithUser[]);
 
       const result = await service.listChannelMembers(
         workspaceId,
@@ -489,7 +527,7 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
       channelsRepository.listActiveChannelMembers.mockResolvedValue([
         {
@@ -506,7 +544,7 @@ describe('ChannelsService', () => {
           createdAt: new Date('2026-01-01'),
           user: { id: 'user-2', username: 'bob' },
         },
-      ] as any);
+      ] as ChannelMemberWithUser[]);
 
       const result = await service.listChannelMembers(
         workspaceId,
@@ -525,7 +563,7 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue(null);
 
       await expect(
@@ -547,7 +585,7 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId: '99999999-9999-9999-9999-999999999999',
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
 
       await expect(
         service.listChannelMembers(workspaceId, channelId, userId),
@@ -560,7 +598,7 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PRIVATE',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue(null);
 
       await expect(
@@ -574,7 +612,7 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PRIVATE',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
       channelsRepository.listActiveChannelMembers.mockResolvedValue([
         {
@@ -591,7 +629,7 @@ describe('ChannelsService', () => {
           createdAt: new Date('2026-01-01'),
           user: { id: userId, username: 'bob' },
         },
-      ] as any);
+      ] as ChannelMemberWithUser[]);
 
       const result = await service.listChannelMembers(
         workspaceId,
@@ -615,19 +653,19 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
       usersRepository.findByUsername.mockResolvedValue({
         id: targetUserId,
         username: 'alice',
-      } as any);
+      } as FoundUser);
       usersRepository.findByEmail.mockResolvedValue(null);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: 'ws-member-1',
         workspaceId,
         role: 'MEMBER',
         userId: targetUserId,
-      } as any);
+      } as WorkspaceMember);
       channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue(
         null,
       );
@@ -637,7 +675,7 @@ describe('ChannelsService', () => {
         role: 'ADMIN',
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'alice' },
-      } as any);
+      } as CreatedChannelMember);
 
       const result = await service.addChannelMember(
         workspaceId,
@@ -656,19 +694,19 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
       usersRepository.findByUsername.mockResolvedValue({
         id: targetUserId,
         username: 'alice',
-      } as any);
+      } as FoundUser);
       usersRepository.findByEmail.mockResolvedValue(null);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: 'ws-member-1',
         workspaceId,
         role: 'MEMBER',
         userId: targetUserId,
-      } as any);
+      } as WorkspaceMember);
       channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue(
         null,
       );
@@ -678,7 +716,7 @@ describe('ChannelsService', () => {
         role: 'MEMBER',
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'alice' },
-      } as any);
+      } as CreatedChannelMember);
 
       const result = await service.addChannelMember(
         workspaceId,
@@ -697,19 +735,19 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('ADMIN');
       usersRepository.findByUsername.mockResolvedValue({
         id: targetUserId,
         username: 'bob',
-      } as any);
+      } as FoundUser);
       usersRepository.findByEmail.mockResolvedValue(null);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: 'ws-member-1',
         workspaceId,
         role: 'MEMBER',
         userId: targetUserId,
-      } as any);
+      } as WorkspaceMember);
       channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue(
         null,
       );
@@ -719,7 +757,7 @@ describe('ChannelsService', () => {
         role: 'MEMBER',
         createdAt: new Date('2026-01-01'),
         user: { id: targetUserId, username: 'bob' },
-      } as any);
+      } as CreatedChannelMember);
 
       const result = await service.addChannelMember(
         workspaceId,
@@ -738,19 +776,19 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('ADMIN');
       usersRepository.findByUsername.mockResolvedValue({
         id: targetUserId,
         username: 'alice',
-      } as any);
+      } as FoundUser);
       usersRepository.findByEmail.mockResolvedValue(null);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: 'ws-member-1',
         workspaceId,
         role: 'MEMBER',
         userId: targetUserId,
-      } as any);
+      } as WorkspaceMember);
       channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue(
         null,
       );
@@ -769,7 +807,7 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
 
       await expect(
@@ -795,7 +833,7 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId: '99999999-9999-9999-9999-999999999999',
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
 
       await expect(
         service.addChannelMember(workspaceId, channelId, userId, {
@@ -810,7 +848,7 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
       usersRepository.findByUsername.mockResolvedValue(null);
       usersRepository.findByEmail.mockResolvedValue(null);
@@ -828,12 +866,12 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
       usersRepository.findByUsername.mockResolvedValue({
         id: targetUserId,
         username: 'alice',
-      } as any);
+      } as FoundUser);
       usersRepository.findByEmail.mockResolvedValue(null);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue(null);
 
@@ -850,25 +888,25 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
       usersRepository.findByUsername.mockResolvedValue({
         id: targetUserId,
         username: 'alice',
-      } as any);
+      } as FoundUser);
       usersRepository.findByEmail.mockResolvedValue(null);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: 'ws-member-1',
         workspaceId,
         role: 'MEMBER',
         userId: targetUserId,
-      } as any);
+      } as WorkspaceMember);
       channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue({
         id: 'existing-channel-member',
         channelId,
         role: 'MEMBER',
         userId: targetUserId,
-      } as any);
+      } as FoundChannelMember);
 
       await expect(
         service.addChannelMember(workspaceId, channelId, userId, {
@@ -883,7 +921,7 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
 
       await expect(
@@ -900,13 +938,13 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
 
       await expect(
         service.addChannelMember(workspaceId, channelId, userId, {
           identifier: 'alice',
-          role: 'GOD' as any,
+          role: 'GOD',
         }),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
@@ -917,19 +955,19 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
       usersRepository.findByUsername.mockResolvedValue({
         id: targetUserId,
         username: 'alice',
-      } as any);
+      } as FoundUser);
       usersRepository.findByEmail.mockResolvedValue(null);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: 'ws-member-1',
         workspaceId,
         role: 'MEMBER',
         userId: targetUserId,
-      } as any);
+      } as WorkspaceMember);
       channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue(
         null,
       );
@@ -957,7 +995,7 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
       channelsRepository.findActiveChannelMemberById.mockResolvedValue({
         id: targetMemberId,
@@ -965,7 +1003,7 @@ describe('ChannelsService', () => {
         role: 'MEMBER',
         userId: targetUserId,
         user: { id: targetUserId, username: 'bob' },
-      } as any);
+      } as FoundChannelMemberById);
       channelsRepository.softDeleteChannelMember.mockResolvedValue(1);
 
       const result = await service.removeChannelMember(
@@ -988,7 +1026,7 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
       channelsRepository.findActiveChannelMemberById.mockResolvedValue({
         id: targetMemberId,
@@ -996,7 +1034,7 @@ describe('ChannelsService', () => {
         role: 'ADMIN',
         userId: targetUserId,
         user: { id: targetUserId, username: 'bob' },
-      } as any);
+      } as FoundChannelMemberById);
       channelsRepository.softDeleteChannelMember.mockResolvedValue(1);
 
       const result = await service.removeChannelMember(
@@ -1015,7 +1053,7 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('ADMIN');
       channelsRepository.findActiveChannelMemberById.mockResolvedValue({
         id: targetMemberId,
@@ -1023,7 +1061,7 @@ describe('ChannelsService', () => {
         role: 'MEMBER',
         userId: targetUserId,
         user: { id: targetUserId, username: 'bob' },
-      } as any);
+      } as FoundChannelMemberById);
       channelsRepository.softDeleteChannelMember.mockResolvedValue(1);
 
       const result = await service.removeChannelMember(
@@ -1042,7 +1080,7 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('ADMIN');
       channelsRepository.findActiveChannelMemberById.mockResolvedValue({
         id: targetMemberId,
@@ -1050,7 +1088,7 @@ describe('ChannelsService', () => {
         role: 'ADMIN',
         userId: targetUserId,
         user: { id: targetUserId, username: 'bob' },
-      } as any);
+      } as FoundChannelMemberById);
 
       await expect(
         service.removeChannelMember(
@@ -1069,7 +1107,7 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('ADMIN');
       channelsRepository.findActiveChannelMemberById.mockResolvedValue({
         id: targetMemberId,
@@ -1077,7 +1115,7 @@ describe('ChannelsService', () => {
         role: 'OWNER',
         userId: targetUserId,
         user: { id: targetUserId, username: 'bob' },
-      } as any);
+      } as FoundChannelMemberById);
 
       await expect(
         service.removeChannelMember(
@@ -1096,7 +1134,7 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
 
       await expect(
@@ -1119,7 +1157,7 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
       channelsRepository.findActiveChannelMemberById.mockResolvedValue({
         id: targetMemberId,
@@ -1127,7 +1165,7 @@ describe('ChannelsService', () => {
         role: 'OWNER',
         userId: targetUserId,
         user: { id: targetUserId, username: 'bob' },
-      } as any);
+      } as FoundChannelMemberById);
 
       await expect(
         service.removeChannelMember(
@@ -1162,7 +1200,7 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId: '99999999-9999-9999-9999-999999999999',
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
 
       await expect(
         service.removeChannelMember(
@@ -1183,7 +1221,7 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
       channelsRepository.findActiveChannelMemberById.mockResolvedValue(null);
 
@@ -1204,7 +1242,7 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
       channelsRepository.findActiveChannelMemberById.mockResolvedValue(null);
 
@@ -1224,7 +1262,7 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
       channelsRepository.findActiveChannelMemberById.mockResolvedValue({
         id: targetMemberId,
@@ -1232,7 +1270,7 @@ describe('ChannelsService', () => {
         role: 'MEMBER',
         userId: targetUserId,
         user: { id: targetUserId, username: 'bob' },
-      } as any);
+      } as FoundChannelMemberById);
       channelsRepository.softDeleteChannelMember.mockResolvedValue(0);
 
       await expect(
@@ -1259,14 +1297,14 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue({
         id: memberId,
         channelId,
         role: 'MEMBER',
         userId,
         user: { id: userId, username: 'alice' },
-      } as any);
+      } as FoundChannelMember);
       channelsRepository.softDeleteChannelMember.mockResolvedValue(1);
 
       const result = await service.leaveChannel(workspaceId, channelId, userId);
@@ -1284,14 +1322,14 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue({
         id: memberId,
         channelId,
         role: 'ADMIN',
         userId,
         user: { id: userId, username: 'alice' },
-      } as any);
+      } as FoundChannelMember);
       channelsRepository.softDeleteChannelMember.mockResolvedValue(1);
 
       const result = await service.leaveChannel(workspaceId, channelId, userId);
@@ -1305,14 +1343,14 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue({
         id: memberId,
         channelId,
         role: 'OWNER',
         userId,
         user: { id: userId, username: 'alice' },
-      } as any);
+      } as FoundChannelMember);
 
       await expect(
         service.leaveChannel(workspaceId, channelId, userId),
@@ -1326,7 +1364,7 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue(
         null,
       );
@@ -1354,7 +1392,7 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId: '99999999-9999-9999-9999-999999999999',
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
 
       await expect(
         service.leaveChannel(workspaceId, channelId, userId),
@@ -1370,14 +1408,14 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue({
         id: memberId,
         channelId,
         role: 'MEMBER',
         userId,
         user: { id: userId, username: 'alice' },
-      } as any);
+      } as FoundChannelMember);
       channelsRepository.softDeleteChannelMember.mockResolvedValue(1);
       channelsRepository.listForWorkspace.mockResolvedValue([]);
 
@@ -1398,14 +1436,14 @@ describe('ChannelsService', () => {
         id: channelId,
         workspaceId,
         type: 'PUBLIC',
-      } as any);
+      } as ActiveChannel);
       channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue({
         id: memberId,
         channelId,
         role: 'MEMBER',
         userId,
         user: { id: userId, username: 'alice' },
-      } as any);
+      } as FoundChannelMember);
       channelsRepository.softDeleteChannelMember.mockResolvedValue(1);
       channelsRepository.findChannelMemberRole.mockResolvedValue(null);
 
