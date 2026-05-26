@@ -39,7 +39,10 @@ export class StorageService implements OnModuleInit {
       await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
       this.logger.log(`Bucket "${this.bucket}" exists`);
     } catch (error) {
-      if (error instanceof NotFound || error.name === 'NotFound') {
+      if (
+        error instanceof NotFound ||
+        (error instanceof Error && error.name === 'NotFound')
+      ) {
         try {
           await this.client.send(
             new CreateBucketCommand({ Bucket: this.bucket }),

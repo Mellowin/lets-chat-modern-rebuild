@@ -12,6 +12,14 @@ import { StorageService } from '../storage/storage.service';
 import { PresignAttachmentDto } from './dto/presign-attachment.dto';
 import { randomUUID } from 'crypto';
 
+function isAwsNotFoundError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  if (error.name === 'NotFound') return true;
+  const metadata = (error as { $metadata?: { httpStatusCode?: number } })
+    .$metadata;
+  return metadata?.httpStatusCode === 404;
+}
+
 @Injectable()
 export class AttachmentsService {
   constructor(
@@ -106,10 +114,7 @@ export class AttachmentsService {
       ) {
         throw error;
       }
-      if (
-        error.name === 'NotFound' ||
-        error.$metadata?.httpStatusCode === 404
-      ) {
+      if (isAwsNotFoundError(error)) {
         throw new ConflictException('Upload not completed');
       }
       throw error;
@@ -138,10 +143,7 @@ export class AttachmentsService {
     try {
       await this.storage.headObject(attachment.storageKey);
     } catch (error) {
-      if (
-        error.name === 'NotFound' ||
-        error.$metadata?.httpStatusCode === 404
-      ) {
+      if (isAwsNotFoundError(error)) {
         throw new ConflictException('Upload not completed');
       }
       throw error;
