@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
+import { User, Channel } from '@lets-chat/database';
 import { WebsocketGateway } from './websocket.gateway';
 import { TokenService } from '../auth/token.service';
 import { UsersRepository } from '../users/users.repository';
@@ -14,7 +15,7 @@ function createMockSocket(overrides: Partial<Socket> = {}): Socket {
 
   return {
     id: 'socket-id-1',
-    handshake: { auth: {} } as any,
+    handshake: { auth: {} } as unknown as Socket['handshake'],
     data: {},
     rooms,
     emit: jest.fn(),
@@ -90,7 +91,9 @@ describe('WebsocketGateway', () => {
   describe('handleConnection', () => {
     it('should authenticate and emit connected event', async () => {
       const socket = createMockSocket({
-        handshake: { auth: { token: ' valid-token ' } } as any,
+        handshake: {
+          auth: { token: ' valid-token ' },
+        } as unknown as Socket['handshake'],
       });
 
       tokenService.verifyAccessToken.mockResolvedValue({
@@ -102,14 +105,20 @@ describe('WebsocketGateway', () => {
         id: userId,
         email: 'test@test.com',
         username: 'testuser',
-      } as any);
+      } as User);
 
       await gateway.handleConnection(socket);
 
       expect(tokenService.verifyAccessToken).toHaveBeenCalledWith(
         'valid-token',
       );
-      expect(socket.data.user).toEqual({
+      expect(
+        (
+          socket.data as unknown as {
+            user: { id: string; email: string; username: string };
+          }
+        ).user,
+      ).toEqual({
         id: userId,
         email: 'test@test.com',
         username: 'testuser',
@@ -131,7 +140,7 @@ describe('WebsocketGateway', () => {
 
     it('should reject empty string token', async () => {
       const socket = createMockSocket({
-        handshake: { auth: { token: '' } } as any,
+        handshake: { auth: { token: '' } } as unknown as Socket['handshake'],
       });
 
       await gateway.handleConnection(socket);
@@ -144,7 +153,7 @@ describe('WebsocketGateway', () => {
 
     it('should reject whitespace-only token', async () => {
       const socket = createMockSocket({
-        handshake: { auth: { token: '   ' } } as any,
+        handshake: { auth: { token: '   ' } } as unknown as Socket['handshake'],
       });
 
       await gateway.handleConnection(socket);
@@ -157,7 +166,7 @@ describe('WebsocketGateway', () => {
 
     it('should reject non-string token', async () => {
       const socket = createMockSocket({
-        handshake: { auth: { token: 123 as any } } as any,
+        handshake: { auth: { token: 123 } } as unknown as Socket['handshake'],
       });
 
       await gateway.handleConnection(socket);
@@ -170,7 +179,9 @@ describe('WebsocketGateway', () => {
 
     it('should reject invalid token', async () => {
       const socket = createMockSocket({
-        handshake: { auth: { token: 'invalid' } } as any,
+        handshake: {
+          auth: { token: 'invalid' },
+        } as unknown as Socket['handshake'],
       });
 
       tokenService.verifyAccessToken.mockRejectedValue(new Error('bad token'));
@@ -185,7 +196,9 @@ describe('WebsocketGateway', () => {
 
     it('should reject when user not found', async () => {
       const socket = createMockSocket({
-        handshake: { auth: { token: 'valid' } } as any,
+        handshake: {
+          auth: { token: 'valid' },
+        } as unknown as Socket['handshake'],
       });
 
       tokenService.verifyAccessToken.mockResolvedValue({
@@ -210,7 +223,7 @@ describe('WebsocketGateway', () => {
         data: { user: { id: userId } },
       });
 
-      channelsService.findById.mockResolvedValue({ id: channelId } as any);
+      channelsService.findById.mockResolvedValue({ id: channelId } as Channel);
 
       await gateway.handleChannelJoin(socket, { workspaceId, channelId });
 
@@ -356,7 +369,7 @@ describe('WebsocketGateway', () => {
       });
       socket.rooms.add(`channel:${channelId}`);
 
-      channelsService.findById.mockResolvedValue({ id: channelId } as any);
+      channelsService.findById.mockResolvedValue({ id: channelId } as Channel);
 
       await gateway.handleTypingStart(socket, { workspaceId, channelId });
 
@@ -438,7 +451,7 @@ describe('WebsocketGateway', () => {
       });
       socket.rooms.add(`channel:${channelId}`);
 
-      channelsService.findById.mockResolvedValue({ id: channelId } as any);
+      channelsService.findById.mockResolvedValue({ id: channelId } as Channel);
 
       await gateway.handleTypingStart(socket, { workspaceId, channelId });
 
@@ -479,7 +492,7 @@ describe('WebsocketGateway', () => {
       });
       socket.rooms.add(`channel:${channelId}`);
 
-      channelsService.findById.mockResolvedValue({ id: channelId } as any);
+      channelsService.findById.mockResolvedValue({ id: channelId } as Channel);
 
       await gateway.handleTypingStop(socket, { workspaceId, channelId });
 
@@ -513,7 +526,9 @@ describe('WebsocketGateway', () => {
     it('should track socket on authenticated connection', async () => {
       const socket = createMockSocket({
         id: 'socket-a',
-        handshake: { auth: { token: 'valid' } } as any,
+        handshake: {
+          auth: { token: 'valid' },
+        } as unknown as Socket['handshake'],
       });
 
       tokenService.verifyAccessToken.mockResolvedValue({
@@ -525,7 +540,7 @@ describe('WebsocketGateway', () => {
         id: userId,
         email: 'test@test.com',
         username: 'testuser',
-      } as any);
+      } as User);
 
       await gateway.handleConnection(socket);
 
@@ -551,7 +566,7 @@ describe('WebsocketGateway', () => {
       });
       socket.rooms.add(`channel:${channelId}`);
 
-      channelsService.findById.mockResolvedValue({ id: channelId } as any);
+      channelsService.findById.mockResolvedValue({ id: channelId } as Channel);
 
       await gateway.handleChannelJoin(socket, { workspaceId, channelId });
 
