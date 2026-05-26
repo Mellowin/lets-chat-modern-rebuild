@@ -1109,7 +1109,7 @@ describe('InvitesService', () => {
     it('should reject MEMBER listing invites', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as Invitation[]);
+      } as Workspace);
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
 
       await expect(service.list(workspaceId, userId)).rejects.toBeInstanceOf(
@@ -1120,7 +1120,7 @@ describe('InvitesService', () => {
     it('should reject non-member listing invites', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as Invitation[]);
+      } as Workspace);
       workspacesRepository.findMemberRole.mockResolvedValue(null);
 
       await expect(service.list(workspaceId, userId)).rejects.toBeInstanceOf(
@@ -1139,7 +1139,7 @@ describe('InvitesService', () => {
     it('should map expired invite status', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
         id: workspaceId,
-      } as Invitation[]);
+      } as Workspace);
       workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
       invitesRepository.listForWorkspace.mockResolvedValue([
         {
