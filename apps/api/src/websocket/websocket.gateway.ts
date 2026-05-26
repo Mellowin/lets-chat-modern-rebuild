@@ -309,11 +309,7 @@ export class WebsocketGateway
     }
 
     try {
-      await this.channelsService.findById(
-        workspaceId,
-        channelId,
-        userId,
-      );
+      await this.channelsService.findById(workspaceId, channelId, userId);
     } catch (error) {
       if (error instanceof NotFoundException) {
         socket.emit('typing:error', {
