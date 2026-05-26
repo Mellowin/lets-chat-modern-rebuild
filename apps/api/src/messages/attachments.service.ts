@@ -107,8 +107,8 @@ export class AttachmentsService {
         throw error;
       }
       if (
-        (error as any).name === 'NotFound' ||
-        (error as any).$metadata?.httpStatusCode === 404
+        error.name === 'NotFound' ||
+        error.$metadata?.httpStatusCode === 404
       ) {
         throw new ConflictException('Upload not completed');
       }
@@ -139,8 +139,8 @@ export class AttachmentsService {
       await this.storage.headObject(attachment.storageKey);
     } catch (error) {
       if (
-        (error as any).name === 'NotFound' ||
-        (error as any).$metadata?.httpStatusCode === 404
+        error.name === 'NotFound' ||
+        error.$metadata?.httpStatusCode === 404
       ) {
         throw new ConflictException('Upload not completed');
       }

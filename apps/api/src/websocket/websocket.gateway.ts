@@ -310,8 +310,8 @@ export class WebsocketGateway
 
     try {
       await this.channelsService.findById(
-        workspaceId as string,
-        channelId as string,
+        workspaceId,
+        channelId,
         userId,
       );
     } catch (error) {
