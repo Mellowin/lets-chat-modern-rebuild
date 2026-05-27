@@ -1,18 +1,22 @@
 import { Test } from '@nestjs/testing';
 import { GoneException } from '@nestjs/common';
+import { WorkspaceRole } from '@lets-chat/database';
 import { WorkspacesController } from './workspaces.controller';
 import { WorkspacesService } from './workspaces.service';
+import type { AuthUserResponse } from '../auth/auth.service';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 
 describe('WorkspacesController', () => {
   let controller: WorkspacesController;
   let workspacesService: jest.Mocked<WorkspacesService>;
 
-  const user = {
+  const user: AuthUserResponse = {
     id: 'user-id',
     email: 'u@test.com',
     username: 'user',
     displayName: null,
+    avatarUrl: null,
+    avatarUpdatedAt: null,
     createdAt: new Date(),
   };
 
@@ -41,16 +45,16 @@ describe('WorkspacesController', () => {
       await expect(
         controller.addMember(
           'workspace-id',
-          { identifier: 'alice', role: 'MEMBER' } as any,
-          user as any,
+          { identifier: 'alice', role: WorkspaceRole.MEMBER },
+          user,
         ),
       ).rejects.toBeInstanceOf(GoneException);
 
       await expect(
         controller.addMember(
           'workspace-id',
-          { identifier: 'alice', role: 'MEMBER' } as any,
-          user as any,
+          { identifier: 'alice', role: WorkspaceRole.MEMBER },
+          user,
         ),
       ).rejects.toThrow('Use workspace invitations to add members');
     });
@@ -59,8 +63,8 @@ describe('WorkspacesController', () => {
       try {
         await controller.addMember(
           'workspace-id',
-          { identifier: 'alice', role: 'MEMBER' } as any,
-          user as any,
+          { identifier: 'alice', role: WorkspaceRole.MEMBER },
+          user,
         );
       } catch {
         // expected
