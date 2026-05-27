@@ -39,7 +39,7 @@ vi.mock("@/lib/channel-invites-api", () => ({
 
 function mockAuth(userOverrides?: Partial<ReturnType<typeof useAuth>>) {
   vi.mocked(useAuth).mockReturnValue({
-    user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, createdAt: "2024-01-01T00:00:00Z" },
+    user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, languages: [], createdAt: "2024-01-01T00:00:00Z" },
     accessToken: "token",
     refreshToken: "rt",
     isLoading: false,
@@ -83,7 +83,7 @@ describe("DashboardPage — workspace list", () => {
   });
 
   it("shows Archive button for owned workspace", async () => {
-    mockAuth({ user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, createdAt: "2024-01-01T00:00:00Z" } });
+    mockAuth({ user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, languages: [], createdAt: "2024-01-01T00:00:00Z" } });
     vi.mocked(getWorkspaces).mockResolvedValue([
       { id: "ws1", name: "Owned", slug: "owned", description: null, ownerId: "u1", createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", deletedAt: null },
     ]);
@@ -97,7 +97,7 @@ describe("DashboardPage — workspace list", () => {
   });
 
   it("hides Archive button for workspace where user is not owner", async () => {
-    mockAuth({ user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, createdAt: "2024-01-01T00:00:00Z" } });
+    mockAuth({ user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, languages: [], createdAt: "2024-01-01T00:00:00Z" } });
     vi.mocked(getWorkspaces).mockResolvedValue([
       { id: "ws1", name: "Member Of", slug: "member-of", description: null, ownerId: "u2", createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", deletedAt: null },
     ]);
@@ -111,7 +111,7 @@ describe("DashboardPage — workspace list", () => {
   });
 
   it("archives owned workspace on confirm", async () => {
-    mockAuth({ user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, createdAt: "2024-01-01T00:00:00Z" } });
+    mockAuth({ user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, languages: [], createdAt: "2024-01-01T00:00:00Z" } });
     vi.mocked(getWorkspaces).mockResolvedValue([
       { id: "ws1", name: "Owned", slug: "owned", description: null, ownerId: "u1", createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", deletedAt: null },
     ]);

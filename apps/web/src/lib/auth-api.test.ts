@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { login, register, getMe, logout, updateDisplayName } from "./auth-api";
+import { login, register, getMe, logout, updateDisplayName, updateLanguages, uploadAvatar } from "./auth-api";
 
 const API_BASE = "http://localhost:3001/api/v1";
 
@@ -15,7 +15,7 @@ describe("auth-api", () => {
   describe("login", () => {
     it("sends POST /auth/login with body", async () => {
       const mockResult = {
-        user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, createdAt: "2024-01-01T00:00:00Z" },
+        user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, languages: [], createdAt: "2024-01-01T00:00:00Z" },
         accessToken: "at",
         refreshToken: "rt",
       };
@@ -61,7 +61,7 @@ describe("auth-api", () => {
   describe("register", () => {
     it("sends POST /auth/register with body", async () => {
       const mockResult = {
-        user: { id: "u2", email: "b@c.com", username: "bob", displayName: "Bob", createdAt: "2024-01-01T00:00:00Z" },
+        user: { id: "u2", email: "b@c.com", username: "bob", displayName: "Bob", avatarUrl: null, avatarUpdatedAt: null, languages: [], createdAt: "2024-01-01T00:00:00Z" },
         accessToken: "at2",
         refreshToken: "rt2",
       };
@@ -94,7 +94,7 @@ describe("auth-api", () => {
 
   describe("getMe", () => {
     it("sends GET /auth/me with Authorization Bearer token", async () => {
-      const mockUser = { id: "u1", email: "a@b.com", username: "alice", displayName: null, createdAt: "2024-01-01T00:00:00Z" };
+      const mockUser = { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, languages: [], createdAt: "2024-01-01T00:00:00Z" };
       vi.mocked(fetch).mockResolvedValueOnce(
         new Response(JSON.stringify(mockUser), { status: 200 }),
       );
@@ -152,7 +152,7 @@ describe("auth-api", () => {
 
   describe("updateDisplayName", () => {
     it("sends PATCH /auth/me with displayName and Authorization header", async () => {
-      const mockUser = { id: "u1", email: "a@b.com", username: "alice", displayName: "Alice", createdAt: "2024-01-01T00:00:00Z" };
+      const mockUser = { id: "u1", email: "a@b.com", username: "alice", displayName: "Alice", avatarUrl: null, avatarUpdatedAt: null, languages: [], createdAt: "2024-01-01T00:00:00Z" };
       vi.mocked(fetch).mockResolvedValueOnce(
         new Response(JSON.stringify(mockUser), { status: 200 }),
       );
@@ -180,6 +180,77 @@ describe("auth-api", () => {
       );
 
       await expect(updateDisplayName("token", "a".repeat(81))).rejects.toThrow("Too long");
+    });
+  });
+
+  describe("updateLanguages", () => {
+    it("sends PATCH /auth/me/languages with languages and Authorization header", async () => {
+      const mockUser = { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, languages: ["English", "Ukrainian"], createdAt: "2024-01-01T00:00:00Z" };
+      vi.mocked(fetch).mockResolvedValueOnce(
+        new Response(JSON.stringify(mockUser), { status: 200 }),
+      );
+
+      const result = await updateLanguages("my-token", ["English", "Ukrainian"]);
+
+      expect(fetch).toHaveBeenCalledWith(
+        `${API_BASE}/auth/me/languages`,
+        expect.objectContaining({
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            Authorization: "Bearer my-token",
+          },
+          body: JSON.stringify({ languages: ["English", "Ukrainian"] }),
+        }),
+      );
+      expect(result).toEqual(mockUser);
+    });
+
+    it("throws with backend error message", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(
+        new Response(JSON.stringify({ message: "Too many" }), { status: 400 }),
+      );
+
+      await expect(updateLanguages("token", ["a", "b", "c", "d", "e", "f"])).rejects.toThrow("Too many");
+    });
+  });
+
+  describe("uploadAvatar", () => {
+    it("sends PATCH /auth/me/avatar/upload with FormData and Authorization header", async () => {
+      const mockUser = { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: "/uploads/avatars/u1/test.png", avatarUpdatedAt: "2024-01-01T00:00:00Z", languages: [], createdAt: "2024-01-01T00:00:00Z" };
+      vi.mocked(fetch).mockResolvedValueOnce(
+        new Response(JSON.stringify(mockUser), { status: 200 }),
+      );
+
+      const file = new File(["png"], "avatar.png", { type: "image/png" });
+      const result = await uploadAvatar("my-token", file);
+
+      expect(fetch).toHaveBeenCalledWith(
+        `${API_BASE}/auth/me/avatar/upload`,
+        expect.objectContaining({
+          method: "PATCH",
+          headers: {
+            Accept: "application/json",
+            Authorization: "Bearer my-token",
+          },
+          body: expect.any(FormData),
+        }),
+      );
+
+      const call = vi.mocked(fetch).mock.calls[0] as [string, { body: FormData }];
+      const formData = call[1].body;
+      expect(formData.get("avatar")).toBe(file);
+      expect(result).toEqual(mockUser);
+    });
+
+    it("throws with backend error message", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(
+        new Response(JSON.stringify({ message: "Too large" }), { status: 400 }),
+      );
+
+      const file = new File(["png"], "avatar.png", { type: "image/png" });
+      await expect(uploadAvatar("token", file)).rejects.toThrow("Too large");
     });
   });
 });

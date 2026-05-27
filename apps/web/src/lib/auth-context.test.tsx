@@ -20,7 +20,7 @@ function TestConsumer() {
         data-testid="login-btn"
         onClick={() =>
           loginSuccess({
-            user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, createdAt: "2024-01-01T00:00:00Z" },
+            user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, languages: [], createdAt: "2024-01-01T00:00:00Z" },
             accessToken: "at",
             refreshToken: "rt",
           })
@@ -31,7 +31,7 @@ function TestConsumer() {
       <button
         data-testid="setuser-btn"
         onClick={() =>
-          setUser({ id: "u1", email: "a@b.com", username: "alice", displayName: "Alice", createdAt: "2024-01-01T00:00:00Z" })
+          setUser({ id: "u1", email: "a@b.com", username: "alice", displayName: "Alice", avatarUrl: null, avatarUpdatedAt: null, languages: [], createdAt: "2024-01-01T00:00:00Z" })
         }
       >
         SetUser
@@ -78,6 +78,9 @@ describe("AuthProvider", () => {
       email: "a@b.com",
       username: "alice",
       displayName: null,
+      avatarUrl: null,
+      avatarUpdatedAt: null,
+      languages: [],
       createdAt: "2024-01-01T00:00:00Z",
     });
 
@@ -144,6 +147,9 @@ describe("AuthProvider", () => {
       email: "a@b.com",
       username: "alice",
       displayName: null,
+      avatarUrl: null,
+      avatarUpdatedAt: null,
+      languages: [],
       createdAt: "2024-01-01T00:00:00Z",
     });
     vi.mocked(apiLogout).mockResolvedValueOnce({ success: true });
@@ -177,6 +183,10 @@ describe("AuthProvider", () => {
       id: "u1",
       email: "a@b.com",
       username: "alice",
+      displayName: null,
+      avatarUrl: null,
+      avatarUpdatedAt: null,
+      languages: [],
       createdAt: "2024-01-01T00:00:00Z",
     });
     vi.mocked(apiLogout).mockRejectedValueOnce(new Error("Network error"));
@@ -210,6 +220,9 @@ describe("AuthProvider", () => {
       email: "a@b.com",
       username: "alice",
       displayName: null,
+      avatarUrl: null,
+      avatarUpdatedAt: null,
+      languages: [],
       createdAt: "2024-01-01T00:00:00Z",
     });
 
