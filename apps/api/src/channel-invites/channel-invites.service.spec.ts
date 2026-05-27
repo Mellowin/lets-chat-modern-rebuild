@@ -212,6 +212,51 @@ describe('ChannelInvitesService', () => {
     };
   }
 
+  type PendingChannelInviteWithRelations = NonNullable<
+    Awaited<ReturnType<ChannelInvitesRepository['findPendingById']>>
+  >;
+  type AcceptedChannelMember = Awaited<
+    ReturnType<ChannelInvitesRepository['acceptInvite']>
+  >;
+
+  function mockPendingChannelInvite(
+    overrides: Partial<PendingChannelInviteWithRelations> = {},
+  ): PendingChannelInviteWithRelations {
+    return {
+      id: 'invite-1',
+      workspaceId,
+      channelId,
+      invitedById: userId,
+      invitedEmail: 'alice@example.com',
+      role: ChannelRole.MEMBER,
+      tokenHash: 'hash',
+      expiresAt: new Date('2026-12-31'),
+      usedAt: null,
+      usedById: null,
+      deletedAt: null,
+      createdAt: new Date(),
+      workspace: { id: workspaceId, name: 'Test', slug: 'test' },
+      channel: { id: channelId, name: 'general', slug: 'general' },
+      invitedBy: { id: userId, username: 'alice', displayName: 'Alice' },
+      ...overrides,
+    };
+  }
+
+  function mockAcceptedChannelMember(
+    overrides: Partial<AcceptedChannelMember> = {},
+  ): AcceptedChannelMember {
+    return {
+      id: 'cm-accepted',
+      channelId,
+      userId,
+      role: ChannelRole.MEMBER,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+      ...overrides,
+    };
+  }
+
   function mockOwnerSetup() {
     workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
     workspacesRepository.findMemberRole.mockResolvedValue(WorkspaceRole.OWNER);
@@ -470,16 +515,16 @@ describe('ChannelInvitesService', () => {
   describe('listPending', () => {
     it('should return current user pending channel invites', async () => {
       channelInvitesRepository.findPendingByEmail.mockResolvedValue([
-        {
+        mockPendingChannelInvite({
           id: 'invite-1',
+          invitedEmail: 'alice@example.com',
           workspace: { id: workspaceId, name: 'Test', slug: 'test' },
           channel: { id: channelId, name: 'general', slug: 'general' },
           invitedBy: { id: userId, username: 'alice', displayName: 'Alice' },
-          role: 'MEMBER',
           expiresAt: new Date('2026-12-31'),
           createdAt: new Date('2026-01-01'),
-        },
-      ] as any);
+        }),
+      ]);
 
       const result = await service.listPending(userId, 'alice@example.com');
 
@@ -491,32 +536,18 @@ describe('ChannelInvitesService', () => {
 
   describe('acceptById', () => {
     it('should create ChannelMember on accept', async () => {
-      channelInvitesRepository.findPendingById.mockResolvedValue({
-        id: 'invite-1',
-        workspaceId,
-        channelId,
-        invitedEmail: 'alice@example.com',
-        role: 'MEMBER',
-        expiresAt: new Date('2026-12-31'),
-        deletedAt: null,
-        usedAt: null,
-        usedById: null,
-      } as any);
-      workspacesRepository.findActiveById.mockResolvedValue({
-        id: workspaceId,
-      } as any);
-      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
-      channelsRepository.findActiveById.mockResolvedValue({
-        id: channelId,
-        workspaceId,
-      } as any);
+      channelInvitesRepository.findPendingById.mockResolvedValue(
+        mockPendingChannelInvite(),
+      );
+      workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+      workspacesRepository.findMemberRole.mockResolvedValue(
+        WorkspaceRole.MEMBER,
+      );
+      channelsRepository.findActiveById.mockResolvedValue(mockChannel());
       channelsRepository.findChannelMemberRole.mockResolvedValue(null);
-      channelInvitesRepository.acceptInvite.mockResolvedValue({
-        channelId,
-        userId,
-        role: 'MEMBER',
-        createdAt: new Date('2026-01-01'),
-      } as any);
+      channelInvitesRepository.acceptInvite.mockResolvedValue(
+        mockAcceptedChannelMember({ createdAt: new Date('2026-01-01') }),
+      );
 
       const result = await service.acceptById(
         'invite-1',
@@ -534,21 +565,13 @@ describe('ChannelInvitesService', () => {
     });
 
     it('should reject accept when channel is not active', async () => {
-      channelInvitesRepository.findPendingById.mockResolvedValue({
-        id: 'invite-1',
-        workspaceId,
-        channelId,
-        invitedEmail: 'alice@example.com',
-        role: 'MEMBER',
-        expiresAt: new Date('2026-12-31'),
-        deletedAt: null,
-        usedAt: null,
-        usedById: null,
-      } as any);
-      workspacesRepository.findActiveById.mockResolvedValue({
-        id: workspaceId,
-      } as any);
-      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelInvitesRepository.findPendingById.mockResolvedValue(
+        mockPendingChannelInvite(),
+      );
+      workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+      workspacesRepository.findMemberRole.mockResolvedValue(
+        WorkspaceRole.MEMBER,
+      );
       channelsRepository.findActiveById.mockResolvedValue(null);
 
       await expect(
@@ -557,25 +580,16 @@ describe('ChannelInvitesService', () => {
     });
 
     it('should reject accept when channel belongs to another workspace', async () => {
-      channelInvitesRepository.findPendingById.mockResolvedValue({
-        id: 'invite-1',
-        workspaceId,
-        channelId,
-        invitedEmail: 'alice@example.com',
-        role: 'MEMBER',
-        expiresAt: new Date('2026-12-31'),
-        deletedAt: null,
-        usedAt: null,
-        usedById: null,
-      } as any);
-      workspacesRepository.findActiveById.mockResolvedValue({
-        id: workspaceId,
-      } as any);
-      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
-      channelsRepository.findActiveById.mockResolvedValue({
-        id: channelId,
-        workspaceId: 'other-workspace-id',
-      } as any);
+      channelInvitesRepository.findPendingById.mockResolvedValue(
+        mockPendingChannelInvite(),
+      );
+      workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+      workspacesRepository.findMemberRole.mockResolvedValue(
+        WorkspaceRole.MEMBER,
+      );
+      channelsRepository.findActiveById.mockResolvedValue(
+        mockChannel({ workspaceId: 'other-workspace-id' }),
+      );
 
       await expect(
         service.acceptById('invite-1', userId, 'alice@example.com'),
@@ -583,25 +597,12 @@ describe('ChannelInvitesService', () => {
     });
 
     it('should reject accept when user is not workspace member', async () => {
-      channelInvitesRepository.findPendingById.mockResolvedValue({
-        id: 'invite-1',
-        workspaceId,
-        channelId,
-        invitedEmail: 'alice@example.com',
-        role: 'MEMBER',
-        expiresAt: new Date('2026-12-31'),
-        deletedAt: null,
-        usedAt: null,
-        usedById: null,
-      } as any);
-      workspacesRepository.findActiveById.mockResolvedValue({
-        id: workspaceId,
-      } as any);
+      channelInvitesRepository.findPendingById.mockResolvedValue(
+        mockPendingChannelInvite(),
+      );
+      workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
       workspacesRepository.findMemberRole.mockResolvedValue(null);
-      channelsRepository.findActiveById.mockResolvedValue({
-        id: channelId,
-        workspaceId,
-      } as any);
+      channelsRepository.findActiveById.mockResolvedValue(mockChannel());
 
       await expect(
         service.acceptById('invite-1', userId, 'alice@example.com'),
@@ -609,26 +610,17 @@ describe('ChannelInvitesService', () => {
     });
 
     it('should reject accept when already channel member', async () => {
-      channelInvitesRepository.findPendingById.mockResolvedValue({
-        id: 'invite-1',
-        workspaceId,
-        channelId,
-        invitedEmail: 'alice@example.com',
-        role: 'MEMBER',
-        expiresAt: new Date('2026-12-31'),
-        deletedAt: null,
-        usedAt: null,
-        usedById: null,
-      } as any);
-      workspacesRepository.findActiveById.mockResolvedValue({
-        id: workspaceId,
-      } as any);
-      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
-      channelsRepository.findActiveById.mockResolvedValue({
-        id: channelId,
-        workspaceId,
-      } as any);
-      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      channelInvitesRepository.findPendingById.mockResolvedValue(
+        mockPendingChannelInvite(),
+      );
+      workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+      workspacesRepository.findMemberRole.mockResolvedValue(
+        WorkspaceRole.MEMBER,
+      );
+      channelsRepository.findActiveById.mockResolvedValue(mockChannel());
+      channelsRepository.findChannelMemberRole.mockResolvedValue(
+        ChannelRole.MEMBER,
+      );
 
       await expect(
         service.acceptById('invite-1', userId, 'alice@example.com'),
@@ -636,17 +628,9 @@ describe('ChannelInvitesService', () => {
     });
 
     it('should reject accept when invite already used', async () => {
-      channelInvitesRepository.findPendingById.mockResolvedValue({
-        id: 'invite-1',
-        workspaceId,
-        channelId,
-        invitedEmail: 'alice@example.com',
-        role: 'MEMBER',
-        expiresAt: new Date('2026-12-31'),
-        deletedAt: null,
-        usedAt: new Date(),
-        usedById: 'other',
-      } as any);
+      channelInvitesRepository.findPendingById.mockResolvedValue(
+        mockPendingChannelInvite({ usedAt: new Date(), usedById: 'other' }),
+      );
 
       await expect(
         service.acceptById('invite-1', userId, 'alice@example.com'),
@@ -654,34 +638,25 @@ describe('ChannelInvitesService', () => {
     });
 
     it('should map race condition on accept to conflict', async () => {
-      channelInvitesRepository.findPendingById.mockResolvedValue({
-        id: 'invite-1',
-        workspaceId,
-        channelId,
-        invitedEmail: 'alice@example.com',
-        role: 'MEMBER',
-        expiresAt: new Date('2026-12-31'),
-        deletedAt: null,
-        usedAt: null,
-        usedById: null,
-      } as any);
-      workspacesRepository.findActiveById.mockResolvedValue({
-        id: workspaceId,
-      } as any);
-      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
-      channelsRepository.findActiveById.mockResolvedValue({
-        id: channelId,
-        workspaceId,
-      } as any);
+      channelInvitesRepository.findPendingById.mockResolvedValue(
+        mockPendingChannelInvite(),
+      );
+      workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+      workspacesRepository.findMemberRole.mockResolvedValue(
+        WorkspaceRole.MEMBER,
+      );
+      channelsRepository.findActiveById.mockResolvedValue(mockChannel());
       channelsRepository.findChannelMemberRole.mockResolvedValue(null);
       channelInvitesRepository.acceptInvite.mockRejectedValue(
         new Error('INVITE_ALREADY_USED_OR_REVOKED'),
       );
-      channelInvitesRepository.findById.mockResolvedValue({
-        id: 'invite-1',
-        usedAt: new Date(),
-        usedById: 'other',
-      } as any);
+      channelInvitesRepository.findById.mockResolvedValue(
+        mockChannelInvitation({
+          id: 'invite-1',
+          usedAt: new Date(),
+          usedById: 'other',
+        }),
+      );
 
       await expect(
         service.acceptById('invite-1', userId, 'alice@example.com'),
@@ -689,25 +664,14 @@ describe('ChannelInvitesService', () => {
     });
 
     it('should map Prisma P2002 to conflict on accept', async () => {
-      channelInvitesRepository.findPendingById.mockResolvedValue({
-        id: 'invite-1',
-        workspaceId,
-        channelId,
-        invitedEmail: 'alice@example.com',
-        role: 'MEMBER',
-        expiresAt: new Date('2026-12-31'),
-        deletedAt: null,
-        usedAt: null,
-        usedById: null,
-      } as any);
-      workspacesRepository.findActiveById.mockResolvedValue({
-        id: workspaceId,
-      } as any);
-      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
-      channelsRepository.findActiveById.mockResolvedValue({
-        id: channelId,
-        workspaceId,
-      } as any);
+      channelInvitesRepository.findPendingById.mockResolvedValue(
+        mockPendingChannelInvite(),
+      );
+      workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+      workspacesRepository.findMemberRole.mockResolvedValue(
+        WorkspaceRole.MEMBER,
+      );
+      channelsRepository.findActiveById.mockResolvedValue(mockChannel());
       channelsRepository.findChannelMemberRole.mockResolvedValue(null);
       const prismaError = new Prisma.PrismaClientKnownRequestError(
         'Unique constraint',
@@ -723,17 +687,9 @@ describe('ChannelInvitesService', () => {
 
   describe('decline', () => {
     it('should soft-delete invite on decline', async () => {
-      channelInvitesRepository.findPendingById.mockResolvedValue({
-        id: 'invite-1',
-        workspaceId,
-        channelId,
-        invitedEmail: 'alice@example.com',
-        role: 'MEMBER',
-        expiresAt: new Date('2026-12-31'),
-        deletedAt: null,
-        usedAt: null,
-        usedById: null,
-      } as any);
+      channelInvitesRepository.findPendingById.mockResolvedValue(
+        mockPendingChannelInvite(),
+      );
       channelInvitesRepository.softDeleteIfUnused.mockResolvedValue(1);
 
       const result = await service.decline(
@@ -752,17 +708,9 @@ describe('ChannelInvitesService', () => {
     });
 
     it('should reject declining already used invite', async () => {
-      channelInvitesRepository.findPendingById.mockResolvedValue({
-        id: 'invite-1',
-        workspaceId,
-        channelId,
-        invitedEmail: 'alice@example.com',
-        role: 'MEMBER',
-        expiresAt: new Date('2026-12-31'),
-        deletedAt: null,
-        usedAt: new Date(),
-        usedById: 'other',
-      } as any);
+      channelInvitesRepository.findPendingById.mockResolvedValue(
+        mockPendingChannelInvite({ usedAt: new Date(), usedById: 'other' }),
+      );
 
       await expect(
         service.decline('invite-1', userId, 'alice@example.com'),
