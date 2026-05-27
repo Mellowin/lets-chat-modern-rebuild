@@ -5,6 +5,7 @@ import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
+import { AvatarUploadService } from './avatar-upload.service';
 import { JwtAccessGuard } from './guards/jwt-access.guard';
 import { RefreshTokensRepository } from './refresh-tokens.repository';
 
@@ -15,6 +16,7 @@ import { RefreshTokensRepository } from './refresh-tokens.repository';
     PasswordService,
     TokenService,
     AuthService,
+    AvatarUploadService,
     JwtAccessGuard,
     RefreshTokensRepository,
   ],
@@ -22,6 +24,7 @@ import { RefreshTokensRepository } from './refresh-tokens.repository';
     PasswordService,
     TokenService,
     AuthService,
+    AvatarUploadService,
     JwtAccessGuard,
     RefreshTokensRepository,
   ],

@@ -40,3 +40,6 @@ coverage/
 *.err
 check_*.sql
 scan_report.txt
+
+# Uploads
+uploads/

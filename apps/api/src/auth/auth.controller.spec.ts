@@ -1,12 +1,14 @@
-import { Test } from '@nestjs/testing';
+import { Test, type TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import type { AuthUserResponse } from './auth.service';
+import { AvatarUploadService } from './avatar-upload.service';
 import { JwtAccessGuard } from './guards/jwt-access.guard';
 
 describe('AuthController', () => {
   let controller: AuthController;
   let authService: jest.Mocked<AuthService>;
+  let moduleRef: TestingModule;
 
   const user: AuthUserResponse = {
     id: 'user-id',
@@ -20,7 +22,7 @@ describe('AuthController', () => {
   };
 
   beforeEach(async () => {
-    const moduleRef = await Test.createTestingModule({
+    moduleRef = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [
         {
@@ -35,6 +37,12 @@ describe('AuthController', () => {
             updateLanguages: jest.fn(),
           },
         },
+        {
+          provide: AvatarUploadService,
+          useValue: {
+            save: jest.fn(),
+          },
+        },
       ],
     })
       .overrideGuard(JwtAccessGuard)
@@ -43,6 +51,59 @@ describe('AuthController', () => {
 
     controller = moduleRef.get(AuthController);
     authService = moduleRef.get(AuthService);
+  });
+
+  describe('PATCH /auth/me/avatar/upload', () => {
+    let avatarUpload: jest.Mocked<AvatarUploadService>;
+
+    beforeEach(() => {
+      avatarUpload = moduleRef.get(AvatarUploadService);
+    });
+
+    it('uploads avatar and updates avatarUrl', async () => {
+      avatarUpload.save.mockResolvedValue('/uploads/avatars/user-id/test.png');
+      authService.updateAvatar.mockResolvedValue({
+        ...user,
+        avatarUrl: '/uploads/avatars/user-id/test.png',
+        avatarUpdatedAt: new Date(),
+      });
+
+      const file = {
+        buffer: Buffer.from('png'),
+        mimetype: 'image/png',
+        originalname: 'avatar.png',
+        size: 1234,
+      } as Express.Multer.File;
+
+      const result = await controller.updateAvatarUpload(user, file);
+
+      expect(avatarUpload.save).toHaveBeenCalledWith(file, 'user-id');
+      expect(authService.updateAvatar).toHaveBeenCalledWith(
+        'user-id',
+        '/uploads/avatars/user-id/test.png',
+      );
+      expect(result.avatarUrl).toBe('/uploads/avatars/user-id/test.png');
+    });
+
+    it('respects 7-day cooldown for upload', async () => {
+      const recentDate = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+      const file = {
+        buffer: Buffer.from('png'),
+        mimetype: 'image/png',
+        originalname: 'avatar.png',
+        size: 1234,
+      } as Express.Multer.File;
+
+      await expect(
+        controller.updateAvatarUpload(
+          { ...user, avatarUpdatedAt: recentDate },
+          file,
+        ),
+      ).rejects.toThrow('Avatar can be changed once every 7 days');
+
+      expect(avatarUpload.save).not.toHaveBeenCalled();
+      expect(authService.updateAvatar).not.toHaveBeenCalled();
+    });
   });
 
   it('PATCH /auth/me trims displayName and calls updateMe', async () => {

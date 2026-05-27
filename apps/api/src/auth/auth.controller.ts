@@ -6,7 +6,12 @@ import {
   Body,
   HttpCode,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
   ConflictException,
+  ParseFilePipe,
+  MaxFileSizeValidator,
+  FileTypeValidator,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -20,8 +25,10 @@ import {
   ApiUnauthorizedResponse,
   ApiTooManyRequestsResponse,
 } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthService } from './auth.service';
 import type { AuthUserResponse } from './auth.service';
+import { AvatarUploadService } from './avatar-upload.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
@@ -35,7 +42,10 @@ import { CurrentUser } from './decorators/current-user.decorator';
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly avatarUpload: AvatarUploadService,
+  ) {}
 
   @Post('register')
   @ApiOperation({ summary: 'Register a new user' })
@@ -117,16 +127,38 @@ export class AuthController {
     @CurrentUser() user: AuthUserResponse,
     @Body() dto: UpdateAvatarDto,
   ): Promise<AuthUserResponse> {
-    const COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-
-    if (user.avatarUpdatedAt) {
-      const elapsed = Date.now() - new Date(user.avatarUpdatedAt).getTime();
-      if (elapsed < COOLDOWN_MS) {
-        throw new ConflictException('Avatar can be changed once every 7 days');
-      }
-    }
+    this.assertAvatarCooldown(user.avatarUpdatedAt);
 
     return this.auth.updateAvatar(user.id, dto.avatarUrl);
+  }
+
+  @Patch('me/avatar/upload')
+  @UseGuards(JwtAccessGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Upload current authenticated user avatar image' })
+  @ApiOkResponse({ description: 'Avatar uploaded successfully' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @ApiConflictResponse({ description: 'Avatar cooldown active' })
+  @UseInterceptors(FileInterceptor('avatar'))
+  async updateAvatarUpload(
+    @CurrentUser() user: AuthUserResponse,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 2 * 1024 * 1024 }),
+          new FileTypeValidator({
+            fileType: /image\/(jpeg|png|webp)/,
+          }),
+        ],
+      }),
+    )
+    file: Express.Multer.File,
+  ): Promise<AuthUserResponse> {
+    this.assertAvatarCooldown(user.avatarUpdatedAt);
+
+    const avatarUrl = await this.avatarUpload.save(file, user.id);
+    return this.auth.updateAvatar(user.id, avatarUrl);
   }
 
   @Patch('me/languages')
@@ -142,6 +174,17 @@ export class AuthController {
   ): Promise<AuthUserResponse> {
     const normalized = this.normalizeLanguages(dto.languages);
     return this.auth.updateLanguages(user.id, normalized);
+  }
+
+  private assertAvatarCooldown(avatarUpdatedAt: Date | null): void {
+    const COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
+
+    if (avatarUpdatedAt) {
+      const elapsed = Date.now() - new Date(avatarUpdatedAt).getTime();
+      if (elapsed < COOLDOWN_MS) {
+        throw new ConflictException('Avatar can be changed once every 7 days');
+      }
+    }
   }
 
   private normalizeLanguages(languages: string[]): string[] {
