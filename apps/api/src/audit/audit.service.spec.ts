@@ -3,6 +3,8 @@ import { AuditService } from './audit.service';
 import { AuditRepository } from './audit.repository';
 import { AuditAction, AuditEntityType } from './audit.constants';
 
+type CreatedAuditLog = Awaited<ReturnType<AuditRepository['create']>>;
+
 describe('AuditService', () => {
   let service: AuditService;
   let auditRepository: jest.Mocked<AuditRepository>;
@@ -35,7 +37,9 @@ describe('AuditService', () => {
       entityId: '11111111-1111-1111-1111-111111111111',
     };
 
-    auditRepository.create.mockResolvedValue({ id: 'audit-1' } as any);
+    auditRepository.create.mockResolvedValue({
+      id: 'audit-1',
+    } as CreatedAuditLog);
 
     await service.record(input);
 
@@ -61,7 +65,9 @@ describe('AuditService', () => {
       entityId: '11111111-1111-1111-1111-111111111111',
     };
 
-    auditRepository.create.mockResolvedValue({ id: 'audit-2' } as any);
+    auditRepository.create.mockResolvedValue({
+      id: 'audit-2',
+    } as CreatedAuditLog);
 
     await service.record(input);
 
@@ -80,7 +86,9 @@ describe('AuditService', () => {
       workspaceId: '33333333-3333-3333-3333-333333333333',
     };
 
-    auditRepository.create.mockResolvedValue({ id: 'audit-3' } as any);
+    auditRepository.create.mockResolvedValue({
+      id: 'audit-3',
+    } as CreatedAuditLog);
 
     await service.record(input);
 
@@ -99,7 +107,9 @@ describe('AuditService', () => {
       channelId: '44444444-4444-4444-4444-444444444444',
     };
 
-    auditRepository.create.mockResolvedValue({ id: 'audit-4' } as any);
+    auditRepository.create.mockResolvedValue({
+      id: 'audit-4',
+    } as CreatedAuditLog);
 
     await service.record(input);
 
@@ -118,7 +128,9 @@ describe('AuditService', () => {
       metadata: { oldRole: 'MEMBER', newRole: 'ADMIN' },
     };
 
-    auditRepository.create.mockResolvedValue({ id: 'audit-5' } as any);
+    auditRepository.create.mockResolvedValue({
+      id: 'audit-5',
+    } as CreatedAuditLog);
 
     await service.record(input);
 
@@ -137,7 +149,9 @@ describe('AuditService', () => {
       entityId: '11111111-1111-1111-1111-111111111111',
     };
 
-    auditRepository.create.mockResolvedValue({ id: 'audit-6' } as any);
+    auditRepository.create.mockResolvedValue({
+      id: 'audit-6',
+    } as CreatedAuditLog);
 
     await service.record(input);
 
@@ -161,7 +175,9 @@ describe('AuditService', () => {
       userAgent: 'Mozilla/5.0',
     };
 
-    auditRepository.create.mockResolvedValue({ id: 'audit-7' } as any);
+    auditRepository.create.mockResolvedValue({
+      id: 'audit-7',
+    } as CreatedAuditLog);
 
     await service.record(input);
 
