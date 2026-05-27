@@ -6,7 +6,12 @@ import {
   GoneException,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, Workspace, Invitation, User } from '@lets-chat/database';
+import {
+  Prisma,
+  Workspace,
+  Invitation,
+  WorkspaceRole,
+} from '@lets-chat/database';
 import { createHash } from 'crypto';
 import { InvitesService } from './invites.service';
 
@@ -79,29 +84,102 @@ describe('InvitesService', () => {
     jest.clearAllMocks();
   });
 
+  type FoundWorkspace = NonNullable<
+    Awaited<ReturnType<WorkspacesRepository['findActiveById']>>
+  >;
+  type FoundUser = NonNullable<
+    Awaited<ReturnType<UsersRepository['findByEmail']>>
+  >;
+  type FoundWorkspaceMember = NonNullable<
+    Awaited<ReturnType<WorkspacesRepository['findActiveMemberByUserId']>>
+  >;
+  type CreatedInvitation = Awaited<
+    ReturnType<InvitesRepository['createInvite']>
+  >;
+
+  function mockWorkspace(
+    overrides: Partial<FoundWorkspace> = {},
+  ): FoundWorkspace {
+    return {
+      id: workspaceId,
+      name: 'Test Workspace',
+      slug: 'test-workspace',
+      description: null,
+      ownerId: userId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+      ...overrides,
+    };
+  }
+
+  function mockUser(overrides: Partial<FoundUser> = {}): FoundUser {
+    return {
+      id: 'target-user-id',
+      email: 'test@example.com',
+      username: 'testuser',
+      passwordHash: 'hash',
+      displayName: null,
+      avatarUrl: null,
+      avatarUpdatedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+      ...overrides,
+    };
+  }
+
+  function mockWorkspaceMember(
+    overrides: Partial<FoundWorkspaceMember> = {},
+  ): FoundWorkspaceMember {
+    return {
+      id: 'wm1',
+      workspaceId,
+      userId: 'target-user-id',
+      role: WorkspaceRole.MEMBER,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+      user: { id: 'target-user-id', username: 'testuser' },
+      ...overrides,
+    };
+  }
+
+  function mockInvitation(
+    overrides: Partial<CreatedInvitation> = {},
+  ): CreatedInvitation {
+    return {
+      id: 'invite-id',
+      workspaceId,
+      invitedById: userId,
+      invitedEmail: 'test@example.com',
+      role: WorkspaceRole.MEMBER,
+      tokenHash: 'hash',
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      usedAt: null,
+      usedById: null,
+      deletedAt: null,
+      createdAt: new Date(),
+      ...overrides,
+    };
+  }
+
   const expectAuditNotCalled = () => {
     expect(auditService.record).not.toHaveBeenCalled();
   };
 
   it('should allow OWNER to create MEMBER invite', async () => {
-    workspacesRepository.findActiveById.mockResolvedValue({
-      id: workspaceId,
-    } as Workspace);
-    workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
-    usersRepository.findByEmail.mockResolvedValue({
-      id: 'target-user-id',
-      email: 'test@example.com',
-    });
-    invitesRepository.createInvite.mockImplementation(
-      (data) =>
-        ({
-          id: 'invite-id',
-          workspaceId: data.workspaceId,
-          invitedEmail: data.invitedEmail,
-          role: data.role,
-          expiresAt: data.expiresAt,
-          createdAt: new Date(),
-        }) as Invitation,
+    workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+    workspacesRepository.findMemberRole.mockResolvedValue(WorkspaceRole.OWNER);
+    usersRepository.findByEmail.mockResolvedValue(mockUser());
+    invitesRepository.createInvite.mockImplementation((data) =>
+      Promise.resolve({
+        ...mockInvitation(),
+        workspaceId: data.workspaceId,
+        invitedEmail: data.invitedEmail,
+        role: data.role,
+        expiresAt: data.expiresAt,
+      }),
     );
 
     const result = await service.create(
@@ -137,24 +215,17 @@ describe('InvitesService', () => {
   });
 
   it('should allow ADMIN to create MEMBER invite', async () => {
-    workspacesRepository.findActiveById.mockResolvedValue({
-      id: workspaceId,
-    } as Workspace);
-    workspacesRepository.findMemberRole.mockResolvedValue('ADMIN');
-    usersRepository.findByEmail.mockResolvedValue({
-      id: 'target-user-id',
-      email: 'test@example.com',
-    });
-    invitesRepository.createInvite.mockImplementation(
-      (data) =>
-        ({
-          id: 'invite-id',
-          workspaceId: data.workspaceId,
-          invitedEmail: data.invitedEmail,
-          role: data.role,
-          expiresAt: data.expiresAt,
-          createdAt: new Date(),
-        }) as Invitation,
+    workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+    workspacesRepository.findMemberRole.mockResolvedValue(WorkspaceRole.ADMIN);
+    usersRepository.findByEmail.mockResolvedValue(mockUser());
+    invitesRepository.createInvite.mockImplementation((data) =>
+      Promise.resolve({
+        ...mockInvitation(),
+        workspaceId: data.workspaceId,
+        invitedEmail: data.invitedEmail,
+        role: data.role,
+        expiresAt: data.expiresAt,
+      }),
     );
 
     const result = await service.create(
@@ -167,10 +238,8 @@ describe('InvitesService', () => {
   });
 
   it('should reject ADMIN creating ADMIN invite by email', async () => {
-    workspacesRepository.findActiveById.mockResolvedValue({
-      id: workspaceId,
-    } as Workspace);
-    workspacesRepository.findMemberRole.mockResolvedValue('ADMIN');
+    workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+    workspacesRepository.findMemberRole.mockResolvedValue(WorkspaceRole.ADMIN);
 
     await expect(
       service.create(
@@ -184,10 +253,8 @@ describe('InvitesService', () => {
   });
 
   it('should reject MEMBER creating invite', async () => {
-    workspacesRepository.findActiveById.mockResolvedValue({
-      id: workspaceId,
-    } as Workspace);
-    workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+    workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+    workspacesRepository.findMemberRole.mockResolvedValue(WorkspaceRole.MEMBER);
 
     await expect(
       service.create(
@@ -213,9 +280,7 @@ describe('InvitesService', () => {
   });
 
   it('should reject non-member of workspace', async () => {
-    workspacesRepository.findActiveById.mockResolvedValue({
-      id: workspaceId,
-    } as Workspace);
+    workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
     workspacesRepository.findMemberRole.mockResolvedValue(null);
 
     await expect(
@@ -229,15 +294,13 @@ describe('InvitesService', () => {
   });
 
   it('should reject OWNER role in body', async () => {
-    workspacesRepository.findActiveById.mockResolvedValue({
-      id: workspaceId,
-    } as Workspace);
-    workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+    workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+    workspacesRepository.findMemberRole.mockResolvedValue(WorkspaceRole.OWNER);
 
     await expect(
       service.create(
         workspaceId,
-        { email: 'test@example.com', role: 'OWNER' },
+        { email: 'test@example.com', role: 'OWNER' as 'ADMIN' | 'MEMBER' },
         userId,
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
@@ -245,24 +308,17 @@ describe('InvitesService', () => {
   });
 
   it('should store tokenHash, not raw token', async () => {
-    workspacesRepository.findActiveById.mockResolvedValue({
-      id: workspaceId,
-    } as Workspace);
-    workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
-    usersRepository.findByEmail.mockResolvedValue({
-      id: 'target-user-id',
-      email: 'test@example.com',
-    });
-    invitesRepository.createInvite.mockImplementation(
-      (data) =>
-        ({
-          id: 'invite-id',
-          workspaceId: data.workspaceId,
-          invitedEmail: data.invitedEmail,
-          role: data.role,
-          expiresAt: data.expiresAt,
-          createdAt: new Date(),
-        }) as Invitation,
+    workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+    workspacesRepository.findMemberRole.mockResolvedValue(WorkspaceRole.OWNER);
+    usersRepository.findByEmail.mockResolvedValue(mockUser());
+    invitesRepository.createInvite.mockImplementation((data) =>
+      Promise.resolve({
+        ...mockInvitation(),
+        workspaceId: data.workspaceId,
+        invitedEmail: data.invitedEmail,
+        role: data.role,
+        expiresAt: data.expiresAt,
+      }),
     );
 
     const result = await service.create(
@@ -292,25 +348,18 @@ describe('InvitesService', () => {
   });
 
   it('should set expiresAt to roughly 7 days from now', async () => {
-    workspacesRepository.findActiveById.mockResolvedValue({
-      id: workspaceId,
-    } as Workspace);
-    workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
-    usersRepository.findByEmail.mockResolvedValue({
-      id: 'target-user-id',
-      email: 'test@example.com',
-    });
+    workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+    workspacesRepository.findMemberRole.mockResolvedValue(WorkspaceRole.OWNER);
+    usersRepository.findByEmail.mockResolvedValue(mockUser());
     invitesRepository.findPendingByWorkspaceAndEmail.mockResolvedValue(null);
-    invitesRepository.createInvite.mockImplementation(
-      (data) =>
-        ({
-          id: 'invite-id',
-          workspaceId: data.workspaceId,
-          invitedEmail: data.invitedEmail,
-          role: data.role,
-          expiresAt: data.expiresAt,
-          createdAt: new Date(),
-        }) as Invitation,
+    invitesRepository.createInvite.mockImplementation((data) =>
+      Promise.resolve({
+        ...mockInvitation(),
+        workspaceId: data.workspaceId,
+        invitedEmail: data.invitedEmail,
+        role: data.role,
+        expiresAt: data.expiresAt,
+      }),
     );
 
     const before = Date.now();
@@ -331,24 +380,15 @@ describe('InvitesService', () => {
   });
 
   it('should reject duplicate active pending invite', async () => {
-    workspacesRepository.findActiveById.mockResolvedValue({
-      id: workspaceId,
-    } as Workspace);
-    workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
-    usersRepository.findByEmail.mockResolvedValue({
-      id: 'target-user-id',
-      email: 'test@example.com',
-    });
-    invitesRepository.findPendingByWorkspaceAndEmail.mockResolvedValue({
-      id: 'existing-invite',
-      workspaceId,
-      invitedEmail: 'test@example.com',
-      role: 'MEMBER',
-      expiresAt: new Date(Date.now() + 86400000),
-      deletedAt: null,
-      usedAt: null,
-      usedById: null,
-    });
+    workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+    workspacesRepository.findMemberRole.mockResolvedValue(WorkspaceRole.OWNER);
+    usersRepository.findByEmail.mockResolvedValue(mockUser());
+    invitesRepository.findPendingByWorkspaceAndEmail.mockResolvedValue(
+      mockInvitation({
+        id: 'existing-invite',
+        expiresAt: new Date(Date.now() + 86400000),
+      }),
+    );
 
     await expect(
       service.create(
@@ -362,25 +402,18 @@ describe('InvitesService', () => {
   });
 
   it('should allow new invite if previous was declined', async () => {
-    workspacesRepository.findActiveById.mockResolvedValue({
-      id: workspaceId,
-    } as Workspace);
-    workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
-    usersRepository.findByEmail.mockResolvedValue({
-      id: 'target-user-id',
-      email: 'test@example.com',
-    });
+    workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+    workspacesRepository.findMemberRole.mockResolvedValue(WorkspaceRole.OWNER);
+    usersRepository.findByEmail.mockResolvedValue(mockUser());
     invitesRepository.findPendingByWorkspaceAndEmail.mockResolvedValue(null);
-    invitesRepository.createInvite.mockImplementation(
-      (data) =>
-        ({
-          id: 'invite-id',
-          workspaceId: data.workspaceId,
-          invitedEmail: data.invitedEmail,
-          role: data.role,
-          expiresAt: data.expiresAt,
-          createdAt: new Date(),
-        }) as Invitation,
+    invitesRepository.createInvite.mockImplementation((data) =>
+      Promise.resolve({
+        ...mockInvitation(),
+        workspaceId: data.workspaceId,
+        invitedEmail: data.invitedEmail,
+        role: data.role,
+        expiresAt: data.expiresAt,
+      }),
     );
 
     const result = await service.create(
@@ -393,25 +426,18 @@ describe('InvitesService', () => {
   });
 
   it('should allow new invite if previous was used', async () => {
-    workspacesRepository.findActiveById.mockResolvedValue({
-      id: workspaceId,
-    } as Workspace);
-    workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
-    usersRepository.findByEmail.mockResolvedValue({
-      id: 'target-user-id',
-      email: 'test@example.com',
-    });
+    workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+    workspacesRepository.findMemberRole.mockResolvedValue(WorkspaceRole.OWNER);
+    usersRepository.findByEmail.mockResolvedValue(mockUser());
     invitesRepository.findPendingByWorkspaceAndEmail.mockResolvedValue(null);
-    invitesRepository.createInvite.mockImplementation(
-      (data) =>
-        ({
-          id: 'invite-id',
-          workspaceId: data.workspaceId,
-          invitedEmail: data.invitedEmail,
-          role: data.role,
-          expiresAt: data.expiresAt,
-          createdAt: new Date(),
-        }) as Invitation,
+    invitesRepository.createInvite.mockImplementation((data) =>
+      Promise.resolve({
+        ...mockInvitation(),
+        workspaceId: data.workspaceId,
+        invitedEmail: data.invitedEmail,
+        role: data.role,
+        expiresAt: data.expiresAt,
+      }),
     );
 
     const result = await service.create(
@@ -424,25 +450,18 @@ describe('InvitesService', () => {
   });
 
   it('should allow new invite if previous expired', async () => {
-    workspacesRepository.findActiveById.mockResolvedValue({
-      id: workspaceId,
-    } as Workspace);
-    workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
-    usersRepository.findByEmail.mockResolvedValue({
-      id: 'target-user-id',
-      email: 'test@example.com',
-    });
+    workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+    workspacesRepository.findMemberRole.mockResolvedValue(WorkspaceRole.OWNER);
+    usersRepository.findByEmail.mockResolvedValue(mockUser());
     invitesRepository.findPendingByWorkspaceAndEmail.mockResolvedValue(null);
-    invitesRepository.createInvite.mockImplementation(
-      (data) =>
-        ({
-          id: 'invite-id',
-          workspaceId: data.workspaceId,
-          invitedEmail: data.invitedEmail,
-          role: data.role,
-          expiresAt: data.expiresAt,
-          createdAt: new Date(),
-        }) as Invitation,
+    invitesRepository.createInvite.mockImplementation((data) =>
+      Promise.resolve({
+        ...mockInvitation(),
+        workspaceId: data.workspaceId,
+        invitedEmail: data.invitedEmail,
+        role: data.role,
+        expiresAt: data.expiresAt,
+      }),
     );
 
     const result = await service.create(
@@ -456,21 +475,15 @@ describe('InvitesService', () => {
 
   it('should reject invite when email belongs to active workspace member', async () => {
     const targetUserId = '44444444-4444-4444-4444-444444444444';
-    workspacesRepository.findActiveById.mockResolvedValue({
-      id: workspaceId,
-    } as Workspace);
-    workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+    workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+    workspacesRepository.findMemberRole.mockResolvedValue(WorkspaceRole.OWNER);
     invitesRepository.findPendingByWorkspaceAndEmail.mockResolvedValue(null);
-    usersRepository.findByEmail.mockResolvedValue({
-      id: targetUserId,
-      email: 'test@example.com',
-    } as unknown as User);
-    workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
-      id: 'wm2',
-      workspaceId,
-      userId: targetUserId,
-      role: 'MEMBER',
-    });
+    usersRepository.findByEmail.mockResolvedValue(
+      mockUser({ id: targetUserId }),
+    );
+    workspacesRepository.findActiveMemberByUserId.mockResolvedValue(
+      mockWorkspaceMember({ id: 'wm2', userId: targetUserId }),
+    );
 
     await expect(
       service.create(
@@ -485,26 +498,21 @@ describe('InvitesService', () => {
 
   it('should allow invite when email belongs to registered user who is not a member', async () => {
     const targetUserId = '44444444-4444-4444-4444-444444444444';
-    workspacesRepository.findActiveById.mockResolvedValue({
-      id: workspaceId,
-    } as Workspace);
-    workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+    workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+    workspacesRepository.findMemberRole.mockResolvedValue(WorkspaceRole.OWNER);
     invitesRepository.findPendingByWorkspaceAndEmail.mockResolvedValue(null);
-    usersRepository.findByEmail.mockResolvedValue({
-      id: targetUserId,
-      email: 'test@example.com',
-    } as User);
+    usersRepository.findByEmail.mockResolvedValue(
+      mockUser({ id: targetUserId }),
+    );
     workspacesRepository.findActiveMemberByUserId.mockResolvedValue(null);
-    invitesRepository.createInvite.mockImplementation(
-      (data) =>
-        ({
-          id: 'invite-id',
-          workspaceId: data.workspaceId,
-          invitedEmail: data.invitedEmail,
-          role: data.role,
-          expiresAt: data.expiresAt,
-          createdAt: new Date(),
-        }) as Invitation,
+    invitesRepository.createInvite.mockImplementation((data) =>
+      Promise.resolve({
+        ...mockInvitation(),
+        workspaceId: data.workspaceId,
+        invitedEmail: data.invitedEmail,
+        role: data.role,
+        expiresAt: data.expiresAt,
+      }),
     );
 
     const result = await service.create(
@@ -517,10 +525,8 @@ describe('InvitesService', () => {
   });
 
   it('should reject invite when email does not belong to any user', async () => {
-    workspacesRepository.findActiveById.mockResolvedValue({
-      id: workspaceId,
-    } as Workspace);
-    workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+    workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+    workspacesRepository.findMemberRole.mockResolvedValue(WorkspaceRole.OWNER);
     usersRepository.findByEmail.mockResolvedValue(null);
 
     await expect(
@@ -536,27 +542,21 @@ describe('InvitesService', () => {
 
   it('should create pending invite by username', async () => {
     const targetUserId = '44444444-4444-4444-4444-444444444444';
-    workspacesRepository.findActiveById.mockResolvedValue({
-      id: workspaceId,
-    } as Workspace);
-    workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+    workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+    workspacesRepository.findMemberRole.mockResolvedValue(WorkspaceRole.OWNER);
     invitesRepository.findPendingByWorkspaceAndEmail.mockResolvedValue(null);
-    usersRepository.findByUsername.mockResolvedValue({
-      id: targetUserId,
-      email: 'bob@example.com',
-      username: 'bob',
-    } as unknown as User);
+    usersRepository.findByUsername.mockResolvedValue(
+      mockUser({ id: targetUserId, email: 'bob@example.com', username: 'bob' }),
+    );
     workspacesRepository.findActiveMemberByUserId.mockResolvedValue(null);
-    invitesRepository.createInvite.mockImplementation(
-      (data) =>
-        ({
-          id: 'invite-id',
-          workspaceId: data.workspaceId,
-          invitedEmail: data.invitedEmail,
-          role: data.role,
-          expiresAt: data.expiresAt,
-          createdAt: new Date(),
-        }) as Invitation,
+    invitesRepository.createInvite.mockImplementation((data) =>
+      Promise.resolve({
+        ...mockInvitation(),
+        workspaceId: data.workspaceId,
+        invitedEmail: data.invitedEmail,
+        role: data.role,
+        expiresAt: data.expiresAt,
+      }),
     );
 
     const result = await service.create(
@@ -571,27 +571,21 @@ describe('InvitesService', () => {
 
   it('should create pending invite by @username', async () => {
     const targetUserId = '44444444-4444-4444-4444-444444444444';
-    workspacesRepository.findActiveById.mockResolvedValue({
-      id: workspaceId,
-    } as Workspace);
-    workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+    workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+    workspacesRepository.findMemberRole.mockResolvedValue(WorkspaceRole.OWNER);
     invitesRepository.findPendingByWorkspaceAndEmail.mockResolvedValue(null);
-    usersRepository.findByUsername.mockResolvedValue({
-      id: targetUserId,
-      email: 'bob@example.com',
-      username: 'bob',
-    });
+    usersRepository.findByUsername.mockResolvedValue(
+      mockUser({ id: targetUserId, email: 'bob@example.com', username: 'bob' }),
+    );
     workspacesRepository.findActiveMemberByUserId.mockResolvedValue(null);
-    invitesRepository.createInvite.mockImplementation(
-      (data) =>
-        ({
-          id: 'invite-id',
-          workspaceId: data.workspaceId,
-          invitedEmail: data.invitedEmail,
-          role: data.role,
-          expiresAt: data.expiresAt,
-          createdAt: new Date(),
-        }) as Invitation,
+    invitesRepository.createInvite.mockImplementation((data) =>
+      Promise.resolve({
+        ...mockInvitation(),
+        workspaceId: data.workspaceId,
+        invitedEmail: data.invitedEmail,
+        role: data.role,
+        expiresAt: data.expiresAt,
+      }),
     );
 
     const result = await service.create(
@@ -605,10 +599,8 @@ describe('InvitesService', () => {
   });
 
   it('should reject unknown username', async () => {
-    workspacesRepository.findActiveById.mockResolvedValue({
-      id: workspaceId,
-    } as Workspace);
-    workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+    workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+    workspacesRepository.findMemberRole.mockResolvedValue(WorkspaceRole.OWNER);
     usersRepository.findByUsername.mockResolvedValue(null);
 
     await expect(
@@ -624,25 +616,18 @@ describe('InvitesService', () => {
 
   it('should block duplicate pending invite by username', async () => {
     const targetUserId = '44444444-4444-4444-4444-444444444444';
-    workspacesRepository.findActiveById.mockResolvedValue({
-      id: workspaceId,
-    } as Workspace);
-    workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
-    usersRepository.findByUsername.mockResolvedValue({
-      id: targetUserId,
-      email: 'bob@example.com',
-      username: 'bob',
-    });
-    invitesRepository.findPendingByWorkspaceAndEmail.mockResolvedValue({
-      id: 'existing-invite',
-      workspaceId,
-      invitedEmail: 'bob@example.com',
-      role: 'MEMBER',
-      expiresAt: new Date(Date.now() + 86400000),
-      deletedAt: null,
-      usedAt: null,
-      usedById: null,
-    });
+    workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+    workspacesRepository.findMemberRole.mockResolvedValue(WorkspaceRole.OWNER);
+    usersRepository.findByUsername.mockResolvedValue(
+      mockUser({ id: targetUserId, email: 'bob@example.com', username: 'bob' }),
+    );
+    invitesRepository.findPendingByWorkspaceAndEmail.mockResolvedValue(
+      mockInvitation({
+        id: 'existing-invite',
+        invitedEmail: 'bob@example.com',
+        expiresAt: new Date(Date.now() + 86400000),
+      }),
+    );
 
     await expect(
       service.create(
@@ -657,22 +642,15 @@ describe('InvitesService', () => {
 
   it('should block invite to existing active member by username', async () => {
     const targetUserId = '44444444-4444-4444-4444-444444444444';
-    workspacesRepository.findActiveById.mockResolvedValue({
-      id: workspaceId,
-    } as Workspace);
-    workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
-    usersRepository.findByUsername.mockResolvedValue({
-      id: targetUserId,
-      email: 'bob@example.com',
-      username: 'bob',
-    });
+    workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+    workspacesRepository.findMemberRole.mockResolvedValue(WorkspaceRole.OWNER);
+    usersRepository.findByUsername.mockResolvedValue(
+      mockUser({ id: targetUserId, email: 'bob@example.com', username: 'bob' }),
+    );
     invitesRepository.findPendingByWorkspaceAndEmail.mockResolvedValue(null);
-    workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
-      id: 'wm2',
-      workspaceId,
-      userId: targetUserId,
-      role: 'MEMBER',
-    });
+    workspacesRepository.findActiveMemberByUserId.mockResolvedValue(
+      mockWorkspaceMember({ id: 'wm2', userId: targetUserId }),
+    );
 
     await expect(
       service.create(
@@ -687,15 +665,11 @@ describe('InvitesService', () => {
 
   it('should reject ADMIN inviting username with role ADMIN', async () => {
     const targetUserId = '44444444-4444-4444-4444-444444444444';
-    workspacesRepository.findActiveById.mockResolvedValue({
-      id: workspaceId,
-    } as Workspace);
-    workspacesRepository.findMemberRole.mockResolvedValue('ADMIN');
-    usersRepository.findByUsername.mockResolvedValue({
-      id: targetUserId,
-      email: 'bob@example.com',
-      username: 'bob',
-    });
+    workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+    workspacesRepository.findMemberRole.mockResolvedValue(WorkspaceRole.ADMIN);
+    usersRepository.findByUsername.mockResolvedValue(
+      mockUser({ id: targetUserId, email: 'bob@example.com', username: 'bob' }),
+    );
 
     await expect(
       service.create(workspaceId, { identifier: 'bob', role: 'ADMIN' }, userId),
@@ -705,10 +679,8 @@ describe('InvitesService', () => {
   });
 
   it('should reject when both email and identifier are missing', async () => {
-    workspacesRepository.findActiveById.mockResolvedValue({
-      id: workspaceId,
-    } as Workspace);
-    workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+    workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+    workspacesRepository.findMemberRole.mockResolvedValue(WorkspaceRole.OWNER);
 
     await expect(
       service.create(workspaceId, { role: 'MEMBER' }, userId),
@@ -717,10 +689,8 @@ describe('InvitesService', () => {
   });
 
   it('should reject when both email and identifier are provided', async () => {
-    workspacesRepository.findActiveById.mockResolvedValue({
-      id: workspaceId,
-    } as Workspace);
-    workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+    workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+    workspacesRepository.findMemberRole.mockResolvedValue(WorkspaceRole.OWNER);
 
     await expect(
       service.create(
