@@ -74,6 +74,85 @@ describe("DashboardPage — profile link", () => {
   });
 });
 
+describe("DashboardPage — user identity", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getWorkspaces).mockResolvedValue([]);
+    vi.mocked(getPendingInvites).mockResolvedValue([]);
+    vi.mocked(getPendingChannelInvites).mockResolvedValue([]);
+    vi.mocked(listArchivedWorkspaces).mockResolvedValue([]);
+  });
+
+  it("shows displayName instead of username when displayName exists", async () => {
+    mockAuth({
+      user: { id: "u1", email: "a@b.com", username: "alice", displayName: "Alice", avatarUrl: null, avatarUpdatedAt: null, languages: [], createdAt: "2024-01-01T00:00:00Z" },
+    });
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Welcome, Alice/i)).toBeInTheDocument();
+    });
+  });
+
+  it("falls back to username when displayName is null", async () => {
+    mockAuth({
+      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, languages: [], createdAt: "2024-01-01T00:00:00Z" },
+    });
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Welcome, alice/i)).toBeInTheDocument();
+    });
+  });
+
+  it("shows avatar image when avatarUrl exists", async () => {
+    mockAuth({
+      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: "/uploads/avatars/u1/test.png", avatarUpdatedAt: null, languages: [], createdAt: "2024-01-01T00:00:00Z" },
+    });
+    const { container } = render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(container.querySelector('img[src="/uploads/avatars/u1/test.png"]')).toBeInTheDocument();
+    });
+  });
+
+  it("shows fallback initials when avatarUrl is null", async () => {
+    mockAuth({
+      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, languages: [], createdAt: "2024-01-01T00:00:00Z" },
+    });
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("AL")).toBeInTheDocument();
+    });
+  });
+
+  it("shows language chips when languages exist", async () => {
+    mockAuth({
+      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, languages: ["English", "Ukrainian"], createdAt: "2024-01-01T00:00:00Z" },
+    });
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("English")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Ukrainian")).toBeInTheDocument();
+  });
+
+  it("does not render language chips block when languages is empty", async () => {
+    mockAuth({
+      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, languages: [], createdAt: "2024-01-01T00:00:00Z" },
+    });
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Welcome, alice/i)).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText("English")).not.toBeInTheDocument();
+  });
+});
+
 describe("DashboardPage — workspace list", () => {
   beforeEach(() => {
     vi.clearAllMocks();

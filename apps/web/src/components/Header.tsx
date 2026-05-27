@@ -18,9 +18,20 @@ export default function Header() {
           <span className="text-xs text-zinc-400">Loading…</span>
         ) : isAuthenticated && user ? (
           <>
-            <span className="text-sm text-zinc-600 dark:text-zinc-300">
-              {user.username}
-            </span>
+            <div className="flex items-center gap-2">
+              <div className="relative h-6 w-6 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center overflow-hidden shrink-0">
+                {user.avatarUrl ? (
+                  <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <span className="text-[10px] font-semibold text-zinc-600 dark:text-zinc-300">
+                    {(user.displayName || user.username || "?").slice(0, 2).toUpperCase()}
+                  </span>
+                )}
+              </div>
+              <span className="text-sm text-zinc-600 dark:text-zinc-300">
+                {user.displayName || user.username}
+              </span>
+            </div>
             <Link
               href="/profile"
               className="inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-xs font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"

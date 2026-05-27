@@ -259,12 +259,37 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col p-6 sm:p-10 max-w-3xl">
-      <h1 className="text-2xl font-semibold tracking-tight">
-        Welcome, {user?.username}
-      </h1>
-      <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-        You are signed in as {user?.email}.
-      </p>
+      <div className="flex items-center gap-4">
+        <div className="relative h-12 w-12 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center overflow-hidden shrink-0">
+          {user?.avatarUrl ? (
+            <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <span className="text-sm font-semibold text-zinc-600 dark:text-zinc-300">
+              {(user?.displayName || user?.username || "?").slice(0, 2).toUpperCase()}
+            </span>
+          )}
+        </div>
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Welcome, {user?.displayName || user?.username}
+          </h1>
+          <p className="mt-1 text-zinc-600 dark:text-zinc-400">
+            You are signed in as {user?.email}.
+          </p>
+          {user?.languages && user.languages.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {user.languages.map((lang) => (
+                <span
+                  key={lang}
+                  className="inline-flex items-center rounded-full bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 text-[10px] font-medium text-zinc-700 dark:text-zinc-300"
+                >
+                  {lang}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
 
       <div className="mt-4">
         <Link
