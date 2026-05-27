@@ -15,6 +15,7 @@ describe('AuthController', () => {
     displayName: null,
     avatarUrl: null,
     avatarUpdatedAt: null,
+    languages: [],
     createdAt: new Date(),
   };
 
@@ -31,6 +32,7 @@ describe('AuthController', () => {
             logout: jest.fn(),
             updateMe: jest.fn(),
             updateAvatar: jest.fn(),
+            updateLanguages: jest.fn(),
           },
         },
       ],
@@ -160,6 +162,70 @@ describe('AuthController', () => {
       ).rejects.toThrow('Avatar can be changed once every 7 days');
 
       expect(authService.updateAvatar).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('PATCH /auth/me/languages', () => {
+    it('updates languages and returns normalized list', async () => {
+      authService.updateLanguages.mockResolvedValue({
+        ...user,
+        languages: ['English', 'Ukrainian'],
+      });
+
+      const result = await controller.updateLanguages(user, {
+        languages: ['English', 'Ukrainian'],
+      });
+
+      expect(authService.updateLanguages).toHaveBeenCalledWith('user-id', [
+        'English',
+        'Ukrainian',
+      ]);
+      expect(result.languages).toEqual(['English', 'Ukrainian']);
+    });
+
+    it('trims and deduplicates languages case-insensitively', async () => {
+      authService.updateLanguages.mockResolvedValue({
+        ...user,
+        languages: ['English', 'Ukrainian'],
+      });
+
+      await controller.updateLanguages(user, {
+        languages: [' English ', 'english', ' Ukrainian '],
+      });
+
+      expect(authService.updateLanguages).toHaveBeenCalledWith('user-id', [
+        'English',
+        'Ukrainian',
+      ]);
+    });
+
+    it('filters out empty strings after trim', async () => {
+      authService.updateLanguages.mockResolvedValue({
+        ...user,
+        languages: ['English'],
+      });
+
+      await controller.updateLanguages(user, {
+        languages: ['English', '   ', ''],
+      });
+
+      expect(authService.updateLanguages).toHaveBeenCalledWith('user-id', [
+        'English',
+      ]);
+    });
+
+    it('accepts empty languages array', async () => {
+      authService.updateLanguages.mockResolvedValue({
+        ...user,
+        languages: [],
+      });
+
+      const result = await controller.updateLanguages(user, {
+        languages: [],
+      });
+
+      expect(authService.updateLanguages).toHaveBeenCalledWith('user-id', []);
+      expect(result.languages).toEqual([]);
     });
   });
 });

@@ -28,6 +28,7 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { LogoutDto } from './dto/logout.dto';
 import { UpdateDisplayNameDto } from './dto/update-display-name.dto';
 import { UpdateAvatarDto } from './dto/update-avatar.dto';
+import { UpdateLanguagesDto } from './dto/update-languages.dto';
 import { JwtAccessGuard } from './guards/jwt-access.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 
@@ -126,5 +127,37 @@ export class AuthController {
     }
 
     return this.auth.updateAvatar(user.id, dto.avatarUrl);
+  }
+
+  @Patch('me/languages')
+  @UseGuards(JwtAccessGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update current authenticated user languages' })
+  @ApiOkResponse({ description: 'Languages updated successfully' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async updateLanguages(
+    @CurrentUser() user: AuthUserResponse,
+    @Body() dto: UpdateLanguagesDto,
+  ): Promise<AuthUserResponse> {
+    const normalized = this.normalizeLanguages(dto.languages);
+    return this.auth.updateLanguages(user.id, normalized);
+  }
+
+  private normalizeLanguages(languages: string[]): string[] {
+    const seen = new Set<string>();
+    const result: string[] = [];
+
+    for (const lang of languages) {
+      const trimmed = lang.trim();
+      if (trimmed.length === 0) continue;
+      const key = trimmed.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        result.push(trimmed);
+      }
+    }
+
+    return result;
   }
 }

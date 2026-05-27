@@ -33,6 +33,7 @@ export interface AuthUserResponse {
   displayName: string | null;
   avatarUrl: string | null;
   avatarUpdatedAt: Date | null;
+  languages: string[];
   createdAt: Date;
 }
 
@@ -208,6 +209,14 @@ export class AuthService {
     return this.toAuthUserResponse(user);
   }
 
+  async updateLanguages(
+    userId: string,
+    languages: string[],
+  ): Promise<AuthUserResponse> {
+    const user = await this.users.updateLanguages(userId, languages);
+    return this.toAuthUserResponse(user);
+  }
+
   private toAuthUserResponse(user: User | SafeUser): AuthUserResponse {
     return {
       id: user.id,
@@ -216,6 +225,7 @@ export class AuthService {
       displayName: user.displayName ?? null,
       avatarUrl: user.avatarUrl ?? null,
       avatarUpdatedAt: user.avatarUpdatedAt ?? null,
+      languages: user.languages ?? [],
       createdAt: user.createdAt,
     };
   }

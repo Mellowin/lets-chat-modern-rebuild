@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { AuthService, AuthUserResponse } from './auth.service';
-import { User } from '@lets-chat/database';
+
 import { UsersRepository } from '../users/users.repository';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
@@ -24,6 +24,7 @@ describe('AuthService', () => {
             createUser: jest.fn(),
             updateDisplayName: jest.fn(),
             updateAvatar: jest.fn(),
+            updateLanguages: jest.fn(),
           },
         },
         {
@@ -69,10 +70,15 @@ describe('AuthService', () => {
       username: 'user',
       displayName: 'John Doe',
       passwordHash: 'hash',
+      avatarUrl: null,
+      avatarUpdatedAt: null,
+      languages: [] as string[],
       createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
     };
 
-    usersRepository.updateDisplayName.mockResolvedValue(user as User);
+    usersRepository.updateDisplayName.mockResolvedValue(user);
 
     const result = await service.updateMe('user-id', 'John Doe');
 
@@ -92,7 +98,10 @@ describe('AuthService', () => {
       avatarUrl: '/avatars/avatar-1.svg',
       avatarUpdatedAt: new Date('2024-01-01'),
       passwordHash: 'hash',
+      languages: [] as string[],
       createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
     };
 
     const servicePrivate = service as unknown as {
@@ -114,7 +123,10 @@ describe('AuthService', () => {
       avatarUrl: null,
       avatarUpdatedAt: null,
       passwordHash: 'hash',
+      languages: [] as string[],
       createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
     };
 
     const servicePrivate = service as unknown as {
@@ -135,10 +147,13 @@ describe('AuthService', () => {
       avatarUrl: '/avatars/avatar-3.svg',
       avatarUpdatedAt: new Date(),
       passwordHash: 'hash',
+      languages: [] as string[],
       createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
     };
 
-    usersRepository.updateAvatar.mockResolvedValue(user as User);
+    usersRepository.updateAvatar.mockResolvedValue(user);
 
     const result = await service.updateAvatar(
       'user-id',
@@ -162,10 +177,13 @@ describe('AuthService', () => {
       avatarUrl: '/avatars/avatar-1.svg',
       avatarUpdatedAt: new Date(),
       passwordHash: 'super-secret-hash',
+      languages: [] as string[],
       createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
     };
 
-    usersRepository.updateAvatar.mockResolvedValue(user as User);
+    usersRepository.updateAvatar.mockResolvedValue(user);
 
     const result = await service.updateAvatar(
       'user-id',
@@ -173,5 +191,53 @@ describe('AuthService', () => {
     );
 
     expect(result).not.toHaveProperty('passwordHash');
+  });
+
+  it('toAuthUserResponse includes languages', () => {
+    const user = {
+      id: 'user-id',
+      email: 'u@test.com',
+      username: 'user',
+      displayName: null,
+      avatarUrl: null,
+      avatarUpdatedAt: null,
+      passwordHash: 'hash',
+      languages: ['English', 'Ukrainian'],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+    };
+
+    const servicePrivate = service as unknown as {
+      toAuthUserResponse: (user: unknown) => AuthUserResponse;
+    };
+    const result = servicePrivate.toAuthUserResponse(user);
+
+    expect(result.languages).toEqual(['English', 'Ukrainian']);
+  });
+
+  it('updateLanguages calls users.updateLanguages and returns AuthUserResponse with languages', async () => {
+    const user = {
+      id: 'user-id',
+      email: 'u@test.com',
+      username: 'user',
+      displayName: null,
+      avatarUrl: null,
+      avatarUpdatedAt: null,
+      passwordHash: 'hash',
+      languages: ['English'],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+    };
+
+    usersRepository.updateLanguages.mockResolvedValue(user);
+
+    const result = await service.updateLanguages('user-id', ['English']);
+
+    expect(usersRepository.updateLanguages).toHaveBeenCalledWith('user-id', [
+      'English',
+    ]);
+    expect(result.languages).toEqual(['English']);
   });
 });

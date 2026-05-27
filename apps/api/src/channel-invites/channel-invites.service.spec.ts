@@ -153,6 +153,7 @@ describe('ChannelInvitesService', () => {
       displayName: null,
       avatarUrl: null,
       avatarUpdatedAt: null,
+      languages: [],
       createdAt: new Date(),
       updatedAt: new Date(),
       deletedAt: null,
