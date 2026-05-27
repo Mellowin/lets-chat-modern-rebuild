@@ -1620,7 +1620,8 @@ describe('WorkspacesService', () => {
 
       const result = await service.restore(workspaceId, userId);
 
-      expect(result.deletedAt).toBeNull();
+      expect(result).not.toBeNull();
+      expect(result!.deletedAt).toBeNull();
       expect(workspacesRepository.restoreWorkspace).toHaveBeenCalledWith(
         workspaceId,
       );
@@ -1874,7 +1875,7 @@ describe('WorkspacesService', () => {
           deletedAt: new Date('2026-01-01'),
           createdAt: new Date('2025-01-01'),
           updatedAt: new Date('2026-01-01'),
-        } as ListedWorkspace[],
+        } as ListedWorkspace,
       ]);
 
       const result = await service.listArchivedForOwner(userId);
@@ -1904,7 +1905,7 @@ describe('WorkspacesService', () => {
           deletedAt: new Date('2026-01-01'),
           createdAt: new Date('2025-01-01'),
           updatedAt: new Date('2026-01-01'),
-        } as ListedWorkspace[],
+        } as ListedWorkspace,
       ]);
 
       const result = await service.listArchivedForOwner(userId);
