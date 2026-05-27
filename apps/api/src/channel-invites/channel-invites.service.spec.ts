@@ -4,7 +4,12 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@lets-chat/database';
+import {
+  Prisma,
+  ChannelType,
+  ChannelRole,
+  WorkspaceRole,
+} from '@lets-chat/database';
 import { ChannelInvitesService } from './channel-invites.service';
 import { ChannelInvitesRepository } from './channel-invites.repository';
 import { ChannelsRepository } from '../channels/channels.repository';
@@ -88,69 +93,168 @@ describe('ChannelInvitesService', () => {
     jest.clearAllMocks();
   });
 
-  function mockOwnerSetup() {
-    workspacesRepository.findActiveById.mockResolvedValue({
+  type FoundWorkspace = NonNullable<
+    Awaited<ReturnType<WorkspacesRepository['findActiveById']>>
+  >;
+  type FoundChannel = NonNullable<
+    Awaited<ReturnType<ChannelsRepository['findActiveById']>>
+  >;
+  type FoundUser = NonNullable<
+    Awaited<ReturnType<UsersRepository['findByUsername']>>
+  >;
+  type FoundWorkspaceMember = NonNullable<
+    Awaited<ReturnType<WorkspacesRepository['findActiveMemberByUserId']>>
+  >;
+  type FoundChannelMember = NonNullable<
+    Awaited<ReturnType<ChannelsRepository['findActiveChannelMemberByUserId']>>
+  >;
+  type CreatedChannelInvite = Awaited<
+    ReturnType<ChannelInvitesRepository['createInvite']>
+  >;
+
+  function mockWorkspace(
+    overrides: Partial<FoundWorkspace> = {},
+  ): FoundWorkspace {
+    return {
       id: workspaceId,
-    } as any);
-    workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
-    channelsRepository.findActiveById.mockResolvedValue({
+      name: 'Test Workspace',
+      slug: 'test-workspace',
+      description: null,
+      ownerId: userId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+      ...overrides,
+    };
+  }
+
+  function mockChannel(overrides: Partial<FoundChannel> = {}): FoundChannel {
+    return {
       id: channelId,
       workspaceId,
-    } as any);
-    channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
+      name: 'general',
+      slug: 'general',
+      description: null,
+      type: ChannelType.PUBLIC,
+      createdById: userId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+      ...overrides,
+    };
+  }
+
+  function mockUser(overrides: Partial<FoundUser> = {}): FoundUser {
+    return {
+      id: targetUserId,
+      email: 'bob@example.com',
+      username: 'bob',
+      passwordHash: 'hash',
+      displayName: null,
+      avatarUrl: null,
+      avatarUpdatedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+      ...overrides,
+    };
+  }
+
+  function mockWorkspaceMember(
+    overrides: Partial<FoundWorkspaceMember> = {},
+  ): FoundWorkspaceMember {
+    return {
+      id: 'wm1',
+      workspaceId,
+      userId: targetUserId,
+      role: WorkspaceRole.MEMBER,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+      user: { id: targetUserId, username: 'bob' },
+      ...overrides,
+    };
+  }
+
+  function mockChannelMember(
+    overrides: Partial<FoundChannelMember> = {},
+  ): FoundChannelMember {
+    return {
+      id: 'cm1',
+      channelId,
+      userId: targetUserId,
+      role: ChannelRole.MEMBER,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+      user: { id: targetUserId, username: 'bob' },
+      ...overrides,
+    };
+  }
+
+  function mockChannelInvitation(
+    overrides: Partial<CreatedChannelInvite> = {},
+  ): CreatedChannelInvite {
+    return {
+      id: 'invite-id',
+      workspaceId,
+      channelId,
+      invitedById: userId,
+      invitedEmail: 'bob@example.com',
+      role: ChannelRole.MEMBER,
+      tokenHash: 'hash',
+      expiresAt: new Date('2026-12-31'),
+      usedAt: null,
+      usedById: null,
+      deletedAt: null,
+      createdAt: new Date(),
+      ...overrides,
+    };
+  }
+
+  function mockOwnerSetup() {
+    workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+    workspacesRepository.findMemberRole.mockResolvedValue(WorkspaceRole.OWNER);
+    channelsRepository.findActiveById.mockResolvedValue(mockChannel());
+    channelsRepository.findChannelMemberRole.mockResolvedValue(
+      ChannelRole.OWNER,
+    );
   }
 
   function mockAdminSetup() {
-    workspacesRepository.findActiveById.mockResolvedValue({
-      id: workspaceId,
-    } as any);
-    workspacesRepository.findMemberRole.mockResolvedValue('ADMIN');
-    channelsRepository.findActiveById.mockResolvedValue({
-      id: channelId,
-      workspaceId,
-    } as any);
-    channelsRepository.findChannelMemberRole.mockResolvedValue('ADMIN');
+    workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+    workspacesRepository.findMemberRole.mockResolvedValue(WorkspaceRole.ADMIN);
+    channelsRepository.findActiveById.mockResolvedValue(mockChannel());
+    channelsRepository.findChannelMemberRole.mockResolvedValue(
+      ChannelRole.ADMIN,
+    );
   }
 
   function mockMemberSetup() {
-    workspacesRepository.findActiveById.mockResolvedValue({
-      id: workspaceId,
-    } as any);
-    workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
-    channelsRepository.findActiveById.mockResolvedValue({
-      id: channelId,
-      workspaceId,
-    } as any);
-    channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+    workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+    workspacesRepository.findMemberRole.mockResolvedValue(WorkspaceRole.MEMBER);
+    channelsRepository.findActiveById.mockResolvedValue(mockChannel());
+    channelsRepository.findChannelMemberRole.mockResolvedValue(
+      ChannelRole.MEMBER,
+    );
   }
 
   describe('create', () => {
     it('should allow OWNER to create channel invite by username', async () => {
       mockOwnerSetup();
-      usersRepository.findByUsername.mockResolvedValue({
-        id: targetUserId,
-        email: 'bob@example.com',
-        username: 'bob',
-      } as any);
-      workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
-        id: 'wm1',
-      } as any);
+      usersRepository.findByUsername.mockResolvedValue(mockUser());
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue(
+        mockWorkspaceMember(),
+      );
       channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue(
         null,
       );
       channelInvitesRepository.findPendingByChannelAndEmail.mockResolvedValue(
         null,
       );
-      channelInvitesRepository.createInvite.mockResolvedValue({
-        id: 'invite-id',
-        workspaceId,
-        channelId,
-        invitedEmail: 'bob@example.com',
-        role: 'MEMBER',
-        tokenHash: 'hash',
-        expiresAt: new Date('2026-12-31'),
-        createdAt: new Date(),
-      } as any);
+      channelInvitesRepository.createInvite.mockResolvedValue(
+        mockChannelInvitation(),
+      );
 
       const result = await service.create(
         workspaceId,
@@ -171,30 +275,19 @@ describe('ChannelInvitesService', () => {
 
     it('should allow re-inviting after previous invite was accepted and member removed', async () => {
       mockOwnerSetup();
-      usersRepository.findByUsername.mockResolvedValue({
-        id: targetUserId,
-        email: 'bob@example.com',
-        username: 'bob',
-      } as any);
-      workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
-        id: 'wm1',
-      } as any);
+      usersRepository.findByUsername.mockResolvedValue(mockUser());
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue(
+        mockWorkspaceMember(),
+      );
       channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue(
         null,
       );
       channelInvitesRepository.findPendingByChannelAndEmail.mockResolvedValue(
         null,
       );
-      channelInvitesRepository.createInvite.mockResolvedValue({
-        id: 'invite-id-2',
-        workspaceId,
-        channelId,
-        invitedEmail: 'bob@example.com',
-        role: 'MEMBER',
-        tokenHash: 'hash2',
-        expiresAt: new Date('2026-12-31'),
-        createdAt: new Date(),
-      } as any);
+      channelInvitesRepository.createInvite.mockResolvedValue(
+        mockChannelInvitation({ id: 'invite-id-2', tokenHash: 'hash2' }),
+      );
 
       const result = await service.create(
         workspaceId,
@@ -211,30 +304,19 @@ describe('ChannelInvitesService', () => {
 
     it('should allow OWNER to create channel invite by email for existing workspace member', async () => {
       mockOwnerSetup();
-      usersRepository.findByEmail.mockResolvedValue({
-        id: targetUserId,
-        email: 'bob@example.com',
-        username: 'bob',
-      } as any);
-      workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
-        id: 'wm1',
-      } as any);
+      usersRepository.findByEmail.mockResolvedValue(mockUser());
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue(
+        mockWorkspaceMember(),
+      );
       channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue(
         null,
       );
       channelInvitesRepository.findPendingByChannelAndEmail.mockResolvedValue(
         null,
       );
-      channelInvitesRepository.createInvite.mockResolvedValue({
-        id: 'invite-id',
-        workspaceId,
-        channelId,
-        invitedEmail: 'bob@example.com',
-        role: 'MEMBER',
-        tokenHash: 'hash',
-        expiresAt: new Date('2026-12-31'),
-        createdAt: new Date(),
-      } as any);
+      channelInvitesRepository.createInvite.mockResolvedValue(
+        mockChannelInvitation(),
+      );
 
       const result = await service.create(
         workspaceId,
@@ -248,30 +330,19 @@ describe('ChannelInvitesService', () => {
 
     it('should allow ADMIN to create MEMBER channel invite', async () => {
       mockAdminSetup();
-      usersRepository.findByUsername.mockResolvedValue({
-        id: targetUserId,
-        email: 'bob@example.com',
-        username: 'bob',
-      } as any);
-      workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
-        id: 'wm1',
-      } as any);
+      usersRepository.findByUsername.mockResolvedValue(mockUser());
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue(
+        mockWorkspaceMember(),
+      );
       channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue(
         null,
       );
       channelInvitesRepository.findPendingByChannelAndEmail.mockResolvedValue(
         null,
       );
-      channelInvitesRepository.createInvite.mockResolvedValue({
-        id: 'invite-id',
-        workspaceId,
-        channelId,
-        invitedEmail: 'bob@example.com',
-        role: 'MEMBER',
-        tokenHash: 'hash',
-        expiresAt: new Date('2026-12-31'),
-        createdAt: new Date(),
-      } as any);
+      channelInvitesRepository.createInvite.mockResolvedValue(
+        mockChannelInvitation(),
+      );
 
       const result = await service.create(
         workspaceId,
@@ -311,20 +382,16 @@ describe('ChannelInvitesService', () => {
 
     it('should block duplicate pending channel invite', async () => {
       mockOwnerSetup();
-      usersRepository.findByUsername.mockResolvedValue({
-        id: targetUserId,
-        email: 'bob@example.com',
-        username: 'bob',
-      } as any);
-      workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
-        id: 'wm1',
-      } as any);
+      usersRepository.findByUsername.mockResolvedValue(mockUser());
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue(
+        mockWorkspaceMember(),
+      );
       channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue(
         null,
       );
-      channelInvitesRepository.findPendingByChannelAndEmail.mockResolvedValue({
-        id: 'existing',
-      } as any);
+      channelInvitesRepository.findPendingByChannelAndEmail.mockResolvedValue(
+        mockChannelInvitation({ id: 'existing' }),
+      );
 
       await expect(
         service.create(
@@ -338,17 +405,13 @@ describe('ChannelInvitesService', () => {
 
     it('should block invite for existing active channel member', async () => {
       mockOwnerSetup();
-      usersRepository.findByUsername.mockResolvedValue({
-        id: targetUserId,
-        email: 'bob@example.com',
-        username: 'bob',
-      } as any);
-      workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
-        id: 'wm1',
-      } as any);
-      channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue({
-        id: 'cm1',
-      } as any);
+      usersRepository.findByUsername.mockResolvedValue(mockUser());
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue(
+        mockWorkspaceMember(),
+      );
+      channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue(
+        mockChannelMember(),
+      );
 
       await expect(
         service.create(
@@ -376,11 +439,7 @@ describe('ChannelInvitesService', () => {
 
     it('should error when user is not active workspace member', async () => {
       mockOwnerSetup();
-      usersRepository.findByUsername.mockResolvedValue({
-        id: targetUserId,
-        email: 'bob@example.com',
-        username: 'bob',
-      } as any);
+      usersRepository.findByUsername.mockResolvedValue(mockUser());
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue(null);
 
       await expect(
