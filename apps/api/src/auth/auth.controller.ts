@@ -148,7 +148,7 @@ export class AuthController {
         validators: [
           new MaxFileSizeValidator({ maxSize: 2 * 1024 * 1024 }),
           new FileTypeValidator({
-            fileType: /image\/(jpeg|png|webp)/,
+            fileType: /^image\/(jpeg|png|webp)$/,
           }),
         ],
       }),

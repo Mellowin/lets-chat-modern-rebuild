@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
@@ -32,7 +32,7 @@ export class AvatarUploadService {
       case 'image/webp':
         return 'webp';
       default:
-        return 'bin';
+        throw new BadRequestException('Unsupported avatar image format');
     }
   }
 }

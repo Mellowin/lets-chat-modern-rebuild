@@ -83,4 +83,31 @@ describe('AvatarUploadService', () => {
 
     expect(url).toMatch(/\.webp$/);
   });
+
+  it('rejects unsupported mimetype', async () => {
+    const file = {
+      buffer: Buffer.from('image-data'),
+      mimetype: 'image/gif',
+      originalname: 'avatar.gif',
+      size: 1234,
+    };
+
+    await expect(service.save(file, 'user-1')).rejects.toThrow(
+      'Unsupported avatar image format',
+    );
+  });
+
+  it('does not write file when mimetype is unsupported', async () => {
+    const file = {
+      buffer: Buffer.from('image-data'),
+      mimetype: 'image/gif',
+      originalname: 'avatar.gif',
+      size: 1234,
+    };
+
+    await expect(service.save(file, 'user-1')).rejects.toThrow();
+
+    expect(fs.mkdir).not.toHaveBeenCalled();
+    expect(fs.writeFile).not.toHaveBeenCalled();
+  });
 });
