@@ -1,18 +1,22 @@
 import { Test } from '@nestjs/testing';
 import { GoneException } from '@nestjs/common';
+import { ChannelRole } from '@lets-chat/database';
 import { ChannelsController } from './channels.controller';
 import { ChannelsService } from './channels.service';
+import type { AuthUserResponse } from '../auth/auth.service';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 
 describe('ChannelsController', () => {
   let controller: ChannelsController;
   let channelsService: jest.Mocked<ChannelsService>;
 
-  const user = {
+  const user: AuthUserResponse = {
     id: 'user-id',
     email: 'u@test.com',
     username: 'user',
     displayName: null,
+    avatarUrl: null,
+    avatarUpdatedAt: null,
     createdAt: new Date(),
   };
 
@@ -42,8 +46,8 @@ describe('ChannelsController', () => {
         controller.addMember(
           'workspace-id',
           'channel-id',
-          { identifier: 'alice', role: 'MEMBER' } as any,
-          user as any,
+          { identifier: 'alice', role: ChannelRole.MEMBER },
+          user,
         ),
       ).rejects.toBeInstanceOf(GoneException);
 
@@ -51,8 +55,8 @@ describe('ChannelsController', () => {
         controller.addMember(
           'workspace-id',
           'channel-id',
-          { identifier: 'alice', role: 'MEMBER' } as any,
-          user as any,
+          { identifier: 'alice', role: ChannelRole.MEMBER },
+          user,
         ),
       ).rejects.toThrow('Use channel invitations to add members');
     });
@@ -62,8 +66,8 @@ describe('ChannelsController', () => {
         await controller.addMember(
           'workspace-id',
           'channel-id',
-          { identifier: 'alice', role: 'MEMBER' } as any,
-          user as any,
+          { identifier: 'alice', role: ChannelRole.MEMBER },
+          user,
         );
       } catch {
         // expected
