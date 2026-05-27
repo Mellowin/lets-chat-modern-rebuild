@@ -1,13 +1,14 @@
 import { Test } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import type { AuthUserResponse } from './auth.service';
 import { JwtAccessGuard } from './guards/jwt-access.guard';
 
 describe('AuthController', () => {
   let controller: AuthController;
   let authService: jest.Mocked<AuthService>;
 
-  const user = {
+  const user: AuthUserResponse = {
     id: 'user-id',
     email: 'u@test.com',
     username: 'user',
@@ -112,8 +113,8 @@ describe('AuthController', () => {
 
       await expect(
         controller.updateAvatar(
-          { ...user, avatarUpdatedAt: recentDate } as any,
-          { avatarUrl: '/avatars/avatar-3.svg' } as any,
+          { ...user, avatarUpdatedAt: recentDate },
+          { avatarUrl: '/avatars/avatar-3.svg' },
         ),
       ).rejects.toThrow('Avatar can be changed once every 7 days');
 
@@ -153,8 +154,8 @@ describe('AuthController', () => {
 
       await expect(
         controller.updateAvatar(
-          { ...user, avatarUpdatedAt: justUnderSevenDays } as any,
-          { avatarUrl: '/avatars/avatar-5.svg' } as any,
+          { ...user, avatarUpdatedAt: justUnderSevenDays },
+          { avatarUrl: '/avatars/avatar-5.svg' },
         ),
       ).rejects.toThrow('Avatar can be changed once every 7 days');
 
