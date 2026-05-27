@@ -1,17 +1,20 @@
 import { Test } from '@nestjs/testing';
 import { InvitesAcceptController } from './invites-accept.controller';
 import { InvitesService } from './invites.service';
+import type { AuthUserResponse } from '../auth/auth.service';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 
 describe('InvitesAcceptController', () => {
   let controller: InvitesAcceptController;
   let invitesService: jest.Mocked<InvitesService>;
 
-  const user = {
+  const user: AuthUserResponse = {
     id: 'user-id',
     email: 'u@test.com',
     username: 'user',
     displayName: null,
+    avatarUrl: null,
+    avatarUpdatedAt: null,
     createdAt: new Date(),
   };
 
@@ -40,7 +43,7 @@ describe('InvitesAcceptController', () => {
 
   it('should call listPending service method', async () => {
     invitesService.listPending.mockResolvedValue([]);
-    await controller.listPending(user as any);
+    await controller.listPending(user);
     expect(invitesService.listPending).toHaveBeenCalledWith(
       'user-id',
       'u@test.com',
@@ -53,7 +56,7 @@ describe('InvitesAcceptController', () => {
       role: 'MEMBER',
       joinedAt: new Date(),
     });
-    await controller.acceptById('invite-id', user as any);
+    await controller.acceptById('invite-id', user);
     expect(invitesService.acceptById).toHaveBeenCalledWith(
       'invite-id',
       'user-id',
@@ -66,7 +69,7 @@ describe('InvitesAcceptController', () => {
       id: 'invite-id',
       deletedAt: new Date(),
     });
-    await controller.decline('invite-id', user as any);
+    await controller.decline('invite-id', user);
     expect(invitesService.decline).toHaveBeenCalledWith(
       'invite-id',
       'user-id',
@@ -80,7 +83,7 @@ describe('InvitesAcceptController', () => {
       role: 'MEMBER',
       joinedAt: new Date(),
     });
-    await controller.accept({ token: 'token123' }, user as any);
+    await controller.accept({ token: 'token123' }, user);
     expect(invitesService.accept).toHaveBeenCalledWith(
       'token123',
       'user-id',
