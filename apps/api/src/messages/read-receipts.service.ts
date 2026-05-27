@@ -32,7 +32,12 @@ export class ReadReceiptsService {
       channelId,
     });
 
-    this.broadcastReadReceipt(channelId, messageId, receipt.readAt, userId);
+    void this.broadcastReadReceipt(
+      channelId,
+      messageId,
+      receipt.readAt,
+      userId,
+    );
 
     return receipt;
   }
