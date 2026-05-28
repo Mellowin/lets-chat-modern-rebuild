@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { useLocale } from "@/lib/locale";
+import { useLocale, translate, getLocale } from "@/lib/locale";
 import { getWorkspace, getWorkspaceMembers, leaveWorkspace, removeWorkspaceMember, type Workspace, type WorkspaceMember } from "@/lib/workspaces-api";
 import { MessageAuthor } from "@/components/MessageAuthor";
 import { createWorkspaceInvite } from "@/lib/invites-api";
@@ -87,7 +87,7 @@ export default function WorkspaceDetailPage() {
           setChannels({ kind: "success", data: chData });
         }
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Failed to load workspace";
+        const message = err instanceof Error ? err.message : translate(getLocale(), "workspace.errorLoadWorkspaceFailed");
         if (!cancelled) {
           setDetail({ kind: "error", message });
           setChannels({ kind: "error", message });
@@ -115,7 +115,7 @@ export default function WorkspaceDetailPage() {
           setMembers({ kind: "success", data: memData });
         }
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Failed to load members";
+        const message = err instanceof Error ? err.message : translate(getLocale(), "workspace.errorLoadMembersFailed");
         if (!cancelled) {
           setMembers({ kind: "error", message });
         }
@@ -138,7 +138,7 @@ export default function WorkspaceDetailPage() {
           setArchivedChannels({ kind: "success", data });
         }
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Failed to load archived channels";
+        const message = err instanceof Error ? err.message : translate(getLocale(), "workspace.errorLoadArchivedChannelsFailed");
         if (!cancelled) {
           setArchivedChannels({ kind: "error", message });
         }
@@ -152,7 +152,7 @@ export default function WorkspaceDetailPage() {
     e.preventDefault();
     const trimmedName = channelName.trim();
     if (!trimmedName || trimmedName.length < 2) {
-      setCreateChannelState({ kind: "error", message: "Channel name must be at least 2 characters" });
+      setCreateChannelState({ kind: "error", message: t("workspace.errorChannelNameTooShort") });
       return;
     }
     if (!accessToken || !workspaceId) return;
@@ -174,7 +174,7 @@ export default function WorkspaceDetailPage() {
       setChannels({ kind: "success", data: refreshed });
       window.dispatchEvent(new Event("channels:changed"));
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to create channel";
+      const message = err instanceof Error ? err.message : t("workspace.errorCreateChannelFailed");
       setCreateChannelState({ kind: "error", message });
     }
   }
@@ -182,7 +182,7 @@ export default function WorkspaceDetailPage() {
   async function handleArchiveChannel(e: React.MouseEvent, channelId: string, name: string) {
     e.preventDefault();
     e.stopPropagation();
-    if (!window.confirm(`Archive channel "${name}"?\nThis will hide the channel from the workspace. Only the channel owner can do this.`)) {
+    if (!window.confirm(`${t("workspace.confirmArchiveChannelPrefix")} "${name}"?\n${t("workspace.confirmArchiveChannelBody")}`)) {
       return;
     }
     if (!accessToken || !workspaceId) return;
@@ -197,13 +197,13 @@ export default function WorkspaceDetailPage() {
       setArchivedChannels({ kind: "success", data: archived });
       window.dispatchEvent(new Event("channels:changed"));
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to archive channel";
+      const message = err instanceof Error ? err.message : t("workspace.errorArchiveChannelFailed");
       setArchiveError(message);
     }
   }
 
   async function handleRestoreChannel(channelId: string, name: string) {
-    if (!window.confirm(`Restore channel "${name}"?`)) return;
+    if (!window.confirm(`${t("workspace.confirmRestoreChannelPrefix")} "${name}"?`)) return;
     if (!accessToken || !workspaceId) return;
     setRestoringChannelId(channelId);
     setRestoreError(null);
@@ -217,7 +217,7 @@ export default function WorkspaceDetailPage() {
       setArchivedChannels({ kind: "success", data: archived });
       window.dispatchEvent(new Event("channels:changed"));
     } catch (err) {
-      setRestoreError(err instanceof Error ? err.message : "Failed to restore channel");
+      setRestoreError(err instanceof Error ? err.message : t("workspace.errorRestoreChannelFailed"));
     } finally {
       setRestoringChannelId(null);
     }
@@ -231,7 +231,7 @@ export default function WorkspaceDetailPage() {
     e.preventDefault();
     const trimmed = memberIdentifier.trim();
     if (!trimmed) {
-      setAddMemberState({ kind: "error", message: "Enter a username or email" });
+      setAddMemberState({ kind: "error", message: t("workspace.errorEnterUsernameOrEmail") });
       return;
     }
     if (!accessToken || !workspaceId) return;
@@ -247,13 +247,13 @@ export default function WorkspaceDetailPage() {
       setMemberRole("MEMBER");
       setAddMemberState({ kind: "success", message: "Invitation sent" });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to add member";
+      const message = err instanceof Error ? err.message : t("workspace.errorAddMemberFailed");
       setAddMemberState({ kind: "error", message });
     }
   }
 
   async function handleLeaveWorkspace() {
-    if (!window.confirm(`Leave workspace "${detail.kind === "success" ? detail.data.name : workspaceId}"?`)) {
+    if (!window.confirm(`${t("workspace.confirmLeaveWorkspacePrefix")} "${detail.kind === "success" ? detail.data.name : t("workspace.fallbackThisWorkspace")}"?`)) {
       return;
     }
     if (!accessToken || !workspaceId) return;
@@ -263,13 +263,13 @@ export default function WorkspaceDetailPage() {
       window.dispatchEvent(new Event("workspaces:changed"));
       router.push("/dashboard");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to leave workspace";
+      const message = err instanceof Error ? err.message : t("workspace.errorLeaveWorkspaceFailed");
       setLeaveError(message);
     }
   }
 
   async function handleRemoveMember(memberId: string, displayName: string) {
-    if (!window.confirm(`Remove "${displayName}" from this workspace?`)) return;
+    if (!window.confirm(`${t("workspace.confirmRemoveMemberPrefix")} "${displayName}" ${t("workspace.confirmRemoveMemberSuffix")}`)) return;
     if (!accessToken || !workspaceId) return;
     setRemovingMemberId(memberId);
     setRemoveMemberState({ kind: "idle" });
@@ -281,7 +281,7 @@ export default function WorkspaceDetailPage() {
       });
       setRemoveMemberState({ kind: "success", message: "Member removed" });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to remove member";
+      const message = err instanceof Error ? err.message : t("workspace.errorRemoveMemberFailed");
       setRemoveMemberState({ kind: "error", message });
     } finally {
       setRemovingMemberId(null);

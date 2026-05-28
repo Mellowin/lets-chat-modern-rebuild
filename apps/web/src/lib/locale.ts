@@ -157,7 +157,25 @@ export type TranslationKey =
   | "channel.errorUsernameOrEmailRequired"
   | "channel.errorSendInvitationFailed"
   | "channel.errorSendMessageFailed"
-  | "channel.errorRemoveMemberFailed";
+  | "channel.errorRemoveMemberFailed"
+  | "workspace.confirmArchiveChannelPrefix"
+  | "workspace.confirmArchiveChannelBody"
+  | "workspace.confirmRestoreChannelPrefix"
+  | "workspace.confirmLeaveWorkspacePrefix"
+  | "workspace.confirmRemoveMemberPrefix"
+  | "workspace.confirmRemoveMemberSuffix"
+  | "workspace.fallbackThisWorkspace"
+  | "workspace.errorChannelNameTooShort"
+  | "workspace.errorCreateChannelFailed"
+  | "workspace.errorLoadWorkspaceFailed"
+  | "workspace.errorLoadMembersFailed"
+  | "workspace.errorLoadArchivedChannelsFailed"
+  | "workspace.errorArchiveChannelFailed"
+  | "workspace.errorRestoreChannelFailed"
+  | "workspace.errorEnterUsernameOrEmail"
+  | "workspace.errorAddMemberFailed"
+  | "workspace.errorLeaveWorkspaceFailed"
+  | "workspace.errorRemoveMemberFailed";
 
 const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
   en: {
@@ -301,6 +319,24 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "channel.errorSendInvitationFailed": "Failed to send invitation",
     "channel.errorSendMessageFailed": "Failed to send message",
     "channel.errorRemoveMemberFailed": "Failed to remove member",
+    "workspace.confirmArchiveChannelPrefix": "Archive channel",
+    "workspace.confirmArchiveChannelBody": "This will hide the channel from the workspace. Only the channel owner can do this.",
+    "workspace.confirmRestoreChannelPrefix": "Restore channel",
+    "workspace.confirmLeaveWorkspacePrefix": "Leave workspace",
+    "workspace.confirmRemoveMemberPrefix": "Remove",
+    "workspace.confirmRemoveMemberSuffix": "from this workspace?",
+    "workspace.fallbackThisWorkspace": "this workspace",
+    "workspace.errorChannelNameTooShort": "Channel name must be at least 2 characters",
+    "workspace.errorCreateChannelFailed": "Failed to create channel",
+    "workspace.errorLoadWorkspaceFailed": "Failed to load workspace",
+    "workspace.errorLoadMembersFailed": "Failed to load members",
+    "workspace.errorLoadArchivedChannelsFailed": "Failed to load archived channels",
+    "workspace.errorArchiveChannelFailed": "Failed to archive channel",
+    "workspace.errorRestoreChannelFailed": "Failed to restore channel",
+    "workspace.errorEnterUsernameOrEmail": "Enter a username or email",
+    "workspace.errorAddMemberFailed": "Failed to add member",
+    "workspace.errorLeaveWorkspaceFailed": "Failed to leave workspace",
+    "workspace.errorRemoveMemberFailed": "Failed to remove member",
   },
   uk: {
     "header.profile": "Профіль",
@@ -443,6 +479,24 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "channel.errorSendInvitationFailed": "Не вдалося надіслати запрошення",
     "channel.errorSendMessageFailed": "Не вдалося надіслати повідомлення",
     "channel.errorRemoveMemberFailed": "Не вдалося вилучити учасника",
+    "workspace.confirmArchiveChannelPrefix": "Архівувати канал",
+    "workspace.confirmArchiveChannelBody": "Це приховає канал з робочого простору. Це може зробити лише власник каналу.",
+    "workspace.confirmRestoreChannelPrefix": "Відновити канал",
+    "workspace.confirmLeaveWorkspacePrefix": "Покинути робочий простір",
+    "workspace.confirmRemoveMemberPrefix": "Вилучити",
+    "workspace.confirmRemoveMemberSuffix": "з цього робочого простору?",
+    "workspace.fallbackThisWorkspace": "цей робочий простір",
+    "workspace.errorChannelNameTooShort": "Назва каналу має містити щонайменше 2 символи",
+    "workspace.errorCreateChannelFailed": "Не вдалося створити канал",
+    "workspace.errorLoadWorkspaceFailed": "Не вдалося завантажити робочий простір",
+    "workspace.errorLoadMembersFailed": "Не вдалося завантажити учасників",
+    "workspace.errorLoadArchivedChannelsFailed": "Не вдалося завантажити архівовані канали",
+    "workspace.errorArchiveChannelFailed": "Не вдалося архівувати канал",
+    "workspace.errorRestoreChannelFailed": "Не вдалося відновити канал",
+    "workspace.errorEnterUsernameOrEmail": "Вкажіть імʼя користувача або email",
+    "workspace.errorAddMemberFailed": "Не вдалося додати учасника",
+    "workspace.errorLeaveWorkspaceFailed": "Не вдалося покинути робочий простір",
+    "workspace.errorRemoveMemberFailed": "Не вдалося вилучити учасника",
   },
   ru: {
     "header.profile": "Профиль",
@@ -585,6 +639,24 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "channel.errorSendInvitationFailed": "Не удалось отправить приглашение",
     "channel.errorSendMessageFailed": "Не удалось отправить сообщение",
     "channel.errorRemoveMemberFailed": "Не удалось удалить участника",
+    "workspace.confirmArchiveChannelPrefix": "Архивировать канал",
+    "workspace.confirmArchiveChannelBody": "Это скроет канал из рабочего пространства. Это может сделать только владелец канала.",
+    "workspace.confirmRestoreChannelPrefix": "Восстановить канал",
+    "workspace.confirmLeaveWorkspacePrefix": "Покинуть рабочее пространство",
+    "workspace.confirmRemoveMemberPrefix": "Удалить",
+    "workspace.confirmRemoveMemberSuffix": "из этого рабочего пространства?",
+    "workspace.fallbackThisWorkspace": "это рабочее пространство",
+    "workspace.errorChannelNameTooShort": "Название канала должно быть не короче 2 символов",
+    "workspace.errorCreateChannelFailed": "Не удалось создать канал",
+    "workspace.errorLoadWorkspaceFailed": "Не удалось загрузить рабочее пространство",
+    "workspace.errorLoadMembersFailed": "Не удалось загрузить участников",
+    "workspace.errorLoadArchivedChannelsFailed": "Не удалось загрузить архивированные каналы",
+    "workspace.errorArchiveChannelFailed": "Не удалось архивировать канал",
+    "workspace.errorRestoreChannelFailed": "Не удалось восстановить канал",
+    "workspace.errorEnterUsernameOrEmail": "Укажите имя пользователя или email",
+    "workspace.errorAddMemberFailed": "Не удалось добавить участника",
+    "workspace.errorLeaveWorkspaceFailed": "Не удалось покинуть рабочее пространство",
+    "workspace.errorRemoveMemberFailed": "Не удалось удалить участника",
   },
 };
 

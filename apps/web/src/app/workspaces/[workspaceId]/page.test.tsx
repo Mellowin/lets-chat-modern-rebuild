@@ -110,6 +110,83 @@ describe("WorkspaceDetailPage — locale", () => {
     expect(screen.getByRole("heading", { name: "Участники" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Создать" })).toBeInTheDocument();
   });
+
+  it("shows Ukrainian validation error for empty channel name", async () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    mockWorkspaceData({ archived: [] });
+    render(<WorkspaceDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Створити" })).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Створити" }));
+    expect(await screen.findByText("Назва каналу має містити щонайменше 2 символи")).toBeInTheDocument();
+  });
+
+  it("shows Ukrainian archive confirm dialog", async () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    mockWorkspaceData({ archived: [] });
+    vi.mocked(getChannels).mockResolvedValue([
+      { id: "ch1", workspaceId: "ws1", name: "general", slug: "general-slug", description: null, type: "PUBLIC", createdById: "u1", createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", deletedAt: null },
+    ]);
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    render(<WorkspaceDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Архівувати" })).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Архівувати" }));
+    expect(confirmSpy).toHaveBeenCalledWith('Архівувати канал "general"?\nЦе приховає канал з робочого простору. Це може зробити лише власник каналу.');
+    confirmSpy.mockRestore();
+  });
+
+  it("shows Russian restore confirm dialog", async () => {
+    localStorage.setItem("lets-chat:locale", "ru");
+    mockWorkspaceData({
+      archived: [
+        { id: "ch-arch", workspaceId: "ws1", name: "old-general", slug: "old-general-slug", description: null, type: "PUBLIC", createdById: "u1", createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", deletedAt: "2024-02-01T00:00:00Z" },
+      ],
+    });
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    render(<WorkspaceDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Восстановить" })).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Восстановить" }));
+    expect(confirmSpy).toHaveBeenCalledWith('Восстановить канал "old-general"?');
+    confirmSpy.mockRestore();
+  });
+
+  it("shows Ukrainian remove member confirm dialog", async () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    mockWorkspaceData({ archived: [] });
+    vi.mocked(getWorkspaceMembers).mockResolvedValue([
+      { id: "wm1", workspaceId: "ws1", role: "OWNER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice", displayName: "Alice" } },
+      { id: "wm2", workspaceId: "ws1", role: "MEMBER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u2", username: "bob", displayName: "Bob" } },
+    ]);
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    render(<WorkspaceDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Вилучити" })).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Вилучити" }));
+    expect(confirmSpy).toHaveBeenCalledWith('Вилучити "Bob" з цього робочого простору?');
+    confirmSpy.mockRestore();
+  });
+
+  it("shows Russian leave workspace confirm dialog", async () => {
+    localStorage.setItem("lets-chat:locale", "ru");
+    mockWorkspaceData({ archived: [] });
+    vi.mocked(getWorkspaceMembers).mockResolvedValue([
+      { id: "wm1", workspaceId: "ws1", role: "MEMBER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice", displayName: "Alice" } },
+    ]);
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    render(<WorkspaceDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Покинуть пространство" })).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Покинуть пространство" }));
+    expect(confirmSpy).toHaveBeenCalledWith('Покинуть рабочее пространство "Test Workspace"?');
+    confirmSpy.mockRestore();
+  });
 });
 
 describe("WorkspaceDetailPage — archived channels", () => {
