@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { useLocale } from "@/lib/locale";
 import { getChannel, getChannelMembers, removeChannelMember, archiveChannel, leaveChannel, type Channel, type ChannelMember } from "@/lib/channels-api";
 import { createChannelInvite } from "@/lib/channel-invites-api";
 
@@ -38,6 +39,7 @@ export default function ChannelDetailPage() {
     typeof params.channelId === "string" ? params.channelId : "";
   const { isLoading: authLoading, isAuthenticated, user, accessToken } = useAuth();
   const router = useRouter();
+  const { t } = useLocale();
   const [channel, setChannel] = useState<ChannelState>({ kind: "idle" });
   const [messages, setMessages] = useState<MessagesState>({ kind: "idle" });
   const [members, setMembers] = useState<MembersState>({ kind: "idle" });
@@ -504,7 +506,7 @@ export default function ChannelDetailPage() {
       <div className="flex flex-1 items-center justify-center p-6">
         <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
           <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
-          Loading session…
+          {t("auth.loadingSession")}
         </div>
       </div>
     );
@@ -514,15 +516,15 @@ export default function ChannelDetailPage() {
     return (
       <div className="flex flex-1 items-center justify-center p-6">
         <div className="text-center">
-          <h1 className="text-xl font-semibold">Authentication required</h1>
+          <h1 className="text-xl font-semibold">{t("auth.authRequired")}</h1>
           <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-            Please sign in to view this channel.
+            {t("auth.pleaseSignInChannel")}
           </p>
           <Link
             href="/login"
             className="mt-4 inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
           >
-            Sign in
+            {t("auth.signIn")}
           </Link>
         </div>
       </div>
@@ -535,13 +537,13 @@ export default function ChannelDetailPage() {
         href={`/workspaces/${workspaceId}`}
         className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
       >
-        ← Back to workspace
+        {t("channel.backToWorkspace")}
       </Link>
 
       {channel.kind === "loading" && (
         <div className="mt-6 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
           <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
-          Loading channel…
+          {t("channel.loading")}
         </div>
       )}
 
@@ -567,7 +569,7 @@ export default function ChannelDetailPage() {
                   : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
               }`}
             >
-              {channel.data.type}
+              {channel.data.type === "PUBLIC" ? t("channel.publicChannel") : t("channel.privateChannel")}
             </span>
             <span
               className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
@@ -590,7 +592,7 @@ export default function ChannelDetailPage() {
                 disabled={archiveState.kind === "loading"}
                 className="ml-auto inline-flex items-center justify-center rounded-lg border border-red-300 dark:border-red-800 px-3 py-1.5 text-xs font-medium text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
               >
-                {archiveState.kind === "loading" ? "Archiving…" : "Archive"}
+                {archiveState.kind === "loading" ? t("channel.archiving") : t("channel.archive")}
               </button>
             )}
             {canLeaveChannel && (
@@ -599,7 +601,7 @@ export default function ChannelDetailPage() {
                 disabled={leaveState.kind === "loading"}
                 className="ml-auto inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
               >
-                {leaveState.kind === "loading" ? "Leaving…" : "Leave channel"}
+                {leaveState.kind === "loading" ? t("channel.leaving") : t("channel.leaveChannel")}
               </button>
             )}
           </div>
@@ -631,7 +633,7 @@ export default function ChannelDetailPage() {
       )}
 
       <div className="mt-8 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 p-5">
-        <h2 className="text-sm font-semibold">Messages</h2>
+        <h2 className="text-sm font-semibold">{t("channel.messages")}</h2>
 
         {/* Typing indicator */}
         {Object.keys(typingUsers).length > 0 && (
@@ -651,7 +653,7 @@ export default function ChannelDetailPage() {
           <form onSubmit={handleSendMessage} className="mt-4 flex flex-col gap-2">
             <textarea
               rows={2}
-              placeholder="Type a message…"
+              placeholder={t("channel.messagePlaceholder")}
               value={content}
               onChange={(e) => {
                 setContent(e.target.value);
@@ -679,7 +681,7 @@ export default function ChannelDetailPage() {
                 disabled={sendState.kind === "loading"}
                 className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
               >
-                {sendState.kind === "loading" ? "Sending…" : "Send"}
+                {sendState.kind === "loading" ? t("channel.sending") : t("channel.send")}
               </button>
             </div>
             {sendState.kind === "error" && (
@@ -696,7 +698,7 @@ export default function ChannelDetailPage() {
         {messages.kind === "loading" && (
           <div className="mt-4 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
             <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
-            Loading messages…
+            {t("channel.loadingMessages")}
           </div>
         )}
 
@@ -711,7 +713,7 @@ export default function ChannelDetailPage() {
 
         {messages.kind === "success" && messages.data.length === 0 && (
           <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">
-            No messages yet.
+            {t("channel.noMessages")}
           </p>
         )}
 
@@ -803,14 +805,14 @@ export default function ChannelDetailPage() {
 
       {/* Members */}
       <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
-        <h2 className="text-sm font-semibold">Members</h2>
+        <h2 className="text-sm font-semibold">{t("channel.members")}</h2>
 
         {canManageMembers && (
           <form onSubmit={handleAddMember} className="mt-3 flex flex-col gap-2">
             <div className="flex items-center gap-2">
               <input
                 type="text"
-                placeholder="Username or email"
+                placeholder={t("channel.invitePlaceholder")}
                 value={addMemberIdentifier}
                 onChange={(e) => {
                   setAddMemberIdentifier(e.target.value);
@@ -826,7 +828,7 @@ export default function ChannelDetailPage() {
                 disabled={addMemberState.kind === "loading"}
                 className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
               >
-                {addMemberState.kind === "loading" ? "Adding…" : "Add"}
+                {addMemberState.kind === "loading" ? t("channel.adding") : t("channel.add")}
               </button>
             </div>
             {myChannelRole === "OWNER" && (
@@ -836,8 +838,8 @@ export default function ChannelDetailPage() {
                 disabled={addMemberState.kind === "loading"}
                 className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100 disabled:opacity-60"
               >
-                <option value="MEMBER">Member</option>
-                <option value="ADMIN">Admin</option>
+                <option value="MEMBER">{t("channel.member")}</option>
+                <option value="ADMIN">{t("channel.admin")}</option>
               </select>
             )}
             {addMemberState.kind === "error" && (
@@ -852,7 +854,7 @@ export default function ChannelDetailPage() {
               <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
                 <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
                   <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                  Channel invitation sent
+                  {t("channel.invitationSent")}
                 </div>
               </div>
             )}
@@ -862,7 +864,7 @@ export default function ChannelDetailPage() {
         {members.kind === "loading" && (
           <div className="mt-3 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
             <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
-            Loading members…
+            {t("channel.loadingMembers")}
           </div>
         )}
 
@@ -877,7 +879,7 @@ export default function ChannelDetailPage() {
 
         {members.kind === "success" && members.data.length === 0 && (
           <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
-            No members yet.
+            {t("channel.noMembers")}
           </p>
         )}
 
@@ -898,7 +900,7 @@ export default function ChannelDetailPage() {
                           : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400"
                     }`}
                   >
-                    {m.role}
+                    {m.role === "OWNER" ? t("channel.owner") : m.role === "ADMIN" ? t("channel.admin") : t("channel.member")}
                   </span>
                   {canRemoveMember(m.role, m.user.id) && (
                     <button
@@ -906,7 +908,7 @@ export default function ChannelDetailPage() {
                       disabled={removeMemberState.kind === "loading" && removeMemberState.memberId === m.id}
                       className="text-[10px] text-zinc-400 hover:text-red-600 dark:text-zinc-500 dark:hover:text-red-400 underline disabled:opacity-50"
                     >
-                      {removeMemberState.kind === "loading" && removeMemberState.memberId === m.id ? "Removing…" : "Remove"}
+                      {removeMemberState.kind === "loading" && removeMemberState.memberId === m.id ? t("channel.removing") : t("channel.remove")}
                     </button>
                   )}
                 </div>

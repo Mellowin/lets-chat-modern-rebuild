@@ -58,6 +58,10 @@ vi.mock("@/lib/socket-client", () => ({
   })),
 }));
 
+beforeEach(() => {
+  localStorage.clear();
+});
+
 function mockChannelAndMessages(messagesData: unknown[] = [], membersData: unknown[] = []) {
   vi.mocked(getChannel).mockResolvedValueOnce({
     id: "ch1",
@@ -74,6 +78,49 @@ function mockChannelAndMessages(messagesData: unknown[] = [], membersData: unkno
   vi.mocked(getMessages).mockResolvedValueOnce(messagesData as Message[]);
   vi.mocked(getChannelMembers).mockResolvedValueOnce(membersData as ChannelMember[]);
 }
+
+describe("ChannelDetailPage — locale", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    localStorage.clear();
+    sessionStorage.setItem("accessToken", "token");
+  });
+
+  it("renders English shell labels by default", async () => {
+    mockChannelAndMessages([], []);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/Back to workspace/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole("heading", { name: "Messages" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Send" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Members" })).toBeInTheDocument();
+  });
+
+  it("renders Ukrainian shell labels when locale is uk", async () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    mockChannelAndMessages([], []);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/Назад до робочого простору/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole("heading", { name: "Повідомлення" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Надіслати" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Учасники" })).toBeInTheDocument();
+  });
+
+  it("renders Russian shell labels when locale is ru", async () => {
+    localStorage.setItem("lets-chat:locale", "ru");
+    mockChannelAndMessages([], []);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/Назад к рабочему пространству/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole("heading", { name: "Сообщения" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Отправить" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Участники" })).toBeInTheDocument();
+  });
+});
 
 describe("ChannelDetailPage — composer", () => {
   beforeEach(() => {
@@ -682,8 +729,8 @@ describe("ChannelDetailPage — members", () => {
       expect(screen.getByText("Alice")).toBeInTheDocument();
     });
     expect(screen.getByText("Bob")).toBeInTheDocument();
-    expect(screen.getByText("OWNER")).toBeInTheDocument();
-    expect(screen.getByText("ADMIN")).toBeInTheDocument();
+    expect(screen.getByText("Owner", { selector: "span" })).toBeInTheDocument();
+    expect(screen.getByText("Admin", { selector: "span" })).toBeInTheDocument();
   });
 
   it("shows displayName with @username when displayName is present", async () => {

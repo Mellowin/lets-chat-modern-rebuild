@@ -45,6 +45,10 @@ vi.mock("@/lib/channels-api", () => ({
   restoreChannel: vi.fn(),
 }));
 
+beforeEach(() => {
+  localStorage.clear();
+});
+
 function mockWorkspaceData({ archived = [] as unknown[] } = {}) {
   vi.mocked(getWorkspace).mockResolvedValue({
     id: "ws1",
@@ -62,6 +66,51 @@ function mockWorkspaceData({ archived = [] as unknown[] } = {}) {
   ]);
   vi.mocked(getArchivedChannels).mockResolvedValue(archived as ReturnType<typeof getArchivedChannels> extends Promise<infer T> ? T : never);
 }
+
+describe("WorkspaceDetailPage — locale", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    localStorage.clear();
+  });
+
+  it("renders English shell labels by default", async () => {
+    mockWorkspaceData({ archived: [] });
+    render(<WorkspaceDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/Back to dashboard/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole("heading", { name: "Create channel" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Channels" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Members" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create" })).toBeInTheDocument();
+  });
+
+  it("renders Ukrainian shell labels when locale is uk", async () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    mockWorkspaceData({ archived: [] });
+    render(<WorkspaceDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/Назад до панелі/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole("heading", { name: "Створити канал" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Канали" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Учасники" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Створити" })).toBeInTheDocument();
+  });
+
+  it("renders Russian shell labels when locale is ru", async () => {
+    localStorage.setItem("lets-chat:locale", "ru");
+    mockWorkspaceData({ archived: [] });
+    render(<WorkspaceDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/Назад к панели/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole("heading", { name: "Создать канал" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Каналы" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Участники" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Создать" })).toBeInTheDocument();
+  });
+});
 
 describe("WorkspaceDetailPage — archived channels", () => {
   beforeEach(() => {
@@ -303,7 +352,7 @@ describe("WorkspaceDetailPage — add member / invite", () => {
       expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
     });
 
-    const select = screen.getByDisplayValue("MEMBER");
+    const select = screen.getByDisplayValue("Member");
     expect(select).toBeInTheDocument();
   });
 
@@ -325,7 +374,7 @@ describe("WorkspaceDetailPage — add member / invite", () => {
       expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
     });
 
-    await userEvent.selectOptions(screen.getByDisplayValue("MEMBER"), "ADMIN");
+    await userEvent.selectOptions(screen.getByDisplayValue("Member"), "ADMIN");
     await userEvent.type(screen.getByPlaceholderText(/Username or email/i), "bob@example.com");
     await userEvent.click(screen.getByRole("button", { name: /Add member/i }));
 
@@ -352,7 +401,7 @@ describe("WorkspaceDetailPage — add member / invite", () => {
       expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
     });
 
-    await userEvent.selectOptions(screen.getByDisplayValue("MEMBER"), "ADMIN");
+    await userEvent.selectOptions(screen.getByDisplayValue("Member"), "ADMIN");
     await userEvent.type(screen.getByPlaceholderText(/Username or email/i), "bob");
     await userEvent.click(screen.getByRole("button", { name: /Add member/i }));
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { useLocale } from "@/lib/locale";
 import { getWorkspace, getWorkspaceMembers, leaveWorkspace, removeWorkspaceMember, type Workspace, type WorkspaceMember } from "@/lib/workspaces-api";
 import { MessageAuthor } from "@/components/MessageAuthor";
 import { createWorkspaceInvite } from "@/lib/invites-api";
@@ -66,6 +67,7 @@ export default function WorkspaceDetailPage() {
     | { kind: "error"; message: string }
   >({ kind: "idle" });
   const router = useRouter();
+  const { t } = useLocale();
 
   useEffect(() => {
     if (!isAuthenticated || !workspaceId) return;
@@ -291,7 +293,7 @@ export default function WorkspaceDetailPage() {
       <div className="flex flex-1 items-center justify-center p-6">
         <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
           <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
-          Loading session…
+          {t("auth.loadingSession")}
         </div>
       </div>
     );
@@ -301,15 +303,15 @@ export default function WorkspaceDetailPage() {
     return (
       <div className="flex flex-1 items-center justify-center p-6">
         <div className="text-center">
-          <h1 className="text-xl font-semibold">Authentication required</h1>
+          <h1 className="text-xl font-semibold">{t("auth.authRequired")}</h1>
           <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-            Please sign in to view this workspace.
+            {t("auth.pleaseSignInWorkspace")}
           </p>
           <Link
             href="/login"
             className="mt-4 inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
           >
-            Sign in
+            {t("auth.signIn")}
           </Link>
         </div>
       </div>
@@ -322,13 +324,13 @@ export default function WorkspaceDetailPage() {
         href="/dashboard"
         className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
       >
-        ← Back to dashboard
+        {t("workspace.backToDashboard")}
       </Link>
 
       {detail.kind === "loading" && (
         <div className="mt-6 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
           <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
-          Loading workspace…
+          {t("workspace.loading")}
         </div>
       )}
 
@@ -354,18 +356,18 @@ export default function WorkspaceDetailPage() {
 
       {/* Create channel */}
       <div className="mt-8 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
-        <h2 className="text-sm font-semibold">Create channel</h2>
+        <h2 className="text-sm font-semibold">{t("workspace.createChannel")}</h2>
         <form onSubmit={handleCreateChannel} className="mt-4 flex flex-col gap-3">
           <input
             type="text"
-            placeholder="Channel name"
+            placeholder={t("workspace.channelName")}
             value={channelName}
             onChange={(e) => setChannelName(e.target.value)}
             className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
           />
           <input
             type="text"
-            placeholder="Description (optional)"
+            placeholder={t("workspace.channelDescription")}
             value={channelDescription}
             onChange={(e) => setChannelDescription(e.target.value)}
             className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
@@ -376,15 +378,15 @@ export default function WorkspaceDetailPage() {
               onChange={(e) => setChannelType(e.target.value as "PUBLIC" | "PRIVATE")}
               className="rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
             >
-              <option value="PUBLIC">Public</option>
-              <option value="PRIVATE">Private</option>
+              <option value="PUBLIC">{t("workspace.publicChannel")}</option>
+              <option value="PRIVATE">{t("workspace.privateChannel")}</option>
             </select>
             <button
               type="submit"
               disabled={createChannelState.kind === "loading"}
               className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
             >
-              {createChannelState.kind === "loading" ? "Creating…" : "Create channel"}
+              {createChannelState.kind === "loading" ? t("workspace.creating") : t("workspace.create")}
             </button>
           </div>
         </form>
@@ -400,12 +402,12 @@ export default function WorkspaceDetailPage() {
 
       {/* Channel list */}
       <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 p-5">
-        <h2 className="text-sm font-semibold">Channels</h2>
+        <h2 className="text-sm font-semibold">{t("workspace.channels")}</h2>
 
         {channels.kind === "loading" && (
           <div className="mt-3 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
             <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
-            Loading channels…
+            {t("workspace.loadingChannels")}
           </div>
         )}
 
@@ -420,7 +422,7 @@ export default function WorkspaceDetailPage() {
 
         {channels.kind === "success" && channels.data.length === 0 && (
           <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
-            No channels yet.
+            {t("workspace.noChannels")}
           </p>
         )}
 
@@ -462,7 +464,7 @@ export default function WorkspaceDetailPage() {
                       onClick={(e) => handleArchiveChannel(e, ch.id, ch.name)}
                       className="text-[10px] text-red-600 dark:text-red-400 hover:underline"
                     >
-                      Archive
+                      {t("workspace.archive")}
                     </button>
                   )}
                   <span
@@ -472,7 +474,7 @@ export default function WorkspaceDetailPage() {
                         : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
                     }`}
                   >
-                    {ch.type}
+                    {ch.type === "PUBLIC" ? t("workspace.publicChannel") : t("workspace.privateChannel")}
                   </span>
                 </div>
               </li>
@@ -483,12 +485,12 @@ export default function WorkspaceDetailPage() {
 
       {/* Members */}
       <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
-        <h2 className="text-sm font-semibold">Members</h2>
+        <h2 className="text-sm font-semibold">{t("workspace.members")}</h2>
 
         {members.kind === "loading" && (
           <div className="mt-3 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
             <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
-            Loading members…
+            {t("workspace.loadingMembers")}
           </div>
         )}
 
@@ -503,7 +505,7 @@ export default function WorkspaceDetailPage() {
 
         {members.kind === "success" && members.data.length === 0 && (
           <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
-            No members yet.
+            {t("workspace.noMembers")}
           </p>
         )}
 
@@ -528,7 +530,7 @@ export default function WorkspaceDetailPage() {
                             disabled={removingMemberId === m.id}
                             className="text-[10px] text-red-600 dark:text-red-400 hover:underline disabled:opacity-60 disabled:cursor-not-allowed"
                           >
-                            {removingMemberId === m.id ? "Removing…" : "Remove"}
+                            {removingMemberId === m.id ? t("workspace.removing") : t("workspace.remove")}
                           </button>
                         )}
                         <span
@@ -540,7 +542,7 @@ export default function WorkspaceDetailPage() {
                                 : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400"
                           }`}
                         >
-                          {m.role}
+                          {m.role === "OWNER" ? t("workspace.owner") : m.role === "ADMIN" ? t("workspace.admin") : t("workspace.member")}
                         </span>
                       </div>
                     </li>
@@ -560,7 +562,7 @@ export default function WorkspaceDetailPage() {
                 <form onSubmit={handleAddMember} className="mt-4 flex items-center gap-2">
                   <input
                     type="text"
-                    placeholder="Username or email"
+                    placeholder={t("workspace.invitePlaceholder")}
                     value={memberIdentifier}
                     onChange={(e) => setMemberIdentifier(e.target.value)}
                     className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
@@ -571,8 +573,8 @@ export default function WorkspaceDetailPage() {
                       onChange={(e) => setMemberRole(e.target.value as "MEMBER" | "ADMIN")}
                       className="rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
                     >
-                      <option value="MEMBER">MEMBER</option>
-                      <option value="ADMIN">ADMIN</option>
+                      <option value="MEMBER">{t("workspace.member")}</option>
+                      <option value="ADMIN">{t("workspace.admin")}</option>
                     </select>
                   )}
                   <button
@@ -580,7 +582,7 @@ export default function WorkspaceDetailPage() {
                     disabled={addMemberState.kind === "loading"}
                     className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
                   >
-                    {addMemberState.kind === "loading" ? "Adding…" : "Add member"}
+                    {addMemberState.kind === "loading" ? t("workspace.addingMember") : t("workspace.addMember")}
                   </button>
                 </form>
 
@@ -634,7 +636,7 @@ export default function WorkspaceDetailPage() {
                   onClick={handleLeaveWorkspace}
                   className="text-[10px] text-red-600 dark:text-red-400 hover:underline"
                 >
-                  Leave workspace
+                  {t("workspace.leaveWorkspace")}
                 </button>
                 {leaveError && (
                   <div className="mt-2 rounded-lg border border-red-200 bg-red-50 p-2 text-[10px] dark:border-red-900 dark:bg-red-950/30">
@@ -652,12 +654,12 @@ export default function WorkspaceDetailPage() {
 
       {/* Archived channels */}
       <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 p-5">
-        <h2 className="text-sm font-semibold">Archived channels</h2>
+        <h2 className="text-sm font-semibold">{t("workspace.archivedChannels")}</h2>
 
         {archivedChannels.kind === "loading" && (
           <div className="mt-3 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
             <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
-            Loading archived channels…
+            {t("workspace.loadingArchived")}
           </div>
         )}
 
@@ -672,7 +674,7 @@ export default function WorkspaceDetailPage() {
 
         {archivedChannels.kind === "success" && archivedChannels.data.length === 0 && (
           <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
-            No archived channels.
+            {t("workspace.noArchivedChannels")}
           </p>
         )}
 
@@ -700,11 +702,11 @@ export default function WorkspaceDetailPage() {
                       disabled={restoringChannelId === ch.id}
                       className="text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      {restoringChannelId === ch.id ? "Restoring…" : "Restore"}
+                      {restoringChannelId === ch.id ? t("workspace.restoring") : t("workspace.restore")}
                     </button>
                   )}
                   <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${ch.type === "PUBLIC" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400" : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"}`}>
-                    {ch.type}
+                    {ch.type === "PUBLIC" ? t("workspace.publicChannel") : t("workspace.privateChannel")}
                   </span>
                 </div>
               </li>

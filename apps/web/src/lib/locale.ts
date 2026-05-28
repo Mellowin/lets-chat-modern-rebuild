@@ -71,7 +71,65 @@ export type TranslationKey =
   | "auth.authRequired"
   | "auth.pleaseSignIn"
   | "auth.pleaseSignInDashboard"
-  | "auth.signIn";
+  | "auth.signIn"
+  | "auth.pleaseSignInWorkspace"
+  | "auth.pleaseSignInChannel"
+  | "workspace.backToDashboard"
+  | "workspace.loading"
+  | "workspace.createChannel"
+  | "workspace.channelName"
+  | "workspace.channelDescription"
+  | "workspace.publicChannel"
+  | "workspace.privateChannel"
+  | "workspace.create"
+  | "workspace.creating"
+  | "workspace.channels"
+  | "workspace.loadingChannels"
+  | "workspace.noChannels"
+  | "workspace.archive"
+  | "workspace.members"
+  | "workspace.loadingMembers"
+  | "workspace.noMembers"
+  | "workspace.remove"
+  | "workspace.removing"
+  | "workspace.invitePlaceholder"
+  | "workspace.owner"
+  | "workspace.admin"
+  | "workspace.member"
+  | "workspace.addMember"
+  | "workspace.addingMember"
+  | "workspace.leaveWorkspace"
+  | "workspace.archivedChannels"
+  | "workspace.loadingArchived"
+  | "workspace.noArchivedChannels"
+  | "workspace.restore"
+  | "workspace.restoring"
+  | "channel.backToWorkspace"
+  | "channel.loading"
+  | "channel.archive"
+  | "channel.archiving"
+  | "channel.leaveChannel"
+  | "channel.leaving"
+  | "channel.messages"
+  | "channel.messagePlaceholder"
+  | "channel.send"
+  | "channel.sending"
+  | "channel.loadingMessages"
+  | "channel.noMessages"
+  | "channel.members"
+  | "channel.invitePlaceholder"
+  | "channel.add"
+  | "channel.adding"
+  | "channel.member"
+  | "channel.admin"
+  | "channel.owner"
+  | "channel.publicChannel"
+  | "channel.privateChannel"
+  | "channel.invitationSent"
+  | "channel.loadingMembers"
+  | "channel.noMembers"
+  | "channel.remove"
+  | "channel.removing";
 
 const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
   en: {
@@ -129,6 +187,64 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "auth.pleaseSignIn": "Please sign in to view your profile.",
     "auth.pleaseSignInDashboard": "Please sign in to view your dashboard.",
     "auth.signIn": "Sign in",
+    "auth.pleaseSignInWorkspace": "Please sign in to view this workspace.",
+    "auth.pleaseSignInChannel": "Please sign in to view this channel.",
+    "workspace.backToDashboard": "← Back to dashboard",
+    "workspace.loading": "Loading workspace…",
+    "workspace.createChannel": "Create channel",
+    "workspace.channelName": "Channel name",
+    "workspace.channelDescription": "Description (optional)",
+    "workspace.publicChannel": "Public",
+    "workspace.privateChannel": "Private",
+    "workspace.create": "Create",
+    "workspace.creating": "Creating…",
+    "workspace.channels": "Channels",
+    "workspace.loadingChannels": "Loading channels…",
+    "workspace.noChannels": "No channels yet.",
+    "workspace.archive": "Archive",
+    "workspace.members": "Members",
+    "workspace.loadingMembers": "Loading members…",
+    "workspace.noMembers": "No members yet.",
+    "workspace.remove": "Remove",
+    "workspace.removing": "Removing…",
+    "workspace.invitePlaceholder": "Username or email",
+    "workspace.owner": "Owner",
+    "workspace.admin": "Admin",
+    "workspace.member": "Member",
+    "workspace.addMember": "Add member",
+    "workspace.addingMember": "Adding…",
+    "workspace.leaveWorkspace": "Leave workspace",
+    "workspace.archivedChannels": "Archived channels",
+    "workspace.loadingArchived": "Loading archived channels…",
+    "workspace.noArchivedChannels": "No archived channels.",
+    "workspace.restore": "Restore",
+    "workspace.restoring": "Restoring…",
+    "channel.backToWorkspace": "← Back to workspace",
+    "channel.loading": "Loading channel…",
+    "channel.archive": "Archive",
+    "channel.archiving": "Archiving…",
+    "channel.leaveChannel": "Leave channel",
+    "channel.leaving": "Leaving…",
+    "channel.messages": "Messages",
+    "channel.messagePlaceholder": "Type a message…",
+    "channel.send": "Send",
+    "channel.sending": "Sending…",
+    "channel.loadingMessages": "Loading messages…",
+    "channel.noMessages": "No messages yet.",
+    "channel.members": "Members",
+    "channel.invitePlaceholder": "Username or email",
+    "channel.add": "Add",
+    "channel.adding": "Adding…",
+    "channel.member": "Member",
+    "channel.admin": "Admin",
+    "channel.owner": "Owner",
+    "channel.publicChannel": "Public",
+    "channel.privateChannel": "Private",
+    "channel.invitationSent": "Channel invitation sent",
+    "channel.loadingMembers": "Loading members…",
+    "channel.noMembers": "No members yet.",
+    "channel.remove": "Remove",
+    "channel.removing": "Removing…",
   },
   uk: {
     "header.profile": "Профіль",
@@ -185,6 +301,64 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "auth.pleaseSignIn": "Увійдіть, щоб переглянути профіль.",
     "auth.pleaseSignInDashboard": "Увійдіть, щоб переглянути панель.",
     "auth.signIn": "Увійти",
+    "auth.pleaseSignInWorkspace": "Увійдіть, щоб переглянути робочий простір.",
+    "auth.pleaseSignInChannel": "Увійдіть, щоб переглянути канал.",
+    "workspace.backToDashboard": "← Назад до панелі",
+    "workspace.loading": "Завантажуємо робочий простір…",
+    "workspace.createChannel": "Створити канал",
+    "workspace.channelName": "Назва каналу",
+    "workspace.channelDescription": "Опис (необовʼязково)",
+    "workspace.publicChannel": "Публічний",
+    "workspace.privateChannel": "Приватний",
+    "workspace.create": "Створити",
+    "workspace.creating": "Створюємо…",
+    "workspace.channels": "Канали",
+    "workspace.loadingChannels": "Завантажуємо канали…",
+    "workspace.noChannels": "Каналів ще немає.",
+    "workspace.archive": "Архівувати",
+    "workspace.members": "Учасники",
+    "workspace.loadingMembers": "Завантажуємо учасників…",
+    "workspace.noMembers": "Учасників ще немає.",
+    "workspace.remove": "Вилучити",
+    "workspace.removing": "Вилучаємо…",
+    "workspace.invitePlaceholder": "Імʼя користувача або email",
+    "workspace.owner": "Власник",
+    "workspace.admin": "Адмін",
+    "workspace.member": "Учасник",
+    "workspace.addMember": "Додати учасника",
+    "workspace.addingMember": "Додаємо…",
+    "workspace.leaveWorkspace": "Покинути простір",
+    "workspace.archivedChannels": "Архівовані канали",
+    "workspace.loadingArchived": "Завантажуємо архівовані канали…",
+    "workspace.noArchivedChannels": "Немає архівованих каналів.",
+    "workspace.restore": "Відновити",
+    "workspace.restoring": "Відновлюємо…",
+    "channel.backToWorkspace": "← Назад до робочого простору",
+    "channel.loading": "Завантажуємо канал…",
+    "channel.archive": "Архівувати",
+    "channel.archiving": "Архівуємо…",
+    "channel.leaveChannel": "Покинути канал",
+    "channel.leaving": "Покидаємо…",
+    "channel.messages": "Повідомлення",
+    "channel.messagePlaceholder": "Напишіть повідомлення…",
+    "channel.send": "Надіслати",
+    "channel.sending": "Надсилаємо…",
+    "channel.loadingMessages": "Завантажуємо повідомлення…",
+    "channel.noMessages": "Повідомлень ще немає.",
+    "channel.members": "Учасники",
+    "channel.invitePlaceholder": "Імʼя користувача або email",
+    "channel.add": "Додати",
+    "channel.adding": "Додаємо…",
+    "channel.member": "Учасник",
+    "channel.admin": "Адмін",
+    "channel.owner": "Власник",
+    "channel.publicChannel": "Публічний",
+    "channel.privateChannel": "Приватний",
+    "channel.invitationSent": "Запрошення до каналу надіслано",
+    "channel.loadingMembers": "Завантажуємо учасників…",
+    "channel.noMembers": "Учасників ще немає.",
+    "channel.remove": "Вилучити",
+    "channel.removing": "Вилучаємо…",
   },
   ru: {
     "header.profile": "Профиль",
@@ -241,6 +415,64 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "auth.pleaseSignIn": "Войдите, чтобы просмотреть профиль.",
     "auth.pleaseSignInDashboard": "Войдите, чтобы просмотреть панель.",
     "auth.signIn": "Войти",
+    "auth.pleaseSignInWorkspace": "Войдите, чтобы просмотреть рабочее пространство.",
+    "auth.pleaseSignInChannel": "Войдите, чтобы просмотреть канал.",
+    "workspace.backToDashboard": "← Назад к панели",
+    "workspace.loading": "Загружаем рабочее пространство…",
+    "workspace.createChannel": "Создать канал",
+    "workspace.channelName": "Название канала",
+    "workspace.channelDescription": "Описание (необязательно)",
+    "workspace.publicChannel": "Публичный",
+    "workspace.privateChannel": "Приватный",
+    "workspace.create": "Создать",
+    "workspace.creating": "Создаём…",
+    "workspace.channels": "Каналы",
+    "workspace.loadingChannels": "Загружаем каналы…",
+    "workspace.noChannels": "Каналов пока нет.",
+    "workspace.archive": "Архивировать",
+    "workspace.members": "Участники",
+    "workspace.loadingMembers": "Загружаем участников…",
+    "workspace.noMembers": "Участников пока нет.",
+    "workspace.remove": "Удалить",
+    "workspace.removing": "Удаляем…",
+    "workspace.invitePlaceholder": "Имя пользователя или email",
+    "workspace.owner": "Владелец",
+    "workspace.admin": "Админ",
+    "workspace.member": "Участник",
+    "workspace.addMember": "Добавить участника",
+    "workspace.addingMember": "Добавляем…",
+    "workspace.leaveWorkspace": "Покинуть пространство",
+    "workspace.archivedChannels": "Архивированные каналы",
+    "workspace.loadingArchived": "Загружаем архивированные каналы…",
+    "workspace.noArchivedChannels": "Нет архивированных каналов.",
+    "workspace.restore": "Восстановить",
+    "workspace.restoring": "Восстанавливаем…",
+    "channel.backToWorkspace": "← Назад к рабочему пространству",
+    "channel.loading": "Загружаем канал…",
+    "channel.archive": "Архивировать",
+    "channel.archiving": "Архивируем…",
+    "channel.leaveChannel": "Покинуть канал",
+    "channel.leaving": "Покидаем…",
+    "channel.messages": "Сообщения",
+    "channel.messagePlaceholder": "Напишите сообщение…",
+    "channel.send": "Отправить",
+    "channel.sending": "Отправляем…",
+    "channel.loadingMessages": "Загружаем сообщения…",
+    "channel.noMessages": "Сообщений пока нет.",
+    "channel.members": "Участники",
+    "channel.invitePlaceholder": "Имя пользователя или email",
+    "channel.add": "Добавить",
+    "channel.adding": "Добавляем…",
+    "channel.member": "Участник",
+    "channel.admin": "Админ",
+    "channel.owner": "Владелец",
+    "channel.publicChannel": "Публичный",
+    "channel.privateChannel": "Приватный",
+    "channel.invitationSent": "Приглашение в канал отправлено",
+    "channel.loadingMembers": "Загружаем участников…",
+    "channel.noMembers": "Участников пока нет.",
+    "channel.remove": "Удалить",
+    "channel.removing": "Удаляем…",
   },
 };
 
