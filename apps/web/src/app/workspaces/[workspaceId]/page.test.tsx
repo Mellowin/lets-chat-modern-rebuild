@@ -257,6 +257,33 @@ describe("WorkspaceDetailPage — members", () => {
     });
     expect(screen.queryByText("Alice")).not.toBeInTheDocument();
   });
+
+  it("shows avatar image when member avatarUrl exists", async () => {
+    mockWorkspaceData({ archived: [] });
+    vi.mocked(getWorkspaceMembers).mockResolvedValue([
+      { id: "wm1", workspaceId: "ws1", role: "OWNER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice", displayName: "Alice", avatarUrl: "/uploads/avatars/u1/test.png" } },
+    ]);
+
+    const { container } = render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Alice")).toBeInTheDocument();
+    });
+    expect(container.querySelector("img")).toBeInTheDocument();
+  });
+
+  it("shows fallback initials when member avatarUrl is null", async () => {
+    mockWorkspaceData({ archived: [] });
+    vi.mocked(getWorkspaceMembers).mockResolvedValue([
+      { id: "wm1", workspaceId: "ws1", role: "OWNER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice", displayName: "Alice", avatarUrl: null } },
+    ]);
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("AL")).toBeInTheDocument();
+    });
+  });
 });
 
 describe("WorkspaceDetailPage — add member / invite", () => {

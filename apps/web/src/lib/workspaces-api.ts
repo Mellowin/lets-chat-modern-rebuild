@@ -21,7 +21,7 @@ export interface WorkspaceMember {
   workspaceId: string;
   role: "OWNER" | "ADMIN" | "MEMBER";
   joinedAt: string;
-  user: { id: string; username: string; displayName?: string | null };
+  user: { id: string; username: string; displayName?: string | null; avatarUrl?: string | null };
 }
 
 export interface AddWorkspaceMemberInput {

@@ -122,6 +122,7 @@ export class ChannelsRepository {
           select: {
             id: true,
             username: true,
+            avatarUrl: true,
           },
         },
       },
@@ -141,6 +142,7 @@ export class ChannelsRepository {
             id: true,
             username: true,
             displayName: true,
+            avatarUrl: true,
           },
         },
       },
@@ -160,6 +162,7 @@ export class ChannelsRepository {
             id: true,
             username: true,
             displayName: true,
+            avatarUrl: true,
           },
         },
       },
@@ -198,6 +201,7 @@ export class ChannelsRepository {
           select: {
             id: true,
             username: true,
+            avatarUrl: true,
           },
         },
       },

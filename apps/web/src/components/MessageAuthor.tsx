@@ -4,8 +4,8 @@ export interface MessageAuthorProps {
   author: {
     id: string;
     username: string;
-    displayName: string | null;
-    avatarUrl: string | null;
+    displayName?: string | null;
+    avatarUrl?: string | null;
   };
 }
 
@@ -22,7 +22,7 @@ export function MessageAuthor({ author }: MessageAuthorProps) {
           <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">{initials}</span>
         )}
       </div>
-      <span className="text-sm font-semibold">{name}</span>
+      <span className="text-sm font-semibold truncate">{name}</span>
     </div>
   );
 }

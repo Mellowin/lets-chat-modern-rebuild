@@ -161,6 +161,7 @@ export class ChannelsService {
         id: member.user.id,
         username: member.user.username,
         displayName: member.user.displayName,
+        avatarUrl: member.user.avatarUrl,
       },
     }));
   }
@@ -247,6 +248,7 @@ export class ChannelsService {
           id: member.user.id,
           username: member.user.username,
           displayName: member.user.displayName,
+          avatarUrl: member.user.avatarUrl,
         },
       };
     } catch (error) {

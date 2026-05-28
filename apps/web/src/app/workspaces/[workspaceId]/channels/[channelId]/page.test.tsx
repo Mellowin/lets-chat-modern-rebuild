@@ -704,6 +704,39 @@ describe("ChannelDetailPage — members", () => {
     expect(screen.queryByText("Dave")).not.toBeInTheDocument();
   });
 
+  it("shows avatar image when member avatarUrl exists", async () => {
+    const memberWithAvatar: ChannelMember = {
+      id: "cm1",
+      channelId: "ch1",
+      role: "OWNER",
+      joinedAt: "2024-01-01T00:00:00Z",
+      user: { id: "u1", username: "alice", displayName: "Alice", avatarUrl: "/uploads/avatars/u1/test.png" },
+    };
+    mockChannelAndMessages([], [memberWithAvatar]);
+    const { container } = render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Alice")).toBeInTheDocument();
+    });
+    expect(container.querySelector("img")).toBeInTheDocument();
+  });
+
+  it("shows fallback initials when member avatarUrl is null", async () => {
+    const memberWithoutAvatar: ChannelMember = {
+      id: "cm1",
+      channelId: "ch1",
+      role: "OWNER",
+      joinedAt: "2024-01-01T00:00:00Z",
+      user: { id: "u1", username: "alice", displayName: "Alice", avatarUrl: null },
+    };
+    mockChannelAndMessages([], [memberWithoutAvatar]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("AL")).toBeInTheDocument();
+    });
+  });
+
   it("shows add member form for OWNER with role select", async () => {
     mockChannelAndMessages([], [ownerMember]);
     render(<ChannelDetailPage />);

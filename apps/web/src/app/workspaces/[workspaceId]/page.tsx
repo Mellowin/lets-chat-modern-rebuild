@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { getWorkspace, getWorkspaceMembers, leaveWorkspace, removeWorkspaceMember, type Workspace, type WorkspaceMember } from "@/lib/workspaces-api";
+import { MessageAuthor } from "@/components/MessageAuthor";
 import { createWorkspaceInvite } from "@/lib/invites-api";
 import { getChannels, getArchivedChannels, createChannel, archiveChannel, restoreChannel, type Channel, type CreateChannelInput } from "@/lib/channels-api";
 
@@ -517,11 +518,8 @@ export default function WorkspaceDetailPage() {
                     (myRole === "ADMIN" && m.role === "MEMBER" && m.user.id !== user?.id);
                   return (
                     <li key={m.id} className="flex items-center justify-between py-2">
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-sm font-medium truncate">{m.user.displayName?.trim() ? m.user.displayName : `@${m.user.username}`}</span>
-                        {m.user.displayName?.trim() && (
-                          <span className="text-xs text-zinc-500 dark:text-zinc-400 truncate">@{m.user.username}</span>
-                        )}
+                      <div className="min-w-0">
+                        <MessageAuthor author={m.user} />
                       </div>
                       <div className="flex items-center gap-2 shrink-0 ml-2">
                         {canRemove && (

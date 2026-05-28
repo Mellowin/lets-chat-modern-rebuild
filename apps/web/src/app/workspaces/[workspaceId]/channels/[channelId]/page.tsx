@@ -885,11 +885,8 @@ export default function ChannelDetailPage() {
           <ul className="mt-3 divide-y divide-zinc-200 dark:divide-zinc-800">
             {members.data.map((m) => (
               <li key={m.id} className="flex items-center justify-between py-2">
-                <div className="flex flex-col min-w-0">
-                  <span className="text-sm font-medium truncate">{m.user.displayName?.trim() ? m.user.displayName : `@${m.user.username}`}</span>
-                  {m.user.displayName?.trim() && (
-                    <span className="text-xs text-zinc-500 dark:text-zinc-400 truncate">@{m.user.username}</span>
-                  )}
+                <div className="min-w-0">
+                  <MessageAuthor author={m.user} />
                 </div>
                 <div className="flex items-center gap-2">
                   <span

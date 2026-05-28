@@ -229,6 +229,7 @@ export class WorkspacesService {
         id: updated.user.id,
         username: updated.user.username,
         displayName: updated.user.displayName,
+        avatarUrl: updated.user.avatarUrl,
       },
     };
   }
@@ -429,6 +430,7 @@ export class WorkspacesService {
         id: member.user.id,
         username: member.user.username,
         displayName: member.user.displayName,
+        avatarUrl: member.user.avatarUrl,
       },
     }));
   }
@@ -507,6 +509,7 @@ export class WorkspacesService {
           id: member.user.id,
           username: member.user.username,
           displayName: member.user.displayName,
+          avatarUrl: member.user.avatarUrl,
         },
       };
     } catch (error) {

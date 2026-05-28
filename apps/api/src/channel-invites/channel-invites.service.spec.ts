@@ -171,7 +171,7 @@ describe('ChannelInvitesService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
       deletedAt: null,
-      user: { id: targetUserId, username: 'bob' },
+      user: { id: targetUserId, username: 'bob', avatarUrl: null },
       ...overrides,
     };
   }
@@ -187,7 +187,7 @@ describe('ChannelInvitesService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
       deletedAt: null,
-      user: { id: targetUserId, username: 'bob' },
+      user: { id: targetUserId, username: 'bob', avatarUrl: null },
       ...overrides,
     };
   }

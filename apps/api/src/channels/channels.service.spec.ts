@@ -506,7 +506,11 @@ describe('ChannelsService', () => {
           channelId,
           role: 'OWNER',
           createdAt: new Date('2026-01-01'),
-          user: { id: userId, username: 'owner' },
+          user: {
+            id: userId,
+            username: 'owner',
+            avatarUrl: '/uploads/avatars/owner.png',
+          },
         },
       ] as ChannelMemberWithUser[]);
 
@@ -519,6 +523,7 @@ describe('ChannelsService', () => {
       expect(result).toHaveLength(1);
       expect(result[0].role).toBe('OWNER');
       expect(result[0].user.username).toBe('owner');
+      expect(result[0].user.avatarUrl).toBe('/uploads/avatars/owner.png');
     });
 
     it('allows workspace member to list PUBLIC channel members', async () => {
@@ -674,7 +679,11 @@ describe('ChannelsService', () => {
         channelId,
         role: 'ADMIN',
         createdAt: new Date('2026-01-01'),
-        user: { id: targetUserId, username: 'alice' },
+        user: {
+          id: targetUserId,
+          username: 'alice',
+          avatarUrl: '/uploads/avatars/alice.png',
+        },
       } as CreatedChannelMember);
 
       const result = await service.addChannelMember(
@@ -686,6 +695,7 @@ describe('ChannelsService', () => {
 
       expect(result.role).toBe('ADMIN');
       expect(result.user.username).toBe('alice');
+      expect(result.user.avatarUrl).toBe('/uploads/avatars/alice.png');
     });
 
     it('allows OWNER to add workspace member to channel as MEMBER', async () => {

@@ -143,7 +143,11 @@ describe('WorkspacesService', () => {
         workspaceId,
         role: 'MEMBER',
         createdAt: new Date('2026-01-01'),
-        user: { id: targetUserId, username: 'alice' },
+        user: {
+          id: targetUserId,
+          username: 'alice',
+          avatarUrl: '/uploads/avatars/alice.png',
+        },
       } as CreatedMember);
 
       const result = await service.addMember(workspaceId, userId, {
@@ -152,6 +156,7 @@ describe('WorkspacesService', () => {
 
       expect(result.role).toBe('MEMBER');
       expect(result.user.username).toBe('alice');
+      expect(result.user.avatarUrl).toBe('/uploads/avatars/alice.png');
       expect(auditService.record).toHaveBeenCalledWith({
         actorId: userId,
         action: AuditAction.WORKSPACE_MEMBER_ADDED,
@@ -881,7 +886,11 @@ describe('WorkspacesService', () => {
           workspaceId,
           role: 'OWNER',
           createdAt: new Date('2026-01-01'),
-          user: { id: userId, username: 'owner' },
+          user: {
+            id: userId,
+            username: 'owner',
+            avatarUrl: '/uploads/avatars/owner.png',
+          },
         },
       ] as ListedMember[]);
 
@@ -890,6 +899,7 @@ describe('WorkspacesService', () => {
       expect(result).toHaveLength(1);
       expect(result[0].role).toBe('OWNER');
       expect(result[0].user.username).toBe('owner');
+      expect(result[0].user.avatarUrl).toBe('/uploads/avatars/owner.png');
       expect(result[0]).not.toHaveProperty('passwordHash');
     });
 
@@ -988,7 +998,11 @@ describe('WorkspacesService', () => {
         workspaceId,
         role: 'ADMIN',
         createdAt: new Date('2026-01-01'),
-        user: { id: targetUserId, username: 'alice' },
+        user: {
+          id: targetUserId,
+          username: 'alice',
+          avatarUrl: '/uploads/avatars/alice.png',
+        },
       } as UpdatedMember);
 
       const result = await service.updateMemberRole(
@@ -1000,6 +1014,7 @@ describe('WorkspacesService', () => {
 
       expect(result.role).toBe('ADMIN');
       expect(result.user.username).toBe('alice');
+      expect(result.user.avatarUrl).toBe('/uploads/avatars/alice.png');
       expect(result).not.toHaveProperty('passwordHash');
       expect(auditService.record).toHaveBeenCalledWith({
         actorId: userId,
