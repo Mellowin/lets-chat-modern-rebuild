@@ -206,6 +206,157 @@ describe("ChannelDetailPage — composer", () => {
   });
 });
 
+describe("ChannelDetailPage — message author identity", () => {
+  beforeEach(() => {
+    sessionStorage.setItem("accessToken", "token");
+    vi.clearAllMocks();
+  });
+
+  it("shows author displayName when available", async () => {
+    mockChannelAndMessages([
+      {
+        id: "m1",
+        channelId: "ch1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob Smith", avatarUrl: null },
+      },
+    ]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Bob Smith")).toBeInTheDocument();
+    });
+  });
+
+  it("falls back to username when displayName is null", async () => {
+    mockChannelAndMessages([
+      {
+        id: "m1",
+        channelId: "ch1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+      },
+    ]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("bob")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Unknown user")).not.toBeInTheDocument();
+  });
+
+  it("shows avatar image when avatarUrl exists", async () => {
+    mockChannelAndMessages([
+      {
+        id: "m1",
+        channelId: "ch1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: "/uploads/avatars/u2/test.png" },
+      },
+    ]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("img", { name: "" })).toBeInTheDocument();
+    });
+  });
+
+  it("shows fallback initials when avatarUrl is null", async () => {
+    mockChannelAndMessages([
+      {
+        id: "m1",
+        channelId: "ch1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+      },
+    ]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("BO")).toBeInTheDocument();
+    });
+  });
+
+  it("shows fallback initials from username when displayName and avatarUrl are null", async () => {
+    mockChannelAndMessages([
+      {
+        id: "m1",
+        channelId: "ch1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+      },
+    ]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("BO")).toBeInTheDocument();
+    });
+  });
+
+  it("keeps message content visible", async () => {
+    mockChannelAndMessages([
+      {
+        id: "m1",
+        channelId: "ch1",
+        content: "Important message content",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+      },
+    ]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Important message content")).toBeInTheDocument();
+    });
+  });
+
+  it("does not render spoken languages anywhere", async () => {
+    mockChannelAndMessages([
+      {
+        id: "m1",
+        channelId: "ch1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+      },
+    ]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText(/English/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Ukrainian/i)).not.toBeInTheDocument();
+  });
+});
+
 describe("ChannelDetailPage — edit/delete", () => {
   beforeEach(() => {
     sessionStorage.setItem("accessToken", "token");

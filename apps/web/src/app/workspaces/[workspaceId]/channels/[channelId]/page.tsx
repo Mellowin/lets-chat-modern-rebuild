@@ -9,6 +9,7 @@ import { createChannelInvite } from "@/lib/channel-invites-api";
 
 import { getMessages, createMessage, updateMessage, deleteMessage, type Message, type CreateMessageInput, type UpdateMessageInput } from "@/lib/messages-api";
 import { createSocket } from "@/lib/socket-client";
+import { MessageAuthor } from "@/components/MessageAuthor";
 
 
 type ChannelState =
@@ -718,14 +719,9 @@ export default function ChannelDetailPage() {
           <ul className="mt-4 space-y-4">
             {messages.data.map((msg) => (
               <li key={msg.id} className="flex gap-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-200 dark:bg-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                  {msg.author.username.slice(0, 2).toUpperCase()}
-                </div>
+                <MessageAuthor author={msg.author} />
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold">
-                      {msg.author.displayName || msg.author.username}
-                    </span>
                     <span className="text-xs text-zinc-400 dark:text-zinc-500">
                       {new Date(msg.createdAt).toLocaleString()}
                     </span>
