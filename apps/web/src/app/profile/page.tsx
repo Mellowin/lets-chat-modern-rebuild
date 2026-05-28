@@ -1,6 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useState, useCallback, useRef } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { updateDisplayName, updateLanguages, uploadAvatar } from "@/lib/auth-api";
@@ -213,9 +214,9 @@ export default function ProfilePage() {
         <div className="mt-3 flex items-center gap-4">
           <div className="relative h-16 w-16 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center overflow-hidden">
             {avatarPreview ? (
-              <img src={avatarPreview} alt="Avatar preview" className="h-full w-full object-cover" />
+              <Image src={avatarPreview} alt="Avatar preview" fill className="object-cover" unoptimized />
             ) : user?.avatarUrl ? (
-              <img src={user.avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+              <Image src={user.avatarUrl} alt="Avatar" fill className="object-cover" unoptimized />
             ) : (
               <span className="text-sm font-semibold text-zinc-600 dark:text-zinc-300">
                 {initials()}

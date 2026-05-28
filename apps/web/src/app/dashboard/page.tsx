@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -262,7 +263,7 @@ export default function DashboardPage() {
       <div className="flex items-center gap-4">
         <div className="relative h-12 w-12 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center overflow-hidden shrink-0">
           {user?.avatarUrl ? (
-            <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" />
+            <Image src={user.avatarUrl} alt="" fill className="object-cover" unoptimized />
           ) : (
             <span className="text-sm font-semibold text-zinc-600 dark:text-zinc-300">
               {(user?.displayName || user?.username || "?").slice(0, 2).toUpperCase()}
