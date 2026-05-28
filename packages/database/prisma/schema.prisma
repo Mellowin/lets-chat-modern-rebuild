@@ -49,7 +49,6 @@ model User {
   displayName      String?
   avatarUrl        String?
   avatarUpdatedAt  DateTime?
-  languages        String[]  @default([])
   createdAt        DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   deletedAt     DateTime?

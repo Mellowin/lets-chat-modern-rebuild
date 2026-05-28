@@ -20,7 +20,7 @@ vi.mock("@/lib/auth-api", () => ({
 
 function mockAuth(userOverrides?: Partial<ReturnType<typeof useAuth>>) {
   vi.mocked(useAuth).mockReturnValue({
-    user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, languages: [], createdAt: "2024-01-01T00:00:00Z" },
+    user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, createdAt: "2024-01-01T00:00:00Z" },
     accessToken: "token",
     refreshToken: "rt",
     isLoading: false,
@@ -77,7 +77,7 @@ describe("ProfilePage — authenticated", () => {
 
   it("renders account information", async () => {
     mockAuth({
-      user: { id: "u1", email: "a@b.com", username: "alice", displayName: "Alice", avatarUrl: null, avatarUpdatedAt: null, languages: ["English", "Ukrainian"], createdAt: "2024-01-01T00:00:00Z" },
+      user: { id: "u1", email: "a@b.com", username: "alice", displayName: "Alice", avatarUrl: null, avatarUpdatedAt: null, createdAt: "2024-01-01T00:00:00Z" },
     });
 
     render(<ProfilePage />);
@@ -92,7 +92,7 @@ describe("ProfilePage — authenticated", () => {
 
   it("shows dash when displayName is null", async () => {
     mockAuth({
-      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, languages: [], createdAt: "2024-01-01T00:00:00Z" },
+      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, createdAt: "2024-01-01T00:00:00Z" },
     });
 
     render(<ProfilePage />);
@@ -106,7 +106,7 @@ describe("ProfilePage — authenticated", () => {
 
   it("shows avatar fallback when avatarUrl is null", async () => {
     mockAuth({
-      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, languages: [], createdAt: "2024-01-01T00:00:00Z" },
+      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, createdAt: "2024-01-01T00:00:00Z" },
     });
 
     render(<ProfilePage />);
@@ -120,7 +120,7 @@ describe("ProfilePage — authenticated", () => {
 
   it("shows existing avatar when avatarUrl exists", async () => {
     mockAuth({
-      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: "/uploads/avatars/u1/test.png", avatarUpdatedAt: "2024-01-01T00:00:00Z", languages: [], createdAt: "2024-01-01T00:00:00Z" },
+      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: "/uploads/avatars/u1/test.png", avatarUpdatedAt: "2024-01-01T00:00:00Z", createdAt: "2024-01-01T00:00:00Z" },
     });
 
     render(<ProfilePage />);
@@ -174,7 +174,6 @@ describe("ProfilePage — authenticated", () => {
       displayName: null,
       avatarUrl: "/uploads/avatars/u1/test.png",
       avatarUpdatedAt: "2024-01-01T00:00:00Z",
-      languages: [],
       createdAt: "2024-01-01T00:00:00Z",
     });
 
@@ -206,7 +205,6 @@ describe("ProfilePage — authenticated", () => {
       displayName: "Alice",
       avatarUrl: null,
       avatarUpdatedAt: null,
-      languages: [],
       createdAt: "2024-01-01T00:00:00Z",
     });
 

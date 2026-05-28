@@ -39,7 +39,7 @@ vi.mock("@/lib/channel-invites-api", () => ({
 
 function mockAuth(userOverrides?: Partial<ReturnType<typeof useAuth>>) {
   vi.mocked(useAuth).mockReturnValue({
-    user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, languages: [], createdAt: "2024-01-01T00:00:00Z" },
+    user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, createdAt: "2024-01-01T00:00:00Z" },
     accessToken: "token",
     refreshToken: "rt",
     isLoading: false,
@@ -85,7 +85,7 @@ describe("DashboardPage — user identity", () => {
 
   it("shows displayName instead of username when displayName exists", async () => {
     mockAuth({
-      user: { id: "u1", email: "a@b.com", username: "alice", displayName: "Alice", avatarUrl: null, avatarUpdatedAt: null, languages: [], createdAt: "2024-01-01T00:00:00Z" },
+      user: { id: "u1", email: "a@b.com", username: "alice", displayName: "Alice", avatarUrl: null, avatarUpdatedAt: null, createdAt: "2024-01-01T00:00:00Z" },
     });
     render(<DashboardPage />);
 
@@ -96,7 +96,7 @@ describe("DashboardPage — user identity", () => {
 
   it("falls back to username when displayName is null", async () => {
     mockAuth({
-      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, languages: [], createdAt: "2024-01-01T00:00:00Z" },
+      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, createdAt: "2024-01-01T00:00:00Z" },
     });
     render(<DashboardPage />);
 
@@ -107,7 +107,7 @@ describe("DashboardPage — user identity", () => {
 
   it("shows avatar image when avatarUrl exists", async () => {
     mockAuth({
-      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: "/uploads/avatars/u1/test.png", avatarUpdatedAt: null, languages: [], createdAt: "2024-01-01T00:00:00Z" },
+      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: "/uploads/avatars/u1/test.png", avatarUpdatedAt: null, createdAt: "2024-01-01T00:00:00Z" },
     });
     const { container } = render(<DashboardPage />);
 
@@ -118,7 +118,7 @@ describe("DashboardPage — user identity", () => {
 
   it("shows fallback initials when avatarUrl is null", async () => {
     mockAuth({
-      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, languages: [], createdAt: "2024-01-01T00:00:00Z" },
+      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, createdAt: "2024-01-01T00:00:00Z" },
     });
     render(<DashboardPage />);
 
@@ -129,7 +129,7 @@ describe("DashboardPage — user identity", () => {
 
   it("does not render spoken language chips", async () => {
     mockAuth({
-      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, languages: ["English", "Ukrainian"], createdAt: "2024-01-01T00:00:00Z" },
+      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, createdAt: "2024-01-01T00:00:00Z" },
     });
     render(<DashboardPage />);
 

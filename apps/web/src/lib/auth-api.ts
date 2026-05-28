@@ -7,7 +7,6 @@ export interface AuthUser {
   displayName: string | null;
   avatarUrl: string | null;
   avatarUpdatedAt: string | null;
-  languages: string[];
   createdAt: string;
 }
 
@@ -111,24 +110,6 @@ export async function updateDisplayName(accessToken: string, displayName: string
 
   if (!res.ok) {
     throw new Error(await parseErrorMessage(res, `Failed to update display name: ${res.status} ${res.statusText}`));
-  }
-
-  return res.json() as Promise<AuthUser>;
-}
-
-export async function updateLanguages(accessToken: string, languages: string[]): Promise<AuthUser> {
-  const res = await fetch(`${API_BASE}/auth/me/languages`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      Authorization: `Bearer ${accessToken}`,
-    },
-    body: JSON.stringify({ languages }),
-  });
-
-  if (!res.ok) {
-    throw new Error(await parseErrorMessage(res, `Failed to update languages: ${res.status} ${res.statusText}`));
   }
 
   return res.json() as Promise<AuthUser>;

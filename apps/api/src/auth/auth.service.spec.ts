@@ -24,7 +24,6 @@ describe('AuthService', () => {
             createUser: jest.fn(),
             updateDisplayName: jest.fn(),
             updateAvatar: jest.fn(),
-            updateLanguages: jest.fn(),
           },
         },
         {
@@ -72,7 +71,6 @@ describe('AuthService', () => {
       passwordHash: 'hash',
       avatarUrl: null,
       avatarUpdatedAt: null,
-      languages: [] as string[],
       createdAt: new Date(),
       updatedAt: new Date(),
       deletedAt: null,
@@ -98,7 +96,6 @@ describe('AuthService', () => {
       avatarUrl: '/avatars/avatar-1.svg',
       avatarUpdatedAt: new Date('2024-01-01'),
       passwordHash: 'hash',
-      languages: [] as string[],
       createdAt: new Date(),
       updatedAt: new Date(),
       deletedAt: null,
@@ -123,7 +120,6 @@ describe('AuthService', () => {
       avatarUrl: null,
       avatarUpdatedAt: null,
       passwordHash: 'hash',
-      languages: [] as string[],
       createdAt: new Date(),
       updatedAt: new Date(),
       deletedAt: null,
@@ -147,7 +143,6 @@ describe('AuthService', () => {
       avatarUrl: '/avatars/avatar-3.svg',
       avatarUpdatedAt: new Date(),
       passwordHash: 'hash',
-      languages: [] as string[],
       createdAt: new Date(),
       updatedAt: new Date(),
       deletedAt: null,
@@ -177,7 +172,6 @@ describe('AuthService', () => {
       avatarUrl: '/avatars/avatar-1.svg',
       avatarUpdatedAt: new Date(),
       passwordHash: 'super-secret-hash',
-      languages: [] as string[],
       createdAt: new Date(),
       updatedAt: new Date(),
       deletedAt: null,
@@ -191,53 +185,5 @@ describe('AuthService', () => {
     );
 
     expect(result).not.toHaveProperty('passwordHash');
-  });
-
-  it('toAuthUserResponse includes languages', () => {
-    const user = {
-      id: 'user-id',
-      email: 'u@test.com',
-      username: 'user',
-      displayName: null,
-      avatarUrl: null,
-      avatarUpdatedAt: null,
-      passwordHash: 'hash',
-      languages: ['English', 'Ukrainian'],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      deletedAt: null,
-    };
-
-    const servicePrivate = service as unknown as {
-      toAuthUserResponse: (user: unknown) => AuthUserResponse;
-    };
-    const result = servicePrivate.toAuthUserResponse(user);
-
-    expect(result.languages).toEqual(['English', 'Ukrainian']);
-  });
-
-  it('updateLanguages calls users.updateLanguages and returns AuthUserResponse with languages', async () => {
-    const user = {
-      id: 'user-id',
-      email: 'u@test.com',
-      username: 'user',
-      displayName: null,
-      avatarUrl: null,
-      avatarUpdatedAt: null,
-      passwordHash: 'hash',
-      languages: ['English'],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      deletedAt: null,
-    };
-
-    usersRepository.updateLanguages.mockResolvedValue(user);
-
-    const result = await service.updateLanguages('user-id', ['English']);
-
-    expect(usersRepository.updateLanguages).toHaveBeenCalledWith('user-id', [
-      'English',
-    ]);
-    expect(result.languages).toEqual(['English']);
   });
 });

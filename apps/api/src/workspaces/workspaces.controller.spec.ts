@@ -17,7 +17,6 @@ describe('WorkspacesController', () => {
     displayName: null,
     avatarUrl: null,
     avatarUpdatedAt: null,
-    languages: [],
     createdAt: new Date(),
   };
 

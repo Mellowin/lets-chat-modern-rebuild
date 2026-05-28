@@ -46,7 +46,7 @@ describe("LoginPage", () => {
 
   it("calls login and redirects on success", async () => {
     const mockResult = {
-      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, languages: [], createdAt: "2024-01-01T00:00:00Z" },
+      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, createdAt: "2024-01-01T00:00:00Z" },
       accessToken: "at",
       refreshToken: "rt",
     };
@@ -98,7 +98,7 @@ describe("LoginPage", () => {
 
     await act(async () => {
       resolveLogin!({
-        user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, languages: [], createdAt: "2024-01-01T00:00:00Z" },
+        user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, createdAt: "2024-01-01T00:00:00Z" },
         accessToken: "at",
         refreshToken: "rt",
       });
