@@ -39,6 +39,8 @@ export type TranslationKey =
   | "profile.editDisplayName"
   | "profile.interfaceLanguage"
   | "profile.selected"
+  | "profile.languageSaved"
+  | "profile.languageSaveFailed"
   | "dashboard.welcome"
   | "dashboard.signedInAs"
   | "dashboard.profileSettings"
@@ -94,6 +96,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "profile.avatarUpdated": "Avatar updated.",
     "profile.interfaceLanguage": "Interface language",
     "profile.selected": "Selected:",
+    "profile.languageSaved": "Language saved.",
+    "profile.languageSaveFailed": "Failed to save language preference.",
     "dashboard.welcome": "Welcome",
     "dashboard.signedInAs": "You are signed in as",
     "dashboard.profileSettings": "Profile settings",
@@ -148,6 +152,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "profile.avatarUpdated": "Аватар оновлено.",
     "profile.interfaceLanguage": "Мова інтерфейсу",
     "profile.selected": "Обрано:",
+    "profile.languageSaved": "Мову збережено.",
+    "profile.languageSaveFailed": "Не вдалося зберегти мову.",
     "dashboard.welcome": "Вітаємо",
     "dashboard.signedInAs": "Ви увійшли як",
     "dashboard.profileSettings": "Налаштування профілю",
@@ -202,6 +208,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "profile.avatarUpdated": "Аватар обновлён.",
     "profile.interfaceLanguage": "Язык интерфейса",
     "profile.selected": "Выбрано:",
+    "profile.languageSaved": "Язык сохранён.",
+    "profile.languageSaveFailed": "Не удалось сохранить язык.",
     "dashboard.welcome": "Добро пожаловать",
     "dashboard.signedInAs": "Вы вошли как",
     "dashboard.profileSettings": "Настройки профиля",

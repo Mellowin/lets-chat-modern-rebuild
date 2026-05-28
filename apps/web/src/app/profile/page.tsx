@@ -29,6 +29,8 @@ export default function ProfilePage() {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [localeFormState, setLocaleFormState] = useState<FormState>({ kind: "idle" });
+
   useLayoutEffect(() => {
     if (user?.displayName) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -43,12 +45,15 @@ export default function ProfilePage() {
 
   async function handleSetLocale(next: Locale) {
     if (accessToken && isAuthenticated) {
+      setLocaleFormState({ kind: "loading" });
       try {
         const updated = await updateInterfaceLanguage(accessToken, next);
         setUser(updated);
         setLocaleState(next);
-      } catch {
-        setLocaleState(next);
+        setLocaleFormState({ kind: "success" });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : t("profile.languageSaveFailed");
+        setLocaleFormState({ kind: "error", message });
       }
     } else {
       setLocaleState(next);
@@ -252,8 +257,9 @@ export default function ProfilePage() {
                 key={loc}
                 type="button"
                 onClick={() => handleSetLocale(loc)}
+                disabled={localeFormState.kind === "loading"}
                 className={
-                  "inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition-colors " +
+                  "inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-60 " +
                   (active
                     ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
                     : "border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800")
@@ -267,6 +273,22 @@ export default function ProfilePage() {
         <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
           {t("profile.selected")} {localeLabel(locale)}
         </p>
+        {localeFormState.kind === "success" && (
+          <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
+            <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              {t("profile.languageSaved")}
+            </div>
+          </div>
+        )}
+        {localeFormState.kind === "error" && (
+          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-2.5 text-sm dark:border-red-900 dark:bg-red-950/30">
+            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+              <span className="h-2 w-2 rounded-full bg-red-500" />
+              {localeFormState.message}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

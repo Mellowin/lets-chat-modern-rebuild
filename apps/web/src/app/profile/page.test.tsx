@@ -455,5 +455,59 @@ describe("ProfilePage — authenticated", () => {
       expect(updateInterfaceLanguage).not.toHaveBeenCalled();
       expect(localStorage.getItem("lets-chat:locale")).toBe("uk");
     });
+
+    it("shows saved status when language API succeeds", async () => {
+      const setUserMock = vi.fn();
+      mockAuth({ setUser: setUserMock });
+      vi.mocked(updateInterfaceLanguage).mockResolvedValueOnce({
+        id: "u1",
+        email: "a@b.com",
+        username: "alice",
+        displayName: null,
+        avatarUrl: null,
+        avatarUpdatedAt: null,
+        interfaceLanguage: "uk",
+        createdAt: "2024-01-01T00:00:00Z",
+      });
+
+      render(<ProfilePage />);
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: "Українська" })).toBeInTheDocument();
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: "Українська" }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Мову збережено/i)).toBeInTheDocument();
+      });
+      expect(setUserMock).toHaveBeenCalledWith(
+        expect.objectContaining({ interfaceLanguage: "uk" }),
+      );
+      expect(localStorage.getItem("lets-chat:locale")).toBe("uk");
+    });
+
+    it("shows error and keeps current locale when API fails", async () => {
+      localStorage.setItem("lets-chat:locale", "en");
+      mockAuth();
+      vi.mocked(updateInterfaceLanguage).mockRejectedValueOnce(new Error("Server error"));
+
+      render(<ProfilePage />);
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: "Українська" })).toBeInTheDocument();
+      });
+
+      expect(screen.getByText(/Selected: English/i)).toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole("button", { name: "Українська" }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Server error/i)).toBeInTheDocument();
+      });
+
+      expect(localStorage.getItem("lets-chat:locale")).toBe("en");
+      expect(screen.getByText(/Selected: English/i)).toBeInTheDocument();
+    });
   });
 });
