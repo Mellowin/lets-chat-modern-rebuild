@@ -187,6 +187,59 @@ describe("WorkspaceDetailPage — locale", () => {
     expect(confirmSpy).toHaveBeenCalledWith('Покинуть рабочее пространство "Test Workspace"?');
     confirmSpy.mockRestore();
   });
+
+  it("shows Ukrainian invitation sent message", async () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    mockWorkspaceData({ archived: [] });
+    vi.mocked(createWorkspaceInvite).mockResolvedValue({
+      id: "invite-1",
+      workspaceId: "ws1",
+      email: "bob@example.com",
+      role: "MEMBER",
+      token: "token123",
+      expiresAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    });
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Імʼя користувача або email/i)).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Імʼя користувача або email/i), "bob@example.com");
+    await userEvent.click(screen.getByRole("button", { name: "Додати учасника" }));
+
+    expect(await screen.findByText("Запрошення надіслано")).toBeInTheDocument();
+  });
+
+  it("shows Russian member removed message", async () => {
+    localStorage.setItem("lets-chat:locale", "ru");
+    mockWorkspaceData({ archived: [] });
+    vi.mocked(getWorkspaceMembers).mockResolvedValue([
+      { id: "wm1", workspaceId: "ws1", role: "OWNER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice", displayName: "Alice" } },
+      { id: "wm2", workspaceId: "ws1", role: "MEMBER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u2", username: "bob", displayName: "Bob" } },
+    ]);
+    vi.mocked(removeWorkspaceMember).mockResolvedValue({ success: true });
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Удалить" })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Удалить" }));
+
+    await waitFor(() => {
+      expect(removeWorkspaceMember).toHaveBeenCalledWith("token", "ws1", "wm2");
+    });
+
+    expect(screen.queryByText("Bob")).not.toBeInTheDocument();
+    expect(screen.getByText("Участник удалён")).toBeInTheDocument();
+
+    confirmSpy.mockRestore();
+  });
 });
 
 describe("WorkspaceDetailPage — archived channels", () => {

@@ -245,7 +245,7 @@ export default function WorkspaceDetailPage() {
       }
       setMemberIdentifier("");
       setMemberRole("MEMBER");
-      setAddMemberState({ kind: "success", message: "Invitation sent" });
+      setAddMemberState({ kind: "success", message: t("workspace.invitationSent") });
     } catch (err) {
       const message = err instanceof Error ? err.message : t("workspace.errorAddMemberFailed");
       setAddMemberState({ kind: "error", message });
@@ -279,7 +279,7 @@ export default function WorkspaceDetailPage() {
         if (prev.kind !== "success") return prev;
         return { kind: "success", data: prev.data.filter((m) => m.id !== memberId) };
       });
-      setRemoveMemberState({ kind: "success", message: "Member removed" });
+      setRemoveMemberState({ kind: "success", message: t("workspace.memberRemoved") });
     } catch (err) {
       const message = err instanceof Error ? err.message : t("workspace.errorRemoveMemberFailed");
       setRemoveMemberState({ kind: "error", message });

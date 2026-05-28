@@ -175,7 +175,9 @@ export type TranslationKey =
   | "workspace.errorEnterUsernameOrEmail"
   | "workspace.errorAddMemberFailed"
   | "workspace.errorLeaveWorkspaceFailed"
-  | "workspace.errorRemoveMemberFailed";
+  | "workspace.errorRemoveMemberFailed"
+  | "workspace.invitationSent"
+  | "workspace.memberRemoved";
 
 const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
   en: {
@@ -337,6 +339,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "workspace.errorAddMemberFailed": "Failed to add member",
     "workspace.errorLeaveWorkspaceFailed": "Failed to leave workspace",
     "workspace.errorRemoveMemberFailed": "Failed to remove member",
+    "workspace.invitationSent": "Invitation sent",
+    "workspace.memberRemoved": "Member removed",
   },
   uk: {
     "header.profile": "Профіль",
@@ -497,6 +501,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "workspace.errorAddMemberFailed": "Не вдалося додати учасника",
     "workspace.errorLeaveWorkspaceFailed": "Не вдалося покинути робочий простір",
     "workspace.errorRemoveMemberFailed": "Не вдалося вилучити учасника",
+    "workspace.invitationSent": "Запрошення надіслано",
+    "workspace.memberRemoved": "Учасника вилучено",
   },
   ru: {
     "header.profile": "Профиль",
@@ -657,6 +663,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "workspace.errorAddMemberFailed": "Не удалось добавить участника",
     "workspace.errorLeaveWorkspaceFailed": "Не удалось покинуть рабочее пространство",
     "workspace.errorRemoveMemberFailed": "Не удалось удалить участника",
+    "workspace.invitationSent": "Приглашение отправлено",
+    "workspace.memberRemoved": "Участник удалён",
   },
 };
 
