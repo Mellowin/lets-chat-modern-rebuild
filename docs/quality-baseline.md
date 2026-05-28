@@ -79,6 +79,22 @@ pnpm --filter web lint
 pnpm --filter web build
 ```
 
+### Heavy page tests
+
+Workspace and channel page tests (`page.test.tsx` under `workspaces/`) are
+excluded from the default `pnpm --filter web test` because they cause heap OOM
+when loaded alongside other tests in the same vitest run.
+
+Run them separately with:
+
+```bash
+pnpm --filter web test:pages
+```
+
+Run this before/after touching workspace or channel page UI to ensure the
+excluded tests are not forgotten. Do not add `test:pages` to CI until the OOM
+issue is resolved.
+
 ## Do Not Weaken Checks
 
 - Do not remove the Typecheck API CI step.

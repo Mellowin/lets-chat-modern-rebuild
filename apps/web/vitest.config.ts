@@ -11,6 +11,8 @@ export default defineConfig({
     exclude: [
       "**/node_modules/**",
       "**/dist/**",
+      // Excluded from default run due to heap OOM when loaded alongside
+      // other tests. Run separately with: pnpm --filter web test:pages
       "**/workspaces/**/page.test.tsx",
     ],
   },

@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "test:pages": "vitest run --config vitest.pages.config.ts src/app/workspaces/[workspaceId]/page.test.tsx src/app/workspaces/[workspaceId]/channels/[channelId]/page.test.tsx",
     "test:watch": "vitest"
   },
   "dependencies": {
