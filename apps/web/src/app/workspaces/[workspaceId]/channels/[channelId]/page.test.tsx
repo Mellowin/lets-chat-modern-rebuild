@@ -85,6 +85,7 @@ describe("ChannelDetailPage — locale", () => {
     vi.resetAllMocks();
     localStorage.clear();
     sessionStorage.setItem("accessToken", "token");
+    Object.keys(socketHandlers).forEach((k) => delete socketHandlers[k]);
   });
 
   it("renders English shell labels by default", async () => {
@@ -94,7 +95,7 @@ describe("ChannelDetailPage — locale", () => {
       expect(screen.getByText(/Back to workspace/i)).toBeInTheDocument();
     });
     expect(screen.getByRole("heading", { name: "Messages" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Send" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Send" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Members" })).toBeInTheDocument();
   });
 
@@ -106,7 +107,7 @@ describe("ChannelDetailPage — locale", () => {
       expect(screen.getByText(/Назад до робочого простору/i)).toBeInTheDocument();
     });
     expect(screen.getByRole("heading", { name: "Повідомлення" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Надіслати" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Надіслати" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Учасники" })).toBeInTheDocument();
   });
 
@@ -118,7 +119,7 @@ describe("ChannelDetailPage — locale", () => {
       expect(screen.getByText(/Назад к рабочему пространству/i)).toBeInTheDocument();
     });
     expect(screen.getByRole("heading", { name: "Сообщения" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Отправить" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Отправить" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Участники" })).toBeInTheDocument();
   });
 });
