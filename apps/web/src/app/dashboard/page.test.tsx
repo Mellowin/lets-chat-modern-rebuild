@@ -263,6 +263,128 @@ describe("DashboardPage — interface language", () => {
     expect(screen.getByRole("heading", { name: /Ваши рабочие пространства/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Создать$/i })).toBeInTheDocument();
   });
+
+  it("shows Ukrainian validation error for empty workspace name", async () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    mockAuth();
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Створити$/i })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Створити$/i }));
+    expect(await screen.findByText("Назва обовʼязкова")).toBeInTheDocument();
+  });
+
+  it("shows Russian validation error for empty workspace name", async () => {
+    localStorage.setItem("lets-chat:locale", "ru");
+    mockAuth();
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Создать$/i })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Создать$/i }));
+    expect(await screen.findByText("Название обязательно")).toBeInTheDocument();
+  });
+
+  it("shows Ukrainian archive confirm dialog", async () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    mockAuth({ user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, languages: [], createdAt: "2024-01-01T00:00:00Z" } });
+    vi.mocked(getWorkspaces).mockResolvedValue([
+      { id: "ws1", name: "Test Workspace", slug: "test", description: null, ownerId: "u1", createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", deletedAt: null },
+    ]);
+
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Архівувати" })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Архівувати" }));
+    expect(confirmSpy).toHaveBeenCalledWith('Архівувати робочий простір "Test Workspace"?\nЦе приховає робочий простір і всі його канали. Це може зробити лише власник робочого простору.');
+    confirmSpy.mockRestore();
+  });
+
+  it("shows Russian restore confirm dialog", async () => {
+    localStorage.setItem("lets-chat:locale", "ru");
+    mockAuth();
+    vi.mocked(listArchivedWorkspaces).mockResolvedValue([
+      { id: "ws-arch", name: "Archived Workspace", slug: "archived", description: null, ownerId: "u1", createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-06-01T00:00:00Z", deletedAt: "2024-06-01T00:00:00Z" },
+    ]);
+
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Восстановить" })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Восстановить" }));
+    expect(confirmSpy).toHaveBeenCalledWith('Восстановить рабочее пространство "Archived Workspace"?');
+    confirmSpy.mockRestore();
+  });
+
+  it("shows Ukrainian decline workspace invite confirm dialog", async () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    mockAuth();
+    vi.mocked(getPendingInvites).mockResolvedValue([
+      {
+        id: "invite-1",
+        workspace: { id: "ws-1", name: "Test Workspace", slug: "test" },
+        invitedBy: { id: "u2", username: "bob", displayName: "Bob" },
+        role: "MEMBER",
+        expiresAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Відхилити" })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Відхилити" }));
+    expect(confirmSpy).toHaveBeenCalledWith("Відхилити це запрошення?");
+    confirmSpy.mockRestore();
+  });
+
+  it("shows Russian decline channel invite confirm dialog", async () => {
+    localStorage.setItem("lets-chat:locale", "ru");
+    mockAuth();
+    vi.mocked(getPendingChannelInvites).mockResolvedValue([
+      {
+        id: "ch-invite-1",
+        role: "MEMBER",
+        workspace: { id: "ws-1", name: "Test", slug: "test" },
+        channel: { id: "ch-1", name: "general", slug: "general" },
+        invitedBy: { id: "u2", username: "bob", displayName: null },
+        expiresAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getAllByRole("button", { name: "Отклонить" }).length).toBeGreaterThanOrEqual(1);
+    });
+
+    const declineButtons = screen.getAllByRole("button", { name: "Отклонить" });
+    await userEvent.click(declineButtons[declineButtons.length - 1]);
+    expect(confirmSpy).toHaveBeenCalledWith("Отклонить это приглашение в канал?");
+    confirmSpy.mockRestore();
+  });
 });
 
 describe("DashboardPage — workspace list", () => {

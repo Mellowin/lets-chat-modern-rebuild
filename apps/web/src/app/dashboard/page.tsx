@@ -10,7 +10,7 @@ import { getWorkspaces, createWorkspace, archiveWorkspace, listArchivedWorkspace
 import { getPendingInvites, acceptInvite, declineInvite, type PendingInvite } from "@/lib/invites-api";
 import { getPendingChannelInvites, acceptChannelInvite, declineChannelInvite, type PendingChannelInvite } from "@/lib/channel-invites-api";
 import { slugify } from "@/lib/transliterate";
-import { useLocale } from "@/lib/locale";
+import { useLocale, translate, getLocale } from "@/lib/locale";
 
 type WorkspacesState =
   | { kind: "idle" }
@@ -63,7 +63,7 @@ export default function DashboardPage() {
       const data = await getWorkspaces(token);
       setWorkspaces({ kind: "success", data });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to load workspaces";
+      const message = err instanceof Error ? err.message : translate(getLocale(), "dashboard.errorLoadWorkspacesFailed");
       setWorkspaces({ kind: "error", message });
     }
   }, []);
@@ -74,7 +74,7 @@ export default function DashboardPage() {
       const data = await getPendingInvites(token);
       setInvites({ kind: "success", data });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to load invites";
+      const message = err instanceof Error ? err.message : translate(getLocale(), "dashboard.errorLoadInvitesFailed");
       setInvites({ kind: "error", message });
     }
   }, []);
@@ -85,7 +85,7 @@ export default function DashboardPage() {
       const data = await getPendingChannelInvites(token);
       setChannelInvites({ kind: "success", data });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to load channel invites";
+      const message = err instanceof Error ? err.message : translate(getLocale(), "dashboard.errorLoadChannelInvitesFailed");
       setChannelInvites({ kind: "error", message });
     }
   }, []);
@@ -96,7 +96,7 @@ export default function DashboardPage() {
       const data = await listArchivedWorkspaces(token);
       setArchivedWorkspaces({ kind: "success", data });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to load archived workspaces";
+      const message = err instanceof Error ? err.message : translate(getLocale(), "dashboard.errorLoadArchivedWorkspacesFailed");
       setArchivedWorkspaces({ kind: "error", message });
     }
   }, []);
@@ -116,7 +116,7 @@ export default function DashboardPage() {
     const trimmedName = name.trim();
     const trimmedSlug = slug.trim();
     if (!trimmedName) {
-      setCreateState({ kind: "error", message: "Name is required" });
+      setCreateState({ kind: "error", message: t("dashboard.errorNameRequired") });
       return;
     }
     if (!accessToken) return;
@@ -133,7 +133,7 @@ export default function DashboardPage() {
       await loadWorkspaces(accessToken);
       window.dispatchEvent(new Event("workspaces:changed"));
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to create workspace";
+      const message = err instanceof Error ? err.message : t("dashboard.errorCreateWorkspaceFailed");
       setCreateState({ kind: "error", message });
     }
   }
@@ -141,7 +141,7 @@ export default function DashboardPage() {
   async function handleArchiveWorkspace(e: React.MouseEvent, workspaceId: string, wsName: string) {
     e.preventDefault();
     e.stopPropagation();
-    if (!window.confirm(`Archive workspace "${wsName}"?\nThis will hide the workspace and all its channels. Only the workspace owner can do this.`)) {
+    if (!window.confirm(`${t("dashboard.confirmArchiveWorkspacePrefix")} "${wsName}"?\n${t("dashboard.confirmArchiveWorkspaceBody")}`)) {
       return;
     }
     if (!accessToken) return;
@@ -151,7 +151,7 @@ export default function DashboardPage() {
       await loadWorkspaces(accessToken);
       window.dispatchEvent(new Event("workspaces:changed"));
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to archive workspace";
+      const message = err instanceof Error ? err.message : t("dashboard.errorArchiveWorkspaceFailed");
       setArchiveError(message);
     }
   }
@@ -166,20 +166,20 @@ export default function DashboardPage() {
       window.dispatchEvent(new Event("workspaces:changed"));
       router.push(`/workspaces/${workspaceId}`);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to accept invite";
+      const message = err instanceof Error ? err.message : t("dashboard.errorAcceptInviteFailed");
       setInviteActionError(message);
     }
   }
 
   async function handleDeclineInvite(inviteId: string) {
-    if (!window.confirm("Decline this invitation?")) return;
+    if (!window.confirm(t("dashboard.confirmDeclineInvitation"))) return;
     if (!accessToken) return;
     setInviteActionError(null);
     try {
       await declineInvite(accessToken, inviteId);
       await loadPendingInvites(accessToken);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to decline invite";
+      const message = err instanceof Error ? err.message : t("dashboard.errorDeclineInviteFailed");
       setInviteActionError(message);
     }
   }
@@ -193,20 +193,20 @@ export default function DashboardPage() {
       window.dispatchEvent(new Event("channels:changed"));
       router.push(`/workspaces/${workspaceId}/channels/${channelId}`);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to accept channel invite";
+      const message = err instanceof Error ? err.message : t("dashboard.errorAcceptChannelInviteFailed");
       setChannelInviteActionError(message);
     }
   }
 
   async function handleDeclineChannelInvite(inviteId: string) {
-    if (!window.confirm("Decline this channel invitation?")) return;
+    if (!window.confirm(t("dashboard.confirmDeclineChannelInvitation"))) return;
     if (!accessToken) return;
     setChannelInviteActionError(null);
     try {
       await declineChannelInvite(accessToken, inviteId);
       await loadPendingChannelInvites(accessToken);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to decline channel invite";
+      const message = err instanceof Error ? err.message : t("dashboard.errorDeclineChannelInviteFailed");
       setChannelInviteActionError(message);
     }
   }
@@ -214,7 +214,7 @@ export default function DashboardPage() {
   async function handleRestoreWorkspace(e: React.MouseEvent, workspaceId: string, wsName: string) {
     e.preventDefault();
     e.stopPropagation();
-    if (!window.confirm(`Restore workspace "${wsName}"?`)) {
+    if (!window.confirm(`${t("dashboard.confirmRestoreWorkspacePrefix")} "${wsName}"?`)) {
       return;
     }
     if (!accessToken) return;
@@ -225,7 +225,7 @@ export default function DashboardPage() {
       await loadArchivedWorkspaces(accessToken);
       window.dispatchEvent(new Event("workspaces:changed"));
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to restore workspace";
+      const message = err instanceof Error ? err.message : t("dashboard.errorRestoreWorkspaceFailed");
       setRestoreError(message);
     }
   }

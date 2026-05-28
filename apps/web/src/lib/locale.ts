@@ -177,7 +177,24 @@ export type TranslationKey =
   | "workspace.errorLeaveWorkspaceFailed"
   | "workspace.errorRemoveMemberFailed"
   | "workspace.invitationSent"
-  | "workspace.memberRemoved";
+  | "workspace.memberRemoved"
+  | "dashboard.errorLoadWorkspacesFailed"
+  | "dashboard.errorLoadInvitesFailed"
+  | "dashboard.errorLoadChannelInvitesFailed"
+  | "dashboard.errorLoadArchivedWorkspacesFailed"
+  | "dashboard.errorNameRequired"
+  | "dashboard.errorCreateWorkspaceFailed"
+  | "dashboard.errorArchiveWorkspaceFailed"
+  | "dashboard.errorAcceptInviteFailed"
+  | "dashboard.errorDeclineInviteFailed"
+  | "dashboard.errorAcceptChannelInviteFailed"
+  | "dashboard.errorDeclineChannelInviteFailed"
+  | "dashboard.errorRestoreWorkspaceFailed"
+  | "dashboard.confirmArchiveWorkspacePrefix"
+  | "dashboard.confirmArchiveWorkspaceBody"
+  | "dashboard.confirmDeclineInvitation"
+  | "dashboard.confirmDeclineChannelInvitation"
+  | "dashboard.confirmRestoreWorkspacePrefix";
 
 const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
   en: {
@@ -341,6 +358,23 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "workspace.errorRemoveMemberFailed": "Failed to remove member",
     "workspace.invitationSent": "Invitation sent",
     "workspace.memberRemoved": "Member removed",
+    "dashboard.errorLoadWorkspacesFailed": "Failed to load workspaces",
+    "dashboard.errorLoadInvitesFailed": "Failed to load invites",
+    "dashboard.errorLoadChannelInvitesFailed": "Failed to load channel invites",
+    "dashboard.errorLoadArchivedWorkspacesFailed": "Failed to load archived workspaces",
+    "dashboard.errorNameRequired": "Name is required",
+    "dashboard.errorCreateWorkspaceFailed": "Failed to create workspace",
+    "dashboard.errorArchiveWorkspaceFailed": "Failed to archive workspace",
+    "dashboard.errorAcceptInviteFailed": "Failed to accept invite",
+    "dashboard.errorDeclineInviteFailed": "Failed to decline invite",
+    "dashboard.errorAcceptChannelInviteFailed": "Failed to accept channel invite",
+    "dashboard.errorDeclineChannelInviteFailed": "Failed to decline channel invite",
+    "dashboard.errorRestoreWorkspaceFailed": "Failed to restore workspace",
+    "dashboard.confirmArchiveWorkspacePrefix": "Archive workspace",
+    "dashboard.confirmArchiveWorkspaceBody": "This will hide the workspace and all its channels. Only the workspace owner can do this.",
+    "dashboard.confirmDeclineInvitation": "Decline this invitation?",
+    "dashboard.confirmDeclineChannelInvitation": "Decline this channel invitation?",
+    "dashboard.confirmRestoreWorkspacePrefix": "Restore workspace",
   },
   uk: {
     "header.profile": "Профіль",
@@ -503,6 +537,23 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "workspace.errorRemoveMemberFailed": "Не вдалося вилучити учасника",
     "workspace.invitationSent": "Запрошення надіслано",
     "workspace.memberRemoved": "Учасника вилучено",
+    "dashboard.errorLoadWorkspacesFailed": "Не вдалося завантажити робочі простори",
+    "dashboard.errorLoadInvitesFailed": "Не вдалося завантажити запрошення",
+    "dashboard.errorLoadChannelInvitesFailed": "Не вдалося завантажити запрошення до каналів",
+    "dashboard.errorLoadArchivedWorkspacesFailed": "Не вдалося завантажити архівовані робочі простори",
+    "dashboard.errorNameRequired": "Назва обовʼязкова",
+    "dashboard.errorCreateWorkspaceFailed": "Не вдалося створити робочий простір",
+    "dashboard.errorArchiveWorkspaceFailed": "Не вдалося архівувати робочий простір",
+    "dashboard.errorAcceptInviteFailed": "Не вдалося прийняти запрошення",
+    "dashboard.errorDeclineInviteFailed": "Не вдалося відхилити запрошення",
+    "dashboard.errorAcceptChannelInviteFailed": "Не вдалося прийняти запрошення до каналу",
+    "dashboard.errorDeclineChannelInviteFailed": "Не вдалося відхилити запрошення до каналу",
+    "dashboard.errorRestoreWorkspaceFailed": "Не вдалося відновити робочий простір",
+    "dashboard.confirmArchiveWorkspacePrefix": "Архівувати робочий простір",
+    "dashboard.confirmArchiveWorkspaceBody": "Це приховає робочий простір і всі його канали. Це може зробити лише власник робочого простору.",
+    "dashboard.confirmDeclineInvitation": "Відхилити це запрошення?",
+    "dashboard.confirmDeclineChannelInvitation": "Відхилити це запрошення до каналу?",
+    "dashboard.confirmRestoreWorkspacePrefix": "Відновити робочий простір",
   },
   ru: {
     "header.profile": "Профиль",
@@ -665,6 +716,23 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "workspace.errorRemoveMemberFailed": "Не удалось удалить участника",
     "workspace.invitationSent": "Приглашение отправлено",
     "workspace.memberRemoved": "Участник удалён",
+    "dashboard.errorLoadWorkspacesFailed": "Не удалось загрузить рабочие пространства",
+    "dashboard.errorLoadInvitesFailed": "Не удалось загрузить приглашения",
+    "dashboard.errorLoadChannelInvitesFailed": "Не удалось загрузить приглашения в каналы",
+    "dashboard.errorLoadArchivedWorkspacesFailed": "Не удалось загрузить архивированные рабочие пространства",
+    "dashboard.errorNameRequired": "Название обязательно",
+    "dashboard.errorCreateWorkspaceFailed": "Не удалось создать рабочее пространство",
+    "dashboard.errorArchiveWorkspaceFailed": "Не удалось архивировать рабочее пространство",
+    "dashboard.errorAcceptInviteFailed": "Не удалось принять приглашение",
+    "dashboard.errorDeclineInviteFailed": "Не удалось отклонить приглашение",
+    "dashboard.errorAcceptChannelInviteFailed": "Не удалось принять приглашение в канал",
+    "dashboard.errorDeclineChannelInviteFailed": "Не удалось отклонить приглашение в канал",
+    "dashboard.errorRestoreWorkspaceFailed": "Не удалось восстановить рабочее пространство",
+    "dashboard.confirmArchiveWorkspacePrefix": "Архивировать рабочее пространство",
+    "dashboard.confirmArchiveWorkspaceBody": "Это скроет рабочее пространство и все его каналы. Это может сделать только владелец рабочего пространства.",
+    "dashboard.confirmDeclineInvitation": "Отклонить это приглашение?",
+    "dashboard.confirmDeclineChannelInvitation": "Отклонить это приглашение в канал?",
+    "dashboard.confirmRestoreWorkspacePrefix": "Восстановить рабочее пространство",
   },
 };
 
