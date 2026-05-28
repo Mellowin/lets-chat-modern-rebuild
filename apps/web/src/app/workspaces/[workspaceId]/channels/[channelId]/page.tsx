@@ -82,13 +82,13 @@ export default function ChannelDetailPage() {
     if (!isAuthenticated || !workspaceId || !channelId || !accessToken) return;
 
     let cancelled = false;
-    async function load(t: string, ws: string, ch: string) {
+    async function load(token: string, ws: string, ch: string) {
       setChannel({ kind: "loading" });
       setMessages({ kind: "loading" });
       try {
         const [chData, msgData] = await Promise.all([
-          getChannel(t, ws, ch),
-          getMessages(t, ws, ch),
+          getChannel(token, ws, ch),
+          getMessages(token, ws, ch),
         ]);
         if (!cancelled) {
           setChannel({ kind: "success", data: chData });
@@ -96,7 +96,7 @@ export default function ChannelDetailPage() {
         }
       } catch (err) {
         const message =
-          err instanceof Error ? err.message : "Failed to load channel";
+          err instanceof Error ? err.message : t("channel.errorLoadChannelFailed");
         if (!cancelled) {
           setChannel({ kind: "error", message });
           setMessages({ kind: "error", message });
@@ -126,16 +126,16 @@ export default function ChannelDetailPage() {
     if (!isAuthenticated || !workspaceId || !channelId || !accessToken) return;
 
     let cancelled = false;
-    async function loadMembers(t: string, ws: string, ch: string) {
+    async function loadMembers(token: string, ws: string, ch: string) {
       setMembers({ kind: "loading" });
       try {
-        const memData = await getChannelMembers(t, ws, ch);
+        const memData = await getChannelMembers(token, ws, ch);
         if (!cancelled) {
           setMembers({ kind: "success", data: memData });
         }
       } catch (err) {
         const message =
-          err instanceof Error ? err.message : "Failed to load members";
+          err instanceof Error ? err.message : t("channel.errorLoadMembersFailed");
         if (!cancelled) {
           setMembers({ kind: "error", message });
         }
@@ -314,11 +314,11 @@ export default function ChannelDetailPage() {
     e.preventDefault();
     const trimmed = editContent.trim();
     if (!trimmed) {
-      setEditState({ kind: "error", message: "Message cannot be empty" });
+      setEditState({ kind: "error", message: t("channel.errorMessageEmpty") });
       return;
     }
     if (trimmed.length > 4000) {
-      setEditState({ kind: "error", message: "Message is too long (max 4000 characters)" });
+      setEditState({ kind: "error", message: t("channel.errorMessageTooLong") });
       return;
     }
     if (!accessToken || !workspaceId || !channelId || !editingMessageId) return;
@@ -332,19 +332,19 @@ export default function ChannelDetailPage() {
       setEditContent("");
       updateMessageInState(msg);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to update message";
+      const message = err instanceof Error ? err.message : t("channel.errorUpdateMessageFailed");
       setEditState({ kind: "error", message });
     }
   }
 
   async function handleDelete(messageId: string) {
-    if (!window.confirm("Delete this message?")) return;
+    if (!window.confirm(t("channel.confirmDeleteMessage"))) return;
     if (!accessToken || !workspaceId || !channelId) return;
     try {
       await deleteMessage(accessToken, workspaceId, channelId, messageId);
       removeMessageFromState(messageId);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to delete message";
+      const message = err instanceof Error ? err.message : t("channel.errorDeleteMessageFailed");
       alert(message);
     }
   }
@@ -352,11 +352,11 @@ export default function ChannelDetailPage() {
   async function submitMessage() {
     const trimmed = content.trim();
     if (!trimmed) {
-      setSendState({ kind: "error", message: "Message cannot be empty" });
+      setSendState({ kind: "error", message: t("channel.errorMessageEmpty") });
       return;
     }
     if (trimmed.length > 4000) {
-      setSendState({ kind: "error", message: "Message is too long (max 4000 characters)" });
+      setSendState({ kind: "error", message: t("channel.errorMessageTooLong") });
       return;
     }
     if (!accessToken || !workspaceId || !channelId) return;
@@ -423,8 +423,8 @@ export default function ChannelDetailPage() {
 
   async function handleArchive() {
     if (!channelId || !accessToken || !workspaceId) return;
-    const name = channel.kind === "success" ? channel.data.name : "this channel";
-    if (!window.confirm(`Archive channel "${name}"?\nThis will hide the channel from the workspace. Only the channel owner can do this.`)) {
+    const name = channel.kind === "success" ? channel.data.name : t("channel.fallbackThisChannel");
+    if (!window.confirm(`${t("channel.confirmArchiveChannelPrefix")} "${name}"?\n${t("channel.confirmArchiveChannelBody")}`)) {
       return;
     }
     setArchiveState({ kind: "loading" });
@@ -434,7 +434,7 @@ export default function ChannelDetailPage() {
       window.dispatchEvent(new Event("channels:changed"));
       router.push(`/workspaces/${workspaceId}`);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to archive channel";
+      const message = err instanceof Error ? err.message : t("channel.errorArchiveChannelFailed");
       setArchiveState({ kind: "error", message });
     }
   }
@@ -442,7 +442,7 @@ export default function ChannelDetailPage() {
   async function handleLeave() {
     if (!channelId || !accessToken || !workspaceId) return;
     const name = channel.kind === "success" ? channel.data.name : "this channel";
-    if (!window.confirm(`Leave channel "${name}"?`)) {
+    if (!window.confirm(`${t("channel.confirmLeaveChannelPrefix")} "${name}"?`)) {
       return;
     }
     setLeaveState({ kind: "loading" });
@@ -452,7 +452,7 @@ export default function ChannelDetailPage() {
       window.dispatchEvent(new Event("channels:changed"));
       router.push(`/workspaces/${workspaceId}`);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to leave channel";
+      const message = err instanceof Error ? err.message : t("channel.errorLeaveChannelFailed");
       setLeaveState({ kind: "error", message });
     }
   }
@@ -461,7 +461,7 @@ export default function ChannelDetailPage() {
     e.preventDefault();
     const trimmed = addMemberIdentifier.trim();
     if (!trimmed) {
-      setAddMemberState({ kind: "error", message: "Username or email is required" });
+      setAddMemberState({ kind: "error", message: t("channel.errorUsernameOrEmailRequired") });
       return;
     }
     if (!accessToken || !workspaceId || !channelId) return;
@@ -478,13 +478,13 @@ export default function ChannelDetailPage() {
       setAddMemberState({ kind: "success" });
       window.setTimeout(() => setAddMemberState({ kind: "idle" }), 2000);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to send invitation";
+      const message = err instanceof Error ? err.message : t("channel.errorSendInvitationFailed");
       setAddMemberState({ kind: "error", message });
     }
   }
 
   async function handleRemoveMember(memberId: string, username: string) {
-    if (!window.confirm(`Remove member "${username}" from this channel?`)) return;
+    if (!window.confirm(`${t("channel.confirmRemoveMemberPrefix")} "${username}" ${t("channel.confirmRemoveMemberSuffix")}`)) return;
     if (!accessToken || !workspaceId || !channelId) return;
 
     setRemoveMemberState({ kind: "loading", memberId });
@@ -496,7 +496,7 @@ export default function ChannelDetailPage() {
         return { kind: "success", data: prev.data.filter((m) => m.id !== memberId) };
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to remove member";
+      const message = err instanceof Error ? err.message : t("channel.errorRemoveMemberFailed");
       setRemoveMemberState({ kind: "error", message });
     }
   }

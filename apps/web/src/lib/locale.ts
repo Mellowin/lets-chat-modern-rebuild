@@ -138,7 +138,25 @@ export type TranslationKey =
   | "channel.edited"
   | "channel.reply"
   | "channel.isTyping"
-  | "channel.areTyping";
+  | "channel.areTyping"
+  | "channel.confirmDeleteMessage"
+  | "channel.confirmArchiveChannelPrefix"
+  | "channel.confirmArchiveChannelBody"
+  | "channel.confirmLeaveChannelPrefix"
+  | "channel.confirmRemoveMemberPrefix"
+  | "channel.confirmRemoveMemberSuffix"
+  | "channel.fallbackThisChannel"
+  | "channel.errorMessageEmpty"
+  | "channel.errorMessageTooLong"
+  | "channel.errorUpdateMessageFailed"
+  | "channel.errorDeleteMessageFailed"
+  | "channel.errorLoadChannelFailed"
+  | "channel.errorLoadMembersFailed"
+  | "channel.errorArchiveChannelFailed"
+  | "channel.errorLeaveChannelFailed"
+  | "channel.errorUsernameOrEmailRequired"
+  | "channel.errorSendInvitationFailed"
+  | "channel.errorRemoveMemberFailed";
 
 const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
   en: {
@@ -263,6 +281,24 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "channel.reply": "reply",
     "channel.isTyping": "is typing…",
     "channel.areTyping": "are typing…",
+    "channel.confirmDeleteMessage": "Delete this message?",
+    "channel.confirmArchiveChannelPrefix": "Archive channel",
+    "channel.confirmArchiveChannelBody": "This will hide the channel from the workspace. Only the channel owner can do this.",
+    "channel.confirmLeaveChannelPrefix": "Leave channel",
+    "channel.confirmRemoveMemberPrefix": "Remove member",
+    "channel.confirmRemoveMemberSuffix": "from this channel?",
+    "channel.fallbackThisChannel": "this channel",
+    "channel.errorMessageEmpty": "Message cannot be empty",
+    "channel.errorMessageTooLong": "Message is too long (max 4000 characters)",
+    "channel.errorUpdateMessageFailed": "Failed to update message",
+    "channel.errorDeleteMessageFailed": "Failed to delete message",
+    "channel.errorLoadChannelFailed": "Failed to load channel",
+    "channel.errorLoadMembersFailed": "Failed to load members",
+    "channel.errorArchiveChannelFailed": "Failed to archive channel",
+    "channel.errorLeaveChannelFailed": "Failed to leave channel",
+    "channel.errorUsernameOrEmailRequired": "Username or email is required",
+    "channel.errorSendInvitationFailed": "Failed to send invitation",
+    "channel.errorRemoveMemberFailed": "Failed to remove member",
   },
   uk: {
     "header.profile": "Профіль",
@@ -386,6 +422,24 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "channel.reply": "відповідь",
     "channel.isTyping": "пише…",
     "channel.areTyping": "пишуть…",
+    "channel.confirmDeleteMessage": "Видалити це повідомлення?",
+    "channel.confirmArchiveChannelPrefix": "Архівувати канал",
+    "channel.confirmArchiveChannelBody": "Це приховає канал з робочого простору. Це може зробити лише власник каналу.",
+    "channel.confirmLeaveChannelPrefix": "Покинути канал",
+    "channel.confirmRemoveMemberPrefix": "Вилучити учасника",
+    "channel.confirmRemoveMemberSuffix": "з цього каналу?",
+    "channel.fallbackThisChannel": "цей канал",
+    "channel.errorMessageEmpty": "Повідомлення не може бути порожнім",
+    "channel.errorMessageTooLong": "Повідомлення занадто довге (максимум 4000 символів)",
+    "channel.errorUpdateMessageFailed": "Не вдалося оновити повідомлення",
+    "channel.errorDeleteMessageFailed": "Не вдалося видалити повідомлення",
+    "channel.errorLoadChannelFailed": "Не вдалося завантажити канал",
+    "channel.errorLoadMembersFailed": "Не вдалося завантажити учасників",
+    "channel.errorArchiveChannelFailed": "Не вдалося архівувати канал",
+    "channel.errorLeaveChannelFailed": "Не вдалося покинути канал",
+    "channel.errorUsernameOrEmailRequired": "Потрібно вказати імʼя користувача або email",
+    "channel.errorSendInvitationFailed": "Не вдалося надіслати запрошення",
+    "channel.errorRemoveMemberFailed": "Не вдалося вилучити учасника",
   },
   ru: {
     "header.profile": "Профиль",
@@ -509,6 +563,24 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "channel.reply": "ответ",
     "channel.isTyping": "печатает…",
     "channel.areTyping": "печатают…",
+    "channel.confirmDeleteMessage": "Удалить это сообщение?",
+    "channel.confirmArchiveChannelPrefix": "Архивировать канал",
+    "channel.confirmArchiveChannelBody": "Это скроет канал из рабочего пространства. Это может сделать только владелец канала.",
+    "channel.confirmLeaveChannelPrefix": "Покинуть канал",
+    "channel.confirmRemoveMemberPrefix": "Удалить участника",
+    "channel.confirmRemoveMemberSuffix": "из этого канала?",
+    "channel.fallbackThisChannel": "этот канал",
+    "channel.errorMessageEmpty": "Сообщение не может быть пустым",
+    "channel.errorMessageTooLong": "Сообщение слишком длинное (максимум 4000 символов)",
+    "channel.errorUpdateMessageFailed": "Не удалось обновить сообщение",
+    "channel.errorDeleteMessageFailed": "Не удалось удалить сообщение",
+    "channel.errorLoadChannelFailed": "Не удалось загрузить канал",
+    "channel.errorLoadMembersFailed": "Не удалось загрузить участников",
+    "channel.errorArchiveChannelFailed": "Не удалось архивировать канал",
+    "channel.errorLeaveChannelFailed": "Не удалось покинуть канал",
+    "channel.errorUsernameOrEmailRequired": "Нужно указать имя пользователя или email",
+    "channel.errorSendInvitationFailed": "Не удалось отправить приглашение",
+    "channel.errorRemoveMemberFailed": "Не удалось удалить участника",
   },
 };
 

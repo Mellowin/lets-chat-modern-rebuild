@@ -2,7 +2,7 @@ import { render, screen, waitFor, fireEvent, act } from "@testing-library/react"
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import ChannelDetailPage from "./page";
-import { getChannel, getChannelMembers, addChannelMember, removeChannelMember, leaveChannel, type ChannelMember } from "@/lib/channels-api";
+import { getChannel, getChannelMembers, addChannelMember, removeChannelMember, leaveChannel, archiveChannel, type ChannelMember } from "@/lib/channels-api";
 import { createChannelInvite } from "@/lib/channel-invites-api";
 import { getMessages, createMessage, updateMessage, deleteMessage, Message } from "@/lib/messages-api";
 
@@ -36,6 +36,7 @@ vi.mock("@/lib/channels-api", () => ({
   addChannelMember: vi.fn(),
   removeChannelMember: vi.fn(),
   leaveChannel: vi.fn(),
+  archiveChannel: vi.fn(),
 }));
 
 vi.mock("@/lib/channel-invites-api", () => ({
@@ -124,6 +125,7 @@ describe("ChannelDetailPage — locale", () => {
 
 describe("ChannelDetailPage — composer", () => {
   beforeEach(() => {
+    localStorage.clear();
     sessionStorage.setItem("accessToken", "token");
     vi.clearAllMocks();
     socketOnMock.mockReset();
@@ -166,6 +168,68 @@ describe("ChannelDetailPage — composer", () => {
     fireEvent.submit(screen.getByRole("button", { name: /Send/i }));
 
     expect(await screen.findByText(/Message cannot be empty/i)).toBeInTheDocument();
+    expect(createMessage).not.toHaveBeenCalled();
+  });
+
+  it("shows Ukrainian validation error on empty submit", async () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    mockChannelAndMessages([]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Напишіть повідомлення/i)).toBeInTheDocument();
+    });
+
+    fireEvent.submit(screen.getByRole("button", { name: /Надіслати/i }));
+
+    expect(await screen.findByText(/Повідомлення не може бути порожнім/i)).toBeInTheDocument();
+    expect(createMessage).not.toHaveBeenCalled();
+  });
+
+  it("shows Russian validation error on empty submit", async () => {
+    localStorage.setItem("lets-chat:locale", "ru");
+    mockChannelAndMessages([]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Напишите сообщение/i)).toBeInTheDocument();
+    });
+
+    fireEvent.submit(screen.getByRole("button", { name: /Отправить/i }));
+
+    expect(await screen.findByText(/Сообщение не может быть пустым/i)).toBeInTheDocument();
+    expect(createMessage).not.toHaveBeenCalled();
+  });
+
+  it("shows Ukrainian validation error on whitespace-only submit", async () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    mockChannelAndMessages([]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Напишіть повідомлення/i)).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Напишіть повідомлення/i), "   \n\n   ");
+    fireEvent.submit(screen.getByRole("button", { name: /Надіслати/i }));
+
+    expect(await screen.findByText(/Повідомлення не може бути порожнім/i)).toBeInTheDocument();
+    expect(createMessage).not.toHaveBeenCalled();
+  });
+
+  it("shows Russian validation error on whitespace-only submit", async () => {
+    localStorage.setItem("lets-chat:locale", "ru");
+    mockChannelAndMessages([]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Напишите сообщение/i)).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Напишите сообщение/i), "   \n\n   ");
+    fireEvent.submit(screen.getByRole("button", { name: /Отправить/i }));
+
+    expect(await screen.findByText(/Сообщение не может быть пустым/i)).toBeInTheDocument();
     expect(createMessage).not.toHaveBeenCalled();
   });
 
@@ -256,6 +320,7 @@ describe("ChannelDetailPage — composer", () => {
 
 describe("ChannelDetailPage — message author identity", () => {
   beforeEach(() => {
+    localStorage.clear();
     sessionStorage.setItem("accessToken", "token");
     vi.clearAllMocks();
   });
@@ -407,6 +472,7 @@ describe("ChannelDetailPage — message author identity", () => {
 
 describe("ChannelDetailPage — edit/delete", () => {
   beforeEach(() => {
+    localStorage.clear();
     sessionStorage.setItem("accessToken", "token");
     vi.clearAllMocks();
     socketOnMock.mockReset();
@@ -589,6 +655,7 @@ describe("ChannelDetailPage — edit/delete", () => {
 
 describe("ChannelDetailPage — message action locale", () => {
   beforeEach(() => {
+    localStorage.clear();
     sessionStorage.setItem("accessToken", "token");
     vi.clearAllMocks();
     socketOnMock.mockReset();
@@ -701,10 +768,47 @@ describe("ChannelDetailPage — message action locale", () => {
     expect(screen.getByRole("button", { name: /Сохранить/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Отмена/i })).toBeInTheDocument();
   });
+
+  it("calls confirm with Ukrainian delete message text", async () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    mockChannelAndMessages([ownMessage]);
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    vi.mocked(deleteMessage).mockResolvedValueOnce(undefined);
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Видалити/i }));
+
+    expect(confirmSpy).toHaveBeenCalledWith("Видалити це повідомлення?");
+    confirmSpy.mockRestore();
+  });
+
+  it("calls confirm with Russian delete message text", async () => {
+    localStorage.setItem("lets-chat:locale", "ru");
+    mockChannelAndMessages([ownMessage]);
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    vi.mocked(deleteMessage).mockResolvedValueOnce(undefined);
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Удалить/i }));
+
+    expect(confirmSpy).toHaveBeenCalledWith("Удалить это сообщение?");
+    confirmSpy.mockRestore();
+  });
 });
 
 describe("ChannelDetailPage — WebSocket live events", () => {
   beforeEach(() => {
+    localStorage.clear();
     sessionStorage.setItem("accessToken", "token");
     vi.clearAllMocks();
     socketOnMock.mockClear();
@@ -846,6 +950,7 @@ describe("ChannelDetailPage — WebSocket live events", () => {
 
 describe("ChannelDetailPage — members", () => {
   beforeEach(() => {
+    localStorage.clear();
     sessionStorage.setItem("accessToken", "token");
     vi.clearAllMocks();
     socketOnMock.mockReset();
@@ -1011,6 +1116,26 @@ describe("ChannelDetailPage — members", () => {
     expect(screen.getByRole("button", { name: /Archive/i })).toBeInTheDocument();
   });
 
+  it("calls confirm with Ukrainian archive channel text", async () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    mockChannelAndMessages([], [ownerMember]);
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    vi.mocked(archiveChannel).mockResolvedValueOnce(undefined);
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Архівувати/i })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Архівувати/i }));
+
+    expect(confirmSpy).toHaveBeenCalledWith(
+      'Архівувати канал "general"?\nЦе приховає канал з робочого простору. Це може зробити лише власник каналу.'
+    );
+    confirmSpy.mockRestore();
+  });
+
   it("MEMBER sees Leave channel button", async () => {
     mockChannelAndMessages([], [regularMember]);
     render(<ChannelDetailPage />);
@@ -1071,6 +1196,25 @@ describe("ChannelDetailPage — members", () => {
 
     confirmSpy.mockRestore();
     dispatchSpy.mockRestore();
+  });
+
+  it("calls confirm with Russian leave channel text", async () => {
+    localStorage.setItem("lets-chat:locale", "ru");
+    mockChannelAndMessages([], [regularMember]);
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+    vi.mocked(leaveChannel).mockResolvedValueOnce({ success: true });
+    routerPushMock.mockClear();
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Покинуть канал/i })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Покинуть канал/i }));
+
+    expect(confirmSpy).toHaveBeenCalledWith('Покинуть канал "general"?');
+    confirmSpy.mockRestore();
   });
 
   it("cancel confirm does not call leaveChannel", async () => {
@@ -1271,6 +1415,7 @@ describe("ChannelDetailPage — members", () => {
 
 describe("ChannelDetailPage — remove member", () => {
   beforeEach(() => {
+    localStorage.clear();
     sessionStorage.setItem("accessToken", "token");
     vi.clearAllMocks();
     socketOnMock.mockReset();
@@ -1467,6 +1612,7 @@ describe("ChannelDetailPage — remove member", () => {
 
 describe("ChannelDetailPage — access lost redirect", () => {
   beforeEach(() => {
+    localStorage.clear();
     sessionStorage.setItem("accessToken", "token");
     vi.clearAllMocks();
     socketOnMock.mockReset();
@@ -1535,6 +1681,7 @@ describe("ChannelDetailPage — access lost redirect", () => {
 
 describe("ChannelDetailPage — socket access-loss handling", () => {
   beforeEach(() => {
+    localStorage.clear();
     sessionStorage.setItem("accessToken", "token");
     vi.clearAllMocks();
     socketOnMock.mockClear();
