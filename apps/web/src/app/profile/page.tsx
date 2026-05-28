@@ -192,7 +192,7 @@ export default function ProfilePage() {
       </div>
 
       <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
-        <h2 className="text-sm font-semibold">Edit display name</h2>
+        <h2 className="text-sm font-semibold">{t("profile.editDisplayName")}</h2>
         <form onSubmit={handleUpdateDisplayName} className="mt-3 flex flex-col sm:flex-row items-start gap-3">
           <input
             type="text"

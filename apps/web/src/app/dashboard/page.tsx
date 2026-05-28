@@ -247,7 +247,7 @@ export default function DashboardPage() {
         <div className="text-center">
           <h1 className="text-xl font-semibold">{t("auth.authRequired")}</h1>
           <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-            Please sign in to view your dashboard.
+            {t("auth.pleaseSignInDashboard")}
           </p>
           <Link
             href="/login"

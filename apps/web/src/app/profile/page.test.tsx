@@ -356,6 +356,7 @@ describe("ProfilePage — authenticated", () => {
       expect(screen.getByRole("heading", { name: "Інформація акаунта" })).toBeInTheDocument();
       expect(screen.getByRole("heading", { name: "Аватар" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Завантажити аватар" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Редагувати відображуване імʼя" })).toBeInTheDocument();
       expect(screen.getByRole("heading", { name: "Мова інтерфейсу" })).toBeInTheDocument();
     });
 
@@ -374,6 +375,7 @@ describe("ProfilePage — authenticated", () => {
       expect(screen.getByRole("heading", { name: "Информация аккаунта" })).toBeInTheDocument();
       expect(screen.getByRole("heading", { name: "Аватар" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Загрузить аватар" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Редактировать отображаемое имя" })).toBeInTheDocument();
       expect(screen.getByRole("heading", { name: "Язык интерфейса" })).toBeInTheDocument();
     });
   });

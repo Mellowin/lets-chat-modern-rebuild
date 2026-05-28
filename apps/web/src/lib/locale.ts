@@ -29,6 +29,7 @@ export type TranslationKey =
   | "profile.uploadAvatar"
   | "profile.uploading"
   | "profile.avatarUpdated"
+  | "profile.editDisplayName"
   | "profile.interfaceLanguage"
   | "profile.selected"
   | "dashboard.welcome"
@@ -60,6 +61,7 @@ export type TranslationKey =
   | "auth.loadingSession"
   | "auth.authRequired"
   | "auth.pleaseSignIn"
+  | "auth.pleaseSignInDashboard"
   | "auth.signIn";
 
 const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
@@ -75,6 +77,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "profile.username": "Username",
     "profile.displayName": "Display name",
     "profile.displayNamePlaceholder": "Your display name",
+    "profile.editDisplayName": "Edit display name",
     "profile.save": "Save",
     "profile.saving": "Saving…",
     "profile.displayNameUpdated": "Display name updated.",
@@ -113,6 +116,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "auth.loadingSession": "Loading session…",
     "auth.authRequired": "Authentication required",
     "auth.pleaseSignIn": "Please sign in to view your profile.",
+    "auth.pleaseSignInDashboard": "Please sign in to view your dashboard.",
     "auth.signIn": "Sign in",
   },
   uk: {
@@ -127,6 +131,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "profile.username": "Імʼя користувача",
     "profile.displayName": "Відображуване імʼя",
     "profile.displayNamePlaceholder": "Ваше відображуване імʼя",
+    "profile.editDisplayName": "Редагувати відображуване імʼя",
     "profile.save": "Зберегти імʼя",
     "profile.saving": "Зберігаємо…",
     "profile.displayNameUpdated": "Імʼя оновлено.",
@@ -165,6 +170,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "auth.loadingSession": "Завантажуємо сесію…",
     "auth.authRequired": "Потрібна автентифікація",
     "auth.pleaseSignIn": "Увійдіть, щоб переглянути профіль.",
+    "auth.pleaseSignInDashboard": "Увійдіть, щоб переглянути панель.",
     "auth.signIn": "Увійти",
   },
   ru: {
@@ -179,6 +185,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "profile.username": "Имя пользователя",
     "profile.displayName": "Отображаемое имя",
     "profile.displayNamePlaceholder": "Ваше отображаемое имя",
+    "profile.editDisplayName": "Редактировать отображаемое имя",
     "profile.save": "Сохранить имя",
     "profile.saving": "Сохраняем…",
     "profile.displayNameUpdated": "Имя обновлено.",
@@ -217,6 +224,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "auth.loadingSession": "Загружаем сессию…",
     "auth.authRequired": "Требуется аутентификация",
     "auth.pleaseSignIn": "Войдите, чтобы просмотреть профиль.",
+    "auth.pleaseSignInDashboard": "Войдите, чтобы просмотреть панель.",
     "auth.signIn": "Войти",
   },
 };

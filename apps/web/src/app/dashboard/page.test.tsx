@@ -51,6 +51,72 @@ function mockAuth(userOverrides?: Partial<ReturnType<typeof useAuth>>) {
   } as ReturnType<typeof useAuth>);
 }
 
+describe("DashboardPage — unauthenticated", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+  });
+
+  it("shows auth required message in English by default", () => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: null,
+      accessToken: null,
+      refreshToken: null,
+      isLoading: false,
+      isAuthenticated: false,
+      loginSuccess: vi.fn(),
+      setUser: vi.fn(),
+      logout: vi.fn(),
+    } as ReturnType<typeof useAuth>);
+
+    render(<DashboardPage />);
+
+    expect(screen.getByText(/Authentication required/i)).toBeInTheDocument();
+    expect(screen.getByText(/Please sign in to view your dashboard/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Sign in/i })).toBeInTheDocument();
+  });
+
+  it("shows Ukrainian auth required message when locale is uk", () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    vi.mocked(useAuth).mockReturnValue({
+      user: null,
+      accessToken: null,
+      refreshToken: null,
+      isLoading: false,
+      isAuthenticated: false,
+      loginSuccess: vi.fn(),
+      setUser: vi.fn(),
+      logout: vi.fn(),
+    } as ReturnType<typeof useAuth>);
+
+    render(<DashboardPage />);
+
+    expect(screen.getByText(/Потрібна автентифікація/i)).toBeInTheDocument();
+    expect(screen.getByText(/Увійдіть, щоб переглянути панель/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Увійти/i })).toBeInTheDocument();
+  });
+
+  it("shows Russian auth required message when locale is ru", () => {
+    localStorage.setItem("lets-chat:locale", "ru");
+    vi.mocked(useAuth).mockReturnValue({
+      user: null,
+      accessToken: null,
+      refreshToken: null,
+      isLoading: false,
+      isAuthenticated: false,
+      loginSuccess: vi.fn(),
+      setUser: vi.fn(),
+      logout: vi.fn(),
+    } as ReturnType<typeof useAuth>);
+
+    render(<DashboardPage />);
+
+    expect(screen.getByText(/Требуется аутентификация/i)).toBeInTheDocument();
+    expect(screen.getByText(/Войдите, чтобы просмотреть панель/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Войти/i })).toBeInTheDocument();
+  });
+});
+
 describe("DashboardPage — profile link", () => {
   beforeEach(() => {
     vi.clearAllMocks();
