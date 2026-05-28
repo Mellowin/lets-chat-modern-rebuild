@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { useLocale } from "@/lib/locale";
+import { useLocale, translate, getLocale } from "@/lib/locale";
 import { getChannel, getChannelMembers, removeChannelMember, archiveChannel, leaveChannel, type Channel, type ChannelMember } from "@/lib/channels-api";
 import { createChannelInvite } from "@/lib/channel-invites-api";
 
@@ -96,7 +96,7 @@ export default function ChannelDetailPage() {
         }
       } catch (err) {
         const message =
-          err instanceof Error ? err.message : t("channel.errorLoadChannelFailed");
+          err instanceof Error ? err.message : translate(getLocale(), "channel.errorLoadChannelFailed");
         if (!cancelled) {
           setChannel({ kind: "error", message });
           setMessages({ kind: "error", message });
@@ -135,7 +135,7 @@ export default function ChannelDetailPage() {
         }
       } catch (err) {
         const message =
-          err instanceof Error ? err.message : t("channel.errorLoadMembersFailed");
+          err instanceof Error ? err.message : translate(getLocale(), "channel.errorLoadMembersFailed");
         if (!cancelled) {
           setMembers({ kind: "error", message });
         }
