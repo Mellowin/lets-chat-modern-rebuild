@@ -54,6 +54,7 @@ function mockAuth(userOverrides?: Partial<ReturnType<typeof useAuth>>) {
 describe("DashboardPage — profile link", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     vi.mocked(getWorkspaces).mockResolvedValue([]);
     vi.mocked(getPendingInvites).mockResolvedValue([]);
     vi.mocked(getPendingChannelInvites).mockResolvedValue([]);
@@ -77,6 +78,7 @@ describe("DashboardPage — profile link", () => {
 describe("DashboardPage — user identity", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     vi.mocked(getWorkspaces).mockResolvedValue([]);
     vi.mocked(getPendingInvites).mockResolvedValue([]);
     vi.mocked(getPendingChannelInvites).mockResolvedValue([]);
@@ -142,9 +144,65 @@ describe("DashboardPage — user identity", () => {
   });
 });
 
+describe("DashboardPage — interface language", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    vi.mocked(getWorkspaces).mockResolvedValue([]);
+    vi.mocked(getPendingInvites).mockResolvedValue([]);
+    vi.mocked(getPendingChannelInvites).mockResolvedValue([]);
+    vi.mocked(listArchivedWorkspaces).mockResolvedValue([]);
+  });
+
+  it("shows English dashboard labels by default", async () => {
+    mockAuth();
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Welcome, alice/i)).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole("link", { name: /Profile settings/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Create workspace/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Your Workspaces/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Create$/i })).toBeInTheDocument();
+  });
+
+  it("shows Ukrainian dashboard labels when localStorage locale is 'uk'", async () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    mockAuth();
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Вітаємо, alice/i)).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole("link", { name: /Налаштування профілю/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Створити робочий простір/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Ваші робочі простори/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Створити$/i })).toBeInTheDocument();
+  });
+
+  it("shows Russian dashboard labels when localStorage locale is 'ru'", async () => {
+    localStorage.setItem("lets-chat:locale", "ru");
+    mockAuth();
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Добро пожаловать, alice/i)).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole("link", { name: /Настройки профиля/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Создать рабочее пространство/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Ваши рабочие пространства/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Создать$/i })).toBeInTheDocument();
+  });
+});
+
 describe("DashboardPage — workspace list", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     vi.mocked(getPendingInvites).mockResolvedValue([]);
     vi.mocked(getPendingChannelInvites).mockResolvedValue([]);
     vi.mocked(listArchivedWorkspaces).mockResolvedValue([]);

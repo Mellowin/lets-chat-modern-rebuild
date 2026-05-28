@@ -338,7 +338,43 @@ describe("ProfilePage — authenticated", () => {
 
       await userEvent.click(screen.getByRole("button", { name: "Українська" }));
 
-      expect(screen.getByText(/Selected: Українська/i)).toBeInTheDocument();
+      expect(screen.getByText(/Обрано: Українська/i)).toBeInTheDocument();
+    });
+
+    it("shows Ukrainian labels after selecting Ukrainian", async () => {
+      mockAuth();
+      render(<ProfilePage />);
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: "Українська" })).toBeInTheDocument();
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: "Українська" }));
+
+      expect(screen.getByRole("heading", { name: "Профіль" })).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /Назад до панелі/i })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Інформація акаунта" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Аватар" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Завантажити аватар" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Мова інтерфейсу" })).toBeInTheDocument();
+    });
+
+    it("shows Russian labels after selecting Russian", async () => {
+      mockAuth();
+      render(<ProfilePage />);
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: "Русский" })).toBeInTheDocument();
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: "Русский" }));
+
+      expect(screen.getByRole("heading", { name: "Профиль" })).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /Назад к панели/i })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Информация аккаунта" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Аватар" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Загрузить аватар" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Язык интерфейса" })).toBeInTheDocument();
     });
   });
 });

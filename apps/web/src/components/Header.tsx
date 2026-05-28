@@ -3,9 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
+import { useLocale } from "@/lib/locale";
 
 export default function Header() {
   const { user, isAuthenticated, isLoading, logout } = useAuth();
+  const { t } = useLocale();
 
   return (
     <header className="flex items-center justify-between h-14 px-4 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
@@ -37,13 +39,13 @@ export default function Header() {
               href="/profile"
               className="inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-xs font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
             >
-              Profile
+              {t("header.profile")}
             </Link>
             <button
               onClick={() => logout()}
               className="inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
             >
-              Logout
+              {t("header.logout")}
             </button>
           </>
         ) : (
@@ -52,13 +54,13 @@ export default function Header() {
               href="/login"
               className="inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-xs font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
             >
-              Sign in
+              {t("header.signIn")}
             </Link>
             <Link
               href="/register"
               className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
             >
-              Create account
+              {t("header.createAccount")}
             </Link>
           </>
         )}

@@ -10,6 +10,7 @@ import { getWorkspaces, createWorkspace, archiveWorkspace, listArchivedWorkspace
 import { getPendingInvites, acceptInvite, declineInvite, type PendingInvite } from "@/lib/invites-api";
 import { getPendingChannelInvites, acceptChannelInvite, declineChannelInvite, type PendingChannelInvite } from "@/lib/channel-invites-api";
 import { slugify } from "@/lib/transliterate";
+import { useLocale } from "@/lib/locale";
 
 type WorkspacesState =
   | { kind: "idle" }
@@ -42,6 +43,7 @@ type ArchivedWorkspacesState =
 
 export default function DashboardPage() {
   const { user, accessToken, isLoading: authLoading, isAuthenticated } = useAuth();
+  const { t } = useLocale();
   const [workspaces, setWorkspaces] = useState<WorkspacesState>({ kind: "idle" });
   const [createState, setCreateState] = useState<CreateState>({ kind: "idle" });
   const [archiveError, setArchiveError] = useState<string | null>(null);
@@ -233,7 +235,7 @@ export default function DashboardPage() {
       <div className="flex flex-1 items-center justify-center p-6">
         <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
           <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
-          Loading session…
+          {t("auth.loadingSession")}
         </div>
       </div>
     );
@@ -243,7 +245,7 @@ export default function DashboardPage() {
     return (
       <div className="flex flex-1 items-center justify-center p-6">
         <div className="text-center">
-          <h1 className="text-xl font-semibold">Authentication required</h1>
+          <h1 className="text-xl font-semibold">{t("auth.authRequired")}</h1>
           <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
             Please sign in to view your dashboard.
           </p>
@@ -251,7 +253,7 @@ export default function DashboardPage() {
             href="/login"
             className="mt-4 inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
           >
-            Sign in
+            {t("auth.signIn")}
           </Link>
         </div>
       </div>
@@ -272,10 +274,10 @@ export default function DashboardPage() {
         </div>
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
-            Welcome, {user?.displayName || user?.username}
+            {t("dashboard.welcome")}, {user?.displayName || user?.username}
           </h1>
           <p className="mt-1 text-zinc-600 dark:text-zinc-400">
-            You are signed in as {user?.email}.
+            {t("dashboard.signedInAs")} {user?.email}.
           </p>
         </div>
       </div>
@@ -285,24 +287,24 @@ export default function DashboardPage() {
           href="/profile"
           className="inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
         >
-          Profile settings
+          {t("dashboard.profileSettings")}
         </Link>
       </div>
 
       {/* Create workspace form */}
       <div className="mt-8 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
-        <h2 className="text-sm font-semibold">Create workspace</h2>
+        <h2 className="text-sm font-semibold">{t("dashboard.createWorkspace")}</h2>
         <form onSubmit={handleCreate} className="mt-4 flex flex-col sm:flex-row items-start gap-3">
           <input
             type="text"
-            placeholder="Workspace name"
+            placeholder={t("dashboard.workspaceName")}
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="flex-1 w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
           />
           <input
             type="text"
-            placeholder="slug (optional, auto-generated)"
+            placeholder={t("dashboard.workspaceSlug")}
             value={slug}
             onChange={(e) => setSlug(e.target.value)}
             className="flex-1 w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
@@ -312,7 +314,7 @@ export default function DashboardPage() {
             disabled={createState.kind === "loading"}
             className="inline-flex w-full sm:w-auto items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
           >
-            {createState.kind === "loading" ? "Creating…" : "Create"}
+            {createState.kind === "loading" ? t("dashboard.creating") : t("dashboard.create")}
           </button>
         </form>
         {createState.kind === "error" && (
@@ -328,13 +330,13 @@ export default function DashboardPage() {
       {/* Pending invites */}
       <div className="mt-8 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Pending Invitations</h2>
+          <h2 className="text-sm font-semibold">{t("dashboard.pendingInvitations")}</h2>
         </div>
         <div className="mt-3">
           {invites.kind === "idle" || invites.kind === "loading" ? (
             <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300 py-4">
               <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
-              Loading invites…
+              {t("dashboard.loadingInvites")}
             </div>
           ) : invites.kind === "error" ? (
             <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
@@ -345,7 +347,7 @@ export default function DashboardPage() {
             </div>
           ) : invites.data.length === 0 ? (
             <p className="text-sm text-zinc-500 dark:text-zinc-400 py-4">
-              No pending invitations.
+              {t("dashboard.noPendingInvitations")}
             </p>
           ) : (
             <>
@@ -366,13 +368,13 @@ export default function DashboardPage() {
                     <div className="min-w-0">
                       <p className="text-sm font-medium">{inv.workspace.name}</p>
                       <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                        Invited by{" "}
+                        {t("dashboard.invitedBy")}{" "}
                         {inv.invitedBy.displayName?.trim()
                           ? inv.invitedBy.displayName
                           : `@${inv.invitedBy.username}`}
                       </p>
                       <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                        You will join as {inv.role}
+                        {t("dashboard.joinAs")} {inv.role}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
@@ -380,13 +382,13 @@ export default function DashboardPage() {
                         onClick={() => handleDeclineInvite(inv.id)}
                         className="inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                       >
-                        Decline
+                        {t("dashboard.decline")}
                       </button>
                       <button
                         onClick={() => handleAcceptInvite(inv.id, inv.workspace.id)}
                         className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
                       >
-                        Accept
+                        {t("dashboard.accept")}
                       </button>
                     </div>
                   </li>
@@ -400,13 +402,13 @@ export default function DashboardPage() {
       {/* Pending channel invites */}
       <div className="mt-8 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Pending Channel Invitations</h2>
+          <h2 className="text-sm font-semibold">{t("dashboard.pendingChannelInvitations")}</h2>
         </div>
         <div className="mt-3">
           {channelInvites.kind === "idle" || channelInvites.kind === "loading" ? (
             <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300 py-4">
               <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
-              Loading channel invites…
+              {t("dashboard.loadingChannelInvites")}
             </div>
           ) : channelInvites.kind === "error" ? (
             <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
@@ -417,7 +419,7 @@ export default function DashboardPage() {
             </div>
           ) : channelInvites.data.length === 0 ? (
             <p className="text-sm text-zinc-500 dark:text-zinc-400 py-4">
-              No pending channel invitations.
+              {t("dashboard.noPendingChannelInvitations")}
             </p>
           ) : (
             <>
@@ -439,13 +441,13 @@ export default function DashboardPage() {
                       <p className="text-sm font-medium">{inv.workspace.name}</p>
                       <p className="text-xs text-zinc-500 dark:text-zinc-400">{inv.channel.name}</p>
                       <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                        Invited by{" "}
+                        {t("dashboard.invitedBy")}{" "}
                         {inv.invitedBy.displayName?.trim()
                           ? inv.invitedBy.displayName
                           : `@${inv.invitedBy.username}`}
                       </p>
                       <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                        You will join as {inv.role}
+                        {t("dashboard.joinAs")} {inv.role}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
@@ -453,13 +455,13 @@ export default function DashboardPage() {
                         onClick={() => handleDeclineChannelInvite(inv.id)}
                         className="inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                       >
-                        Decline
+                        {t("dashboard.decline")}
                       </button>
                       <button
                         onClick={() => handleAcceptChannelInvite(inv.id, inv.workspace.id, inv.channel.id)}
                         className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
                       >
-                        Accept
+                        {t("dashboard.accept")}
                       </button>
                     </div>
                   </li>
@@ -473,7 +475,7 @@ export default function DashboardPage() {
       {/* Workspace list */}
       <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 p-5">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Your Workspaces</h2>
+          <h2 className="text-sm font-semibold">{t("dashboard.yourWorkspaces")}</h2>
         </div>
 
         <div className="mt-3">
@@ -491,7 +493,7 @@ export default function DashboardPage() {
             </div>
           ) : workspaces.data.length === 0 ? (
             <p className="text-sm text-zinc-500 dark:text-zinc-400 py-4">
-              No workspaces yet. Create one to get started.
+              {t("dashboard.noWorkspaces")}
             </p>
           ) : (
             <>
@@ -529,7 +531,7 @@ export default function DashboardPage() {
                           onClick={(e) => handleArchiveWorkspace(e, ws.id, ws.name)}
                           className="text-[10px] text-red-600 dark:text-red-400 hover:underline"
                         >
-                          Archive
+                          {t("dashboard.archive")}
                         </button>
                       )}
                     </div>
@@ -544,14 +546,14 @@ export default function DashboardPage() {
       {/* Archived workspaces */}
       <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-zinc-600 dark:text-zinc-400">Archived Workspaces</h2>
+          <h2 className="text-sm font-semibold text-zinc-600 dark:text-zinc-400">{t("dashboard.archivedWorkspaces")}</h2>
         </div>
 
         <div className="mt-3">
           {archivedWorkspaces.kind === "idle" || archivedWorkspaces.kind === "loading" ? (
             <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300 py-4">
               <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
-              Loading archived workspaces…
+              {t("dashboard.loadingArchived")}
             </div>
           ) : archivedWorkspaces.kind === "error" ? (
             <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
@@ -562,7 +564,7 @@ export default function DashboardPage() {
             </div>
           ) : archivedWorkspaces.data.length === 0 ? (
             <p className="text-sm text-zinc-500 dark:text-zinc-400 py-4">
-              No archived workspaces.
+              {t("dashboard.noArchivedWorkspaces")}
             </p>
           ) : (
             <>
@@ -591,7 +593,7 @@ export default function DashboardPage() {
                         onClick={(e) => handleRestoreWorkspace(e, ws.id, ws.name)}
                         className="inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                       >
-                        Restore
+                        {t("dashboard.restore")}
                       </button>
                     </div>
                   </li>

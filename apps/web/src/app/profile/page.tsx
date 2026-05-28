@@ -20,7 +20,7 @@ const LOCALE_OPTIONS: Locale[] = ["en", "uk", "ru"];
 
 export default function ProfilePage() {
   const { user, accessToken, isLoading: authLoading, isAuthenticated, setUser } = useAuth();
-  const { locale, setLocale } = useLocale();
+  const { locale, setLocale, t } = useLocale();
 
   const [displayNameInput, setDisplayNameInput] = useState("");
   const [displayNameState, setDisplayNameState] = useState<FormState>({ kind: "idle" });
@@ -93,7 +93,7 @@ export default function ProfilePage() {
       <div className="flex flex-1 items-center justify-center p-6">
         <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
           <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
-          Loading session…
+          {t("auth.loadingSession")}
         </div>
       </div>
     );
@@ -103,15 +103,15 @@ export default function ProfilePage() {
     return (
       <div className="flex flex-1 items-center justify-center p-6">
         <div className="text-center">
-          <h1 className="text-xl font-semibold">Authentication required</h1>
+          <h1 className="text-xl font-semibold">{t("auth.authRequired")}</h1>
           <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-            Please sign in to view your profile.
+            {t("auth.pleaseSignIn")}
           </p>
           <Link
             href="/login"
             className="mt-4 inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
           >
-            Sign in
+            {t("auth.signIn")}
           </Link>
         </div>
       </div>
@@ -124,31 +124,31 @@ export default function ProfilePage() {
         href="/dashboard"
         className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
       >
-        ← Back to dashboard
+        {t("profile.back")}
       </Link>
 
-      <h1 className="mt-6 text-2xl font-semibold tracking-tight">Profile</h1>
+      <h1 className="mt-6 text-2xl font-semibold tracking-tight">{t("profile.title")}</h1>
 
       <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
-        <h2 className="text-sm font-semibold">Account information</h2>
+        <h2 className="text-sm font-semibold">{t("profile.accountInfo")}</h2>
         <div className="mt-3 space-y-2 text-sm">
           <div className="flex items-center gap-2">
-            <span className="text-zinc-500 dark:text-zinc-400 w-20">Email</span>
+            <span className="text-zinc-500 dark:text-zinc-400 w-20">{t("profile.email")}</span>
             <span className="font-medium">{user?.email}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-zinc-500 dark:text-zinc-400 w-20">Username</span>
+            <span className="text-zinc-500 dark:text-zinc-400 w-20">{t("profile.username")}</span>
             <span className="font-medium">{user?.username}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-zinc-500 dark:text-zinc-400 w-20">Display name</span>
+            <span className="text-zinc-500 dark:text-zinc-400 w-20">{t("profile.displayName")}</span>
             <span className="font-medium">{user?.displayName ?? "—"}</span>
           </div>
         </div>
       </div>
 
       <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
-        <h2 className="text-sm font-semibold">Avatar</h2>
+        <h2 className="text-sm font-semibold">{t("profile.avatar")}</h2>
         <div className="mt-3 flex items-center gap-4">
           <div className="relative h-16 w-16 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center overflow-hidden">
             {avatarPreview ? (
@@ -175,11 +175,11 @@ export default function ProfilePage() {
               disabled={avatarState.kind === "loading"}
               className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
             >
-              {avatarState.kind === "loading" ? "Uploading…" : "Upload avatar"}
+              {avatarState.kind === "loading" ? t("profile.uploading") : t("profile.uploadAvatar")}
             </button>
             {avatarState.kind === "success" && (
               <div className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
-                Avatar updated.
+                {t("profile.avatarUpdated")}
               </div>
             )}
             {avatarState.kind === "error" && (
@@ -196,7 +196,7 @@ export default function ProfilePage() {
         <form onSubmit={handleUpdateDisplayName} className="mt-3 flex flex-col sm:flex-row items-start gap-3">
           <input
             type="text"
-            placeholder="Your display name"
+            placeholder={t("profile.displayNamePlaceholder")}
             value={displayNameInput}
             onChange={(e) => setDisplayNameInput(e.target.value)}
             disabled={displayNameState.kind === "loading"}
@@ -207,14 +207,14 @@ export default function ProfilePage() {
             disabled={displayNameState.kind === "loading"}
             className="inline-flex w-full sm:w-auto items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
           >
-            {displayNameState.kind === "loading" ? "Saving…" : "Save"}
+            {displayNameState.kind === "loading" ? t("profile.saving") : t("profile.save")}
           </button>
         </form>
         {displayNameState.kind === "success" && (
           <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
             <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
               <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              Display name updated.
+              {t("profile.displayNameUpdated")}
             </div>
           </div>
         )}
@@ -229,7 +229,7 @@ export default function ProfilePage() {
       </div>
 
       <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
-        <h2 className="text-sm font-semibold">Interface language</h2>
+        <h2 className="text-sm font-semibold">{t("profile.interfaceLanguage")}</h2>
         <div className="mt-3 flex flex-wrap gap-2">
           {LOCALE_OPTIONS.map((loc) => {
             const active = locale === loc;
@@ -251,7 +251,7 @@ export default function ProfilePage() {
           })}
         </div>
         <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-          Selected: {localeLabel(locale)}
+          {t("profile.selected")} {localeLabel(locale)}
         </p>
       </div>
     </div>
