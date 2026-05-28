@@ -17,6 +17,7 @@ describe('ChannelsController', () => {
     displayName: null,
     avatarUrl: null,
     avatarUpdatedAt: null,
+    interfaceLanguage: 'en',
     createdAt: new Date(),
   };
 

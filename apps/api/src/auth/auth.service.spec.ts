@@ -24,6 +24,7 @@ describe('AuthService', () => {
             createUser: jest.fn(),
             updateDisplayName: jest.fn(),
             updateAvatar: jest.fn(),
+            updateInterfaceLanguage: jest.fn(),
           },
         },
         {
@@ -71,6 +72,7 @@ describe('AuthService', () => {
       passwordHash: 'hash',
       avatarUrl: null,
       avatarUpdatedAt: null,
+      interfaceLanguage: 'en',
       createdAt: new Date(),
       updatedAt: new Date(),
       deletedAt: null,
@@ -87,7 +89,7 @@ describe('AuthService', () => {
     expect(result.displayName).toBe('John Doe');
   });
 
-  it('toAuthUserResponse includes displayName and avatar fields', () => {
+  it('toAuthUserResponse includes displayName, avatar, and interfaceLanguage fields', () => {
     const user = {
       id: 'user-id',
       email: 'u@test.com',
@@ -95,6 +97,7 @@ describe('AuthService', () => {
       displayName: 'Jane Doe',
       avatarUrl: '/avatars/avatar-1.svg',
       avatarUpdatedAt: new Date('2024-01-01'),
+      interfaceLanguage: 'uk',
       passwordHash: 'hash',
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -109,9 +112,10 @@ describe('AuthService', () => {
     expect(result.displayName).toBe('Jane Doe');
     expect(result.avatarUrl).toBe('/avatars/avatar-1.svg');
     expect(result.avatarUpdatedAt).toEqual(new Date('2024-01-01'));
+    expect(result.interfaceLanguage).toBe('uk');
   });
 
-  it('toAuthUserResponse handles null avatar fields', () => {
+  it('toAuthUserResponse defaults interfaceLanguage to en when missing', () => {
     const user = {
       id: 'user-id',
       email: 'u@test.com',
@@ -132,6 +136,33 @@ describe('AuthService', () => {
 
     expect(result.avatarUrl).toBeNull();
     expect(result.avatarUpdatedAt).toBeNull();
+    expect(result.interfaceLanguage).toBe('en');
+  });
+
+  it('updateInterfaceLanguage calls users.updateInterfaceLanguage and returns AuthUserResponse', async () => {
+    const user = {
+      id: 'user-id',
+      email: 'u@test.com',
+      username: 'user',
+      displayName: null,
+      avatarUrl: null,
+      avatarUpdatedAt: null,
+      interfaceLanguage: 'ru',
+      passwordHash: 'hash',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      deletedAt: null,
+    };
+
+    usersRepository.updateInterfaceLanguage.mockResolvedValue(user);
+
+    const result = await service.updateInterfaceLanguage('user-id', 'ru');
+
+    expect(usersRepository.updateInterfaceLanguage).toHaveBeenCalledWith(
+      'user-id',
+      'ru',
+    );
+    expect(result.interfaceLanguage).toBe('ru');
   });
 
   it('updateAvatar calls users.updateAvatar and returns AuthUserResponse with avatarUrl', async () => {
@@ -143,6 +174,7 @@ describe('AuthService', () => {
       avatarUrl: '/avatars/avatar-3.svg',
       avatarUpdatedAt: new Date(),
       passwordHash: 'hash',
+      interfaceLanguage: 'en',
       createdAt: new Date(),
       updatedAt: new Date(),
       deletedAt: null,
@@ -172,6 +204,7 @@ describe('AuthService', () => {
       avatarUrl: '/avatars/avatar-1.svg',
       avatarUpdatedAt: new Date(),
       passwordHash: 'super-secret-hash',
+      interfaceLanguage: 'en',
       createdAt: new Date(),
       updatedAt: new Date(),
       deletedAt: null,

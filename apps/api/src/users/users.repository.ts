@@ -69,4 +69,11 @@ export class UsersRepository {
       data: { avatarUrl, avatarUpdatedAt: new Date() },
     });
   }
+
+  async updateInterfaceLanguage(userId: string, interfaceLanguage: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { interfaceLanguage },
+    });
+  }
 }

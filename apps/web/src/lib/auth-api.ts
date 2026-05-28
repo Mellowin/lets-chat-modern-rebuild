@@ -7,6 +7,7 @@ export interface AuthUser {
   displayName: string | null;
   avatarUrl: string | null;
   avatarUpdatedAt: string | null;
+  interfaceLanguage: "en" | "uk" | "ru";
   createdAt: string;
 }
 
@@ -130,6 +131,24 @@ export async function uploadAvatar(accessToken: string, file: File): Promise<Aut
 
   if (!res.ok) {
     throw new Error(await parseErrorMessage(res, `Failed to upload avatar: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<AuthUser>;
+}
+
+export async function updateInterfaceLanguage(accessToken: string, interfaceLanguage: "en" | "uk" | "ru"): Promise<AuthUser> {
+  const res = await fetch(`${API_BASE}/auth/me/interface-language`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ interfaceLanguage }),
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to update interface language: ${res.status} ${res.statusText}`));
   }
 
   return res.json() as Promise<AuthUser>;

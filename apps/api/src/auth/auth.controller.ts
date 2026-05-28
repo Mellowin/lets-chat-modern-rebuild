@@ -35,6 +35,7 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { LogoutDto } from './dto/logout.dto';
 import { UpdateDisplayNameDto } from './dto/update-display-name.dto';
 import { UpdateAvatarDto } from './dto/update-avatar.dto';
+import { UpdateInterfaceLanguageDto } from './dto/update-interface-language.dto';
 
 import { JwtAccessGuard } from './guards/jwt-access.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -159,6 +160,22 @@ export class AuthController {
 
     const avatarUrl = await this.avatarUpload.save(file, user.id);
     return this.auth.updateAvatar(user.id, avatarUrl);
+  }
+
+  @Patch('me/interface-language')
+  @UseGuards(JwtAccessGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Update current authenticated user interface language',
+  })
+  @ApiOkResponse({ description: 'Interface language updated successfully' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async updateInterfaceLanguage(
+    @CurrentUser() user: AuthUserResponse,
+    @Body() dto: UpdateInterfaceLanguageDto,
+  ): Promise<AuthUserResponse> {
+    return this.auth.updateInterfaceLanguage(user.id, dto.interfaceLanguage);
   }
 
   private assertAvatarCooldown(avatarUpdatedAt: Date | null): void {

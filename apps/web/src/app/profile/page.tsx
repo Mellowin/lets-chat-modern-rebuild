@@ -4,7 +4,7 @@ import { useLayoutEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { updateDisplayName, uploadAvatar } from "@/lib/auth-api";
+import { updateDisplayName, uploadAvatar, updateInterfaceLanguage } from "@/lib/auth-api";
 import { useLocale, type Locale, localeLabel } from "@/lib/locale";
 
 type FormState =
@@ -20,7 +20,7 @@ const LOCALE_OPTIONS: Locale[] = ["en", "uk", "ru"];
 
 export default function ProfilePage() {
   const { user, accessToken, isLoading: authLoading, isAuthenticated, setUser } = useAuth();
-  const { locale, setLocale, t } = useLocale();
+  const { locale, setLocale: setLocaleState, t } = useLocale();
 
   const [displayNameInput, setDisplayNameInput] = useState("");
   const [displayNameState, setDisplayNameState] = useState<FormState>({ kind: "idle" });
@@ -40,6 +40,20 @@ export default function ProfilePage() {
     const name = user?.displayName || user?.username || "?";
     return name.slice(0, 2).toUpperCase();
   }, [user?.displayName, user?.username]);
+
+  async function handleSetLocale(next: Locale) {
+    if (accessToken && isAuthenticated) {
+      try {
+        const updated = await updateInterfaceLanguage(accessToken, next);
+        setUser(updated);
+        setLocaleState(next);
+      } catch {
+        setLocaleState(next);
+      }
+    } else {
+      setLocaleState(next);
+    }
+  }
 
   async function handleUpdateDisplayName(e: React.FormEvent) {
     e.preventDefault();
@@ -237,7 +251,7 @@ export default function ProfilePage() {
               <button
                 key={loc}
                 type="button"
-                onClick={() => setLocale(loc)}
+                onClick={() => handleSetLocale(loc)}
                 className={
                   "inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition-colors " +
                   (active

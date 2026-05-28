@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import ProfilePage from "./page";
 import { useAuth } from "@/lib/auth-context";
-import { updateDisplayName, uploadAvatar } from "@/lib/auth-api";
+import { updateDisplayName, uploadAvatar, updateInterfaceLanguage } from "@/lib/auth-api";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -16,11 +16,12 @@ vi.mock("@/lib/auth-context", () => ({
 vi.mock("@/lib/auth-api", () => ({
   updateDisplayName: vi.fn(),
   uploadAvatar: vi.fn(),
+  updateInterfaceLanguage: vi.fn(),
 }));
 
 function mockAuth(userOverrides?: Partial<ReturnType<typeof useAuth>>) {
   vi.mocked(useAuth).mockReturnValue({
-    user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, createdAt: "2024-01-01T00:00:00Z" },
+    user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z" },
     accessToken: "token",
     refreshToken: "rt",
     isLoading: false,
@@ -377,6 +378,82 @@ describe("ProfilePage — authenticated", () => {
       expect(screen.getByRole("button", { name: "Загрузить аватар" })).toBeInTheDocument();
       expect(screen.getByRole("heading", { name: "Редактировать отображаемое имя" })).toBeInTheDocument();
       expect(screen.getByRole("heading", { name: "Язык интерфейса" })).toBeInTheDocument();
+    });
+
+    it("calls updateInterfaceLanguage API when authenticated user selects Ukrainian", async () => {
+      const setUserMock = vi.fn();
+      mockAuth({ setUser: setUserMock });
+      vi.mocked(updateInterfaceLanguage).mockResolvedValueOnce({
+        id: "u1",
+        email: "a@b.com",
+        username: "alice",
+        displayName: null,
+        avatarUrl: null,
+        avatarUpdatedAt: null,
+        interfaceLanguage: "uk",
+        createdAt: "2024-01-01T00:00:00Z",
+      });
+
+      render(<ProfilePage />);
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: "Українська" })).toBeInTheDocument();
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: "Українська" }));
+
+      await waitFor(() => {
+        expect(updateInterfaceLanguage).toHaveBeenCalledWith("token", "uk");
+      });
+      expect(setUserMock).toHaveBeenCalledWith(
+        expect.objectContaining({ interfaceLanguage: "uk" }),
+      );
+      expect(localStorage.getItem("lets-chat:locale")).toBe("uk");
+    });
+
+    it("calls updateInterfaceLanguage API when authenticated user selects Russian", async () => {
+      const setUserMock = vi.fn();
+      mockAuth({ setUser: setUserMock });
+      vi.mocked(updateInterfaceLanguage).mockResolvedValueOnce({
+        id: "u1",
+        email: "a@b.com",
+        username: "alice",
+        displayName: null,
+        avatarUrl: null,
+        avatarUpdatedAt: null,
+        interfaceLanguage: "ru",
+        createdAt: "2024-01-01T00:00:00Z",
+      });
+
+      render(<ProfilePage />);
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: "Русский" })).toBeInTheDocument();
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: "Русский" }));
+
+      await waitFor(() => {
+        expect(updateInterfaceLanguage).toHaveBeenCalledWith("token", "ru");
+      });
+      expect(setUserMock).toHaveBeenCalledWith(
+        expect.objectContaining({ interfaceLanguage: "ru" }),
+      );
+      expect(localStorage.getItem("lets-chat:locale")).toBe("ru");
+    });
+
+    it("falls back to localStorage-only when no accessToken", async () => {
+      mockAuth({ accessToken: null });
+      render(<ProfilePage />);
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: "Українська" })).toBeInTheDocument();
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: "Українська" }));
+
+      expect(updateInterfaceLanguage).not.toHaveBeenCalled();
+      expect(localStorage.getItem("lets-chat:locale")).toBe("uk");
     });
   });
 });

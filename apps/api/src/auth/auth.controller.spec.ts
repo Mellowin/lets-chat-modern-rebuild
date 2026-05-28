@@ -17,6 +17,7 @@ describe('AuthController', () => {
     displayName: null,
     avatarUrl: null,
     avatarUpdatedAt: null,
+    interfaceLanguage: 'en',
     createdAt: new Date(),
   };
 
@@ -33,6 +34,7 @@ describe('AuthController', () => {
             logout: jest.fn(),
             updateMe: jest.fn(),
             updateAvatar: jest.fn(),
+            updateInterfaceLanguage: jest.fn(),
           },
         },
         {
@@ -124,6 +126,42 @@ describe('AuthController', () => {
     await controller.updateMe(user, { displayName: '   ' });
 
     expect(authService.updateMe).toHaveBeenCalledWith('user-id', null);
+  });
+
+  describe('PATCH /auth/me/interface-language', () => {
+    it('updates interface language to uk', async () => {
+      authService.updateInterfaceLanguage.mockResolvedValue({
+        ...user,
+        interfaceLanguage: 'uk',
+      });
+
+      const result = await controller.updateInterfaceLanguage(user, {
+        interfaceLanguage: 'uk',
+      });
+
+      expect(authService.updateInterfaceLanguage).toHaveBeenCalledWith(
+        'user-id',
+        'uk',
+      );
+      expect(result.interfaceLanguage).toBe('uk');
+    });
+
+    it('updates interface language to ru', async () => {
+      authService.updateInterfaceLanguage.mockResolvedValue({
+        ...user,
+        interfaceLanguage: 'ru',
+      });
+
+      const result = await controller.updateInterfaceLanguage(user, {
+        interfaceLanguage: 'ru',
+      });
+
+      expect(authService.updateInterfaceLanguage).toHaveBeenCalledWith(
+        'user-id',
+        'ru',
+      );
+      expect(result.interfaceLanguage).toBe('ru');
+    });
   });
 
   describe('PATCH /auth/me/avatar', () => {

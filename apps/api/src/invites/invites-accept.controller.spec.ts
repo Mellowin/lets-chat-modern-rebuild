@@ -15,6 +15,7 @@ describe('InvitesAcceptController', () => {
     displayName: null,
     avatarUrl: null,
     avatarUpdatedAt: null,
+    interfaceLanguage: 'en',
     createdAt: new Date(),
   };
 
