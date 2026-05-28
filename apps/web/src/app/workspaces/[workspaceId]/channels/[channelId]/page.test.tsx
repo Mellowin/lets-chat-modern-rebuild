@@ -316,6 +316,40 @@ describe("ChannelDetailPage — composer", () => {
     expect(await screen.findByText(/Forbidden/i)).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/Type a message/i)).toHaveValue("Secret");
   });
+
+  it("shows Ukrainian fallback error when createMessage rejects with non-Error", async () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    mockChannelAndMessages([]);
+    vi.mocked(createMessage).mockRejectedValueOnce("unknown failure");
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Напишіть повідомлення/i)).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Напишіть повідомлення/i), "Hi");
+    await userEvent.click(screen.getByRole("button", { name: /Надіслати/i }));
+
+    expect(await screen.findByText(/Не вдалося надіслати повідомлення/i)).toBeInTheDocument();
+  });
+
+  it("shows Russian fallback error when createMessage rejects with non-Error", async () => {
+    localStorage.setItem("lets-chat:locale", "ru");
+    mockChannelAndMessages([]);
+    vi.mocked(createMessage).mockRejectedValueOnce("unknown failure");
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Напишите сообщение/i)).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Напишите сообщение/i), "Hi");
+    await userEvent.click(screen.getByRole("button", { name: /Отправить/i }));
+
+    expect(await screen.findByText(/Не удалось отправить сообщение/i)).toBeInTheDocument();
+  });
 });
 
 describe("ChannelDetailPage — message author identity", () => {

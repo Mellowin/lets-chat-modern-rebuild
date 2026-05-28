@@ -156,6 +156,7 @@ export type TranslationKey =
   | "channel.errorLeaveChannelFailed"
   | "channel.errorUsernameOrEmailRequired"
   | "channel.errorSendInvitationFailed"
+  | "channel.errorSendMessageFailed"
   | "channel.errorRemoveMemberFailed";
 
 const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
@@ -298,6 +299,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "channel.errorLeaveChannelFailed": "Failed to leave channel",
     "channel.errorUsernameOrEmailRequired": "Username or email is required",
     "channel.errorSendInvitationFailed": "Failed to send invitation",
+    "channel.errorSendMessageFailed": "Failed to send message",
     "channel.errorRemoveMemberFailed": "Failed to remove member",
   },
   uk: {
@@ -439,6 +441,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "channel.errorLeaveChannelFailed": "Не вдалося покинути канал",
     "channel.errorUsernameOrEmailRequired": "Потрібно вказати імʼя користувача або email",
     "channel.errorSendInvitationFailed": "Не вдалося надіслати запрошення",
+    "channel.errorSendMessageFailed": "Не вдалося надіслати повідомлення",
     "channel.errorRemoveMemberFailed": "Не вдалося вилучити учасника",
   },
   ru: {
@@ -580,6 +583,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "channel.errorLeaveChannelFailed": "Не удалось покинуть канал",
     "channel.errorUsernameOrEmailRequired": "Нужно указать имя пользователя или email",
     "channel.errorSendInvitationFailed": "Не удалось отправить приглашение",
+    "channel.errorSendMessageFailed": "Не удалось отправить сообщение",
     "channel.errorRemoveMemberFailed": "Не удалось удалить участника",
   },
 };

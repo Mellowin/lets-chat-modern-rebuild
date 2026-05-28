@@ -369,7 +369,7 @@ export default function ChannelDetailPage() {
       setSendState({ kind: "idle" });
       appendMessage(msg);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to send message";
+      const message = err instanceof Error ? err.message : t("channel.errorSendMessageFailed");
       setSendState({ kind: "error", message });
     }
   }
@@ -441,7 +441,7 @@ export default function ChannelDetailPage() {
 
   async function handleLeave() {
     if (!channelId || !accessToken || !workspaceId) return;
-    const name = channel.kind === "success" ? channel.data.name : "this channel";
+    const name = channel.kind === "success" ? channel.data.name : t("channel.fallbackThisChannel");
     if (!window.confirm(`${t("channel.confirmLeaveChannelPrefix")} "${name}"?`)) {
       return;
     }
