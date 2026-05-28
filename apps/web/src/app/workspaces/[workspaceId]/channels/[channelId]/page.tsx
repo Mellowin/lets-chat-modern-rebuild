@@ -644,7 +644,7 @@ export default function ChannelDetailPage() {
                 {i < arr.length - 1 ? ", " : " "}
               </span>
             ))}
-            {Object.keys(typingUsers).length === 1 ? "is typing…" : "are typing…"}
+            {Object.keys(typingUsers).length === 1 ? t("channel.isTyping") : t("channel.areTyping")}
           </div>
         )}
 
@@ -729,12 +729,12 @@ export default function ChannelDetailPage() {
                     </span>
                     {msg.editedAt && (
                       <span className="text-[10px] text-zinc-400 dark:text-zinc-500 italic">
-                        edited
+                        {t("channel.edited")}
                       </span>
                     )}
                     {msg.parentId && (
                       <span className="text-[10px] text-zinc-400 dark:text-zinc-500 italic">
-                        reply
+                        {t("channel.reply")}
                       </span>
                     )}
                     {user?.id === msg.author.id && editingMessageId !== msg.id && (
@@ -744,14 +744,14 @@ export default function ChannelDetailPage() {
                             onClick={() => handleEditStart(msg)}
                             className="text-[10px] text-zinc-400 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-200 underline"
                           >
-                            Edit
+                            {t("channel.edit")}
                           </button>
                         )}
                         <button
                           onClick={() => handleDelete(msg.id)}
                           className="text-[10px] text-zinc-400 hover:text-red-600 dark:text-zinc-500 dark:hover:text-red-400 underline"
                         >
-                          Delete
+                          {t("channel.delete")}
                         </button>
                       </>
                     )}
@@ -771,7 +771,7 @@ export default function ChannelDetailPage() {
                           disabled={editState.kind === "loading"}
                           className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
                         >
-                          {editState.kind === "loading" ? "Saving…" : "Save"}
+                          {editState.kind === "loading" ? t("channel.savingEdit") : t("channel.save")}
                         </button>
                         <button
                           type="button"
@@ -779,7 +779,7 @@ export default function ChannelDetailPage() {
                           disabled={editState.kind === "loading"}
                           className="inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-60 transition-colors"
                         >
-                          Cancel
+                          {t("channel.cancel")}
                         </button>
                       </div>
                       {editState.kind === "error" && (

@@ -129,7 +129,16 @@ export type TranslationKey =
   | "channel.loadingMembers"
   | "channel.noMembers"
   | "channel.remove"
-  | "channel.removing";
+  | "channel.removing"
+  | "channel.edit"
+  | "channel.delete"
+  | "channel.save"
+  | "channel.savingEdit"
+  | "channel.cancel"
+  | "channel.edited"
+  | "channel.reply"
+  | "channel.isTyping"
+  | "channel.areTyping";
 
 const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
   en: {
@@ -245,6 +254,15 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "channel.noMembers": "No members yet.",
     "channel.remove": "Remove",
     "channel.removing": "Removing…",
+    "channel.edit": "Edit",
+    "channel.delete": "Delete",
+    "channel.save": "Save",
+    "channel.savingEdit": "Saving…",
+    "channel.cancel": "Cancel",
+    "channel.edited": "edited",
+    "channel.reply": "reply",
+    "channel.isTyping": "is typing…",
+    "channel.areTyping": "are typing…",
   },
   uk: {
     "header.profile": "Профіль",
@@ -359,6 +377,15 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "channel.noMembers": "Учасників ще немає.",
     "channel.remove": "Вилучити",
     "channel.removing": "Вилучаємо…",
+    "channel.edit": "Редагувати",
+    "channel.delete": "Видалити",
+    "channel.save": "Зберегти",
+    "channel.savingEdit": "Зберігаємо…",
+    "channel.cancel": "Скасувати",
+    "channel.edited": "змінено",
+    "channel.reply": "відповідь",
+    "channel.isTyping": "пише…",
+    "channel.areTyping": "пишуть…",
   },
   ru: {
     "header.profile": "Профиль",
@@ -473,6 +500,15 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "channel.noMembers": "Участников пока нет.",
     "channel.remove": "Удалить",
     "channel.removing": "Удаляем…",
+    "channel.edit": "Редактировать",
+    "channel.delete": "Удалить",
+    "channel.save": "Сохранить",
+    "channel.savingEdit": "Сохраняем…",
+    "channel.cancel": "Отмена",
+    "channel.edited": "изменено",
+    "channel.reply": "ответ",
+    "channel.isTyping": "печатает…",
+    "channel.areTyping": "печатают…",
   },
 };
 

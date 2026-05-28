@@ -587,6 +587,122 @@ describe("ChannelDetailPage — edit/delete", () => {
   });
 });
 
+describe("ChannelDetailPage — message action locale", () => {
+  beforeEach(() => {
+    sessionStorage.setItem("accessToken", "token");
+    vi.clearAllMocks();
+    socketOnMock.mockReset();
+    socketEmitMock.mockReset();
+    socketDisconnectMock.mockReset();
+    window.alert = vi.fn();
+  });
+
+  const ownMessage = {
+    id: "m1",
+    channelId: "ch1",
+    content: "Hello",
+    parentId: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    editedAt: null,
+    author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+  };
+
+  it("shows Ukrainian Edit and Delete buttons", async () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    mockChannelAndMessages([ownMessage]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole("button", { name: /Редагувати/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Видалити/i })).toBeInTheDocument();
+  });
+
+  it("shows Russian Edit and Delete buttons", async () => {
+    localStorage.setItem("lets-chat:locale", "ru");
+    mockChannelAndMessages([ownMessage]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole("button", { name: /Редактировать/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Удалить/i })).toBeInTheDocument();
+  });
+
+  it("shows Ukrainian edited and reply labels", async () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    mockChannelAndMessages([
+      {
+        ...ownMessage,
+        editedAt: "2024-01-02T00:00:00Z",
+        parentId: "m0",
+      },
+    ]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("змінено")).toBeInTheDocument();
+    expect(screen.getByText("відповідь")).toBeInTheDocument();
+  });
+
+  it("shows Russian edited and reply labels", async () => {
+    localStorage.setItem("lets-chat:locale", "ru");
+    mockChannelAndMessages([
+      {
+        ...ownMessage,
+        editedAt: "2024-01-02T00:00:00Z",
+        parentId: "m0",
+      },
+    ]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("изменено")).toBeInTheDocument();
+    expect(screen.getByText("ответ")).toBeInTheDocument();
+  });
+
+  it("shows Ukrainian Save and Cancel in edit mode", async () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    mockChannelAndMessages([ownMessage]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Редагувати/i }));
+
+    expect(screen.getByRole("button", { name: /Зберегти/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Скасувати/i })).toBeInTheDocument();
+  });
+
+  it("shows Russian Save and Cancel in edit mode", async () => {
+    localStorage.setItem("lets-chat:locale", "ru");
+    mockChannelAndMessages([ownMessage]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Редактировать/i }));
+
+    expect(screen.getByRole("button", { name: /Сохранить/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Отмена/i })).toBeInTheDocument();
+  });
+});
+
 describe("ChannelDetailPage — WebSocket live events", () => {
   beforeEach(() => {
     sessionStorage.setItem("accessToken", "token");
@@ -683,6 +799,47 @@ describe("ChannelDetailPage — WebSocket live events", () => {
     });
 
     expect(screen.getByText("Hello")).toBeInTheDocument();
+  });
+
+  it("shows Ukrainian typing indicator for single user", async () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    mockChannelAndMessages([ownMessage]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+
+    expect(socketHandlers["typing:started"]).toBeDefined();
+    act(() => {
+      socketHandlers["typing:started"]({ channelId: "ch1", user: { id: "u2", username: "bob" } });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("пише…")).toBeInTheDocument();
+    });
+    expect(screen.getByText("bob")).toBeInTheDocument();
+  });
+
+  it("shows Russian typing indicator for multiple users", async () => {
+    localStorage.setItem("lets-chat:locale", "ru");
+    mockChannelAndMessages([ownMessage]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+
+    act(() => {
+      socketHandlers["typing:started"]({ channelId: "ch1", user: { id: "u2", username: "bob" } });
+    });
+    act(() => {
+      socketHandlers["typing:started"]({ channelId: "ch1", user: { id: "u3", username: "charlie" } });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("печатают…")).toBeInTheDocument();
+    });
   });
 });
 
