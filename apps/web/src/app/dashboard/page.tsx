@@ -277,18 +277,6 @@ export default function DashboardPage() {
           <p className="mt-1 text-zinc-600 dark:text-zinc-400">
             You are signed in as {user?.email}.
           </p>
-          {user?.languages && user.languages.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {user.languages.map((lang) => (
-                <span
-                  key={lang}
-                  className="inline-flex items-center rounded-full bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 text-[10px] font-medium text-zinc-700 dark:text-zinc-300"
-                >
-                  {lang}
-                </span>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 

@@ -4,7 +4,8 @@ import { useLayoutEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { updateDisplayName, updateLanguages, uploadAvatar } from "@/lib/auth-api";
+import { updateDisplayName, uploadAvatar } from "@/lib/auth-api";
+import { useLocale, type Locale, localeLabel } from "@/lib/locale";
 
 type FormState =
   | { kind: "idle" }
@@ -15,15 +16,14 @@ type FormState =
 const MAX_FILE_SIZE = 2 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
+const LOCALE_OPTIONS: Locale[] = ["en", "uk", "ru"];
+
 export default function ProfilePage() {
   const { user, accessToken, isLoading: authLoading, isAuthenticated, setUser } = useAuth();
+  const { locale, setLocale } = useLocale();
 
   const [displayNameInput, setDisplayNameInput] = useState("");
   const [displayNameState, setDisplayNameState] = useState<FormState>({ kind: "idle" });
-
-  const [languagesInput, setLanguagesInput] = useState("");
-  const [languagesList, setLanguagesList] = useState<string[]>([]);
-  const [languagesState, setLanguagesState] = useState<FormState>({ kind: "idle" });
 
   const [avatarState, setAvatarState] = useState<FormState>({ kind: "idle" });
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -34,10 +34,7 @@ export default function ProfilePage() {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setDisplayNameInput(user.displayName);
     }
-    if (user?.languages) {
-      setLanguagesList(user.languages);
-    }
-  }, [user?.displayName, user?.languages]);
+  }, [user?.displayName]);
 
   const initials = useCallback(() => {
     const name = user?.displayName || user?.username || "?";
@@ -55,57 +52,6 @@ export default function ProfilePage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to update display name";
       setDisplayNameState({ kind: "error", message });
-    }
-  }
-
-  function normalizeLanguages(raw: string[]): string[] {
-    const seen = new Set<string>();
-    const result: string[] = [];
-    for (const lang of raw) {
-      const trimmed = lang.trim();
-      if (trimmed.length === 0) continue;
-      const key = trimmed.toLowerCase();
-      if (!seen.has(key)) {
-        seen.add(key);
-        result.push(trimmed);
-      }
-    }
-    return result;
-  }
-
-  function handleAddLanguage() {
-    const trimmed = languagesInput.trim();
-    if (!trimmed) return;
-    if (trimmed.length > 32) {
-      setLanguagesState({ kind: "error", message: "Language name must be 32 characters or less" });
-      return;
-    }
-    const next = normalizeLanguages([...languagesList, trimmed]);
-    if (next.length > 5) {
-      setLanguagesState({ kind: "error", message: "You can add up to 5 languages" });
-      return;
-    }
-    setLanguagesList(next);
-    setLanguagesInput("");
-    setLanguagesState({ kind: "idle" });
-  }
-
-  function handleRemoveLanguage(index: number) {
-    setLanguagesList((prev) => prev.filter((_, i) => i !== index));
-    setLanguagesState({ kind: "idle" });
-  }
-
-  async function handleUpdateLanguages(e: React.FormEvent) {
-    e.preventDefault();
-    if (!accessToken) return;
-    setLanguagesState({ kind: "loading" });
-    try {
-      const updated = await updateLanguages(accessToken, languagesList);
-      setUser(updated);
-      setLanguagesState({ kind: "success" });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to update languages";
-      setLanguagesState({ kind: "error", message });
     }
   }
 
@@ -198,14 +144,6 @@ export default function ProfilePage() {
             <span className="text-zinc-500 dark:text-zinc-400 w-20">Display name</span>
             <span className="font-medium">{user?.displayName ?? "—"}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-zinc-500 dark:text-zinc-400 w-20">Languages</span>
-            <span className="font-medium">
-              {user?.languages && user.languages.length > 0
-                ? user.languages.join(", ")
-                : "—"}
-            </span>
-          </div>
         </div>
       </div>
 
@@ -291,68 +229,30 @@ export default function ProfilePage() {
       </div>
 
       <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
-        <h2 className="text-sm font-semibold">Languages</h2>
+        <h2 className="text-sm font-semibold">Interface language</h2>
         <div className="mt-3 flex flex-wrap gap-2">
-          {languagesList.map((lang, i) => (
-            <span
-              key={`${lang}-${i}`}
-              className="inline-flex items-center gap-1 rounded-full bg-zinc-100 dark:bg-zinc-800 px-3 py-1 text-sm dark:text-zinc-200"
-            >
-              {lang}
+          {LOCALE_OPTIONS.map((loc) => {
+            const active = locale === loc;
+            return (
               <button
+                key={loc}
                 type="button"
-                onClick={() => handleRemoveLanguage(i)}
-                className="ml-1 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
-                aria-label={`Remove ${lang}`}
+                onClick={() => setLocale(loc)}
+                className={
+                  "inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition-colors " +
+                  (active
+                    ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                    : "border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800")
+                }
               >
-                ×
+                {localeLabel(loc)}
               </button>
-            </span>
-          ))}
+            );
+          })}
         </div>
-        <form onSubmit={handleUpdateLanguages} className="mt-3 flex flex-col sm:flex-row items-start gap-3">
-          <div className="flex flex-1 w-full gap-2">
-            <input
-              type="text"
-              placeholder="Add a language"
-              value={languagesInput}
-              onChange={(e) => setLanguagesInput(e.target.value)}
-              disabled={languagesState.kind === "loading"}
-              className="flex-1 w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100 disabled:opacity-60"
-            />
-            <button
-              type="button"
-              onClick={handleAddLanguage}
-              disabled={languagesState.kind === "loading" || !languagesInput.trim()}
-              className="inline-flex items-center justify-center rounded-lg bg-zinc-200 px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-300 disabled:opacity-60 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700 transition-colors"
-            >
-              Add
-            </button>
-          </div>
-          <button
-            type="submit"
-            disabled={languagesState.kind === "loading"}
-            className="inline-flex w-full sm:w-auto items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
-          >
-            {languagesState.kind === "loading" ? "Saving…" : "Save languages"}
-          </button>
-        </form>
-        {languagesState.kind === "success" && (
-          <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
-            <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              Languages updated.
-            </div>
-          </div>
-        )}
-        {languagesState.kind === "error" && (
-          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-2.5 text-sm dark:border-red-900 dark:bg-red-950/30">
-            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-              <span className="h-2 w-2 rounded-full bg-red-500" />
-              {languagesState.message}
-            </div>
-          </div>
-        )}
+        <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+          Selected: {localeLabel(locale)}
+        </p>
       </div>
     </div>
   );

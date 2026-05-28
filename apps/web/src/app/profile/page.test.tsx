@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import ProfilePage from "./page";
 import { useAuth } from "@/lib/auth-context";
-import { updateDisplayName, updateLanguages, uploadAvatar } from "@/lib/auth-api";
+import { updateDisplayName, uploadAvatar } from "@/lib/auth-api";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -15,7 +15,6 @@ vi.mock("@/lib/auth-context", () => ({
 
 vi.mock("@/lib/auth-api", () => ({
   updateDisplayName: vi.fn(),
-  updateLanguages: vi.fn(),
   uploadAvatar: vi.fn(),
 }));
 
@@ -73,6 +72,7 @@ describe("ProfilePage — unauthenticated", () => {
 describe("ProfilePage — authenticated", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
   });
 
   it("renders account information", async () => {
@@ -88,7 +88,6 @@ describe("ProfilePage — authenticated", () => {
 
     expect(screen.getByText("a@b.com")).toBeInTheDocument();
     expect(screen.getByText("Alice")).toBeInTheDocument();
-    expect(screen.getByText("English, Ukrainian")).toBeInTheDocument();
   });
 
   it("shows dash when displayName is null", async () => {
@@ -102,7 +101,7 @@ describe("ProfilePage — authenticated", () => {
       expect(screen.getByText(/Account information/i)).toBeInTheDocument();
     });
 
-    expect(screen.getAllByText("—")).toHaveLength(2);
+    expect(screen.getAllByText("—")).toHaveLength(1);
   });
 
   it("shows avatar fallback when avatarUrl is null", async () => {
@@ -130,7 +129,7 @@ describe("ProfilePage — authenticated", () => {
       expect(screen.getByRole("img", { name: /Avatar/i })).toBeInTheDocument();
     });
 
-    expect(screen.getByRole("img", { name: /Avatar/i })).toHaveAttribute("src", "/uploads/avatars/u1/test.png");
+    expect(screen.getByRole("img", { name: /Avatar/i })).toHaveAttribute("src", expect.stringContaining("/uploads/avatars/u1/test.png"));
   });
 
   it("rejects unsupported avatar file type on client", async () => {
@@ -218,7 +217,7 @@ describe("ProfilePage — authenticated", () => {
     });
 
     await userEvent.type(screen.getByPlaceholderText(/Your display name/i), "Alice");
-    await userEvent.click(screen.getByRole("button", { name: /Save$/i }));
+    await userEvent.click(screen.getByRole("button", { name: /^Save$/i }));
 
     await waitFor(() => {
       expect(updateDisplayName).toHaveBeenCalledWith("token", "Alice");
@@ -227,90 +226,6 @@ describe("ProfilePage — authenticated", () => {
       expect.objectContaining({ displayName: "Alice" }),
     );
     expect(screen.getByText(/Display name updated/i)).toBeInTheDocument();
-  });
-
-  it("allows languages update", async () => {
-    const setUserMock = vi.fn();
-    mockAuth({ setUser: setUserMock });
-    vi.mocked(updateLanguages).mockResolvedValueOnce({
-      id: "u1",
-      email: "a@b.com",
-      username: "alice",
-      displayName: null,
-      avatarUrl: null,
-      avatarUpdatedAt: null,
-      languages: ["English", "Ukrainian"],
-      createdAt: "2024-01-01T00:00:00Z",
-    });
-
-    render(<ProfilePage />);
-
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText(/Add a language/i)).toBeInTheDocument();
-    });
-
-    await userEvent.type(screen.getByPlaceholderText(/Add a language/i), "English");
-    await userEvent.click(screen.getByRole("button", { name: /Add/i }));
-    await userEvent.type(screen.getByPlaceholderText(/Add a language/i), "Ukrainian");
-    await userEvent.click(screen.getByRole("button", { name: /Add/i }));
-    await userEvent.click(screen.getByRole("button", { name: /Save languages/i }));
-
-    await waitFor(() => {
-      expect(updateLanguages).toHaveBeenCalledWith("token", ["English", "Ukrainian"]);
-    });
-    expect(setUserMock).toHaveBeenCalledWith(
-      expect.objectContaining({ languages: ["English", "Ukrainian"] }),
-    );
-    expect(screen.getByText(/Languages updated/i)).toBeInTheDocument();
-  });
-
-  it("prevents more than 5 languages on client", async () => {
-    mockAuth();
-    render(<ProfilePage />);
-
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText(/Add a language/i)).toBeInTheDocument();
-    });
-
-    for (const lang of ["a", "b", "c", "d", "e"]) {
-      await userEvent.type(screen.getByPlaceholderText(/Add a language/i), lang);
-      await userEvent.click(screen.getByRole("button", { name: /Add/i }));
-    }
-    await userEvent.type(screen.getByPlaceholderText(/Add a language/i), "f");
-    await userEvent.click(screen.getByRole("button", { name: /Add/i }));
-
-    expect(await screen.findByText(/You can add up to 5 languages/i)).toBeInTheDocument();
-  });
-
-  it("deduplicates languages case-insensitively before submit", async () => {
-    const setUserMock = vi.fn();
-    mockAuth({ setUser: setUserMock });
-    vi.mocked(updateLanguages).mockResolvedValueOnce({
-      id: "u1",
-      email: "a@b.com",
-      username: "alice",
-      displayName: null,
-      avatarUrl: null,
-      avatarUpdatedAt: null,
-      languages: ["English"],
-      createdAt: "2024-01-01T00:00:00Z",
-    });
-
-    render(<ProfilePage />);
-
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText(/Add a language/i)).toBeInTheDocument();
-    });
-
-    await userEvent.type(screen.getByPlaceholderText(/Add a language/i), "English");
-    await userEvent.click(screen.getByRole("button", { name: /Add/i }));
-    await userEvent.type(screen.getByPlaceholderText(/Add a language/i), "english");
-    await userEvent.click(screen.getByRole("button", { name: /Add/i }));
-    await userEvent.click(screen.getByRole("button", { name: /Save languages/i }));
-
-    await waitFor(() => {
-      expect(updateLanguages).toHaveBeenCalledWith("token", ["English"]);
-    });
   });
 
   it("shows error on update failure", async () => {
@@ -324,7 +239,7 @@ describe("ProfilePage — authenticated", () => {
     });
 
     await userEvent.type(screen.getByPlaceholderText(/Your display name/i), "a".repeat(81));
-    await userEvent.click(screen.getByRole("button", { name: /Save$/i }));
+    await userEvent.click(screen.getByRole("button", { name: /^Save$/i }));
 
     expect(await screen.findByText(/Too long/i)).toBeInTheDocument();
   });
@@ -336,5 +251,96 @@ describe("ProfilePage — authenticated", () => {
     const link = screen.getByRole("link", { name: /Back to dashboard/i });
     expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute("href", "/dashboard");
+  });
+
+  describe("interface language", () => {
+    it("does not render old Add a language input", async () => {
+      mockAuth();
+      render(<ProfilePage />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Interface language/i)).toBeInTheDocument();
+      });
+
+      expect(screen.queryByPlaceholderText(/Add a language/i)).not.toBeInTheDocument();
+    });
+
+    it("does not render old Save languages button", async () => {
+      mockAuth();
+      render(<ProfilePage />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Interface language/i)).toBeInTheDocument();
+      });
+
+      expect(screen.queryByRole("button", { name: /Save languages/i })).not.toBeInTheDocument();
+    });
+
+    it("renders interface language selector", async () => {
+      mockAuth();
+      render(<ProfilePage />);
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: "English" })).toBeInTheDocument();
+      });
+
+      expect(screen.getByRole("button", { name: "Українська" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Русский" })).toBeInTheDocument();
+    });
+
+    it("defaults to English when localStorage is empty", async () => {
+      mockAuth();
+      render(<ProfilePage />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Interface language/i)).toBeInTheDocument();
+      });
+
+      const englishBtn = screen.getByRole("button", { name: "English" });
+      expect(englishBtn).toHaveClass("bg-zinc-900");
+    });
+
+    it("saves selected Ukrainian locale to localStorage", async () => {
+      mockAuth();
+      render(<ProfilePage />);
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: "Українська" })).toBeInTheDocument();
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: "Українська" }));
+
+      expect(localStorage.getItem("lets-chat:locale")).toBe("uk");
+      expect(screen.getByRole("button", { name: "Українська" })).toHaveClass("bg-zinc-900");
+    });
+
+    it("saves selected Russian locale to localStorage", async () => {
+      mockAuth();
+      render(<ProfilePage />);
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: "Русский" })).toBeInTheDocument();
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: "Русский" }));
+
+      expect(localStorage.getItem("lets-chat:locale")).toBe("ru");
+      expect(screen.getByRole("button", { name: "Русский" })).toHaveClass("bg-zinc-900");
+    });
+
+    it("updates selected language immediately", async () => {
+      mockAuth();
+      render(<ProfilePage />);
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: "English" })).toBeInTheDocument();
+      });
+
+      expect(screen.getByText(/Selected: English/i)).toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole("button", { name: "Українська" }));
+
+      expect(screen.getByText(/Selected: Українська/i)).toBeInTheDocument();
+    });
   });
 });

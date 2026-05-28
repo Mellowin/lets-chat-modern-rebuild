@@ -127,21 +127,9 @@ describe("DashboardPage — user identity", () => {
     });
   });
 
-  it("shows language chips when languages exist", async () => {
+  it("does not render spoken language chips", async () => {
     mockAuth({
       user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, languages: ["English", "Ukrainian"], createdAt: "2024-01-01T00:00:00Z" },
-    });
-    render(<DashboardPage />);
-
-    await waitFor(() => {
-      expect(screen.getByText("English")).toBeInTheDocument();
-    });
-    expect(screen.getByText("Ukrainian")).toBeInTheDocument();
-  });
-
-  it("does not render language chips block when languages is empty", async () => {
-    mockAuth({
-      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, languages: [], createdAt: "2024-01-01T00:00:00Z" },
     });
     render(<DashboardPage />);
 
@@ -150,6 +138,7 @@ describe("DashboardPage — user identity", () => {
     });
 
     expect(screen.queryByText("English")).not.toBeInTheDocument();
+    expect(screen.queryByText("Ukrainian")).not.toBeInTheDocument();
   });
 });
 
