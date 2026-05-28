@@ -1,8 +1,15 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 
 export type Locale = "en" | "uk" | "ru";
 
 const LOCALE_KEY = "lets-chat:locale";
+const LOCALE_CHANGED_EVENT = "lets-chat:locale-changed";
+
+declare global {
+  interface WindowEventMap {
+    "lets-chat:locale-changed": CustomEvent<Locale>;
+  }
+}
 
 const LABELS: Record<Locale, { label: string; native: string }> = {
   en: { label: "English", native: "English" },
@@ -241,6 +248,12 @@ export function setLocaleStorage(locale: Locale) {
   localStorage.setItem(LOCALE_KEY, locale);
 }
 
+export function syncLocale(locale: Locale) {
+  if (typeof window === "undefined") return;
+  setLocaleStorage(locale);
+  window.dispatchEvent(new CustomEvent(LOCALE_CHANGED_EVENT, { detail: locale }));
+}
+
 export function localeLabel(locale: Locale): string {
   return LABELS[locale].native;
 }
@@ -256,9 +269,16 @@ export function useLocale(): {
 } {
   const [locale, setLocaleState] = useState<Locale>(getLocale);
 
+  useEffect(() => {
+    function handleEvent(e: CustomEvent<Locale>) {
+      setLocaleState(e.detail);
+    }
+    window.addEventListener(LOCALE_CHANGED_EVENT, handleEvent);
+    return () => window.removeEventListener(LOCALE_CHANGED_EVENT, handleEvent);
+  }, []);
+
   const handleSetLocale = useCallback((next: Locale) => {
-    setLocaleStorage(next);
-    setLocaleState(next);
+    syncLocale(next);
   }, []);
 
   const t = useCallback(

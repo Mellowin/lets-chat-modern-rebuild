@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import { AuthProvider, useAuth } from "./auth-context";
 import { getMe, logout as apiLogout } from "./auth-api";
+import { useLocale } from "./locale";
 
 vi.mock("@/lib/auth-api", () => ({
   getMe: vi.fn(),
@@ -149,6 +150,7 @@ describe("AuthProvider", () => {
       displayName: null,
       avatarUrl: null,
       avatarUpdatedAt: null,
+      interfaceLanguage: "en",
       createdAt: "2024-01-01T00:00:00Z",
     });
     vi.mocked(apiLogout).mockResolvedValueOnce({ success: true });
@@ -185,6 +187,7 @@ describe("AuthProvider", () => {
       displayName: null,
       avatarUrl: null,
       avatarUpdatedAt: null,
+      interfaceLanguage: "en",
       createdAt: "2024-01-01T00:00:00Z",
     });
     vi.mocked(apiLogout).mockRejectedValueOnce(new Error("Network error"));
@@ -220,6 +223,7 @@ describe("AuthProvider", () => {
       displayName: null,
       avatarUrl: null,
       avatarUpdatedAt: null,
+      interfaceLanguage: "en",
       createdAt: "2024-01-01T00:00:00Z",
     });
 
@@ -239,6 +243,93 @@ describe("AuthProvider", () => {
       expect(screen.getByTestId("user")).toHaveTextContent("alice (a@b.com)");
     });
     expect(sessionStorage.getItem("accessToken")).toBe("at");
+  });
+
+  it("syncs locale from getMe interfaceLanguage to mounted useLocale consumer", async () => {
+    sessionStorage.setItem("accessToken", "valid-token");
+    vi.mocked(getMe).mockResolvedValueOnce({
+      id: "u1",
+      email: "a@b.com",
+      username: "alice",
+      displayName: null,
+      avatarUrl: null,
+      avatarUpdatedAt: null,
+      interfaceLanguage: "uk",
+      createdAt: "2024-01-01T00:00:00Z",
+    });
+
+    function LocaleConsumer() {
+      const { locale, t } = useLocale();
+      return (
+        <div>
+          <div data-testid="locale">{locale}</div>
+          <div data-testid="locale-text">{t("dashboard.welcome")}</div>
+        </div>
+      );
+    }
+
+    render(
+      <AuthProvider>
+        <LocaleConsumer />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("locale")).toHaveTextContent("uk");
+    });
+
+    expect(screen.getByTestId("locale-text")).toHaveTextContent("Вітаємо");
+    expect(localStorage.getItem("lets-chat:locale")).toBe("uk");
+  });
+
+  it("syncs locale from loginSuccess interfaceLanguage to mounted useLocale consumer", async () => {
+    function LocaleConsumer() {
+      const { locale, t } = useLocale();
+      return (
+        <div>
+          <div data-testid="locale">{locale}</div>
+          <div data-testid="locale-text">{t("dashboard.welcome")}</div>
+        </div>
+      );
+    }
+
+    function TestConsumerWithRuLogin() {
+      const { isLoading, loginSuccess } = useAuth();
+      return (
+        <div>
+          <div data-testid="loading">{isLoading ? "loading" : "done"}</div>
+          <button
+            data-testid="login-btn-ru"
+            onClick={() =>
+              loginSuccess({
+                user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "ru", createdAt: "2024-01-01T00:00:00Z" },
+                accessToken: "at",
+                refreshToken: "rt",
+              })
+            }
+          >
+            Login Ru
+          </button>
+        </div>
+      );
+    }
+
+    render(
+      <AuthProvider>
+        <TestConsumerWithRuLogin />
+        <LocaleConsumer />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("loading")).toHaveTextContent("done");
+    });
+
+    await userEvent.click(screen.getByTestId("login-btn-ru"));
+
+    expect(localStorage.getItem("lets-chat:locale")).toBe("ru");
+    expect(screen.getByTestId("locale")).toHaveTextContent("ru");
+    expect(screen.getByTestId("locale-text")).toHaveTextContent("Добро пожаловать");
   });
 
   it("throws when useAuth is called outside AuthProvider", () => {

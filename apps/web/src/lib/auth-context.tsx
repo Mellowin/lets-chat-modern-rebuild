@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { getMe, logout as apiLogout, type AuthUser, type AuthResult } from "@/lib/auth-api";
-import { setLocaleStorage } from "@/lib/locale";
+import { syncLocale } from "@/lib/locale";
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUser(me);
             setAccessToken(storedAccess);
             setRefreshToken(storedRefresh);
-            setLocaleStorage(me.interfaceLanguage);
+            syncLocale(me.interfaceLanguage);
           }
         } catch {
           sessionStorage.removeItem("accessToken");
@@ -69,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(result.user);
     setAccessToken(result.accessToken);
     setRefreshToken(result.refreshToken);
+    syncLocale(result.user.interfaceLanguage);
   }, []);
 
   const setUserValue = useCallback((u: AuthUser) => {
