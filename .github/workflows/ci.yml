@@ -51,6 +51,9 @@ jobs:
       - name: Test Web
         run: pnpm --filter web test
 
+      - name: Test Web Pages
+        run: pnpm --filter web test:pages
+
       - name: Lint Web
         run: pnpm --filter web lint
 
