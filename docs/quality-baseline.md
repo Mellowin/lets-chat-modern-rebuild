@@ -92,8 +92,7 @@ pnpm --filter web test:pages
 ```
 
 Run this before/after touching workspace or channel page UI to ensure the
-excluded tests are not forgotten. Do not add `test:pages` to CI until the OOM
-issue is resolved.
+excluded tests are not forgotten. `test:pages` is stable and can be added to CI.
 
 ## Do Not Weaken Checks
 

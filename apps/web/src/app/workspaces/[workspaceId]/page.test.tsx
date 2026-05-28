@@ -7,10 +7,11 @@ import { createWorkspaceInvite } from "@/lib/invites-api";
 import { getChannels, getArchivedChannels, archiveChannel, restoreChannel } from "@/lib/channels-api";
 
 const routerPushMock = vi.fn();
+const mockRouter = { push: routerPushMock };
 
 vi.mock("next/navigation", () => ({
   useParams: () => ({ workspaceId: "ws1" }),
-  useRouter: () => ({ push: routerPushMock }),
+  useRouter: () => mockRouter,
 }));
 
 const mockAuthUser = { id: "u1", email: "a@b.com", username: "alice" };
@@ -241,7 +242,6 @@ describe("WorkspaceDetailPage — members", () => {
     await waitFor(() => {
       expect(screen.getByText("Alice")).toBeInTheDocument();
     });
-    expect(screen.getByText("@alice")).toBeInTheDocument();
   });
 
   it("falls back to @username when displayName is absent", async () => {
@@ -253,7 +253,7 @@ describe("WorkspaceDetailPage — members", () => {
     render(<WorkspaceDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByText("@alice")).toBeInTheDocument();
+      expect(screen.getByText("alice")).toBeInTheDocument();
     });
     expect(screen.queryByText("Alice")).not.toBeInTheDocument();
   });

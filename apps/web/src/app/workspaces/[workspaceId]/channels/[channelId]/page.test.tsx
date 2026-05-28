@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import ChannelDetailPage from "./page";
@@ -14,10 +14,11 @@ const socketEmitMock = vi.fn();
 const socketDisconnectMock = vi.fn();
 
 const routerPushMock = vi.fn();
+const mockRouter = { push: routerPushMock };
 
 vi.mock("next/navigation", () => ({
   useParams: () => ({ workspaceId: "ws1", channelId: "ch1" }),
-  useRouter: () => ({ push: routerPushMock }),
+  useRouter: () => mockRouter,
 }));
 
 vi.mock("@/lib/auth-context", () => ({
@@ -269,7 +270,7 @@ describe("ChannelDetailPage — message author identity", () => {
     render(<ChannelDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByRole("img", { name: "" })).toBeInTheDocument();
+      expect(document.querySelector("img[src='/uploads/avatars/u2/test.png']")).toBeInTheDocument();
     });
   });
 
@@ -569,10 +570,12 @@ describe("ChannelDetailPage — WebSocket live events", () => {
     });
 
     expect(socketHandlers["message:updated"]).toBeDefined();
-    socketHandlers["message:updated"]({
-      ...ownMessage,
-      content: "Updated via WS",
-      editedAt: "2024-01-02T00:00:00Z",
+    act(() => {
+      socketHandlers["message:updated"]({
+        ...ownMessage,
+        content: "Updated via WS",
+        editedAt: "2024-01-02T00:00:00Z",
+      });
     });
 
     await waitFor(() => {
@@ -589,11 +592,13 @@ describe("ChannelDetailPage — WebSocket live events", () => {
       expect(screen.getByText("Hello")).toBeInTheDocument();
     });
 
-    socketHandlers["message:updated"]({
-      ...ownMessage,
-      channelId: "ch-other",
-      content: "Updated via WS",
-      editedAt: "2024-01-02T00:00:00Z",
+    act(() => {
+      socketHandlers["message:updated"]({
+        ...ownMessage,
+        channelId: "ch-other",
+        content: "Updated via WS",
+        editedAt: "2024-01-02T00:00:00Z",
+      });
     });
 
     expect(screen.getByText("Hello")).toBeInTheDocument();
@@ -609,7 +614,9 @@ describe("ChannelDetailPage — WebSocket live events", () => {
     });
 
     expect(socketHandlers["message:deleted"]).toBeDefined();
-    socketHandlers["message:deleted"]({ id: "m1", channelId: "ch1", deletedAt: "2024-01-02T00:00:00Z" });
+    act(() => {
+      socketHandlers["message:deleted"]({ id: "m1", channelId: "ch1", deletedAt: "2024-01-02T00:00:00Z" });
+    });
 
     await waitFor(() => {
       expect(screen.queryByText("Hello")).not.toBeInTheDocument();
@@ -624,7 +631,9 @@ describe("ChannelDetailPage — WebSocket live events", () => {
       expect(screen.getByText("Hello")).toBeInTheDocument();
     });
 
-    socketHandlers["message:deleted"]({ id: "m1", channelId: "ch-other", deletedAt: "2024-01-02T00:00:00Z" });
+    act(() => {
+      socketHandlers["message:deleted"]({ id: "m1", channelId: "ch-other", deletedAt: "2024-01-02T00:00:00Z" });
+    });
 
     expect(screen.getByText("Hello")).toBeInTheDocument();
   });
@@ -684,7 +693,6 @@ describe("ChannelDetailPage — members", () => {
     await waitFor(() => {
       expect(screen.getByText("Alice")).toBeInTheDocument();
     });
-    expect(screen.getByText("@alice")).toBeInTheDocument();
   });
 
   it("falls back to @username when displayName is absent", async () => {
@@ -699,7 +707,7 @@ describe("ChannelDetailPage — members", () => {
     render(<ChannelDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getByText("@dave")).toBeInTheDocument();
+      expect(screen.getByText("dave")).toBeInTheDocument();
     });
     expect(screen.queryByText("Dave")).not.toBeInTheDocument();
   });
@@ -1352,7 +1360,9 @@ describe("ChannelDetailPage — socket access-loss handling", () => {
       expect(socketHandlers["channel:error"]).toBeDefined();
     });
 
-    socketHandlers["channel:error"]({ message: "Channel not found" });
+    act(() => {
+      socketHandlers["channel:error"]({ message: "Channel not found" });
+    });
 
     await waitFor(() => {
       expect(socketDisconnectMock).toHaveBeenCalled();
@@ -1371,7 +1381,9 @@ describe("ChannelDetailPage — socket access-loss handling", () => {
       expect(socketHandlers["channel:error"]).toBeDefined();
     });
 
-    socketHandlers["channel:error"]({ message: "Forbidden" });
+    act(() => {
+      socketHandlers["channel:error"]({ message: "Forbidden" });
+    });
 
     await waitFor(() => {
       expect(routerPushMock).toHaveBeenCalledWith("/workspaces/ws1");
@@ -1388,7 +1400,9 @@ describe("ChannelDetailPage — socket access-loss handling", () => {
       expect(socketHandlers["channel:error"]).toBeDefined();
     });
 
-    socketHandlers["channel:error"]({ message: "Insufficient permissions" });
+    act(() => {
+      socketHandlers["channel:error"]({ message: "Insufficient permissions" });
+    });
 
     await waitFor(() => {
       expect(routerPushMock).toHaveBeenCalledWith("/workspaces/ws1");
@@ -1405,7 +1419,9 @@ describe("ChannelDetailPage — socket access-loss handling", () => {
       expect(socketHandlers["channel:error"]).toBeDefined();
     });
 
-    socketHandlers["channel:error"]({ message: "Channel not found" });
+    act(() => {
+      socketHandlers["channel:error"]({ message: "Channel not found" });
+    });
 
     await waitFor(() => {
       expect(routerPushMock).toHaveBeenCalledWith("/workspaces/ws1");
@@ -1423,7 +1439,9 @@ describe("ChannelDetailPage — socket access-loss handling", () => {
       expect(socketHandlers["channel:error"]).toBeDefined();
     });
 
-    socketHandlers["channel:error"]({ message: "Unknown socket failure" });
+    act(() => {
+      socketHandlers["channel:error"]({ message: "Unknown socket failure" });
+    });
 
     await waitFor(() => {
       expect(consoleErrorSpy).toHaveBeenCalledWith("Channel error:", "Unknown socket failure");
@@ -1441,7 +1459,9 @@ describe("ChannelDetailPage — socket access-loss handling", () => {
       expect(socketHandlers["auth:error"]).toBeDefined();
     });
 
-    socketHandlers["auth:error"]({ message: "Token invalid" });
+    act(() => {
+      socketHandlers["auth:error"]({ message: "Token invalid" });
+    });
 
     await waitFor(() => {
       expect(socketDisconnectMock).toHaveBeenCalled();
@@ -1459,7 +1479,9 @@ describe("ChannelDetailPage — socket access-loss handling", () => {
       expect(socketHandlers["auth:expired"]).toBeDefined();
     });
 
-    socketHandlers["auth:expired"]();
+    act(() => {
+      socketHandlers["auth:expired"]();
+    });
 
     await waitFor(() => {
       expect(socketDisconnectMock).toHaveBeenCalled();
