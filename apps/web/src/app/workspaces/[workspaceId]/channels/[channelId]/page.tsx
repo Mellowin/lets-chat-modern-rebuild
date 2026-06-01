@@ -691,7 +691,7 @@ export default function ChannelDetailPage() {
         )}
 
         {messages.kind === "success" && messages.data.length > 0 && (
-          <ul className="mt-4 space-y-4">
+          <ul className="mt-4 space-y-3">
             {messages.data.map((msg) => (
               <li key={msg.id} className="flex items-start gap-3">
                 <div className="relative h-8 w-8 shrink-0 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center overflow-hidden">
@@ -740,46 +740,54 @@ export default function ChannelDetailPage() {
                       </>
                     )}
                   </div>
-                  {editingMessageId === msg.id ? (
-                    <form onSubmit={handleEditSubmit} className="mt-1 flex flex-col gap-2">
-                      <textarea
-                        rows={2}
-                        value={editContent}
-                        onChange={(e) => setEditContent(e.target.value)}
-                        disabled={editState.kind === "loading"}
-                        className="w-full resize-none rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100 disabled:opacity-60"
-                      />
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="submit"
+                  <div
+                    className={`mt-1 max-w-full rounded-2xl border px-3 py-2 shadow-sm ${
+                      user?.id === msg.author.id
+                        ? "bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700"
+                        : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800"
+                    }`}
+                  >
+                    {editingMessageId === msg.id ? (
+                      <form onSubmit={handleEditSubmit} className="flex flex-col gap-2">
+                        <textarea
+                          rows={2}
+                          value={editContent}
+                          onChange={(e) => setEditContent(e.target.value)}
                           disabled={editState.kind === "loading"}
-                          className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
-                        >
-                          {editState.kind === "loading" ? t("channel.savingEdit") : t("channel.save")}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleEditCancel}
-                          disabled={editState.kind === "loading"}
-                          className="inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-60 transition-colors"
-                        >
-                          {t("channel.cancel")}
-                        </button>
-                      </div>
-                      {editState.kind === "error" && (
-                        <div className="rounded-lg border border-red-200 bg-red-50 p-2 text-xs dark:border-red-900 dark:bg-red-950/30">
-                          <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-                            <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-                            {editState.message}
-                          </div>
+                          className="w-full resize-none rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100 disabled:opacity-60"
+                        />
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="submit"
+                            disabled={editState.kind === "loading"}
+                            className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
+                          >
+                            {editState.kind === "loading" ? t("channel.savingEdit") : t("channel.save")}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleEditCancel}
+                            disabled={editState.kind === "loading"}
+                            className="inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-60 transition-colors"
+                          >
+                            {t("channel.cancel")}
+                          </button>
                         </div>
-                      )}
-                    </form>
-                  ) : (
-                    <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-zinc-700 dark:text-zinc-300">
-                      {msg.content}
-                    </p>
-                  )}
+                        {editState.kind === "error" && (
+                          <div className="rounded-lg border border-red-200 bg-red-50 p-2 text-xs dark:border-red-900 dark:bg-red-950/30">
+                            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+                              <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                              {editState.message}
+                            </div>
+                          </div>
+                        )}
+                      </form>
+                    ) : (
+                      <p className="whitespace-pre-wrap break-words text-sm leading-6 text-zinc-800 dark:text-zinc-200">
+                        {msg.content}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </li>
             ))}
