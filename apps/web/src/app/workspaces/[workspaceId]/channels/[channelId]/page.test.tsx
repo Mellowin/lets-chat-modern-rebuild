@@ -163,6 +163,33 @@ describe("ChannelDetailPage — composer", () => {
     });
   });
 
+  it("renders composer below messages in DOM order", async () => {
+    mockChannelAndMessages([
+      {
+        id: "m1",
+        channelId: "ch1",
+        content: "First message",
+        parentId: null,
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      },
+    ]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("First message")).toBeInTheDocument();
+    });
+
+    const messageEl = screen.getByText("First message");
+    const textareaEl = screen.getByPlaceholderText(/Type a message/i);
+
+    expect(
+      messageEl.compareDocumentPosition(textareaEl) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it("shows validation error on empty submit and does not call createMessage", async () => {
     mockChannelAndMessages([]);
     render(<ChannelDetailPage />);

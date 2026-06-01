@@ -666,53 +666,8 @@ export default function ChannelDetailPage() {
           </div>
         )}
 
-        {/* Composer */}
-        {channel.kind === "success" && (
-          <form onSubmit={handleSendMessage} className="mt-4 flex flex-col gap-2">
-            <textarea
-              rows={2}
-              placeholder={t("channel.messagePlaceholder")}
-              value={content}
-              onChange={(e) => {
-                setContent(e.target.value);
-                if (e.target.value.trim()) {
-                  emitTypingStart();
-                } else {
-                  emitTypingStop();
-                }
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  submitMessage();
-                }
-              }}
-              disabled={sendState.kind === "loading"}
-              className="w-full resize-none rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100 disabled:opacity-60"
-            />
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-zinc-400 dark:text-zinc-500">
-                {content.length}/4000
-              </span>
-              <button
-                type="submit"
-                disabled={sendState.kind === "loading"}
-                className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
-              >
-                {sendState.kind === "loading" ? t("channel.sending") : t("channel.send")}
-              </button>
-            </div>
-            {sendState.kind === "error" && (
-              <div className="rounded-lg border border-red-200 bg-red-50 p-2.5 text-sm dark:border-red-900 dark:bg-red-950/30">
-                <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-                  <span className="h-2 w-2 rounded-full bg-red-500" />
-                  {sendState.message}
-                </div>
-              </div>
-            )}
-          </form>
-        )}
-
+        <div className="mt-4 flex min-h-[420px] flex-col">
+          <div className="min-h-0 flex-1 overflow-y-auto pr-1">
         {messages.kind === "loading" && (
           <div className="mt-4 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
             <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
@@ -830,6 +785,55 @@ export default function ChannelDetailPage() {
             ))}
           </ul>
         )}
+
+          </div>
+
+                {channel.kind === "success" && (
+          <form onSubmit={handleSendMessage} className="mt-4 flex flex-col gap-2 border-t border-zinc-200 dark:border-zinc-800 pt-4">
+            <textarea
+              rows={2}
+              placeholder={t("channel.messagePlaceholder")}
+              value={content}
+              onChange={(e) => {
+                setContent(e.target.value);
+                if (e.target.value.trim()) {
+                  emitTypingStart();
+                } else {
+                  emitTypingStop();
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  submitMessage();
+                }
+              }}
+              disabled={sendState.kind === "loading"}
+              className="w-full resize-none rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100 disabled:opacity-60"
+            />
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                {content.length}/4000
+              </span>
+              <button
+                type="submit"
+                disabled={sendState.kind === "loading"}
+                className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
+              >
+                {sendState.kind === "loading" ? t("channel.sending") : t("channel.send")}
+              </button>
+            </div>
+            {sendState.kind === "error" && (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-2.5 text-sm dark:border-red-900 dark:bg-red-950/30">
+                <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+                  <span className="h-2 w-2 rounded-full bg-red-500" />
+                  {sendState.message}
+                </div>
+              </div>
+            )}
+          </form>
+        )}
+        </div>
       </div>
 
       {/* Members */}
