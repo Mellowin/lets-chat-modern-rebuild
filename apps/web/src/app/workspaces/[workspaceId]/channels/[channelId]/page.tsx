@@ -10,6 +10,7 @@ import { createChannelInvite } from "@/lib/channel-invites-api";
 
 import { getMessages, createMessage, updateMessage, deleteMessage, type Message, type CreateMessageInput, type UpdateMessageInput } from "@/lib/messages-api";
 import { createSocket } from "@/lib/socket-client";
+import { getAvatarUrl } from "@/lib/avatar-url";
 import { MessageAuthor } from "@/components/MessageAuthor";
 
 
@@ -736,10 +737,22 @@ export default function ChannelDetailPage() {
         {messages.kind === "success" && messages.data.length > 0 && (
           <ul className="mt-4 space-y-4">
             {messages.data.map((msg) => (
-              <li key={msg.id} className="flex gap-3">
-                <MessageAuthor author={msg.author} />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
+              <li key={msg.id} className="flex items-start gap-3">
+                <div className="relative h-8 w-8 shrink-0 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center overflow-hidden">
+                  {msg.author.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={getAvatarUrl(msg.author.avatarUrl) || ""} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                      {(msg.author.displayName || msg.author.username || "?").slice(0, 2).toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+                    <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 truncate">
+                      {msg.author.displayName || msg.author.username || t("messageAuthor.unknownUser")}
+                    </span>
                     <span className="text-xs text-zinc-400 dark:text-zinc-500">
                       {new Date(msg.createdAt).toLocaleString()}
                     </span>
@@ -808,7 +821,7 @@ export default function ChannelDetailPage() {
                       )}
                     </form>
                   ) : (
-                    <p className="mt-0.5 text-sm text-zinc-700 dark:text-zinc-300">
+                    <p className="mt-1 whitespace-pre-wrap break-words text-sm text-zinc-700 dark:text-zinc-300">
                       {msg.content}
                     </p>
                   )}
