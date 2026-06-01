@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -549,7 +550,7 @@ export default function ChannelDetailPage() {
   }
 
   return (
-    <div className="flex flex-col p-6 sm:p-10 max-w-3xl">
+    <div className="flex flex-col p-6 sm:p-10 max-w-5xl">
       <Link
         href={`/workspaces/${workspaceId}`}
         className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
@@ -740,8 +741,7 @@ export default function ChannelDetailPage() {
               <li key={msg.id} className="flex items-start gap-3">
                 <div className="relative h-8 w-8 shrink-0 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center overflow-hidden">
                   {msg.author.avatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={getAvatarUrl(msg.author.avatarUrl) || ""} alt="" className="h-full w-full object-cover" />
+                    <Image src={getAvatarUrl(msg.author.avatarUrl) || ""} alt="" fill sizes="32px" className="object-cover" unoptimized />
                   ) : (
                     <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
                       {(msg.author.displayName || msg.author.username || "?").slice(0, 2).toUpperCase()}
@@ -821,7 +821,7 @@ export default function ChannelDetailPage() {
                       )}
                     </form>
                   ) : (
-                    <p className="mt-1 whitespace-pre-wrap break-words text-sm text-zinc-700 dark:text-zinc-300">
+                    <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-zinc-700 dark:text-zinc-300">
                       {msg.content}
                     </p>
                   )}
