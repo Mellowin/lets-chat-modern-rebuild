@@ -151,19 +151,13 @@ export default function ProfilePage() {
 
       <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
         <h2 className="text-sm font-semibold">{t("profile.accountInfo")}</h2>
-        <div className="mt-3 space-y-2 text-sm">
-          <div className="flex items-center gap-2">
-            <span className="text-zinc-500 dark:text-zinc-400 min-w-24">{t("profile.email")}</span>
-            <span className="font-medium">{user?.email}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-zinc-500 dark:text-zinc-400 min-w-24">{t("profile.username")}</span>
-            <span className="font-medium">{user?.username}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-zinc-500 dark:text-zinc-400 min-w-24">{t("profile.displayName")}</span>
-            <span className="font-medium">{user?.displayName ?? "—"}</span>
-          </div>
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-[10rem_1fr] gap-x-4 gap-y-2 text-sm">
+          <span className="text-zinc-500 dark:text-zinc-400">{t("profile.email")}</span>
+          <span className="min-w-0 font-medium break-words">{user?.email}</span>
+          <span className="text-zinc-500 dark:text-zinc-400">{t("profile.username")}</span>
+          <span className="min-w-0 font-medium break-words">{user?.username}</span>
+          <span className="text-zinc-500 dark:text-zinc-400">{t("profile.displayName")}</span>
+          <span className="min-w-0 font-medium break-words">{user?.displayName ?? "—"}</span>
         </div>
       </div>
 
