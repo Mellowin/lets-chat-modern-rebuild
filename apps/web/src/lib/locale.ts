@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 
 export type Locale = "en" | "uk" | "ru";
 
@@ -907,15 +907,15 @@ export function useLocale(): {
   setLocale: (locale: Locale) => void;
   t: (key: TranslationKey) => string;
 } {
-  const [locale, setLocaleState] = useState<Locale>(getLocale);
-
-  useEffect(() => {
-    function handleEvent(e: CustomEvent<Locale>) {
-      setLocaleState(e.detail);
-    }
-    window.addEventListener(LOCALE_CHANGED_EVENT, handleEvent);
-    return () => window.removeEventListener(LOCALE_CHANGED_EVENT, handleEvent);
-  }, []);
+  const locale = useSyncExternalStore<Locale>(
+    (callback) => {
+      const handleEvent = () => callback();
+      window.addEventListener(LOCALE_CHANGED_EVENT, handleEvent);
+      return () => window.removeEventListener(LOCALE_CHANGED_EVENT, handleEvent);
+    },
+    () => getLocale(),
+    () => "en",
+  );
 
   const handleSetLocale = useCallback((next: Locale) => {
     syncLocale(next);
