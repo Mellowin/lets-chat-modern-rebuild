@@ -76,6 +76,27 @@ export type TranslationKey =
   | "auth.signIn"
   | "auth.pleaseSignInWorkspace"
   | "auth.pleaseSignInChannel"
+  | "auth.loginTitle"
+  | "auth.loginSubtitle"
+  | "auth.email"
+  | "auth.password"
+  | "auth.signingIn"
+  | "auth.emailPasswordRequired"
+  | "auth.loginFailed"
+  | "auth.signedInAs"
+  | "auth.noAccount"
+  | "auth.createOne"
+  | "auth.registerTitle"
+  | "auth.registerSubtitle"
+  | "auth.username"
+  | "auth.usernameHint"
+  | "auth.passwordHint"
+  | "auth.creatingAccount"
+  | "auth.allFieldsRequired"
+  | "auth.usernameInvalid"
+  | "auth.registrationFailed"
+  | "auth.accountCreatedFor"
+  | "auth.alreadyHaveAccount"
   | "workspace.backToDashboard"
   | "workspace.loading"
   | "workspace.createChannel"
@@ -258,6 +279,27 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "auth.signIn": "Sign in",
     "auth.pleaseSignInWorkspace": "Please sign in to view this workspace.",
     "auth.pleaseSignInChannel": "Please sign in to view this channel.",
+    "auth.loginTitle": "Sign in",
+    "auth.loginSubtitle": "Welcome back. Enter your credentials.",
+    "auth.email": "Email",
+    "auth.password": "Password",
+    "auth.signingIn": "Signing in…",
+    "auth.emailPasswordRequired": "Email and password are required",
+    "auth.loginFailed": "Login failed",
+    "auth.signedInAs": "Signed in as",
+    "auth.noAccount": "No account?",
+    "auth.createOne": "Create one",
+    "auth.registerTitle": "Create account",
+    "auth.registerSubtitle": "Get started with a free account.",
+    "auth.username": "Username",
+    "auth.usernameHint": "Letters, numbers and underscore are allowed.",
+    "auth.passwordHint": "Minimum 8 characters.",
+    "auth.creatingAccount": "Creating account…",
+    "auth.allFieldsRequired": "All fields are required",
+    "auth.usernameInvalid": "Username can only contain letters, numbers and underscores",
+    "auth.registrationFailed": "Registration failed",
+    "auth.accountCreatedFor": "Account created for",
+    "auth.alreadyHaveAccount": "Already have an account?",
     "workspace.backToDashboard": "← Back to dashboard",
     "workspace.loading": "Loading workspace…",
     "workspace.createChannel": "Create channel",
@@ -439,6 +481,27 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "auth.signIn": "Увійти",
     "auth.pleaseSignInWorkspace": "Увійдіть, щоб переглянути робочий простір.",
     "auth.pleaseSignInChannel": "Увійдіть, щоб переглянути канал.",
+    "auth.loginTitle": "Увійти",
+    "auth.loginSubtitle": "Раді бачити вас знову. Введіть свої дані.",
+    "auth.email": "Email",
+    "auth.password": "Пароль",
+    "auth.signingIn": "Входимо…",
+    "auth.emailPasswordRequired": "Email і пароль обовʼязкові",
+    "auth.loginFailed": "Не вдалося увійти",
+    "auth.signedInAs": "Ви увійшли як",
+    "auth.noAccount": "Немає акаунта?",
+    "auth.createOne": "Створити",
+    "auth.registerTitle": "Створити акаунт",
+    "auth.registerSubtitle": "Почніть з безкоштовного акаунта.",
+    "auth.username": "Імʼя користувача",
+    "auth.usernameHint": "Дозволені літери, цифри та підкреслення.",
+    "auth.passwordHint": "Мінімум 8 символів.",
+    "auth.creatingAccount": "Створюємо акаунт…",
+    "auth.allFieldsRequired": "Усі поля обовʼязкові",
+    "auth.usernameInvalid": "Імʼя користувача може містити лише літери, цифри та підкреслення",
+    "auth.registrationFailed": "Не вдалося зареєструватися",
+    "auth.accountCreatedFor": "Акаунт створено для",
+    "auth.alreadyHaveAccount": "Вже маєте акаунт?",
     "workspace.backToDashboard": "← Назад до панелі",
     "workspace.loading": "Завантажуємо робочий простір…",
     "workspace.createChannel": "Створити канал",
@@ -620,6 +683,27 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "auth.signIn": "Войти",
     "auth.pleaseSignInWorkspace": "Войдите, чтобы просмотреть рабочее пространство.",
     "auth.pleaseSignInChannel": "Войдите, чтобы просмотреть канал.",
+    "auth.loginTitle": "Войти",
+    "auth.loginSubtitle": "Рады видеть вас снова. Введите свои дание.",
+    "auth.email": "Email",
+    "auth.password": "Пароль",
+    "auth.signingIn": "Входим…",
+    "auth.emailPasswordRequired": "Email и пароль обязательны",
+    "auth.loginFailed": "Не удалось войти",
+    "auth.signedInAs": "Вы вошли как",
+    "auth.noAccount": "Нет аккаунта?",
+    "auth.createOne": "Создать",
+    "auth.registerTitle": "Создать аккаунт",
+    "auth.registerSubtitle": "Начните с бесплатного аккаунта.",
+    "auth.username": "Имя пользователя",
+    "auth.usernameHint": "Разрешены буквы, цифры и подчёркивание.",
+    "auth.passwordHint": "Минимум 8 символов.",
+    "auth.creatingAccount": "Создаём аккаунт…",
+    "auth.allFieldsRequired": "Все поля обязательны",
+    "auth.usernameInvalid": "Имя пользователя может содержать только буквы, цифры и подчёркивание",
+    "auth.registrationFailed": "Не удалось зарегистрироваться",
+    "auth.accountCreatedFor": "Аккаунт создан для",
+    "auth.alreadyHaveAccount": "Уже есть аккаунт?",
     "workspace.backToDashboard": "← Назад к панели",
     "workspace.loading": "Загружаем рабочее пространство…",
     "workspace.createChannel": "Создать канал",

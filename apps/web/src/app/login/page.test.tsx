@@ -21,7 +21,8 @@ vi.mock("@/lib/auth-context", () => ({
 
 describe("LoginPage", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+    localStorage.clear();
   });
 
   it("renders login form", () => {
@@ -32,6 +33,57 @@ describe("LoginPage", () => {
     expect(screen.getByLabelText(/Password/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Sign in/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Create one/i })).toHaveAttribute("href", "/register");
+  });
+
+  it("shows Ukrainian login labels when locale is uk", () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    render(<LoginPage />);
+
+    expect(screen.getByRole("heading", { name: "Увійти" })).toBeInTheDocument();
+    expect(screen.getByText(/Раді бачити вас знову/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Увійти" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Створити" })).toHaveAttribute("href", "/register");
+  });
+
+  it("shows Russian validation error for empty submit", async () => {
+    localStorage.setItem("lets-chat:locale", "ru");
+    render(<LoginPage />);
+
+    fireEvent.submit(screen.getByRole("button", { name: "Войти" }));
+
+    expect(await screen.findByText("Email и пароль обязательны")).toBeInTheDocument();
+    expect(login).not.toHaveBeenCalled();
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it("shows Russian loading button while submitting", async () => {
+    localStorage.setItem("lets-chat:locale", "ru");
+    let resolveLogin: (value: unknown) => void;
+    const loginPromise = new Promise((resolve) => {
+      resolveLogin = resolve;
+    });
+    vi.mocked(login).mockImplementationOnce(() => loginPromise as Promise<never>);
+
+    render(<LoginPage />);
+
+    await userEvent.type(screen.getByLabelText(/Email/i), "a@b.com");
+    await userEvent.type(screen.getByLabelText(/Пароль/i), "secret");
+    await userEvent.click(screen.getByRole("button", { name: "Войти" }));
+
+    expect(screen.getByRole("button")).toHaveTextContent("Входим…");
+    expect(screen.getByRole("button")).toBeDisabled();
+
+    await act(async () => {
+      resolveLogin!({
+        user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, createdAt: "2024-01-01T00:00:00Z" },
+        accessToken: "at",
+        refreshToken: "rt",
+      });
+    });
+
+    await waitFor(() => {
+      expect(loginSuccessMock).toHaveBeenCalled();
+    });
   });
 
   it("shows error on empty submit without calling login", async () => {

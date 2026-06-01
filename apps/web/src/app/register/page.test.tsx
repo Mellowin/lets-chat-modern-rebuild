@@ -22,6 +22,7 @@ vi.mock("@/lib/auth-context", () => ({
 describe("RegisterPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
   });
 
   it("renders register form", () => {
@@ -33,6 +34,40 @@ describe("RegisterPage", () => {
     expect(screen.getByLabelText(/Password/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Create account/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Sign in/i })).toHaveAttribute("href", "/login");
+  });
+
+  it("shows Ukrainian register labels when locale is uk", () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    render(<RegisterPage />);
+
+    expect(screen.getByRole("heading", { name: "Створити акаунт" })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Імʼя користувача/i)).toBeInTheDocument();
+    expect(screen.getByText(/Мінімум 8 символів/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Увійти" })).toHaveAttribute("href", "/login");
+  });
+
+  it("shows Russian validation error for empty submit", async () => {
+    localStorage.setItem("lets-chat:locale", "ru");
+    render(<RegisterPage />);
+
+    fireEvent.submit(screen.getByRole("button", { name: "Создать аккаунт" }));
+
+    expect(await screen.findByText("Все поля обязательны")).toBeInTheDocument();
+    expect(register).not.toHaveBeenCalled();
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it("shows Ukrainian invalid username error", async () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    render(<RegisterPage />);
+
+    await userEvent.type(screen.getByLabelText(/Email/i), "test@example.com");
+    await userEvent.type(screen.getByLabelText(/Імʼя користувача/i), "invalid user!");
+    await userEvent.type(screen.getByLabelText(/Пароль/i), "password123");
+    await userEvent.click(screen.getByRole("button", { name: "Створити акаунт" }));
+
+    expect(await screen.findByText("Імʼя користувача може містити лише літери, цифри та підкреслення")).toBeInTheDocument();
+    expect(register).not.toHaveBeenCalled();
   });
 
   it("shows error on empty submit without calling register", async () => {
