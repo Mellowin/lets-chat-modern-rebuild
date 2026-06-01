@@ -58,6 +58,8 @@ export type TranslationKey =
   | "dashboard.loadingInvites"
   | "dashboard.loadingChannelInvites"
   | "dashboard.loadingArchived"
+  | "dashboard.loadingWorkspaces"
+  | "dashboard.archivedLabel"
   | "dashboard.noPendingInvitations"
   | "dashboard.noPendingChannelInvitations"
   | "dashboard.noArchivedWorkspaces"
@@ -238,6 +240,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "dashboard.loadingInvites": "Loading invites…",
     "dashboard.loadingChannelInvites": "Loading channel invites…",
     "dashboard.loadingArchived": "Loading archived workspaces…",
+    "dashboard.loadingWorkspaces": "Loading workspaces…",
+    "dashboard.archivedLabel": "Archived",
     "dashboard.noPendingInvitations": "No pending invitations.",
     "dashboard.noPendingChannelInvitations": "No pending channel invitations.",
     "dashboard.noArchivedWorkspaces": "No archived workspaces.",
@@ -417,6 +421,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "dashboard.loadingInvites": "Завантажуємо запрошення…",
     "dashboard.loadingChannelInvites": "Завантажуємо запрошення до каналів…",
     "dashboard.loadingArchived": "Завантажуємо архівовані простори…",
+    "dashboard.loadingWorkspaces": "Завантажуємо робочі простори…",
+    "dashboard.archivedLabel": "Архівовано",
     "dashboard.noPendingInvitations": "Немає запрошень.",
     "dashboard.noPendingChannelInvitations": "Немає запрошень до каналів.",
     "dashboard.noArchivedWorkspaces": "Немає архівованих робочих просторів.",
@@ -596,6 +602,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "dashboard.loadingInvites": "Загружаем приглашения…",
     "dashboard.loadingChannelInvites": "Загружаем приглашения в каналы…",
     "dashboard.loadingArchived": "Загружаем архивированные пространства…",
+    "dashboard.loadingWorkspaces": "Загружаем рабочие пространства…",
+    "dashboard.archivedLabel": "Архивировано",
     "dashboard.noPendingInvitations": "Нет приглашений.",
     "dashboard.noPendingChannelInvitations": "Нет приглашений в каналы.",
     "dashboard.noArchivedWorkspaces": "Нет архивированных рабочих пространств.",

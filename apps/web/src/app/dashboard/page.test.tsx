@@ -385,6 +385,32 @@ describe("DashboardPage — interface language", () => {
     expect(confirmSpy).toHaveBeenCalledWith("Отклонить это приглашение в канал?");
     confirmSpy.mockRestore();
   });
+
+  it("shows Ukrainian archived label", async () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    mockAuth();
+    vi.mocked(listArchivedWorkspaces).mockResolvedValue([
+      { id: "ws-arch", name: "Old Project", slug: "old", description: null, ownerId: "u1", createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-06-01T00:00:00Z", deletedAt: "2024-06-01T00:00:00Z" },
+    ]);
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Old Project")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/Архівовано/i)).toBeInTheDocument();
+  });
+
+  it("shows Russian loading workspaces text", async () => {
+    localStorage.setItem("lets-chat:locale", "ru");
+    mockAuth();
+    vi.mocked(getWorkspaces).mockImplementation(() => new Promise(() => {}));
+
+    render(<DashboardPage />);
+
+    expect(await screen.findByText("Загружаем рабочие пространства…")).toBeInTheDocument();
+  });
 });
 
 describe("DashboardPage — workspace list", () => {

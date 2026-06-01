@@ -482,7 +482,7 @@ export default function DashboardPage() {
           {workspaces.kind === "idle" || workspaces.kind === "loading" ? (
             <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300 py-4">
               <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
-              Loading workspaces…
+              {t("dashboard.loadingWorkspaces")}
             </div>
           ) : workspaces.kind === "error" ? (
             <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
@@ -585,7 +585,7 @@ export default function DashboardPage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-zinc-600 dark:text-zinc-300">{ws.name}</p>
                       <p className="text-xs text-zinc-400 dark:text-zinc-500">
-                        {ws.slug} · Archived {ws.deletedAt ? new Date(ws.deletedAt).toLocaleDateString() : ""}
+                        {ws.slug} · {t("dashboard.archivedLabel")} {ws.deletedAt ? new Date(ws.deletedAt).toLocaleDateString() : ""}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0 ml-2">
