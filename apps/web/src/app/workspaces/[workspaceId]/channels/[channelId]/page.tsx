@@ -579,7 +579,7 @@ export default function ChannelDetailPage() {
               {channel.data.name}
             </h1>
             <span
-              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
+              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide shrink-0 ${
                 channel.data.type === "PUBLIC"
                   ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400"
                   : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
@@ -588,7 +588,7 @@ export default function ChannelDetailPage() {
               {channel.data.type === "PUBLIC" ? t("channel.publicChannel") : t("channel.privateChannel")}
             </span>
             <span
-              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
+              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide shrink-0 ${
                 socketStatus === "joined"
                   ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400"
                   : socketStatus === "connected"
@@ -739,7 +739,7 @@ export default function ChannelDetailPage() {
               <li key={msg.id} className="flex gap-3">
                 <MessageAuthor author={msg.author} />
                 <div className="flex-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs text-zinc-400 dark:text-zinc-500">
                       {new Date(msg.createdAt).toLocaleString()}
                     </span>
@@ -906,9 +906,9 @@ export default function ChannelDetailPage() {
                 <div className="min-w-0">
                   <MessageAuthor author={m.user} />
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   <span
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
+                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide shrink-0 ${
                       m.role === "OWNER"
                         ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400"
                         : m.role === "ADMIN"

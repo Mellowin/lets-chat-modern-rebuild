@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useLocale } from "@/lib/locale";
+import { getAvatarUrl } from "@/lib/avatar-url";
 
 export interface MessageAuthorProps {
   author: {
@@ -21,7 +22,7 @@ export function MessageAuthor({ author }: MessageAuthorProps) {
     <div className="flex items-center gap-2">
       <div className="relative h-8 w-8 shrink-0 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center overflow-hidden">
         {author.avatarUrl ? (
-          <Image fill className="object-cover" sizes="32px" src={author.avatarUrl} alt="" unoptimized />
+          <Image fill className="object-cover" sizes="32px" src={getAvatarUrl(author.avatarUrl) || ""} alt="" unoptimized />
         ) : (
           <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">{initials}</span>
         )}

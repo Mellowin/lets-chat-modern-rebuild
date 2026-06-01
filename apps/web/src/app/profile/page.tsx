@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { updateDisplayName, uploadAvatar, updateInterfaceLanguage } from "@/lib/auth-api";
 import { useLocale, type Locale, localeLabel } from "@/lib/locale";
+import { getAvatarUrl } from "@/lib/avatar-url";
 
 type FormState =
   | { kind: "idle" }
@@ -152,15 +153,15 @@ export default function ProfilePage() {
         <h2 className="text-sm font-semibold">{t("profile.accountInfo")}</h2>
         <div className="mt-3 space-y-2 text-sm">
           <div className="flex items-center gap-2">
-            <span className="text-zinc-500 dark:text-zinc-400 w-20">{t("profile.email")}</span>
+            <span className="text-zinc-500 dark:text-zinc-400 min-w-24">{t("profile.email")}</span>
             <span className="font-medium">{user?.email}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-zinc-500 dark:text-zinc-400 w-20">{t("profile.username")}</span>
+            <span className="text-zinc-500 dark:text-zinc-400 min-w-24">{t("profile.username")}</span>
             <span className="font-medium">{user?.username}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-zinc-500 dark:text-zinc-400 w-20">{t("profile.displayName")}</span>
+            <span className="text-zinc-500 dark:text-zinc-400 min-w-24">{t("profile.displayName")}</span>
             <span className="font-medium">{user?.displayName ?? "—"}</span>
           </div>
         </div>
@@ -173,7 +174,7 @@ export default function ProfilePage() {
             {avatarPreview ? (
               <Image src={avatarPreview} alt={t("profile.avatarPreviewAlt")} fill className="object-cover" unoptimized />
             ) : user?.avatarUrl ? (
-              <Image src={user.avatarUrl} alt={t("profile.avatarAlt")} fill className="object-cover" unoptimized />
+              <Image src={getAvatarUrl(user.avatarUrl) || ""} alt={t("profile.avatarAlt")} fill className="object-cover" unoptimized />
             ) : (
               <span className="text-sm font-semibold text-zinc-600 dark:text-zinc-300">
                 {initials()}
@@ -192,7 +193,7 @@ export default function ProfilePage() {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={avatarState.kind === "loading"}
-              className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
+              className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors shrink-0"
             >
               {avatarState.kind === "loading" ? t("profile.uploading") : t("profile.uploadAvatar")}
             </button>
@@ -224,7 +225,7 @@ export default function ProfilePage() {
           <button
             type="submit"
             disabled={displayNameState.kind === "loading"}
-            className="inline-flex w-full sm:w-auto items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
+            className="inline-flex w-full sm:w-auto items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors sm:shrink-0"
           >
             {displayNameState.kind === "loading" ? t("profile.saving") : t("profile.save")}
           </button>
@@ -259,7 +260,7 @@ export default function ProfilePage() {
                 onClick={() => handleSetLocale(loc)}
                 disabled={localeFormState.kind === "loading"}
                 className={
-                  "inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-60 " +
+                  "inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-60 shrink-0 " +
                   (active
                     ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
                     : "border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800")

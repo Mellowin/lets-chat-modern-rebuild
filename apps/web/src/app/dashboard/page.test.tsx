@@ -180,7 +180,7 @@ describe("DashboardPage — user identity", () => {
     const { container } = render(<DashboardPage />);
 
     await waitFor(() => {
-      expect(container.querySelector('img[src="/uploads/avatars/u1/test.png"]')).toBeInTheDocument();
+      expect(container.querySelector('img[src="http://localhost:3001/uploads/avatars/u1/test.png"]')).toBeInTheDocument();
     });
   });
 

@@ -437,7 +437,7 @@ describe("ChannelDetailPage — message author identity", () => {
     render(<ChannelDetailPage />);
 
     await waitFor(() => {
-      expect(document.querySelector("img[src='/uploads/avatars/u2/test.png']")).toBeInTheDocument();
+      expect(document.querySelector("img[src='http://localhost:3001/uploads/avatars/u2/test.png']")).toBeInTheDocument();
     });
   });
 
