@@ -582,7 +582,8 @@ export default function ChannelDetailPage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] max-w-6xl p-4 sm:p-6 overflow-hidden">
+    <div className="flex h-[calc(100vh-4rem)] max-w-7xl flex-col gap-6 p-4 sm:p-6 lg:flex-row overflow-hidden">
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <Link
         href={`/workspaces/${workspaceId}`}
         className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
@@ -877,11 +878,13 @@ export default function ChannelDetailPage() {
           </form>
         )}
       </div>
-      <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
-        <h2 className="text-sm font-semibold">{t("channel.members")}</h2>
+      </main>
+      <aside className="min-h-0 w-full lg:w-80 lg:shrink-0">
+        <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
+        <h2 className="text-sm font-semibold shrink-0">{t("channel.members")}</h2>
 
         {canManageMembers && (
-          <form onSubmit={handleAddMember} className="mt-3 flex flex-col gap-2">
+          <form onSubmit={handleAddMember} className="mt-3 flex flex-col gap-2 shrink-0">
             <div className="flex items-center gap-2">
               <input
                 type="text"
@@ -934,61 +937,63 @@ export default function ChannelDetailPage() {
           </form>
         )}
 
-        {members.kind === "loading" && (
-          <div className="mt-3 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
-            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
-            {t("channel.loadingMembers")}
-          </div>
-        )}
-
-        {members.kind === "error" && (
-          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-              <span className="h-2 w-2 rounded-full bg-red-500" />
-              {members.message}
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {members.kind === "loading" && (
+            <div className="mt-3 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
+              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
+              {t("channel.loadingMembers")}
             </div>
-          </div>
-        )}
+          )}
 
-        {members.kind === "success" && members.data.length === 0 && (
-          <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
-            {t("channel.noMembers")}
-          </p>
-        )}
+          {members.kind === "error" && (
+            <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
+              <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+                <span className="h-2 w-2 rounded-full bg-red-500" />
+                {members.message}
+              </div>
+            </div>
+          )}
 
-        {members.kind === "success" && members.data.length > 0 && (
-          <ul className="mt-3 divide-y divide-zinc-200 dark:divide-zinc-800">
-            {members.data.map((m) => (
-              <li key={m.id} className="flex items-center justify-between py-2">
-                <div className="min-w-0">
-                  <MessageAuthor author={m.user} />
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide shrink-0 ${
-                      m.role === "OWNER"
-                        ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400"
-                        : m.role === "ADMIN"
-                          ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400"
-                          : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400"
-                    }`}
-                  >
-                    {m.role === "OWNER" ? t("channel.owner") : m.role === "ADMIN" ? t("channel.admin") : t("channel.member")}
-                  </span>
-                  {canRemoveMember(m.role, m.user.id) && (
-                    <button
-                      onClick={() => handleRemoveMember(m.id, m.user.username)}
-                      disabled={removeMemberState.kind === "loading" && removeMemberState.memberId === m.id}
-                      className="text-[10px] text-zinc-400 hover:text-red-600 dark:text-zinc-500 dark:hover:text-red-400 underline disabled:opacity-50"
+          {members.kind === "success" && members.data.length === 0 && (
+            <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
+              {t("channel.noMembers")}
+            </p>
+          )}
+
+          {members.kind === "success" && members.data.length > 0 && (
+            <ul className="mt-3 divide-y divide-zinc-200 dark:divide-zinc-800">
+              {members.data.map((m) => (
+                <li key={m.id} className="flex items-center justify-between py-2">
+                  <div className="min-w-0">
+                    <MessageAuthor author={m.user} />
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span
+                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide shrink-0 ${
+                        m.role === "OWNER"
+                          ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400"
+                          : m.role === "ADMIN"
+                            ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400"
+                            : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400"
+                      }`}
                     >
-                      {removeMemberState.kind === "loading" && removeMemberState.memberId === m.id ? t("channel.removing") : t("channel.remove")}
-                    </button>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+                      {m.role === "OWNER" ? t("channel.owner") : m.role === "ADMIN" ? t("channel.admin") : t("channel.member")}
+                    </span>
+                    {canRemoveMember(m.role, m.user.id) && (
+                      <button
+                        onClick={() => handleRemoveMember(m.id, m.user.username)}
+                        disabled={removeMemberState.kind === "loading" && removeMemberState.memberId === m.id}
+                        className="text-[10px] text-zinc-400 hover:text-red-600 dark:text-zinc-500 dark:hover:text-red-400 underline disabled:opacity-50"
+                      >
+                        {removeMemberState.kind === "loading" && removeMemberState.memberId === m.id ? t("channel.removing") : t("channel.remove")}
+                      </button>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
 
         {removeMemberState.kind === "error" && (
           <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
@@ -999,6 +1004,7 @@ export default function ChannelDetailPage() {
           </div>
         )}
       </div>
+      </aside>
     </div>
   );
 }
