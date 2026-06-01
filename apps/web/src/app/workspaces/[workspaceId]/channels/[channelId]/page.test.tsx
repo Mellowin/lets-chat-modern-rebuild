@@ -2028,13 +2028,13 @@ describe("ChannelDetailPage — message alignment", () => {
     author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
   };
 
-  it("renders own messages right-aligned", async () => {
+  it("renders own messages left-aligned", async () => {
     mockChannelAndMessages([ownMessage]);
     render(<ChannelDetailPage />);
     await waitFor(() => {
       expect(screen.getByText("Own message")).toBeInTheDocument();
     });
-    expect(screen.getByTestId("message-row-m1")).toHaveClass("justify-end");
+    expect(screen.getByTestId("message-row-m1")).toHaveClass("items-start");
   });
 
   it("renders other user messages left-aligned", async () => {
@@ -2048,14 +2048,14 @@ describe("ChannelDetailPage — message alignment", () => {
     expect(row).toHaveClass("items-start");
   });
 
-  it("shows other user avatar and hides own avatar", async () => {
+  it("shows avatars for all messages", async () => {
     mockChannelAndMessages([otherMessage, ownMessage]);
     render(<ChannelDetailPage />);
     await waitFor(() => {
       expect(screen.getByText("Own message")).toBeInTheDocument();
     });
     expect(screen.getByTestId("message-row-m2")).toHaveClass("items-start");
-    expect(screen.getByTestId("message-row-m1")).toHaveClass("justify-end");
+    expect(screen.getByTestId("message-row-m1")).toHaveClass("items-start");
   });
 
   it("shows quoted preview inside own reply bubble", async () => {
@@ -2084,7 +2084,7 @@ describe("ChannelDetailPage — message alignment", () => {
     await waitFor(() => {
       expect(screen.getByText("Own reply")).toBeInTheDocument();
     });
-    expect(screen.getByTestId("message-row-m3")).toHaveClass("justify-end");
+    expect(screen.getByTestId("message-row-m3")).toHaveClass("items-start");
     expect(screen.getAllByText("Parent content").length).toBe(2);
   });
 

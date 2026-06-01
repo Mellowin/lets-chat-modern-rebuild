@@ -748,7 +748,7 @@ export default function ChannelDetailPage() {
           )}
         </div>
 
-        <div ref={messagesScrollRef} className="min-h-0 flex-1 overflow-y-auto bg-gradient-to-br from-emerald-50/40 via-zinc-50 to-sky-50/40 px-4 py-3 dark:from-zinc-950 dark:via-zinc-950 dark:to-zinc-900">
+        <div ref={messagesScrollRef} className="min-h-0 flex-1 overflow-y-auto bg-gradient-to-br from-[#e4efc4] via-[#c9e2bf] to-[#9cc7b2] px-4 py-3 dark:from-zinc-950 dark:via-emerald-950/40 dark:to-zinc-900">
           <div className="mx-auto flex w-full max-w-3xl flex-col">
             {messages.kind === "loading" && (
               <div className="mt-4 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
@@ -781,32 +781,26 @@ export default function ChannelDetailPage() {
                       key={msg.id}
                       id={`message-${msg.id}`}
                       data-testid={`message-row-${msg.id}`}
-                      className={`flex rounded-xl transition-colors ${
-                        isOwnMessage ? "justify-end" : "items-start gap-3"
-                      } ${
+                      className={`flex items-start gap-3 rounded-xl transition-colors ${
                         highlightedMessageId === msg.id
-                          ? "bg-yellow-100/60 dark:bg-yellow-900/25 ring-2 ring-yellow-300/80 dark:ring-yellow-700/70"
+                          ? "bg-yellow-100/70 dark:bg-yellow-900/30 ring-2 ring-yellow-300/80 dark:ring-yellow-700/70"
                           : ""
                       }`}
                     >
-                      {!isOwnMessage && (
-                        <div className="relative h-8 w-8 shrink-0 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center overflow-hidden">
-                          {msg.author.avatarUrl ? (
-                            <Image src={getAvatarUrl(msg.author.avatarUrl) || ""} alt="" fill sizes="32px" className="object-cover" unoptimized />
-                          ) : (
-                            <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                              {(msg.author.displayName || msg.author.username || "?").slice(0, 2).toUpperCase()}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                      <div className={`min-w-0 ${isOwnMessage ? "flex max-w-[80%] flex-col items-end" : "flex-1"}`}>
-                        <div className={`flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 ${isOwnMessage ? "justify-end" : ""}`}>
-                          {!isOwnMessage && (
-                            <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 truncate">
-                              {msg.author.displayName || msg.author.username || t("messageAuthor.unknownUser")}
-                            </span>
-                          )}
+                      <div className="relative h-8 w-8 shrink-0 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center overflow-hidden">
+                        {msg.author.avatarUrl ? (
+                          <Image src={getAvatarUrl(msg.author.avatarUrl) || ""} alt="" fill sizes="32px" className="object-cover" unoptimized />
+                        ) : (
+                          <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                            {(msg.author.displayName || msg.author.username || "?").slice(0, 2).toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+                      <div className="min-w-0 max-w-[80%]">
+                        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+                          <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 truncate">
+                            {msg.author.displayName || msg.author.username || t("messageAuthor.unknownUser")}
+                          </span>
                           <span className="text-xs text-zinc-400 dark:text-zinc-500">
                             {new Date(msg.createdAt).toLocaleString()}
                           </span>
