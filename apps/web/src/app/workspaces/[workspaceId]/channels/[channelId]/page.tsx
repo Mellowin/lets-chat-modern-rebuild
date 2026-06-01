@@ -749,7 +749,7 @@ export default function ChannelDetailPage() {
         </div>
 
         <div ref={messagesScrollRef} className="min-h-0 flex-1 overflow-y-auto bg-gradient-to-br from-[#e4efc4] via-[#c9e2bf] to-[#9cc7b2] px-4 py-3 dark:from-zinc-950 dark:via-emerald-950/40 dark:to-zinc-900">
-          <div className="mx-auto flex w-full max-w-3xl flex-col">
+          <div className="flex w-full max-w-3xl flex-col">
             {messages.kind === "loading" && (
               <div className="mt-4 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
                 <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
