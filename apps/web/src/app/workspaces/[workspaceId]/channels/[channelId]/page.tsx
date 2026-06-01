@@ -749,186 +749,188 @@ export default function ChannelDetailPage() {
         </div>
 
         <div ref={messagesScrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-        {messages.kind === "loading" && (
-          <div className="mt-4 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
-            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
-            {t("channel.loadingMessages")}
-          </div>
-        )}
+          <div className="mx-auto flex w-full max-w-3xl flex-col">
+            {messages.kind === "loading" && (
+              <div className="mt-4 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
+                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
+                {t("channel.loadingMessages")}
+              </div>
+            )}
 
-        {messages.kind === "error" && (
-          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-              <span className="h-2 w-2 rounded-full bg-red-500" />
-              {messages.message}
-            </div>
-          </div>
-        )}
+            {messages.kind === "error" && (
+              <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
+                <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+                  <span className="h-2 w-2 rounded-full bg-red-500" />
+                  {messages.message}
+                </div>
+              </div>
+            )}
 
-        {messages.kind === "success" && messages.data.length === 0 && (
-          <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">
-            {t("channel.noMessages")}
-          </p>
-        )}
+            {messages.kind === "success" && messages.data.length === 0 && (
+              <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">
+                {t("channel.noMessages")}
+              </p>
+            )}
 
-        {messages.kind === "success" && messages.data.length > 0 && (
-          <ul className="mt-4 space-y-3">
-            {messages.data.map((msg) => {
-              const isOwnMessage = user?.id === msg.author.id;
-              return (
-                <li
-                  key={msg.id}
-                  id={`message-${msg.id}`}
-                  data-testid={`message-row-${msg.id}`}
-                  className={`flex rounded-xl transition-colors ${
-                    isOwnMessage ? "justify-end" : "items-start gap-3"
-                  } ${
-                    highlightedMessageId === msg.id
-                      ? "bg-yellow-100/70 dark:bg-yellow-900/30 ring-2 ring-yellow-300 dark:ring-yellow-700"
-                      : ""
-                  }`}
-                >
-                  {!isOwnMessage && (
-                    <div className="relative h-8 w-8 shrink-0 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center overflow-hidden">
-                      {msg.author.avatarUrl ? (
-                        <Image src={getAvatarUrl(msg.author.avatarUrl) || ""} alt="" fill sizes="32px" className="object-cover" unoptimized />
-                      ) : (
-                        <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                          {(msg.author.displayName || msg.author.username || "?").slice(0, 2).toUpperCase()}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                  <div className={`min-w-0 ${isOwnMessage ? "flex max-w-[75%] flex-col items-end" : "flex-1"}`}>
-                    <div className={`flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 ${isOwnMessage ? "justify-end" : ""}`}>
-                      {!isOwnMessage && (
-                        <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 truncate">
-                          {msg.author.displayName || msg.author.username || t("messageAuthor.unknownUser")}
-                        </span>
-                      )}
-                      <span className="text-xs text-zinc-400 dark:text-zinc-500">
-                        {new Date(msg.createdAt).toLocaleString()}
-                      </span>
-                      {msg.editedAt && (
-                        <span className="text-[10px] text-zinc-400 dark:text-zinc-500 italic">
-                          {t("channel.edited")}
-                        </span>
-                      )}
-                      {editingMessageId !== msg.id && !msg.parentId && (
-                        <button
-                          onClick={() => setReplyTargetId(msg.id)}
-                          className="text-[10px] text-zinc-400 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-200 underline"
-                        >
-                          {t("channel.reply")}
-                        </button>
-                      )}
-                      {isOwnMessage && editingMessageId !== msg.id && (
-                        <>
-                          {isEditable(msg) && (
-                            <button
-                              onClick={() => handleEditStart(msg)}
-                              className="text-[10px] text-zinc-400 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-200 underline"
-                            >
-                              {t("channel.edit")}
-                            </button>
-                          )}
-                          <button
-                            onClick={() => handleDelete(msg.id)}
-                            className="text-[10px] text-zinc-400 hover:text-red-600 dark:text-zinc-500 dark:hover:text-red-400 underline"
-                          >
-                            {t("channel.delete")}
-                          </button>
-                        </>
-                      )}
-                    </div>
-                    <div
-                      className={`mt-1 w-fit max-w-full rounded-2xl border px-3 py-2 shadow-sm ${
-                        isOwnMessage
-                          ? "bg-emerald-50 border-emerald-200 text-zinc-900 dark:bg-emerald-950/40 dark:border-emerald-900 dark:text-zinc-100"
-                          : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800"
+            {messages.kind === "success" && messages.data.length > 0 && (
+              <ul className="mt-4 space-y-3">
+                {messages.data.map((msg) => {
+                  const isOwnMessage = user?.id === msg.author.id;
+                  return (
+                    <li
+                      key={msg.id}
+                      id={`message-${msg.id}`}
+                      data-testid={`message-row-${msg.id}`}
+                      className={`flex rounded-xl transition-colors ${
+                        isOwnMessage ? "justify-end" : "items-start gap-3"
+                      } ${
+                        highlightedMessageId === msg.id
+                          ? "bg-yellow-100/70 dark:bg-yellow-900/30 ring-2 ring-yellow-300 dark:ring-yellow-700"
+                          : ""
                       }`}
                     >
-                      {msg.parentId && (
-                        <div className="mb-1.5">
-                          {(() => {
-                            const parent = messages.kind === "success" ? messages.data.find((m) => m.id === msg.parentId) : undefined;
-                            if (parent) {
-                              return (
-                                <button
-                                  onClick={() => scrollToMessage(parent.id)}
-                                  className="flex w-full flex-col gap-0.5 rounded-lg border-l-4 border-zinc-400 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900/60 px-2.5 py-1.5 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors"
-                                >
-                                  <span className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-300">
-                                    {getMessageAuthorName(parent)}
-                                  </span>
-                                  <span className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2">
-                                    {getMessageSnippet(parent)}
-                                  </span>
-                                </button>
-                              );
-                            }
-                            return (
-                              <div className="flex flex-col gap-0.5 rounded-lg border-l-4 border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 px-2.5 py-1.5">
-                                <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
-                                  {t("channel.reply")}
-                                </span>
-                                <span className="text-xs text-zinc-400 dark:text-zinc-500">
-                                  {t("channel.replyOriginalUnavailable")}
-                                </span>
-                              </div>
-                            );
-                          })()}
+                      {!isOwnMessage && (
+                        <div className="relative h-8 w-8 shrink-0 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center overflow-hidden">
+                          {msg.author.avatarUrl ? (
+                            <Image src={getAvatarUrl(msg.author.avatarUrl) || ""} alt="" fill sizes="32px" className="object-cover" unoptimized />
+                          ) : (
+                            <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                              {(msg.author.displayName || msg.author.username || "?").slice(0, 2).toUpperCase()}
+                            </span>
+                          )}
                         </div>
                       )}
-                      {editingMessageId === msg.id ? (
-                        <form onSubmit={handleEditSubmit} className="flex flex-col gap-2">
-                          <textarea
-                            rows={2}
-                            value={editContent}
-                            onChange={(e) => setEditContent(e.target.value)}
-                            disabled={editState.kind === "loading"}
-                            className="w-full resize-none rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100 disabled:opacity-60"
-                          />
-                          <div className="flex items-center gap-2">
+                      <div className={`min-w-0 ${isOwnMessage ? "flex max-w-[80%] flex-col items-end" : "flex-1"}`}>
+                        <div className={`flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 ${isOwnMessage ? "justify-end" : ""}`}>
+                          {!isOwnMessage && (
+                            <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 truncate">
+                              {msg.author.displayName || msg.author.username || t("messageAuthor.unknownUser")}
+                            </span>
+                          )}
+                          <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                            {new Date(msg.createdAt).toLocaleString()}
+                          </span>
+                          {msg.editedAt && (
+                            <span className="text-[10px] text-zinc-400 dark:text-zinc-500 italic">
+                              {t("channel.edited")}
+                            </span>
+                          )}
+                          {editingMessageId !== msg.id && !msg.parentId && (
                             <button
-                              type="submit"
-                              disabled={editState.kind === "loading"}
-                              className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
+                              onClick={() => setReplyTargetId(msg.id)}
+                              className="text-[10px] text-zinc-400 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-200 underline"
                             >
-                              {editState.kind === "loading" ? t("channel.savingEdit") : t("channel.save")}
+                              {t("channel.reply")}
                             </button>
-                            <button
-                              type="button"
-                              onClick={handleEditCancel}
-                              disabled={editState.kind === "loading"}
-                              className="inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-60 transition-colors"
-                            >
-                              {t("channel.cancel")}
-                            </button>
-                          </div>
-                          {editState.kind === "error" && (
-                            <div className="rounded-lg border border-red-200 bg-red-50 p-2 text-xs dark:border-red-900 dark:bg-red-950/30">
-                              <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-                                <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-                                {editState.message}
-                              </div>
+                          )}
+                          {isOwnMessage && editingMessageId !== msg.id && (
+                            <>
+                              {isEditable(msg) && (
+                                <button
+                                  onClick={() => handleEditStart(msg)}
+                                  className="text-[10px] text-zinc-400 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-200 underline"
+                                >
+                                  {t("channel.edit")}
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleDelete(msg.id)}
+                                className="text-[10px] text-zinc-400 hover:text-red-600 dark:text-zinc-500 dark:hover:text-red-400 underline"
+                              >
+                                {t("channel.delete")}
+                              </button>
+                            </>
+                          )}
+                        </div>
+                        <div
+                          className={`mt-1 w-fit max-w-full rounded-2xl border px-3 py-2 shadow-sm ${
+                            isOwnMessage
+                              ? "bg-emerald-50 border-emerald-200 text-zinc-900 dark:bg-emerald-950/40 dark:border-emerald-900 dark:text-zinc-100"
+                              : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800"
+                          }`}
+                        >
+                          {msg.parentId && (
+                            <div className="mb-1.5">
+                              {(() => {
+                                const parent = messages.kind === "success" ? messages.data.find((m) => m.id === msg.parentId) : undefined;
+                                if (parent) {
+                                  return (
+                                    <button
+                                      onClick={() => scrollToMessage(parent.id)}
+                                      className="flex w-full flex-col gap-0.5 rounded-lg border-l-4 border-zinc-400 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900/60 px-2.5 py-1.5 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors"
+                                    >
+                                      <span className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-300">
+                                        {getMessageAuthorName(parent)}
+                                      </span>
+                                      <span className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2">
+                                        {getMessageSnippet(parent)}
+                                      </span>
+                                    </button>
+                                  );
+                                }
+                                return (
+                                  <div className="flex flex-col gap-0.5 rounded-lg border-l-4 border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 px-2.5 py-1.5">
+                                    <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
+                                      {t("channel.reply")}
+                                    </span>
+                                    <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                                      {t("channel.replyOriginalUnavailable")}
+                                    </span>
+                                  </div>
+                                );
+                              })()}
                             </div>
                           )}
-                        </form>
-                      ) : (
-                        <p className="whitespace-pre-wrap break-words text-sm leading-6 text-zinc-800 dark:text-zinc-200">
-                          {msg.content}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+                          {editingMessageId === msg.id ? (
+                            <form onSubmit={handleEditSubmit} className="flex flex-col gap-2">
+                              <textarea
+                                rows={2}
+                                value={editContent}
+                                onChange={(e) => setEditContent(e.target.value)}
+                                disabled={editState.kind === "loading"}
+                                className="w-full resize-none rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100 disabled:opacity-60"
+                              />
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="submit"
+                                  disabled={editState.kind === "loading"}
+                                  className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
+                                >
+                                  {editState.kind === "loading" ? t("channel.savingEdit") : t("channel.save")}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={handleEditCancel}
+                                  disabled={editState.kind === "loading"}
+                                  className="inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-60 transition-colors"
+                                >
+                                  {t("channel.cancel")}
+                                </button>
+                              </div>
+                              {editState.kind === "error" && (
+                                <div className="rounded-lg border border-red-200 bg-red-50 p-2 text-xs dark:border-red-900 dark:bg-red-950/30">
+                                  <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                                    {editState.message}
+                                  </div>
+                                </div>
+                              )}
+                            </form>
+                          ) : (
+                            <p className="whitespace-pre-wrap break-words text-sm leading-6 text-zinc-800 dark:text-zinc-200">
+                              {msg.content}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
 
-          <div ref={messagesEndRef} className="h-1" />
+            <div ref={messagesEndRef} className="h-1" />
+          </div>
         </div>
 
         
