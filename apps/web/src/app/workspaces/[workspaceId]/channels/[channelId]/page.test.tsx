@@ -1995,6 +1995,134 @@ describe("ChannelDetailPage — socket access-loss handling", () => {
 });
 
 
+describe("ChannelDetailPage — message alignment", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.setItem("accessToken", "token");
+    vi.clearAllMocks();
+    socketOnMock.mockReset();
+    socketEmitMock.mockReset();
+    socketDisconnectMock.mockReset();
+    Object.keys(socketHandlers).forEach((k) => delete socketHandlers[k]);
+  });
+
+  const ownMessage = {
+    id: "m1",
+    channelId: "ch1",
+    content: "Own message",
+    parentId: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    editedAt: null,
+    author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+  };
+
+  const otherMessage = {
+    id: "m2",
+    channelId: "ch1",
+    content: "Other message",
+    parentId: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    editedAt: null,
+    author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+  };
+
+  it("renders own messages right-aligned", async () => {
+    mockChannelAndMessages([ownMessage]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Own message")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("message-row-m1")).toHaveClass("justify-end");
+  });
+
+  it("renders other user messages left-aligned", async () => {
+    mockChannelAndMessages([otherMessage]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Other message")).toBeInTheDocument();
+    });
+    const row = screen.getByTestId("message-row-m2");
+    expect(row).not.toHaveClass("justify-end");
+    expect(row).toHaveClass("items-start");
+  });
+
+  it("shows other user avatar and hides own avatar", async () => {
+    mockChannelAndMessages([otherMessage, ownMessage]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Own message")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("message-row-m2")).toHaveClass("items-start");
+    expect(screen.getByTestId("message-row-m1")).toHaveClass("justify-end");
+  });
+
+  it("shows quoted preview inside own reply bubble", async () => {
+    const parent = {
+      id: "m0",
+      channelId: "ch1",
+      content: "Parent content",
+      parentId: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      editedAt: null,
+      author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+    };
+    const ownReply = {
+      id: "m3",
+      channelId: "ch1",
+      content: "Own reply",
+      parentId: "m0",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      editedAt: null,
+      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+    };
+    mockChannelAndMessages([parent, ownReply]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Own reply")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("message-row-m3")).toHaveClass("justify-end");
+    expect(screen.getAllByText("Parent content").length).toBe(2);
+  });
+
+  it("clicking quoted preview in own reply scrolls to parent", async () => {
+    const scrollIntoViewMock = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoViewMock;
+    const parent = {
+      id: "m0",
+      channelId: "ch1",
+      content: "Parent content",
+      parentId: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      editedAt: null,
+      author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+    };
+    const ownReply = {
+      id: "m3",
+      channelId: "ch1",
+      content: "Own reply",
+      parentId: "m0",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      editedAt: null,
+      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+    };
+    mockChannelAndMessages([parent, ownReply]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Own reply")).toBeInTheDocument();
+    });
+    const previews = screen.getAllByText("Parent content");
+    await userEvent.click(previews[previews.length - 1]);
+    expect(scrollIntoViewMock).toHaveBeenCalled();
+    scrollIntoViewMock.mockRestore();
+  });
+});
+
 describe("ChannelDetailPage — members drawer", () => {
   beforeEach(() => {
     localStorage.clear();
