@@ -167,6 +167,9 @@ export type TranslationKey =
   | "channel.cancel"
   | "channel.edited"
   | "channel.reply"
+  | "channel.replyingTo"
+  | "channel.replyOriginalUnavailable"
+  | "channel.cancelReply"
   | "channel.isTyping"
   | "channel.areTyping"
   | "channel.confirmDeleteMessage"
@@ -382,7 +385,10 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "channel.savingEdit": "Saving…",
     "channel.cancel": "Cancel",
     "channel.edited": "edited",
-    "channel.reply": "reply",
+    "channel.reply": "Reply",
+    "channel.replyingTo": "Replying to",
+    "channel.replyOriginalUnavailable": "Original message is not loaded",
+    "channel.cancelReply": "Cancel reply",
     "channel.isTyping": "is typing…",
     "channel.areTyping": "are typing…",
     "channel.confirmDeleteMessage": "Delete this message?",
@@ -597,7 +603,10 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "channel.savingEdit": "Зберігаємо…",
     "channel.cancel": "Скасувати",
     "channel.edited": "змінено",
-    "channel.reply": "відповідь",
+    "channel.reply": "Відповісти",
+    "channel.replyingTo": "Відповідь на",
+    "channel.replyOriginalUnavailable": "Оригінальне повідомлення не завантажено",
+    "channel.cancelReply": "Скасувати відповідь",
     "channel.isTyping": "пише…",
     "channel.areTyping": "пишуть…",
     "channel.confirmDeleteMessage": "Видалити це повідомлення?",
@@ -812,7 +821,10 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "channel.savingEdit": "Сохраняем…",
     "channel.cancel": "Отмена",
     "channel.edited": "изменено",
-    "channel.reply": "ответ",
+    "channel.reply": "Ответить",
+    "channel.replyingTo": "Ответ на",
+    "channel.replyOriginalUnavailable": "Исходное сообщение не загружено",
+    "channel.cancelReply": "Отменить ответ",
     "channel.isTyping": "печатает…",
     "channel.areTyping": "печатают…",
     "channel.confirmDeleteMessage": "Удалить это сообщение?",

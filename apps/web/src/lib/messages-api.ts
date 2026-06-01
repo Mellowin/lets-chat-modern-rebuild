@@ -20,6 +20,7 @@ export interface Message {
 
 export interface CreateMessageInput {
   content: string;
+  parentId?: string;
 }
 
 export interface UpdateMessageInput {

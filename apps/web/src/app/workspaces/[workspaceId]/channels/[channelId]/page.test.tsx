@@ -829,7 +829,7 @@ describe("ChannelDetailPage — message action locale", () => {
     });
 
     expect(screen.getByText("змінено")).toBeInTheDocument();
-    expect(screen.getByText("відповідь")).toBeInTheDocument();
+    expect(screen.getByText("Відповісти")).toBeInTheDocument();
   });
 
   it("shows Russian edited and reply labels", async () => {
@@ -848,7 +848,7 @@ describe("ChannelDetailPage — message action locale", () => {
     });
 
     expect(screen.getByText("изменено")).toBeInTheDocument();
-    expect(screen.getByText("ответ")).toBeInTheDocument();
+    expect(screen.getByText("Ответить")).toBeInTheDocument();
   });
 
   it("shows Ukrainian Save and Cancel in edit mode", async () => {
@@ -2065,5 +2065,182 @@ describe("ChannelDetailPage — members drawer", () => {
     await userEvent.type(screen.getByPlaceholderText(/Search members/i), "bob");
     expect(screen.queryByText("Alice")).not.toBeInTheDocument();
     expect(screen.getByText("Bob")).toBeInTheDocument();
+  });
+});
+
+describe("ChannelDetailPage — replies", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.setItem("accessToken", "token");
+    vi.clearAllMocks();
+    socketOnMock.mockReset();
+    socketEmitMock.mockReset();
+    socketDisconnectMock.mockReset();
+    Object.keys(socketHandlers).forEach((k) => delete socketHandlers[k]);
+  });
+
+  const parentMessage = {
+    id: "m1",
+    channelId: "ch1",
+    content: "Parent message content",
+    parentId: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    editedAt: null,
+    author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+  };
+
+  const replyMessage = {
+    id: "m2",
+    channelId: "ch1",
+    content: "This is a reply",
+    parentId: "m1",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    editedAt: null,
+    author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+  };
+
+  const ownStandaloneMessage = {
+    id: "m3",
+    channelId: "ch1",
+    content: "Standalone",
+    parentId: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    editedAt: null,
+    author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+  };
+
+  it("shows Reply button on regular messages", async () => {
+    mockChannelAndMessages([ownStandaloneMessage]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Standalone")).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: /Reply/i })).toBeInTheDocument();
+  });
+
+  it("hides Reply button on reply messages", async () => {
+    mockChannelAndMessages([replyMessage]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("This is a reply")).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("button", { name: /Reply/i })).not.toBeInTheDocument();
+  });
+
+  it("hides Reply button while editing a message", async () => {
+    mockChannelAndMessages([ownStandaloneMessage]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Standalone")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole("button", { name: /Edit/i }));
+    expect(screen.queryByRole("button", { name: /Reply/i })).not.toBeInTheDocument();
+  });
+
+  it("shows quoted preview with author and snippet for loaded parent", async () => {
+    mockChannelAndMessages([parentMessage, replyMessage]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("This is a reply")).toBeInTheDocument();
+    });
+    expect(screen.getAllByText("Bob").length).toBe(2);
+    expect(screen.getAllByText("Parent message content").length).toBe(2);
+  });
+
+  it("shows fallback preview when parent is not loaded", async () => {
+    mockChannelAndMessages([replyMessage]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("This is a reply")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Original message is not loaded")).toBeInTheDocument();
+  });
+
+  it("clicking Reply shows composer preview with author and snippet", async () => {
+    mockChannelAndMessages([parentMessage]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Parent message content")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole("button", { name: /Reply/i }));
+    expect(screen.getByText(/Replying to/i)).toBeInTheDocument();
+    expect(screen.getByText("Bob")).toBeInTheDocument();
+    expect(screen.getAllByText("Parent message content").length).toBe(2);
+    expect(screen.getByRole("button", { name: /Cancel reply/i })).toBeInTheDocument();
+  });
+
+  it("cancel reply clears composer preview", async () => {
+    mockChannelAndMessages([parentMessage]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Parent message content")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole("button", { name: /Reply/i }));
+    expect(screen.getByText(/Replying to/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /Cancel reply/i }));
+    expect(screen.queryByText(/Replying to/i)).not.toBeInTheDocument();
+  });
+
+  it("sending a reply calls createMessage with parentId and clears preview", async () => {
+    mockChannelAndMessages([parentMessage]);
+    vi.mocked(createMessage).mockResolvedValueOnce({
+      id: "m4",
+      channelId: "ch1",
+      content: "My reply",
+      parentId: "m1",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      editedAt: null,
+      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+    });
+
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Parent message content")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole("button", { name: /Reply/i }));
+    await userEvent.type(screen.getByPlaceholderText(/Type a message/i), "My reply");
+    await userEvent.click(screen.getByRole("button", { name: /Send/i }));
+
+    await waitFor(() => {
+      expect(createMessage).toHaveBeenCalledWith("token", "ws1", "ch1", {
+        content: "My reply",
+        parentId: "m1",
+      });
+    });
+    expect(screen.queryByText(/Replying to/i)).not.toBeInTheDocument();
+  });
+
+  it("preserves reply target on send failure", async () => {
+    mockChannelAndMessages([parentMessage]);
+    vi.mocked(createMessage).mockRejectedValueOnce(new Error("Forbidden"));
+
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Parent message content")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole("button", { name: /Reply/i }));
+    await userEvent.type(screen.getByPlaceholderText(/Type a message/i), "My reply");
+    await userEvent.click(screen.getByRole("button", { name: /Send/i }));
+
+    expect(await screen.findByText(/Forbidden/i)).toBeInTheDocument();
+    expect(screen.getByText(/Replying to/i)).toBeInTheDocument();
+  });
+
+  it("clicking quoted preview scrolls to parent message", async () => {
+    const scrollIntoViewMock = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoViewMock;
+    mockChannelAndMessages([parentMessage, replyMessage]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("This is a reply")).toBeInTheDocument();
+    });
+    const previews = screen.getAllByText("Parent message content");
+    await userEvent.click(previews[previews.length - 1]);
+    expect(scrollIntoViewMock).toHaveBeenCalled();
+    scrollIntoViewMock.mockRestore();
   });
 });
