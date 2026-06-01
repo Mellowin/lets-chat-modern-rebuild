@@ -684,7 +684,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "auth.pleaseSignInWorkspace": "Войдите, чтобы просмотреть рабочее пространство.",
     "auth.pleaseSignInChannel": "Войдите, чтобы просмотреть канал.",
     "auth.loginTitle": "Войти",
-    "auth.loginSubtitle": "Рады видеть вас снова. Введите свои дание.",
+    "auth.loginSubtitle": "Рады видеть вас снова. Введите свои данные.",
     "auth.email": "Email",
     "auth.password": "Пароль",
     "auth.signingIn": "Входим…",

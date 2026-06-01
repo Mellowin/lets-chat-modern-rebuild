@@ -45,6 +45,15 @@ describe("LoginPage", () => {
     expect(screen.getByRole("link", { name: "Створити" })).toHaveAttribute("href", "/register");
   });
 
+  it("shows Russian login labels when locale is ru", () => {
+    localStorage.setItem("lets-chat:locale", "ru");
+    render(<LoginPage />);
+
+    expect(screen.getByRole("heading", { name: "Войти" })).toBeInTheDocument();
+    expect(screen.getByText("Рады видеть вас снова. Введите свои данные.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Войти" })).toBeInTheDocument();
+  });
+
   it("shows Russian validation error for empty submit", async () => {
     localStorage.setItem("lets-chat:locale", "ru");
     render(<LoginPage />);
