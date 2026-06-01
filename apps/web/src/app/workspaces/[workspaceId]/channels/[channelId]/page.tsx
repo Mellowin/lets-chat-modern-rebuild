@@ -598,7 +598,7 @@ export default function ChannelDetailPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] max-w-7xl flex-col gap-6 p-4 sm:p-6 overflow-hidden">
+    <div className="mx-auto flex h-[calc(100vh-4rem)] w-full max-w-7xl flex-col gap-4 p-4 sm:p-6 overflow-hidden">
       <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <Link
         href={`/workspaces/${workspaceId}`}
@@ -625,7 +625,7 @@ export default function ChannelDetailPage() {
 
       {channel.kind === "success" && (
         <>
-          <div className="mt-6 flex items-center gap-3 flex-wrap">
+          <div className="mt-5 flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl font-semibold tracking-tight">
               {channel.data.name}
             </h1>
@@ -705,25 +705,22 @@ export default function ChannelDetailPage() {
         </>
       )}
 
-      <div className="mt-6 flex min-h-0 flex-1 flex-col rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 overflow-hidden">
-        <div className="shrink-0 px-4 pt-4 pb-2">
-          <h2 className="text-sm font-semibold">{t("channel.messages")}</h2>
-
-          {/* Typing indicator */}
+      <div className="mt-4 flex min-h-0 flex-1 flex-col rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-hidden">
+        <div className="shrink-0 px-4 pt-3 pb-1">
           {Object.keys(typingUsers).length > 0 && (
-          <div className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+            <div className="text-xs text-zinc-500 dark:text-zinc-400">
               {Object.values(typingUsers).map((u, i, arr) => (
-              <span key={u.username}>
-                {u.username}
-                {i < arr.length - 1 ? ", " : " "}
-              </span>
-            ))}
+                <span key={u.username}>
+                  {u.username}
+                  {i < arr.length - 1 ? ", " : " "}
+                </span>
+              ))}
               {Object.keys(typingUsers).length === 1 ? t("channel.isTyping") : t("channel.areTyping")}
-          </div>
+            </div>
           )}
         </div>
 
-        <div ref={messagesScrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-2">
+        <div ref={messagesScrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
         {messages.kind === "loading" && (
           <div className="mt-4 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
             <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
@@ -797,7 +794,7 @@ export default function ChannelDetailPage() {
                     )}
                   </div>
                   <div
-                    className={`mt-1 max-w-full rounded-2xl border px-3 py-2 shadow-sm ${
+                    className={`mt-1 w-fit max-w-full rounded-2xl border px-3 py-2 shadow-sm ${
                       user?.id === msg.author.id
                         ? "bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700"
                         : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800"

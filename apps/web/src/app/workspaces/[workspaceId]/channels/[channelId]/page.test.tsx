@@ -94,7 +94,6 @@ describe("ChannelDetailPage — locale", () => {
     await waitFor(() => {
       expect(screen.getByText(/Back to workspace/i)).toBeInTheDocument();
     });
-    expect(screen.getByRole("heading", { name: "Messages" })).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Send" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Members" })).toBeInTheDocument();
   });
@@ -106,7 +105,6 @@ describe("ChannelDetailPage — locale", () => {
     await waitFor(() => {
       expect(screen.getByText(/Назад до робочого простору/i)).toBeInTheDocument();
     });
-    expect(screen.getByRole("heading", { name: "Повідомлення" })).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Надіслати" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Учасники" })).toBeInTheDocument();
   });
@@ -118,7 +116,6 @@ describe("ChannelDetailPage — locale", () => {
     await waitFor(() => {
       expect(screen.getByText(/Назад к рабочему пространству/i)).toBeInTheDocument();
     });
-    expect(screen.getByRole("heading", { name: "Сообщения" })).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Отправить" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Участники" })).toBeInTheDocument();
   });
