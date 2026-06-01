@@ -157,6 +157,7 @@ export type TranslationKey =
   | "channel.invitationSent"
   | "channel.loadingMembers"
   | "channel.noMembers"
+  | "channel.searchMembers"
   | "channel.remove"
   | "channel.removing"
   | "channel.edit"
@@ -372,6 +373,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "channel.invitationSent": "Channel invitation sent",
     "channel.loadingMembers": "Loading members…",
     "channel.noMembers": "No members yet.",
+    "channel.searchMembers": "Search members…",
     "channel.remove": "Remove",
     "channel.removing": "Removing…",
     "channel.edit": "Edit",
@@ -586,6 +588,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "channel.invitationSent": "Запрошення до каналу надіслано",
     "channel.loadingMembers": "Завантажуємо учасників…",
     "channel.noMembers": "Учасників ще немає.",
+    "channel.searchMembers": "Пошук учасників…",
     "channel.remove": "Вилучити",
     "channel.removing": "Вилучаємо…",
     "channel.edit": "Редагувати",
@@ -800,6 +803,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "channel.invitationSent": "Приглашение в канал отправлено",
     "channel.loadingMembers": "Загружаем участников…",
     "channel.noMembers": "Участников пока нет.",
+    "channel.searchMembers": "Поиск участников…",
     "channel.remove": "Удалить",
     "channel.removing": "Удаляем…",
     "channel.edit": "Редактировать",

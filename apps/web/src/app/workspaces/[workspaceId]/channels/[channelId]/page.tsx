@@ -77,6 +77,8 @@ export default function ChannelDetailPage() {
     | { kind: "error"; message: string }
   >({ kind: "idle" });
   const [typingUsers, setTypingUsers] = useState<Record<string, { username: string; timeout: number }>>({});
+  const [isMembersOpen, setIsMembersOpen] = useState(false);
+  const [memberSearch, setMemberSearch] = useState("");
   const socketRef = useRef<ReturnType<typeof createSocket> | null>(null);
   const typingTimeoutRef = useRef<number | null>(null);
   const messagesScrollRef = useRef<HTMLDivElement | null>(null);
@@ -455,6 +457,20 @@ export default function ChannelDetailPage() {
     return false;
   }
 
+  const filteredMembers =
+    members.kind === "success"
+      ? members.data.filter((m) => {
+          const q = memberSearch.trim().toLowerCase();
+          if (!q) return true;
+          return [
+            m.user.displayName,
+            m.user.username,
+          ]
+            .filter(Boolean)
+            .some((value) => (value as string).toLowerCase().includes(q));
+        })
+      : [];
+
   function socketStatusLabel(status: typeof socketStatus) {
     switch (status) {
       case "connecting":
@@ -582,7 +598,7 @@ export default function ChannelDetailPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] max-w-7xl flex-col gap-6 p-4 sm:p-6 lg:flex-row overflow-hidden">
+    <div className="flex h-[calc(100vh-4rem)] max-w-7xl flex-col gap-6 p-4 sm:p-6 overflow-hidden">
       <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <Link
         href={`/workspaces/${workspaceId}`}
@@ -637,6 +653,12 @@ export default function ChannelDetailPage() {
             >
               {socketStatusLabel(socketStatus)}
             </span>
+            <button
+              onClick={() => setIsMembersOpen(true)}
+              className="inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            >
+              {t("channel.members")}
+            </button>
             {canArchiveChannel && (
               <button
                 onClick={handleArchive}
@@ -879,132 +901,156 @@ export default function ChannelDetailPage() {
         )}
       </div>
       </main>
-      <aside className="min-h-0 w-full lg:w-80 lg:shrink-0">
-        <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
-        <h2 className="text-sm font-semibold shrink-0">{t("channel.members")}</h2>
+    {isMembersOpen && (
+      <div className="fixed inset-0 z-40">
+        <div className="absolute inset-0 bg-black/20" onClick={() => setIsMembersOpen(false)} />
+        <aside className="absolute right-0 top-0 h-full w-full max-w-sm bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 shadow-xl flex flex-col overflow-hidden">
+          <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 px-5 py-4 shrink-0">
+            <h2 className="text-sm font-semibold">{t("channel.members")}</h2>
+            <button
+              onClick={() => setIsMembersOpen(false)}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+              aria-label={t("channel.cancel")}
+            >
+              ×
+            </button>
+          </div>
 
-        {canManageMembers && (
-          <form onSubmit={handleAddMember} className="mt-3 flex flex-col gap-2 shrink-0">
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                placeholder={t("channel.invitePlaceholder")}
-                value={addMemberIdentifier}
-                onChange={(e) => {
-                  setAddMemberIdentifier(e.target.value);
-                  if (addMemberState.kind === "error") {
-                    setAddMemberState({ kind: "idle" });
-                  }
-                }}
-                disabled={addMemberState.kind === "loading"}
-                className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100 disabled:opacity-60"
-              />
-              <button
-                type="submit"
-                disabled={addMemberState.kind === "loading"}
-                className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
-              >
-                {addMemberState.kind === "loading" ? t("channel.adding") : t("channel.add")}
-              </button>
-            </div>
-            {myChannelRole === "OWNER" && (
-              <select
-                value={addMemberRole}
-                onChange={(e) => setAddMemberRole(e.target.value as "MEMBER" | "ADMIN")}
-                disabled={addMemberState.kind === "loading"}
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100 disabled:opacity-60"
-              >
-                <option value="MEMBER">{t("channel.member")}</option>
-                <option value="ADMIN">{t("channel.admin")}</option>
-              </select>
+          <div className="px-5 pt-4 shrink-0">
+            <input
+              type="text"
+              placeholder={t("channel.searchMembers")}
+              value={memberSearch}
+              onChange={(e) => setMemberSearch(e.target.value)}
+              className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
+            />
+          </div>
+
+          {canManageMembers && (
+            <form onSubmit={handleAddMember} className="px-5 pt-3 flex flex-col gap-2 shrink-0">
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder={t("channel.invitePlaceholder")}
+                  value={addMemberIdentifier}
+                  onChange={(e) => {
+                    setAddMemberIdentifier(e.target.value);
+                    if (addMemberState.kind === "error") {
+                      setAddMemberState({ kind: "idle" });
+                    }
+                  }}
+                  disabled={addMemberState.kind === "loading"}
+                  className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100 disabled:opacity-60"
+                />
+                <button
+                  type="submit"
+                  disabled={addMemberState.kind === "loading"}
+                  className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
+                >
+                  {addMemberState.kind === "loading" ? t("channel.adding") : t("channel.add")}
+                </button>
+              </div>
+              {myChannelRole === "OWNER" && (
+                <select
+                  value={addMemberRole}
+                  onChange={(e) => setAddMemberRole(e.target.value as "MEMBER" | "ADMIN")}
+                  disabled={addMemberState.kind === "loading"}
+                  className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100 disabled:opacity-60"
+                >
+                  <option value="MEMBER">{t("channel.member")}</option>
+                  <option value="ADMIN">{t("channel.admin")}</option>
+                </select>
+              )}
+              {addMemberState.kind === "error" && (
+                <div className="rounded-lg border border-red-200 bg-red-50 p-2.5 text-sm dark:border-red-900 dark:bg-red-950/30">
+                  <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+                    <span className="h-2 w-2 rounded-full bg-red-500" />
+                    {addMemberState.message}
+                  </div>
+                </div>
+              )}
+              {addMemberState.kind === "success" && (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
+                  <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                    {t("channel.invitationSent")}
+                  </div>
+                </div>
+              )}
+            </form>
+          )}
+
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-2">
+            {members.kind === "loading" && (
+              <div className="mt-3 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
+                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
+                {t("channel.loadingMembers")}
+              </div>
             )}
-            {addMemberState.kind === "error" && (
-              <div className="rounded-lg border border-red-200 bg-red-50 p-2.5 text-sm dark:border-red-900 dark:bg-red-950/30">
+
+            {members.kind === "error" && (
+              <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
                 <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
                   <span className="h-2 w-2 rounded-full bg-red-500" />
-                  {addMemberState.message}
+                  {members.message}
                 </div>
               </div>
             )}
-            {addMemberState.kind === "success" && (
-              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
-                <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                  {t("channel.invitationSent")}
-                </div>
-              </div>
+
+            {members.kind === "success" && filteredMembers.length === 0 && (
+              <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
+                {t("channel.noMembers")}
+              </p>
             )}
-          </form>
-        )}
 
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          {members.kind === "loading" && (
-            <div className="mt-3 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
-              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
-              {t("channel.loadingMembers")}
-            </div>
-          )}
-
-          {members.kind === "error" && (
-            <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-              <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-                <span className="h-2 w-2 rounded-full bg-red-500" />
-                {members.message}
-              </div>
-            </div>
-          )}
-
-          {members.kind === "success" && members.data.length === 0 && (
-            <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
-              {t("channel.noMembers")}
-            </p>
-          )}
-
-          {members.kind === "success" && members.data.length > 0 && (
-            <ul className="mt-3 divide-y divide-zinc-200 dark:divide-zinc-800">
-              {members.data.map((m) => (
-                <li key={m.id} className="flex items-center justify-between py-2">
-                  <div className="min-w-0">
-                    <MessageAuthor author={m.user} />
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span
-                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide shrink-0 ${
-                        m.role === "OWNER"
-                          ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400"
-                          : m.role === "ADMIN"
-                            ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400"
-                            : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400"
-                      }`}
-                    >
-                      {m.role === "OWNER" ? t("channel.owner") : m.role === "ADMIN" ? t("channel.admin") : t("channel.member")}
-                    </span>
-                    {canRemoveMember(m.role, m.user.id) && (
-                      <button
-                        onClick={() => handleRemoveMember(m.id, m.user.username)}
-                        disabled={removeMemberState.kind === "loading" && removeMemberState.memberId === m.id}
-                        className="text-[10px] text-zinc-400 hover:text-red-600 dark:text-zinc-500 dark:hover:text-red-400 underline disabled:opacity-50"
+            {members.kind === "success" && filteredMembers.length > 0 && (
+              <ul className="mt-3 divide-y divide-zinc-200 dark:divide-zinc-800">
+                {filteredMembers.map((m) => (
+                  <li key={m.id} className="flex items-center justify-between py-2">
+                    <div className="min-w-0">
+                      <MessageAuthor author={m.user} />
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span
+                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide shrink-0 ${
+                          m.role === "OWNER"
+                            ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400"
+                            : m.role === "ADMIN"
+                              ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400"
+                              : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400"
+                        }`}
                       >
-                        {removeMemberState.kind === "loading" && removeMemberState.memberId === m.id ? t("channel.removing") : t("channel.remove")}
-                      </button>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        {removeMemberState.kind === "error" && (
-          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-              <span className="h-2 w-2 rounded-full bg-red-500" />
-              {removeMemberState.message}
-            </div>
+                        {m.role === "OWNER" ? t("channel.owner") : m.role === "ADMIN" ? t("channel.admin") : t("channel.member")}
+                      </span>
+                      {canRemoveMember(m.role, m.user.id) && (
+                        <button
+                          onClick={() => handleRemoveMember(m.id, m.user.username)}
+                          disabled={removeMemberState.kind === "loading" && removeMemberState.memberId === m.id}
+                          className="text-[10px] text-zinc-400 hover:text-red-600 dark:text-zinc-500 dark:hover:text-red-400 underline disabled:opacity-50"
+                        >
+                          {removeMemberState.kind === "loading" && removeMemberState.memberId === m.id ? t("channel.removing") : t("channel.remove")}
+                        </button>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-        )}
+
+          {removeMemberState.kind === "error" && (
+            <div className="px-5 pb-4">
+              <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
+                <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+                  <span className="h-2 w-2 rounded-full bg-red-500" />
+                  {removeMemberState.message}
+                </div>
+              </div>
+            </div>
+          )}
+        </aside>
       </div>
-      </aside>
+    )}
     </div>
   );
 }

@@ -96,7 +96,7 @@ describe("ChannelDetailPage — locale", () => {
     });
     expect(screen.getByRole("heading", { name: "Messages" })).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Send" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Members" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Members" })).toBeInTheDocument();
   });
 
   it("renders Ukrainian shell labels when locale is uk", async () => {
@@ -108,7 +108,7 @@ describe("ChannelDetailPage — locale", () => {
     });
     expect(screen.getByRole("heading", { name: "Повідомлення" })).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Надіслати" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Учасники" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Учасники" })).toBeInTheDocument();
   });
 
   it("renders Russian shell labels when locale is ru", async () => {
@@ -120,7 +120,7 @@ describe("ChannelDetailPage — locale", () => {
     });
     expect(screen.getByRole("heading", { name: "Сообщения" })).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Отправить" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Участники" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Участники" })).toBeInTheDocument();
   });
 
   it("shows Ukrainian socket status label", async () => {
@@ -1074,6 +1074,13 @@ describe("ChannelDetailPage — members", () => {
     Object.keys(socketHandlers).forEach((k) => delete socketHandlers[k]);
   });
 
+  async function openMembersDrawer() {
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Members|Учасники|Участники/i })).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole("button", { name: /Members|Учасники|Участники/i }));
+  }
+
   const ownerMember: ChannelMember = {
     id: "cm1",
     channelId: "ch1",
@@ -1101,6 +1108,7 @@ describe("ChannelDetailPage — members", () => {
   it("shows member list", async () => {
     mockChannelAndMessages([], [ownerMember, adminMember]);
     render(<ChannelDetailPage />);
+    await openMembersDrawer();
 
     await waitFor(() => {
       expect(screen.getByText("Alice")).toBeInTheDocument();
@@ -1113,6 +1121,7 @@ describe("ChannelDetailPage — members", () => {
   it("shows displayName with @username when displayName is present", async () => {
     mockChannelAndMessages([], [ownerMember]);
     render(<ChannelDetailPage />);
+    await openMembersDrawer();
 
     await waitFor(() => {
       expect(screen.getByText("Alice")).toBeInTheDocument();
@@ -1129,6 +1138,7 @@ describe("ChannelDetailPage — members", () => {
     };
     mockChannelAndMessages([], [noDisplay]);
     render(<ChannelDetailPage />);
+    await openMembersDrawer();
 
     await waitFor(() => {
       expect(screen.getByText("dave")).toBeInTheDocument();
@@ -1146,6 +1156,7 @@ describe("ChannelDetailPage — members", () => {
     };
     mockChannelAndMessages([], [memberWithAvatar]);
     const { container } = render(<ChannelDetailPage />);
+    await openMembersDrawer();
 
     await waitFor(() => {
       expect(screen.getByText("Alice")).toBeInTheDocument();
@@ -1163,6 +1174,7 @@ describe("ChannelDetailPage — members", () => {
     };
     mockChannelAndMessages([], [memberWithoutAvatar]);
     render(<ChannelDetailPage />);
+    await openMembersDrawer();
 
     await waitFor(() => {
       expect(screen.getByText("AL")).toBeInTheDocument();
@@ -1172,6 +1184,7 @@ describe("ChannelDetailPage — members", () => {
   it("shows add member form for OWNER with role select", async () => {
     mockChannelAndMessages([], [ownerMember]);
     render(<ChannelDetailPage />);
+    await openMembersDrawer();
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
@@ -1191,6 +1204,7 @@ describe("ChannelDetailPage — members", () => {
     };
     mockChannelAndMessages([], [adminAlice]);
     render(<ChannelDetailPage />);
+    await openMembersDrawer();
 
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "general" })).toBeInTheDocument();
@@ -1203,6 +1217,7 @@ describe("ChannelDetailPage — members", () => {
   it("hides add member form for MEMBER", async () => {
     mockChannelAndMessages([], [regularMember]);
     render(<ChannelDetailPage />);
+    await openMembersDrawer();
 
     await waitFor(() => {
       expect(screen.getByText("Alice")).toBeInTheDocument();
@@ -1371,6 +1386,7 @@ describe("ChannelDetailPage — members", () => {
     });
 
     render(<ChannelDetailPage />);
+    await openMembersDrawer();
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
@@ -1390,6 +1406,7 @@ describe("ChannelDetailPage — members", () => {
   it("shows error on empty add member submit", async () => {
     mockChannelAndMessages([], [ownerMember]);
     render(<ChannelDetailPage />);
+    await openMembersDrawer();
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
@@ -1407,6 +1424,7 @@ describe("ChannelDetailPage — members", () => {
     vi.mocked(createChannelInvite).mockRejectedValueOnce(new Error("Already a member of this channel"));
 
     render(<ChannelDetailPage />);
+    await openMembersDrawer();
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
@@ -1425,6 +1443,7 @@ describe("ChannelDetailPage — members", () => {
     });
 
     render(<ChannelDetailPage />);
+    await openMembersDrawer();
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
@@ -1455,6 +1474,7 @@ describe("ChannelDetailPage — members", () => {
     });
 
     render(<ChannelDetailPage />);
+    await openMembersDrawer();
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
@@ -1477,6 +1497,7 @@ describe("ChannelDetailPage — members", () => {
     });
 
     render(<ChannelDetailPage />);
+    await openMembersDrawer();
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
@@ -1497,6 +1518,7 @@ describe("ChannelDetailPage — members", () => {
     });
 
     render(<ChannelDetailPage />);
+    await openMembersDrawer();
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
@@ -1515,6 +1537,7 @@ describe("ChannelDetailPage — members", () => {
     vi.mocked(createChannelInvite).mockRejectedValueOnce(new Error("User must be a workspace member first"));
 
     render(<ChannelDetailPage />);
+    await openMembersDrawer();
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
@@ -1538,6 +1561,13 @@ describe("ChannelDetailPage — remove member", () => {
     socketDisconnectMock.mockReset();
     Object.keys(socketHandlers).forEach((k) => delete socketHandlers[k]);
   });
+
+  async function openMembersDrawer() {
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Members|Учасники|Участники/i })).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole("button", { name: /Members|Учасники|Участники/i }));
+  }
 
   const ownerAlice: ChannelMember = {
     id: "cm1",
@@ -1574,6 +1604,7 @@ describe("ChannelDetailPage — remove member", () => {
   it("OWNER sees Remove for MEMBER", async () => {
     mockChannelAndMessages([], [ownerAlice, memberCharlie]);
     render(<ChannelDetailPage />);
+    await openMembersDrawer();
 
     await waitFor(() => {
       expect(screen.getByText("Charlie")).toBeInTheDocument();
@@ -1585,6 +1616,7 @@ describe("ChannelDetailPage — remove member", () => {
   it("OWNER sees Remove for ADMIN", async () => {
     mockChannelAndMessages([], [ownerAlice, adminBob]);
     render(<ChannelDetailPage />);
+    await openMembersDrawer();
 
     await waitFor(() => {
       expect(screen.getByText("Bob")).toBeInTheDocument();
@@ -1596,6 +1628,7 @@ describe("ChannelDetailPage — remove member", () => {
   it("OWNER does not see Remove for OWNER", async () => {
     mockChannelAndMessages([], [ownerAlice]);
     render(<ChannelDetailPage />);
+    await openMembersDrawer();
 
     await waitFor(() => {
       expect(screen.getByText("Alice")).toBeInTheDocument();
@@ -1613,6 +1646,7 @@ describe("ChannelDetailPage — remove member", () => {
     };
     mockChannelAndMessages([], [adminAlice, memberCharlie]);
     render(<ChannelDetailPage />);
+    await openMembersDrawer();
 
     await waitFor(() => {
       expect(screen.getByText("Charlie")).toBeInTheDocument();
@@ -1631,6 +1665,7 @@ describe("ChannelDetailPage — remove member", () => {
     };
     mockChannelAndMessages([], [adminAlice, adminBob]);
     render(<ChannelDetailPage />);
+    await openMembersDrawer();
 
     await waitFor(() => {
       expect(screen.getByText("Bob")).toBeInTheDocument();
@@ -1655,6 +1690,7 @@ describe("ChannelDetailPage — remove member", () => {
     };
     mockChannelAndMessages([], [adminAlice, ownerDave]);
     render(<ChannelDetailPage />);
+    await openMembersDrawer();
 
     await waitFor(() => {
       expect(screen.getByText("Dave")).toBeInTheDocument();
@@ -1665,6 +1701,7 @@ describe("ChannelDetailPage — remove member", () => {
   it("MEMBER sees no Remove buttons", async () => {
     mockChannelAndMessages([], [regularMember, memberCharlie]);
     render(<ChannelDetailPage />);
+    await openMembersDrawer();
 
     await waitFor(() => {
       expect(screen.getByText("Charlie")).toBeInTheDocument();
@@ -1678,6 +1715,7 @@ describe("ChannelDetailPage — remove member", () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
 
     render(<ChannelDetailPage />);
+    await openMembersDrawer();
 
     await waitFor(() => {
       expect(screen.getByText("Charlie")).toBeInTheDocument();
@@ -1698,6 +1736,7 @@ describe("ChannelDetailPage — remove member", () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
 
     render(<ChannelDetailPage />);
+    await openMembersDrawer();
 
     await waitFor(() => {
       expect(screen.getByText("Charlie")).toBeInTheDocument();
@@ -1713,6 +1752,7 @@ describe("ChannelDetailPage — remove member", () => {
     vi.spyOn(window, "confirm").mockReturnValue(false);
 
     render(<ChannelDetailPage />);
+    await openMembersDrawer();
 
     await waitFor(() => {
       expect(screen.getByText("Charlie")).toBeInTheDocument();
@@ -1954,5 +1994,79 @@ describe("ChannelDetailPage — socket access-loss handling", () => {
     });
     expect(consoleErrorSpy).not.toHaveBeenCalled();
     consoleErrorSpy.mockRestore();
+  });
+});
+
+
+describe("ChannelDetailPage — members drawer", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.setItem("accessToken", "token");
+    vi.clearAllMocks();
+    socketOnMock.mockReset();
+    socketEmitMock.mockReset();
+    socketDisconnectMock.mockReset();
+    Object.keys(socketHandlers).forEach((k) => delete socketHandlers[k]);
+  });
+
+  const ownerMember: ChannelMember = {
+    id: "cm1",
+    channelId: "ch1",
+    role: "OWNER",
+    joinedAt: "2024-01-01T00:00:00Z",
+    user: { id: "u1", username: "alice", displayName: "Alice" },
+  };
+
+  const adminMember: ChannelMember = {
+    id: "cm2",
+    channelId: "ch1",
+    role: "ADMIN",
+    joinedAt: "2024-01-01T00:00:00Z",
+    user: { id: "u2", username: "bob", displayName: "Bob" },
+  };
+
+  it("drawer is closed by default", async () => {
+    mockChannelAndMessages([], [ownerMember, adminMember]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Members/i })).toBeInTheDocument();
+    });
+    expect(screen.queryByPlaceholderText(/Search members/i)).not.toBeInTheDocument();
+  });
+
+  it("opens members drawer when Members button is clicked", async () => {
+    mockChannelAndMessages([], [ownerMember, adminMember]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Members/i })).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole("button", { name: /Members/i }));
+    expect(screen.getByPlaceholderText(/Search members/i)).toBeInTheDocument();
+    expect(screen.getByText("Alice")).toBeInTheDocument();
+    expect(screen.getByText("Bob")).toBeInTheDocument();
+  });
+
+  it("closes members drawer when close button is clicked", async () => {
+    mockChannelAndMessages([], [ownerMember, adminMember]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Members/i })).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole("button", { name: /Members/i }));
+    expect(screen.getByPlaceholderText(/Search members/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /Cancel/i }));
+    expect(screen.queryByPlaceholderText(/Search members/i)).not.toBeInTheDocument();
+  });
+
+  it("search filters members", async () => {
+    mockChannelAndMessages([], [ownerMember, adminMember]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Members/i })).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole("button", { name: /Members/i }));
+    await userEvent.type(screen.getByPlaceholderText(/Search members/i), "bob");
+    expect(screen.queryByText("Alice")).not.toBeInTheDocument();
+    expect(screen.getByText("Bob")).toBeInTheDocument();
   });
 });
