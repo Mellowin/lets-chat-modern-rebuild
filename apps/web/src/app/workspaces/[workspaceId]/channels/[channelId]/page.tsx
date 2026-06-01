@@ -598,8 +598,8 @@ export default function ChannelDetailPage() {
   }
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-4rem)] w-full max-w-7xl flex-col gap-4 p-4 sm:p-6 overflow-hidden">
-      <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+    <div className="flex h-[calc(100vh-4rem)] min-w-0 w-full max-w-none flex-col gap-4 overflow-hidden p-4 sm:p-6">
+      <main className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
       <Link
         href={`/workspaces/${workspaceId}`}
         className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
@@ -705,7 +705,7 @@ export default function ChannelDetailPage() {
         </>
       )}
 
-      <div className="mt-4 flex min-h-0 flex-1 flex-col rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-hidden">
+      <div className="mt-4 flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
         <div className="shrink-0 px-4 pt-3 pb-1">
           {Object.keys(typingUsers).length > 0 && (
             <div className="text-xs text-zinc-500 dark:text-zinc-400">
