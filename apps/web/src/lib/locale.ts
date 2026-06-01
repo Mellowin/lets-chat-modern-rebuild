@@ -187,6 +187,12 @@ export type TranslationKey =
   | "channel.errorSendInvitationFailed"
   | "channel.errorSendMessageFailed"
   | "channel.errorRemoveMemberFailed"
+  | "channel.socketDisconnected"
+  | "channel.socketConnecting"
+  | "channel.socketConnected"
+  | "channel.socketJoined"
+  | "channel.socketError"
+  | "messageAuthor.unknownUser"
   | "workspace.confirmArchiveChannelPrefix"
   | "workspace.confirmArchiveChannelBody"
   | "workspace.confirmRestoreChannelPrefix"
@@ -396,6 +402,12 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "channel.errorSendInvitationFailed": "Failed to send invitation",
     "channel.errorSendMessageFailed": "Failed to send message",
     "channel.errorRemoveMemberFailed": "Failed to remove member",
+    "channel.socketDisconnected": "Disconnected",
+    "channel.socketConnecting": "Connecting",
+    "channel.socketConnected": "Connected",
+    "channel.socketJoined": "Joined",
+    "channel.socketError": "Error",
+    "messageAuthor.unknownUser": "Unknown user",
     "workspace.confirmArchiveChannelPrefix": "Archive channel",
     "workspace.confirmArchiveChannelBody": "This will hide the channel from the workspace. Only the channel owner can do this.",
     "workspace.confirmRestoreChannelPrefix": "Restore channel",
@@ -604,6 +616,12 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "channel.errorSendInvitationFailed": "Не вдалося надіслати запрошення",
     "channel.errorSendMessageFailed": "Не вдалося надіслати повідомлення",
     "channel.errorRemoveMemberFailed": "Не вдалося вилучити учасника",
+    "channel.socketDisconnected": "Відʼєднано",
+    "channel.socketConnecting": "Підключення",
+    "channel.socketConnected": "Підключено",
+    "channel.socketJoined": "Приєднано",
+    "channel.socketError": "Помилка",
+    "messageAuthor.unknownUser": "Невідомий користувач",
     "workspace.confirmArchiveChannelPrefix": "Архівувати канал",
     "workspace.confirmArchiveChannelBody": "Це приховає канал з робочого простору. Це може зробити лише власник каналу.",
     "workspace.confirmRestoreChannelPrefix": "Відновити канал",
@@ -812,6 +830,12 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "channel.errorSendInvitationFailed": "Не удалось отправить приглашение",
     "channel.errorSendMessageFailed": "Не удалось отправить сообщение",
     "channel.errorRemoveMemberFailed": "Не удалось удалить участника",
+    "channel.socketDisconnected": "Отключено",
+    "channel.socketConnecting": "Подключение",
+    "channel.socketConnected": "Подключено",
+    "channel.socketJoined": "Подключено к каналу",
+    "channel.socketError": "Ошибка",
+    "messageAuthor.unknownUser": "Неизвестный пользователь",
     "workspace.confirmArchiveChannelPrefix": "Архивировать канал",
     "workspace.confirmArchiveChannelBody": "Это скроет канал из рабочего пространства. Это может сделать только владелец канала.",
     "workspace.confirmRestoreChannelPrefix": "Восстановить канал",

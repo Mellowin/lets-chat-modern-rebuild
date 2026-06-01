@@ -421,6 +421,22 @@ export default function ChannelDetailPage() {
     return false;
   }
 
+  function socketStatusLabel(status: typeof socketStatus) {
+    switch (status) {
+      case "connecting":
+        return t("channel.socketConnecting");
+      case "connected":
+        return t("channel.socketConnected");
+      case "joined":
+        return t("channel.socketJoined");
+      case "error":
+        return t("channel.socketError");
+      case "disconnected":
+      default:
+        return t("channel.socketDisconnected");
+    }
+  }
+
   async function handleArchive() {
     if (!channelId || !accessToken || !workspaceId) return;
     const name = channel.kind === "success" ? channel.data.name : t("channel.fallbackThisChannel");
@@ -584,7 +600,7 @@ export default function ChannelDetailPage() {
                         : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-500"
               }`}
             >
-              {socketStatus}
+              {socketStatusLabel(socketStatus)}
             </span>
             {canArchiveChannel && (
               <button

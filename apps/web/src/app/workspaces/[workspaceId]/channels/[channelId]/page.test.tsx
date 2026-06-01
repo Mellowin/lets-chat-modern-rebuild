@@ -122,6 +122,26 @@ describe("ChannelDetailPage — locale", () => {
     expect(await screen.findByRole("button", { name: "Отправить" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Участники" })).toBeInTheDocument();
   });
+
+  it("shows Ukrainian socket status label", async () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    mockChannelAndMessages([], []);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/Назад до робочого простору/i)).toBeInTheDocument();
+    });
+    expect(screen.getByText("Підключення")).toBeInTheDocument();
+  });
+
+  it("shows Russian socket status label", async () => {
+    localStorage.setItem("lets-chat:locale", "ru");
+    mockChannelAndMessages([], []);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText(/Назад к рабочему пространству/i)).toBeInTheDocument();
+    });
+    expect(screen.getByText("Подключение")).toBeInTheDocument();
+  });
 });
 
 describe("ChannelDetailPage — composer", () => {

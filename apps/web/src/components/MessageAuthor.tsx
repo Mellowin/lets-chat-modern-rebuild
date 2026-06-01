@@ -1,4 +1,7 @@
+"use client";
+
 import Image from "next/image";
+import { useLocale } from "@/lib/locale";
 
 export interface MessageAuthorProps {
   author: {
@@ -10,7 +13,8 @@ export interface MessageAuthorProps {
 }
 
 export function MessageAuthor({ author }: MessageAuthorProps) {
-  const name = author.displayName || author.username || "Unknown user";
+  const { t } = useLocale();
+  const name = author.displayName || author.username || t("messageAuthor.unknownUser");
   const initials = (author.displayName || author.username || "?").slice(0, 2).toUpperCase();
 
   return (

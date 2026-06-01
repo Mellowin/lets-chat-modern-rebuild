@@ -1,6 +1,10 @@
 import { render, screen } from "@testing-library/react";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { MessageAuthor } from "./MessageAuthor";
+
+beforeEach(() => {
+  localStorage.clear();
+});
 
 describe("MessageAuthor", () => {
   it("shows displayName when available", () => {
@@ -65,5 +69,25 @@ describe("MessageAuthor", () => {
       />,
     );
     expect(screen.getByText("?")).toBeInTheDocument();
+  });
+
+  it("shows Ukrainian 'Unknown user' fallback when displayName and username are missing", () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    render(
+      <MessageAuthor
+        author={{ id: "u1", username: "", displayName: null, avatarUrl: null }}
+      />,
+    );
+    expect(screen.getByText("Невідомий користувач")).toBeInTheDocument();
+  });
+
+  it("shows Russian 'Unknown user' fallback when displayName and username are missing", () => {
+    localStorage.setItem("lets-chat:locale", "ru");
+    render(
+      <MessageAuthor
+        author={{ id: "u1", username: "", displayName: null, avatarUrl: null }}
+      />,
+    );
+    expect(screen.getByText("Неизвестный пользователь")).toBeInTheDocument();
   });
 });
