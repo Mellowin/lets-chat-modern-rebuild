@@ -41,6 +41,12 @@ export type TranslationKey =
   | "profile.selected"
   | "profile.languageSaved"
   | "profile.languageSaveFailed"
+  | "profile.errorUpdateDisplayNameFailed"
+  | "profile.errorAvatarInvalidType"
+  | "profile.errorAvatarTooLarge"
+  | "profile.errorUploadAvatarFailed"
+  | "profile.avatarPreviewAlt"
+  | "profile.avatarAlt"
   | "dashboard.welcome"
   | "dashboard.signedInAs"
   | "dashboard.profileSettings"
@@ -244,6 +250,12 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "profile.selected": "Selected:",
     "profile.languageSaved": "Language saved.",
     "profile.languageSaveFailed": "Failed to save language preference.",
+    "profile.errorUpdateDisplayNameFailed": "Failed to update display name",
+    "profile.errorAvatarInvalidType": "Only JPEG, PNG, or WebP images are allowed",
+    "profile.errorAvatarTooLarge": "Image must be 2 MB or smaller",
+    "profile.errorUploadAvatarFailed": "Failed to upload avatar",
+    "profile.avatarPreviewAlt": "Avatar preview",
+    "profile.avatarAlt": "Avatar",
     "dashboard.welcome": "Welcome",
     "dashboard.signedInAs": "You are signed in as",
     "dashboard.profileSettings": "Profile settings",
@@ -446,6 +458,12 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "profile.selected": "Обрано:",
     "profile.languageSaved": "Мову збережено.",
     "profile.languageSaveFailed": "Не вдалося зберегти мову.",
+    "profile.errorUpdateDisplayNameFailed": "Не вдалося оновити відображуване імʼя",
+    "profile.errorAvatarInvalidType": "Дозволені лише зображення JPEG, PNG або WebP",
+    "profile.errorAvatarTooLarge": "Зображення має бути 2 МБ або менше",
+    "profile.errorUploadAvatarFailed": "Не вдалося завантажити аватар",
+    "profile.avatarPreviewAlt": "Попередній перегляд аватара",
+    "profile.avatarAlt": "Аватар",
     "dashboard.welcome": "Вітаємо",
     "dashboard.signedInAs": "Ви увійшли як",
     "dashboard.profileSettings": "Налаштування профілю",
@@ -648,6 +666,12 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "profile.selected": "Выбрано:",
     "profile.languageSaved": "Язык сохранён.",
     "profile.languageSaveFailed": "Не удалось сохранить язык.",
+    "profile.errorUpdateDisplayNameFailed": "Не удалось обновить отображаемое имя",
+    "profile.errorAvatarInvalidType": "Разрешены только изображения JPEG, PNG или WebP",
+    "profile.errorAvatarTooLarge": "Изображение должно быть 2 МБ или меньше",
+    "profile.errorUploadAvatarFailed": "Не удалось загрузить аватар",
+    "profile.avatarPreviewAlt": "Предпросмотр аватара",
+    "profile.avatarAlt": "Аватар",
     "dashboard.welcome": "Добро пожаловать",
     "dashboard.signedInAs": "Вы вошли как",
     "dashboard.profileSettings": "Настройки профиля",

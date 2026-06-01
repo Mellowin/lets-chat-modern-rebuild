@@ -133,6 +133,19 @@ describe("ProfilePage — authenticated", () => {
     expect(screen.getByRole("img", { name: /Avatar/i })).toHaveAttribute("src", expect.stringContaining("/uploads/avatars/u1/test.png"));
   });
 
+  it("shows Ukrainian avatar alt text", async () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    mockAuth({
+      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: "/uploads/avatars/u1/test.png", avatarUpdatedAt: "2024-01-01T00:00:00Z", createdAt: "2024-01-01T00:00:00Z" },
+    });
+
+    render(<ProfilePage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("img", { name: "Аватар" })).toBeInTheDocument();
+    });
+  });
+
   it("rejects unsupported avatar file type on client", async () => {
     mockAuth();
     render(<ProfilePage />);
@@ -162,6 +175,40 @@ describe("ProfilePage — authenticated", () => {
     await userEvent.upload(input, file);
 
     expect(await screen.findByText(/Image must be 2 MB or smaller/i)).toBeInTheDocument();
+    expect(uploadAvatar).not.toHaveBeenCalled();
+  });
+
+  it("shows Ukrainian error for unsupported avatar file type", async () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    mockAuth();
+    render(<ProfilePage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Аватар" })).toBeInTheDocument();
+    });
+
+    const file = new File(["gif"], "avatar.gif", { type: "image/gif" });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await fireEvent.change(input, { target: { files: [file] } });
+
+    expect(await screen.findByText("Дозволені лише зображення JPEG, PNG або WebP")).toBeInTheDocument();
+    expect(uploadAvatar).not.toHaveBeenCalled();
+  });
+
+  it("shows Russian error for avatar file over 2 MB", async () => {
+    localStorage.setItem("lets-chat:locale", "ru");
+    mockAuth();
+    render(<ProfilePage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Аватар" })).toBeInTheDocument();
+    });
+
+    const file = new File([new Uint8Array(2 * 1024 * 1024 + 1)], "avatar.png", { type: "image/png" });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await userEvent.upload(input, file);
+
+    expect(await screen.findByText("Изображение должно быть 2 МБ или меньше")).toBeInTheDocument();
     expect(uploadAvatar).not.toHaveBeenCalled();
   });
 
@@ -241,6 +288,41 @@ describe("ProfilePage — authenticated", () => {
     await userEvent.click(screen.getByRole("button", { name: /^Save$/i }));
 
     expect(await screen.findByText(/Too long/i)).toBeInTheDocument();
+  });
+
+  it("shows Ukrainian fallback error when display name update rejects with non-Error", async () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    mockAuth();
+    vi.mocked(updateDisplayName).mockImplementationOnce(() => Promise.reject("fallback"));
+
+    render(<ProfilePage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Ваше відображуване імʼя/i)).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Ваше відображуване імʼя/i), "A");
+    await userEvent.click(screen.getByRole("button", { name: /Зберегти/i }));
+
+    expect(await screen.findByText("Не вдалося оновити відображуване імʼя")).toBeInTheDocument();
+  });
+
+  it("shows Russian fallback error when avatar upload rejects with non-Error", async () => {
+    localStorage.setItem("lets-chat:locale", "ru");
+    mockAuth();
+    vi.mocked(uploadAvatar).mockImplementationOnce(() => Promise.reject("fallback"));
+
+    render(<ProfilePage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Аватар" })).toBeInTheDocument();
+    });
+
+    const file = new File(["png"], "avatar.png", { type: "image/png" });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await userEvent.upload(input, file);
+
+    expect(await screen.findByText("Не удалось загрузить аватар")).toBeInTheDocument();
   });
 
   it("has a back link to dashboard", async () => {

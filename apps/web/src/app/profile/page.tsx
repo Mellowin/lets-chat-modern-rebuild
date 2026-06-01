@@ -69,7 +69,7 @@ export default function ProfilePage() {
       setUser(updated);
       setDisplayNameState({ kind: "success" });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to update display name";
+      const message = err instanceof Error ? err.message : t("profile.errorUpdateDisplayNameFailed");
       setDisplayNameState({ kind: "error", message });
     }
   }
@@ -79,11 +79,11 @@ export default function ProfilePage() {
     if (!file) return;
 
     if (!ALLOWED_TYPES.includes(file.type)) {
-      setAvatarState({ kind: "error", message: "Only JPEG, PNG, or WebP images are allowed" });
+      setAvatarState({ kind: "error", message: t("profile.errorAvatarInvalidType") });
       return;
     }
     if (file.size > MAX_FILE_SIZE) {
-      setAvatarState({ kind: "error", message: "Image must be 2 MB or smaller" });
+      setAvatarState({ kind: "error", message: t("profile.errorAvatarTooLarge") });
       return;
     }
 
@@ -101,7 +101,7 @@ export default function ProfilePage() {
         setAvatarState({ kind: "success" });
         setAvatarPreview(null);
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Failed to upload avatar";
+        const message = err instanceof Error ? err.message : t("profile.errorUploadAvatarFailed");
         setAvatarState({ kind: "error", message });
       }
     })();
@@ -171,9 +171,9 @@ export default function ProfilePage() {
         <div className="mt-3 flex items-center gap-4">
           <div className="relative h-16 w-16 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center overflow-hidden">
             {avatarPreview ? (
-              <Image src={avatarPreview} alt="Avatar preview" fill className="object-cover" unoptimized />
+              <Image src={avatarPreview} alt={t("profile.avatarPreviewAlt")} fill className="object-cover" unoptimized />
             ) : user?.avatarUrl ? (
-              <Image src={user.avatarUrl} alt="Avatar" fill className="object-cover" unoptimized />
+              <Image src={user.avatarUrl} alt={t("profile.avatarAlt")} fill className="object-cover" unoptimized />
             ) : (
               <span className="text-sm font-semibold text-zinc-600 dark:text-zinc-300">
                 {initials()}
