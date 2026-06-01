@@ -79,6 +79,28 @@ export default function ChannelDetailPage() {
   const [typingUsers, setTypingUsers] = useState<Record<string, { username: string; timeout: number }>>({});
   const socketRef = useRef<ReturnType<typeof createSocket> | null>(null);
   const typingTimeoutRef = useRef<number | null>(null);
+  const messagesScrollRef = useRef<HTMLDivElement | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const didInitialScroll = useRef(false);
+
+  function scrollMessagesToBottom(behavior: ScrollBehavior = "smooth") {
+    if (typeof messagesEndRef.current?.scrollIntoView === "function") {
+      messagesEndRef.current.scrollIntoView({ behavior, block: "end" });
+    }
+  }
+
+  function isNearBottom() {
+    const el = messagesScrollRef.current;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 160;
+  }
+
+  useEffect(() => {
+    if (messages.kind === "success" && !didInitialScroll.current) {
+      didInitialScroll.current = true;
+      scrollMessagesToBottom("auto");
+    }
+  }, [messages.kind]);
 
   useEffect(() => {
     if (!isAuthenticated || !workspaceId || !channelId || !accessToken) return;
@@ -206,7 +228,16 @@ export default function ChannelDetailPage() {
 
     socket.on("message:created", (msg: Message) => {
       if (msg.channelId !== channelId) return;
+      if (msg.author.id === user?.id) {
+        appendMessage(msg);
+        requestAnimationFrame(() => scrollMessagesToBottom("smooth"));
+        return;
+      }
+      const wasNearBottom = isNearBottom();
       appendMessage(msg);
+      if (wasNearBottom) {
+        requestAnimationFrame(() => scrollMessagesToBottom("smooth"));
+      }
     });
 
     socket.on("message:updated", (msg: Message) => {
@@ -370,6 +401,7 @@ export default function ChannelDetailPage() {
       setContent("");
       setSendState({ kind: "idle" });
       appendMessage(msg);
+      requestAnimationFrame(() => scrollMessagesToBottom("smooth"));
     } catch (err) {
       const message = err instanceof Error ? err.message : t("channel.errorSendMessageFailed");
       setSendState({ kind: "error", message });
@@ -550,7 +582,7 @@ export default function ChannelDetailPage() {
   }
 
   return (
-    <div className="flex flex-col p-6 sm:p-10 max-w-5xl">
+    <div className="flex flex-col h-[calc(100vh-4rem)] max-w-6xl p-4 sm:p-6 overflow-hidden">
       <Link
         href={`/workspaces/${workspaceId}`}
         className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
@@ -650,24 +682,25 @@ export default function ChannelDetailPage() {
         </>
       )}
 
-      <div className="mt-8 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 p-5">
-        <h2 className="text-sm font-semibold">{t("channel.messages")}</h2>
+      <div className="mt-6 flex min-h-0 flex-1 flex-col rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 overflow-hidden">
+        <div className="shrink-0 px-4 pt-4 pb-2">
+          <h2 className="text-sm font-semibold">{t("channel.messages")}</h2>
 
-        {/* Typing indicator */}
-        {Object.keys(typingUsers).length > 0 && (
+          {/* Typing indicator */}
+          {Object.keys(typingUsers).length > 0 && (
           <div className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-            {Object.values(typingUsers).map((u, i, arr) => (
+              {Object.values(typingUsers).map((u, i, arr) => (
               <span key={u.username}>
                 {u.username}
                 {i < arr.length - 1 ? ", " : " "}
               </span>
             ))}
-            {Object.keys(typingUsers).length === 1 ? t("channel.isTyping") : t("channel.areTyping")}
+              {Object.keys(typingUsers).length === 1 ? t("channel.isTyping") : t("channel.areTyping")}
           </div>
-        )}
+          )}
+        </div>
 
-        <div className="mt-4 flex min-h-[420px] flex-col">
-          <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+        <div ref={messagesScrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-2">
         {messages.kind === "loading" && (
           <div className="mt-4 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
             <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
@@ -794,10 +827,12 @@ export default function ChannelDetailPage() {
           </ul>
         )}
 
-          </div>
+          <div ref={messagesEndRef} className="h-1" />
+        </div>
 
+        
                 {channel.kind === "success" && (
-          <form onSubmit={handleSendMessage} className="mt-4 flex flex-col gap-2 border-t border-zinc-200 dark:border-zinc-800 pt-4">
+          <form onSubmit={handleSendMessage} className="shrink-0 flex flex-col gap-2 border-t border-zinc-200 dark:border-zinc-800 p-4">
             <textarea
               rows={2}
               placeholder={t("channel.messagePlaceholder")}
@@ -841,10 +876,7 @@ export default function ChannelDetailPage() {
             )}
           </form>
         )}
-        </div>
       </div>
-
-      {/* Members */}
       <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
         <h2 className="text-sm font-semibold">{t("channel.members")}</h2>
 

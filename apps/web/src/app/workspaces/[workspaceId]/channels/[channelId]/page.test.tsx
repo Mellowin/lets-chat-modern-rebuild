@@ -398,6 +398,39 @@ describe("ChannelDetailPage — composer", () => {
 
     expect(await screen.findByText(/Не удалось отправить сообщение/i)).toBeInTheDocument();
   });
+
+  it("scrolls to bottom after sending a message", async () => {
+    const scrollIntoViewMock = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoViewMock;
+    mockChannelAndMessages([]);
+    const newMsg = {
+      id: "m1",
+      channelId: "ch1",
+      content: "Hello",
+      parentId: null,
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      editedAt: null,
+      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+    };
+    vi.mocked(createMessage).mockResolvedValueOnce(newMsg);
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Type a message/i)).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Type a message/i), "Hello");
+    await userEvent.click(screen.getByRole("button", { name: /Send/i }));
+
+    await waitFor(() => {
+      expect(createMessage).toHaveBeenCalled();
+    });
+
+    expect(scrollIntoViewMock).toHaveBeenCalled();
+    scrollIntoViewMock.mockRestore();
+  });
 });
 
 describe("ChannelDetailPage — message author identity", () => {
