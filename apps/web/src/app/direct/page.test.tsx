@@ -3,7 +3,37 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import DirectMessagesPage from "./page";
 import { useAuth } from "@/lib/auth-context";
-import { listDirectConversations, createDirectConversation } from "@/lib/direct-conversations-api";
+import { listDirectConversations, createDirectConversation, type DirectConversation } from "@/lib/direct-conversations-api";
+
+const socketHandlers: Record<string, (...args: unknown[]) => void> = {};
+const socketOffHandlers: Record<string, ((...args: unknown[]) => void)[]> = {};
+const socketOnMock = vi.fn((event: string, handler: (...args: unknown[]) => void) => {
+  socketHandlers[event] = handler;
+  if (!socketOffHandlers[event]) socketOffHandlers[event] = [];
+  socketOffHandlers[event].push(handler);
+});
+const socketOffMock = vi.fn((event: string, handler: (...args: unknown[]) => void) => {
+  if (socketOffHandlers[event]) {
+    socketOffHandlers[event] = socketOffHandlers[event].filter((h) => h !== handler);
+  }
+  if (socketHandlers[event] === handler) {
+    delete socketHandlers[event];
+  }
+});
+const socketEmitMock = vi.fn();
+const socketDisconnectMock = vi.fn();
+
+function makeMockSocket() {
+  return {
+    on: socketOnMock,
+    off: socketOffMock,
+    emit: socketEmitMock,
+    disconnect: socketDisconnectMock,
+    get connected() {
+      return false;
+    },
+  };
+}
 
 const routerPushMock = vi.fn();
 
@@ -20,6 +50,10 @@ vi.mock("@/lib/direct-conversations-api", () => ({
   createDirectConversation: vi.fn(),
 }));
 
+vi.mock("@/lib/socket-client", () => ({
+  createSocket: vi.fn(() => makeMockSocket()),
+}));
+
 function mockAuth(userOverrides?: Partial<ReturnType<typeof useAuth>>) {
   vi.mocked(useAuth).mockReturnValue({
     user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, createdAt: "2024-01-01T00:00:00Z" },
@@ -32,6 +66,18 @@ function mockAuth(userOverrides?: Partial<ReturnType<typeof useAuth>>) {
     logout: vi.fn(),
     ...userOverrides,
   } as ReturnType<typeof useAuth>);
+}
+
+function mockConversation(overrides?: Partial<DirectConversation>): DirectConversation {
+  return {
+    id: "dc1",
+    createdAt: "2024-01-01T00:00:00Z",
+    updatedAt: "2024-01-01T00:00:00Z",
+    otherParticipant: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+    lastMessage: { id: "dm1", content: "Hey", createdAt: "2024-01-01T00:00:00Z", authorId: "u2" },
+    unreadCount: 3,
+    ...overrides,
+  };
 }
 
 describe("DirectMessagesPage — unauthenticated", () => {
@@ -64,6 +110,8 @@ describe("DirectMessagesPage — list conversations", () => {
     vi.clearAllMocks();
     localStorage.clear();
     vi.mocked(listDirectConversations).mockResolvedValue([]);
+    Object.keys(socketHandlers).forEach((k) => delete socketHandlers[k]);
+    Object.keys(socketOffHandlers).forEach((k) => delete socketOffHandlers[k]);
   });
 
   it("shows loading state", async () => {
@@ -88,13 +136,7 @@ describe("DirectMessagesPage — list conversations", () => {
   it("lists conversations with other participant name", async () => {
     mockAuth();
     vi.mocked(listDirectConversations).mockResolvedValue([
-      {
-        id: "dc1",
-        createdAt: "2024-01-01T00:00:00Z",
-        updatedAt: "2024-01-01T00:00:00Z",
-        otherParticipant: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
-        lastMessage: { id: "dm1", content: "Hey", createdAt: "2024-01-01T00:00:00Z", authorId: "u2" },
-      },
+      mockConversation(),
     ]);
 
     render(<DirectMessagesPage />);
@@ -104,6 +146,7 @@ describe("DirectMessagesPage — list conversations", () => {
     });
     expect(screen.getByText("Hey")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Bob/i })).toHaveAttribute("href", "/direct/dc1");
+    expect(screen.getByText("3")).toBeInTheDocument();
   });
 
   it("shows error when loading fails", async () => {
@@ -230,5 +273,175 @@ describe("DirectMessagesPage — locale", () => {
     });
     expect(screen.getByPlaceholderText(/Имя пользователя или email/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Начать чат/i })).toBeInTheDocument();
+  });
+});
+
+describe("DirectMessagesPage — socket unread updates", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    Object.keys(socketHandlers).forEach((k) => delete socketHandlers[k]);
+    Object.keys(socketOffHandlers).forEach((k) => delete socketOffHandlers[k]);
+  });
+
+  it("increments unreadCount for message from other user", async () => {
+    mockAuth();
+    vi.mocked(listDirectConversations).mockResolvedValue([mockConversation({ unreadCount: 1 })]);
+
+    render(<DirectMessagesPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("1")).toBeInTheDocument();
+    });
+
+    const handler = socketHandlers["direct:message:created"];
+    handler({
+      id: "dm-new",
+      conversationId: "dc1",
+      content: "New msg",
+      parentId: null,
+      createdAt: "2024-01-02T00:00:00Z",
+      updatedAt: "2024-01-02T00:00:00Z",
+      editedAt: null,
+      author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+      parent: null,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("2")).toBeInTheDocument();
+    });
+    expect(screen.getByText("New msg")).toBeInTheDocument();
+  });
+
+  it("does NOT increment unreadCount for own message", async () => {
+    mockAuth();
+    vi.mocked(listDirectConversations).mockResolvedValue([mockConversation({ unreadCount: 1 })]);
+
+    render(<DirectMessagesPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("1")).toBeInTheDocument();
+    });
+
+    const handler = socketHandlers["direct:message:created"];
+    handler({
+      id: "dm-own",
+      conversationId: "dc1",
+      content: "My msg",
+      parentId: null,
+      createdAt: "2024-01-02T00:00:00Z",
+      updatedAt: "2024-01-02T00:00:00Z",
+      editedAt: null,
+      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      parent: null,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("My msg")).toBeInTheDocument();
+    });
+    // unreadCount should stay 1, not become 2
+    expect(screen.getByText("1")).toBeInTheDocument();
+    expect(screen.queryByText("2")).not.toBeInTheDocument();
+  });
+
+  it("does not double-increment on duplicate socket event", async () => {
+    mockAuth();
+    vi.mocked(listDirectConversations).mockResolvedValue([mockConversation({ unreadCount: 0 })]);
+
+    render(<DirectMessagesPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Bob")).toBeInTheDocument();
+    });
+
+    const handler = socketHandlers["direct:message:created"];
+    const msg = {
+      id: "dm-dup",
+      conversationId: "dc1",
+      content: "Dup",
+      parentId: null,
+      createdAt: "2024-01-02T00:00:00Z",
+      updatedAt: "2024-01-02T00:00:00Z",
+      editedAt: null,
+      author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+      parent: null,
+    };
+
+    handler(msg);
+    handler(msg);
+
+    await waitFor(() => {
+      expect(screen.getByText("Dup")).toBeInTheDocument();
+    });
+    expect(screen.getByText("1")).toBeInTheDocument();
+    expect(screen.queryByText("2")).not.toBeInTheDocument();
+  });
+
+  it("moves conversation to top for own message", async () => {
+    mockAuth();
+    vi.mocked(listDirectConversations).mockResolvedValue([
+      mockConversation({ id: "dc1", updatedAt: "2024-01-01T00:00:00Z", unreadCount: 0 }),
+      mockConversation({ id: "dc2", updatedAt: "2024-01-02T00:00:00Z", unreadCount: 0, otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null }, lastMessage: { id: "dm2", content: "Later", createdAt: "2024-01-02T00:00:00Z", authorId: "u3" } }),
+    ]);
+
+    render(<DirectMessagesPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Bob")).toBeInTheDocument();
+    });
+
+    const handler = socketHandlers["direct:message:created"];
+    handler({
+      id: "dm-own",
+      conversationId: "dc1",
+      content: "My msg",
+      parentId: null,
+      createdAt: "2024-01-03T00:00:00Z",
+      updatedAt: "2024-01-03T00:00:00Z",
+      editedAt: null,
+      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      parent: null,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("My msg")).toBeInTheDocument();
+    });
+
+    const links = screen.getAllByRole("link");
+    expect(links[0]).toHaveAttribute("href", "/direct/dc1");
+  });
+
+  it("moves conversation to top for other user message", async () => {
+    mockAuth();
+    vi.mocked(listDirectConversations).mockResolvedValue([
+      mockConversation({ id: "dc1", updatedAt: "2024-01-01T00:00:00Z", unreadCount: 0 }),
+      mockConversation({ id: "dc2", updatedAt: "2024-01-02T00:00:00Z", unreadCount: 0, otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null }, lastMessage: { id: "dm2", content: "Later", createdAt: "2024-01-02T00:00:00Z", authorId: "u3" } }),
+    ]);
+
+    render(<DirectMessagesPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Bob")).toBeInTheDocument();
+    });
+
+    const handler = socketHandlers["direct:message:created"];
+    handler({
+      id: "dm-other",
+      conversationId: "dc1",
+      content: "Other msg",
+      parentId: null,
+      createdAt: "2024-01-03T00:00:00Z",
+      updatedAt: "2024-01-03T00:00:00Z",
+      editedAt: null,
+      author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+      parent: null,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Other msg")).toBeInTheDocument();
+    });
+
+    const links = screen.getAllByRole("link");
+    expect(links[0]).toHaveAttribute("href", "/direct/dc1");
   });
 });

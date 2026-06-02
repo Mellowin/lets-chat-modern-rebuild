@@ -27,7 +27,7 @@ type StartState =
   | { kind: "error"; message: string };
 
 export default function DirectMessagesPage() {
-  const { accessToken, isLoading: authLoading, isAuthenticated } = useAuth();
+  const { accessToken, isLoading: authLoading, isAuthenticated, user } = useAuth();
   const { t } = useLocale();
   const router = useRouter();
   const [conversations, setConversations] = useState<ConversationsState>({ kind: "idle" });
@@ -73,6 +73,7 @@ export default function DirectMessagesPage() {
           // dedupe same message
           return prev;
         }
+        const isOwnMessage = msg.author.id === user?.id;
         updated[existingIndex] = {
           ...conv,
           updatedAt: msg.createdAt,
@@ -82,7 +83,7 @@ export default function DirectMessagesPage() {
             createdAt: msg.createdAt,
             authorId: msg.author.id,
           },
-          unreadCount: conv.unreadCount + 1,
+          unreadCount: isOwnMessage ? conv.unreadCount : conv.unreadCount + 1,
         };
         // move to top
         const [moved] = updated.splice(existingIndex, 1);

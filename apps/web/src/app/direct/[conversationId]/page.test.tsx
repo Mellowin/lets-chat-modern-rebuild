@@ -2,7 +2,7 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import DirectConversationPage from "./page";
-import { listDirectMessages, sendDirectMessage } from "@/lib/direct-conversations-api";
+import { listDirectMessages, sendDirectMessage, markDirectConversationRead } from "@/lib/direct-conversations-api";
 
 const socketHandlers: Record<string, (...args: unknown[]) => void> = {};
 const socketOffHandlers: Record<string, ((...args: unknown[]) => void)[]> = {};
@@ -640,5 +640,111 @@ describe("DirectConversationPage — socket", () => {
     await waitFor(() => {
       expect(screen.getByText(/Access denied/i)).toBeInTheDocument();
     });
+  });
+});
+
+describe("DirectConversationPage — mark as read", () => {
+  it("calls markDirectConversationRead on page load", async () => {
+    mockMessages([]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(markDirectConversationRead).toHaveBeenCalledWith("token", "dc1");
+    });
+  });
+
+  it("dispatches direct-conversations:changed after successful mark-read on load", async () => {
+    mockMessages([]);
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent");
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(markDirectConversationRead).toHaveBeenCalledWith("token", "dc1");
+    });
+
+    await waitFor(() => {
+      expect(dispatchSpy).toHaveBeenCalledWith(
+        new CustomEvent("direct-conversations:changed"),
+      );
+    });
+
+    dispatchSpy.mockRestore();
+  });
+
+  it("does not crash if mark-read fails on load", async () => {
+    mockMessages([]);
+    vi.mocked(markDirectConversationRead).mockRejectedValueOnce(new Error("Network"));
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(markDirectConversationRead).toHaveBeenCalledWith("token", "dc1");
+    });
+
+    // Page should still render normally
+    expect(await screen.findByPlaceholderText(/Type a message/i)).toBeInTheDocument();
+  });
+
+  it("calls markDirectConversationRead for incoming message while conversation is open", async () => {
+    mockMessages([]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(socketOnMock).toHaveBeenCalledWith("direct:message:created", expect.any(Function));
+    });
+
+    const handler = socketHandlers["direct:message:created"];
+    handler({
+      id: "dm-live",
+      conversationId: "dc1",
+      content: "Live message",
+      parentId: null,
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      editedAt: null,
+      author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+      parent: null,
+    });
+
+    await waitFor(() => {
+      expect(markDirectConversationRead).toHaveBeenCalledWith("token", "dc1");
+    });
+  });
+
+  it("dispatches direct-conversations:changed after mark-read for incoming message", async () => {
+    mockMessages([]);
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent");
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(socketOnMock).toHaveBeenCalledWith("direct:message:created", expect.any(Function));
+    });
+
+    const handler = socketHandlers["direct:message:created"];
+    handler({
+      id: "dm-live",
+      conversationId: "dc1",
+      content: "Live message",
+      parentId: null,
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      editedAt: null,
+      author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+      parent: null,
+    });
+
+    await waitFor(() => {
+      expect(markDirectConversationRead).toHaveBeenCalledWith("token", "dc1");
+    });
+
+    await waitFor(() => {
+      expect(dispatchSpy).toHaveBeenCalledWith(
+        new CustomEvent("direct-conversations:changed"),
+      );
+    });
+
+    dispatchSpy.mockRestore();
   });
 });

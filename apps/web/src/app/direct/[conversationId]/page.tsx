@@ -40,6 +40,10 @@ export default function DirectConversationPage() {
   const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const socketRef = useRef<ReturnType<typeof createSocket> | null>(null);
 
+  function notifyDirectConversationsChanged() {
+    window.dispatchEvent(new CustomEvent("direct-conversations:changed"));
+  }
+
   function scrollMessagesToBottom(behavior: ScrollBehavior = "smooth") {
     if (typeof messagesEndRef.current?.scrollIntoView === "function") {
       messagesEndRef.current.scrollIntoView({ behavior, block: "end" });
@@ -79,9 +83,13 @@ export default function DirectConversationPage() {
     }
     load(accessToken, conversationId);
     // Mark as read when opening conversation
-    markDirectConversationRead(accessToken, conversationId).catch(() => {
-      // non-blocking
-    });
+    markDirectConversationRead(accessToken, conversationId)
+      .then(() => {
+        notifyDirectConversationsChanged();
+      })
+      .catch(() => {
+        // non-blocking
+      });
     return () => {
       cancelled = true;
     };
@@ -111,9 +119,13 @@ export default function DirectConversationPage() {
       }
       // Mark as read when receiving message while in open conversation
       if (accessToken) {
-        markDirectConversationRead(accessToken, conversationId).catch(() => {
-          // non-blocking
-        });
+        markDirectConversationRead(accessToken, conversationId)
+          .then(() => {
+            notifyDirectConversationsChanged();
+          })
+          .catch(() => {
+            // non-blocking
+          });
       }
     }
 
