@@ -59,12 +59,14 @@ export default function DirectMessagesPage() {
     socketRef.current = socket;
 
     function handleDirectConversationUpdated(msg: DirectMessage) {
+      let shouldNotify = false;
+      let shouldReload = false;
+
       setConversations((prev) => {
         if (prev.kind !== "success") return prev;
         const existingIndex = prev.data.findIndex((c) => c.id === msg.conversationId);
         if (existingIndex === -1) {
-          // Unknown conversation — reload list
-          if (accessToken) loadConversations(accessToken);
+          shouldReload = true;
           return prev;
         }
         const updated = [...prev.data];
@@ -88,9 +90,18 @@ export default function DirectMessagesPage() {
         // move to top
         const [moved] = updated.splice(existingIndex, 1);
         updated.unshift(moved);
-        window.dispatchEvent(new CustomEvent("direct-conversations:changed"));
+        shouldNotify = true;
         return { kind: "success", data: updated };
       });
+
+      setTimeout(() => {
+        if (shouldReload && accessToken) {
+          void loadConversations(accessToken);
+        }
+        if (shouldNotify) {
+          window.dispatchEvent(new CustomEvent("direct-conversations:changed"));
+        }
+      }, 0);
     }
 
     socket.on("direct:conversation:updated", handleDirectConversationUpdated);

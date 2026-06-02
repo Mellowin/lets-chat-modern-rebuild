@@ -444,4 +444,113 @@ describe("DirectMessagesPage — socket unread updates", () => {
     const links = screen.getAllByRole("link");
     expect(links[0]).toHaveAttribute("href", "/direct/dc1");
   });
+
+  it("dispatches direct-conversations:changed after state update via microtask", async () => {
+    mockAuth();
+    vi.mocked(listDirectConversations).mockResolvedValue([mockConversation({ unreadCount: 0 })]);
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent");
+
+    render(<DirectMessagesPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Bob")).toBeInTheDocument();
+    });
+
+    const handler = socketHandlers["direct:conversation:updated"];
+    handler({
+      id: "dm-new",
+      conversationId: "dc1",
+      content: "New msg",
+      parentId: null,
+      createdAt: "2024-01-02T00:00:00Z",
+      updatedAt: "2024-01-02T00:00:00Z",
+      editedAt: null,
+      author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+      parent: null,
+    });
+
+    // Flush deferred side effects (setTimeout 0)
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    await waitFor(() => {
+      expect(dispatchSpy).toHaveBeenCalledWith(
+        new CustomEvent("direct-conversations:changed"),
+      );
+    });
+
+    dispatchSpy.mockRestore();
+  });
+
+  it("does not produce React setState warning during socket update", async () => {
+    mockAuth();
+    vi.mocked(listDirectConversations).mockResolvedValue([mockConversation({ unreadCount: 0 })]);
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    render(<DirectMessagesPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Bob")).toBeInTheDocument();
+    });
+
+    const handler = socketHandlers["direct:conversation:updated"];
+    handler({
+      id: "dm-new",
+      conversationId: "dc1",
+      content: "New msg",
+      parentId: null,
+      createdAt: "2024-01-02T00:00:00Z",
+      updatedAt: "2024-01-02T00:00:00Z",
+      editedAt: null,
+      author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+      parent: null,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("New msg")).toBeInTheDocument();
+    });
+
+    // Flush deferred side effects (setTimeout 0)
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const reactWarning = consoleErrorSpy.mock.calls.find(
+      (call) =>
+        typeof call[0] === "string" &&
+        call[0].includes("Cannot update a component") &&
+        call[0].includes("while rendering a different component"),
+    );
+    expect(reactWarning).toBeUndefined();
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("reloads unknown conversation via microtask, not inside updater", async () => {
+    mockAuth();
+    vi.mocked(listDirectConversations).mockResolvedValue([mockConversation({ unreadCount: 0 })]);
+
+    render(<DirectMessagesPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Bob")).toBeInTheDocument();
+    });
+
+    const handler = socketHandlers["direct:conversation:updated"];
+    handler({
+      id: "dm-unknown",
+      conversationId: "dc-unknown",
+      content: "Unknown",
+      parentId: null,
+      createdAt: "2024-01-02T00:00:00Z",
+      updatedAt: "2024-01-02T00:00:00Z",
+      editedAt: null,
+      author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+      parent: null,
+    });
+
+    // Flush deferred side effects (setTimeout 0)
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    await waitFor(() => {
+      expect(listDirectConversations).toHaveBeenCalledTimes(2);
+    });
+  });
 });
