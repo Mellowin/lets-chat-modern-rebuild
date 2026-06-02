@@ -166,6 +166,33 @@ export class DirectConversationsRepository {
     });
   }
 
+  async updateParticipantLastRead(conversationId: string, userId: string) {
+    return this.prisma.directConversationParticipant.update({
+      where: {
+        conversationId_userId: {
+          conversationId,
+          userId,
+        },
+      },
+      data: { lastReadAt: new Date() },
+    });
+  }
+
+  async countUnreadMessages(
+    conversationId: string,
+    userId: string,
+    lastReadAt: Date | null,
+  ) {
+    return this.prisma.directMessage.count({
+      where: {
+        conversationId,
+        authorId: { not: userId },
+        deletedAt: null,
+        ...(lastReadAt ? { createdAt: { gt: lastReadAt } } : {}),
+      },
+    });
+  }
+
   async createMessage(data: CreateMessageInput) {
     return this.prisma.directMessage.create({
       data: {

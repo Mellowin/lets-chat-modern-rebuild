@@ -10,6 +10,7 @@ import { getAvatarUrl } from "@/lib/avatar-url";
 import {
   listDirectMessages,
   sendDirectMessage,
+  markDirectConversationRead,
   type DirectMessage,
   type SendDirectMessageInput,
 } from "@/lib/direct-conversations-api";
@@ -77,6 +78,10 @@ export default function DirectConversationPage() {
       }
     }
     load(accessToken, conversationId);
+    // Mark as read when opening conversation
+    markDirectConversationRead(accessToken, conversationId).catch(() => {
+      // non-blocking
+    });
     return () => {
       cancelled = true;
     };
@@ -103,6 +108,12 @@ export default function DirectConversationPage() {
       appendMessage(msg);
       if (wasNearBottom) {
         requestAnimationFrame(() => scrollMessagesToBottom("smooth"));
+      }
+      // Mark as read when receiving message while in open conversation
+      if (accessToken) {
+        markDirectConversationRead(accessToken, conversationId).catch(() => {
+          // non-blocking
+        });
       }
     }
 

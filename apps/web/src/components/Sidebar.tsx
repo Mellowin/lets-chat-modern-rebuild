@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { getWorkspaces, type Workspace } from "@/lib/workspaces-api";
 import { getChannels, type Channel } from "@/lib/channels-api";
+import { listDirectConversations, type DirectConversation } from "@/lib/direct-conversations-api";
 
 type WorkspacesState =
   | { kind: "idle" }
@@ -19,12 +20,19 @@ type ChannelsState =
   | { kind: "success"; data: Channel[] }
   | { kind: "error" };
 
+type DirectConversationsState =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "success"; data: DirectConversation[] }
+  | { kind: "error" };
+
 export default function Sidebar() {
   const { accessToken, isAuthenticated, isLoading: authLoading } = useAuth();
   const pathname = usePathname();
 
   const [workspaces, setWorkspaces] = useState<WorkspacesState>({ kind: "idle" });
   const [channels, setChannels] = useState<ChannelsState>({ kind: "idle" });
+  const [directConversations, setDirectConversations] = useState<DirectConversationsState>({ kind: "idle" });
 
   const activeWorkspaceId = pathname?.startsWith("/workspaces/")
     ? pathname.split("/")[2]
@@ -62,6 +70,37 @@ export default function Sidebar() {
     return () => {
       cancelled = true;
       window.removeEventListener("workspaces:changed", handleWorkspacesChanged);
+    };
+  }, [isAuthenticated, accessToken]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !accessToken) return;
+
+    let cancelled = false;
+    async function load(token: string) {
+      setDirectConversations({ kind: "loading" });
+      try {
+        const data = await listDirectConversations(token);
+        if (!cancelled) {
+          setDirectConversations({ kind: "success", data });
+        }
+      } catch {
+        if (!cancelled) {
+          setDirectConversations({ kind: "error" });
+        }
+      }
+    }
+    load(accessToken);
+
+    function handleDirectConversationsChanged() {
+      if (!accessToken) return;
+      load(accessToken);
+    }
+
+    window.addEventListener("direct-conversations:changed", handleDirectConversationsChanged);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("direct-conversations:changed", handleDirectConversationsChanged);
     };
   }, [isAuthenticated, accessToken]);
 
@@ -165,13 +204,21 @@ export default function Sidebar() {
         <li>
           <Link
             href="/direct"
-            className={`block rounded-md px-2 py-1.5 text-sm transition-colors ${
+            className={`flex items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors ${
               pathname?.startsWith("/direct")
                 ? "bg-zinc-200 dark:bg-zinc-800 font-medium text-zinc-900 dark:text-zinc-100"
                 : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
             }`}
           >
             <span className="truncate block">Direct messages</span>
+            {directConversations.kind === "success" &&
+              directConversations.data.reduce((sum, c) => sum + c.unreadCount, 0) > 0 && (
+                <span className="inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-zinc-900 px-1 text-[9px] font-bold text-white dark:bg-zinc-100 dark:text-zinc-900">
+                  {directConversations.data.reduce((sum, c) => sum + c.unreadCount, 0) > 99
+                    ? "99+"
+                    : directConversations.data.reduce((sum, c) => sum + c.unreadCount, 0)}
+                </span>
+              )}
           </Link>
         </li>
       </ul>

@@ -82,4 +82,16 @@ export class DirectConversationsController {
   ) {
     return this.directConversations.createMessage(conversationId, dto, user.id);
   }
+
+  @Post(':conversationId/read')
+  @ApiOperation({ summary: 'Mark direct conversation as read' })
+  @ApiOkResponse({ description: 'Conversation marked as read' })
+  @ApiForbiddenResponse({ description: 'Access denied' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async markAsRead(
+    @Param('conversationId', ParseUUIDPipe) conversationId: string,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.directConversations.markAsRead(conversationId, user.id);
+  }
 }

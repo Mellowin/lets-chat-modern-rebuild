@@ -32,6 +32,7 @@ function makeConversation(
         conversationId,
         userId,
         createdAt: new Date(),
+        lastReadAt: new Date(),
         user: {
           id: userId,
           username: 'alice',
@@ -44,6 +45,7 @@ function makeConversation(
         conversationId,
         userId: otherUserId,
         createdAt: new Date(),
+        lastReadAt: new Date(),
         user: {
           id: otherUserId,
           username: 'bob',
@@ -103,6 +105,8 @@ describe('DirectConversationsService', () => {
             findMessageById: jest.fn(),
             listMessagesForConversation: jest.fn(),
             touchConversationUpdatedAt: jest.fn(),
+            updateParticipantLastRead: jest.fn(),
+            countUnreadMessages: jest.fn(),
           },
         },
         {
@@ -169,6 +173,7 @@ describe('DirectConversationsService', () => {
       } as Awaited<ReturnType<UsersRepository['findById']>>);
       repository.findByKey.mockResolvedValue(null);
       repository.createConversation.mockResolvedValue(makeConversation());
+      repository.countUnreadMessages.mockResolvedValue(0);
 
       const result = await service.create({ userId: otherUserId }, userId);
       expect(result.id).toBe(conversationId);
@@ -183,6 +188,7 @@ describe('DirectConversationsService', () => {
       } as Awaited<ReturnType<UsersRepository['findById']>>);
       repository.findByKey.mockResolvedValue(null);
       repository.createConversation.mockResolvedValue(makeConversation());
+      repository.countUnreadMessages.mockResolvedValue(0);
 
       const result = await service.create({ userId: otherUserId }, userId);
       expect(result.otherParticipant?.id).toBe(otherUserId);
@@ -197,6 +203,7 @@ describe('DirectConversationsService', () => {
         avatarUrl: null,
       } as Awaited<ReturnType<UsersRepository['findById']>>);
       repository.findByKey.mockResolvedValue(makeConversation());
+      repository.countUnreadMessages.mockResolvedValue(0);
 
       const result = await service.create({ userId: otherUserId }, userId);
       expect(result.id).toBe(conversationId);
@@ -212,6 +219,7 @@ describe('DirectConversationsService', () => {
       } as Awaited<ReturnType<UsersRepository['findById']>>);
       repository.findByKey.mockResolvedValue(null);
       repository.createConversation.mockResolvedValue(makeConversation());
+      repository.countUnreadMessages.mockResolvedValue(0);
 
       const result = await service.create({ usernameOrEmail: 'bob' }, userId);
       expect(result.id).toBe(conversationId);
@@ -236,6 +244,7 @@ describe('DirectConversationsService', () => {
       } as Awaited<ReturnType<UsersRepository['findById']>>);
       repository.findByKey.mockResolvedValue(null);
       repository.createConversation.mockResolvedValue(makeConversation());
+      repository.countUnreadMessages.mockResolvedValue(0);
 
       const result = await service.create(
         { usernameOrEmail: 'bob@example.com' },
@@ -251,6 +260,7 @@ describe('DirectConversationsService', () => {
   describe('list', () => {
     it('lists only current user direct conversations', async () => {
       repository.listForUser.mockResolvedValue([makeConversation()]);
+      repository.countUnreadMessages.mockResolvedValue(0);
 
       const result = await service.list(userId);
       expect(result).toHaveLength(1);
@@ -259,9 +269,61 @@ describe('DirectConversationsService', () => {
 
     it('returns other user as otherParticipant in list', async () => {
       repository.listForUser.mockResolvedValue([makeConversation()]);
+      repository.countUnreadMessages.mockResolvedValue(0);
       const result = await service.list(userId);
       expect(result[0].otherParticipant?.id).toBe(otherUserId);
       expect(result[0].otherParticipant?.id).not.toBe(userId);
+    });
+
+    it('includes unreadCount for conversations', async () => {
+      repository.listForUser.mockResolvedValue([makeConversation()]);
+      repository.countUnreadMessages.mockResolvedValue(3);
+
+      const result = await service.list(userId);
+      expect(result[0].unreadCount).toBe(3);
+    });
+
+    it('counts unread messages from other user only', async () => {
+      const conv = makeConversation({
+        participants: [
+          {
+            id: 'p-current',
+            conversationId,
+            userId,
+            createdAt: new Date(),
+            lastReadAt: new Date(),
+            user: {
+              id: userId,
+              username: 'alice',
+              displayName: null,
+              avatarUrl: null,
+            },
+          },
+          {
+            id: 'p-other',
+            conversationId,
+            userId: otherUserId,
+            createdAt: new Date(),
+            lastReadAt: null,
+            user: {
+              id: otherUserId,
+              username: 'bob',
+              displayName: 'Bob',
+              avatarUrl: null,
+            },
+          },
+        ],
+      });
+      repository.listForUser.mockResolvedValue([conv]);
+      repository.countUnreadMessages.mockResolvedValue(5);
+
+      const result = await service.list(userId);
+      expect(result[0].unreadCount).toBe(5);
+      expect(repository.countUnreadMessages).toHaveBeenCalledWith(
+        conversationId,
+        userId,
+        expect.any(Date),
+      );
     });
   });
 
@@ -280,6 +342,7 @@ describe('DirectConversationsService', () => {
         conversationId,
         userId,
         createdAt: new Date(),
+        lastReadAt: new Date(),
       });
       repository.listMessagesForConversation.mockResolvedValue([
         makeMessage({
@@ -315,6 +378,7 @@ describe('DirectConversationsService', () => {
         conversationId,
         userId,
         createdAt: new Date(),
+        lastReadAt: new Date(),
       });
 
       // Validation happens at DTO level; service receives already-validated data.
@@ -337,6 +401,7 @@ describe('DirectConversationsService', () => {
         conversationId,
         userId,
         createdAt: new Date(),
+        lastReadAt: new Date(),
       });
       repository.createMessage.mockResolvedValue(makeMessage());
 
@@ -357,6 +422,7 @@ describe('DirectConversationsService', () => {
         conversationId,
         userId,
         createdAt: new Date(),
+        lastReadAt: new Date(),
       });
       repository.createMessage.mockResolvedValue(makeMessage());
 
@@ -384,6 +450,7 @@ describe('DirectConversationsService', () => {
         conversationId,
         userId,
         createdAt: new Date(),
+        lastReadAt: new Date(),
       });
       repository.createMessage.mockRejectedValue(new Error('DB error'));
 
@@ -403,6 +470,7 @@ describe('DirectConversationsService', () => {
         conversationId,
         userId,
         createdAt: new Date(),
+        lastReadAt: new Date(),
       });
       repository.findMessageById.mockResolvedValue({
         id: parentId,
@@ -455,6 +523,7 @@ describe('DirectConversationsService', () => {
         conversationId,
         userId,
         createdAt: new Date(),
+        lastReadAt: new Date(),
       });
       repository.findMessageById.mockResolvedValue({
         id: parentId,
@@ -484,6 +553,7 @@ describe('DirectConversationsService', () => {
         conversationId,
         userId,
         createdAt: new Date(),
+        lastReadAt: new Date(),
       });
       repository.findMessageById.mockResolvedValue({
         id: parentId,
@@ -513,6 +583,7 @@ describe('DirectConversationsService', () => {
         conversationId,
         userId,
         createdAt: new Date(),
+        lastReadAt: new Date(),
       });
       repository.findMessageById.mockResolvedValue({
         id: parentId,
@@ -533,6 +604,41 @@ describe('DirectConversationsService', () => {
           userId,
         ),
       ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  describe('markAsRead', () => {
+    it('updates lastReadAt for participant', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: null,
+      });
+      repository.updateParticipantLastRead.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+
+      const result = await service.markAsRead(conversationId, userId);
+      expect(result).toEqual({ ok: true });
+      expect(repository.updateParticipantLastRead).toHaveBeenCalledWith(
+        conversationId,
+        userId,
+      );
+    });
+
+    it('throws ForbiddenException when user is not a participant', async () => {
+      repository.findParticipant.mockResolvedValue(null);
+
+      await expect(
+        service.markAsRead(conversationId, userId),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(repository.updateParticipantLastRead).not.toHaveBeenCalled();
     });
   });
 });

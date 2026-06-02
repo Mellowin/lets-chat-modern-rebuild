@@ -380,10 +380,11 @@ model DirectConversation {
 }
 
 model DirectConversationParticipant {
-  id              String    @id @default(uuid()) @db.Uuid
-  conversationId  String    @db.Uuid
-  userId          String    @db.Uuid
-  createdAt       DateTime  @default(now())
+  id              String     @id @default(uuid()) @db.Uuid
+  conversationId  String     @db.Uuid
+  userId          String     @db.Uuid
+  createdAt       DateTime   @default(now())
+  lastReadAt      DateTime?
 
   conversation    DirectConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)

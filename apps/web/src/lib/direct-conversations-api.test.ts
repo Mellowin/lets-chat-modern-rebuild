@@ -4,6 +4,7 @@ import {
   createDirectConversation,
   listDirectMessages,
   sendDirectMessage,
+  markDirectConversationRead,
 } from "./direct-conversations-api";
 
 const API_BASE = "http://localhost:3001/api/v1";
@@ -29,6 +30,7 @@ describe("direct-conversations-api", () => {
           updatedAt: "2024-01-01T00:00:00Z",
           otherParticipant,
           lastMessage: null,
+          unreadCount: 0,
         },
       ];
       vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(mock), { status: 200 }));
@@ -56,6 +58,7 @@ describe("direct-conversations-api", () => {
         updatedAt: "2024-01-01T00:00:00Z",
         otherParticipant,
         lastMessage: null,
+        unreadCount: 0,
       };
       vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(mock), { status: 201 }));
 
@@ -143,6 +146,26 @@ describe("direct-conversations-api", () => {
       await expect(sendDirectMessage("token", "dc1", { content: "x" })).rejects.toThrow(
         "Failed to send message: 500 Internal Server Error",
       );
+    });
+  });
+
+  describe("markDirectConversationRead", () => {
+    it("sends POST /direct-conversations/:id/read", async () => {
+      const mock = { ok: true };
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(mock), { status: 200 }));
+
+      const result = await markDirectConversationRead("token", "dc1");
+
+      expect(fetch).toHaveBeenCalledWith(
+        `${API_BASE}/direct-conversations/dc1/read`,
+        expect.objectContaining({ method: "POST" }),
+      );
+      expect(result).toEqual(mock);
+    });
+
+    it("throws with backend error message", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ message: "Access denied" }), { status: 403 }));
+      await expect(markDirectConversationRead("token", "dc1")).rejects.toThrow("Access denied");
     });
   });
 });

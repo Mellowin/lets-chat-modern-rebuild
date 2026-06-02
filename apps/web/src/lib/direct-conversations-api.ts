@@ -20,6 +20,7 @@ export interface DirectConversation {
   updatedAt: string;
   otherParticipant: DirectConversationOtherParticipant | null;
   lastMessage: DirectConversationLastMessage | null;
+  unreadCount: number;
 }
 
 export interface CreateDirectConversationInput {
@@ -148,4 +149,26 @@ export async function sendDirectMessage(
   }
 
   return res.json() as Promise<DirectMessage>;
+}
+
+export async function markDirectConversationRead(
+  accessToken: string,
+  conversationId: string,
+): Promise<{ ok: boolean }> {
+  const res = await fetch(
+    `${API_BASE}/direct-conversations/${encodeURIComponent(conversationId)}/read`,
+    {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to mark as read: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<{ ok: boolean }>;
 }

@@ -24,7 +24,7 @@ export class DirectConversationsService {
       : `${userIdB}:${userIdA}`;
   }
 
-  private toConversationResponse(
+  private async toConversationResponse(
     conversation: NonNullable<
       Awaited<ReturnType<DirectConversationsRepository['findById']>>
     >,
@@ -35,6 +35,15 @@ export class DirectConversationsService {
     )?.user;
 
     const lastMessage = conversation.messages[0] ?? null;
+    const myParticipant = conversation.participants.find(
+      (p) => p.user.id === currentUserId,
+    );
+
+    const unreadCount = await this.directConversations.countUnreadMessages(
+      conversation.id,
+      currentUserId,
+      myParticipant?.lastReadAt ?? null,
+    );
 
     return {
       id: conversation.id,
@@ -56,6 +65,7 @@ export class DirectConversationsService {
             authorId: lastMessage.authorId,
           }
         : null,
+      unreadCount,
     };
   }
 
@@ -130,8 +140,8 @@ export class DirectConversationsService {
   async list(currentUserId: string) {
     const conversations =
       await this.directConversations.listForUser(currentUserId);
-    return conversations.map((c) =>
-      this.toConversationResponse(c, currentUserId),
+    return Promise.all(
+      conversations.map((c) => this.toConversationResponse(c, currentUserId)),
     );
   }
 
@@ -196,5 +206,22 @@ export class DirectConversationsService {
     );
 
     return response;
+  }
+
+  async markAsRead(conversationId: string, currentUserId: string) {
+    const participant = await this.directConversations.findParticipant(
+      conversationId,
+      currentUserId,
+    );
+    if (!participant) {
+      throw new ForbiddenException('Access denied');
+    }
+
+    await this.directConversations.updateParticipantLastRead(
+      conversationId,
+      currentUserId,
+    );
+
+    return { ok: true };
   }
 }

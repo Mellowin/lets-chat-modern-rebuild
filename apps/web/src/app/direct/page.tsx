@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -11,7 +11,9 @@ import {
   listDirectConversations,
   createDirectConversation,
   type DirectConversation,
+  type DirectMessage,
 } from "@/lib/direct-conversations-api";
+import { createSocket } from "@/lib/socket-client";
 
 type ConversationsState =
   | { kind: "idle" }
@@ -31,6 +33,7 @@ export default function DirectMessagesPage() {
   const [conversations, setConversations] = useState<ConversationsState>({ kind: "idle" });
   const [startState, setStartState] = useState<StartState>({ kind: "idle" });
   const [identifier, setIdentifier] = useState("");
+  const socketRef = useRef<ReturnType<typeof createSocket> | null>(null);
 
   const loadConversations = useCallback(async (token: string) => {
     setConversations({ kind: "loading" });
@@ -48,6 +51,56 @@ export default function DirectMessagesPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadConversations(accessToken);
   }, [isAuthenticated, accessToken, loadConversations]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !accessToken) return;
+
+    const socket = createSocket(accessToken);
+    socketRef.current = socket;
+
+    function handleDirectMessageCreated(msg: DirectMessage) {
+      setConversations((prev) => {
+        if (prev.kind !== "success") return prev;
+        const existingIndex = prev.data.findIndex((c) => c.id === msg.conversationId);
+        if (existingIndex === -1) {
+          // Unknown conversation — reload list
+          if (accessToken) loadConversations(accessToken);
+          return prev;
+        }
+        const updated = [...prev.data];
+        const conv = updated[existingIndex];
+        if (conv.lastMessage && conv.lastMessage.id === msg.id) {
+          // dedupe same message
+          return prev;
+        }
+        updated[existingIndex] = {
+          ...conv,
+          updatedAt: msg.createdAt,
+          lastMessage: {
+            id: msg.id,
+            content: msg.content,
+            createdAt: msg.createdAt,
+            authorId: msg.author.id,
+          },
+          unreadCount: conv.unreadCount + 1,
+        };
+        // move to top
+        const [moved] = updated.splice(existingIndex, 1);
+        updated.unshift(moved);
+        window.dispatchEvent(new CustomEvent("direct-conversations:changed"));
+        return { kind: "success", data: updated };
+      });
+    }
+
+    socket.on("direct:message:created", handleDirectMessageCreated);
+
+    return () => {
+      socket.off("direct:message:created", handleDirectMessageCreated);
+      socket.disconnect();
+      socketRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, accessToken]);
 
   async function handleStart(e: React.FormEvent) {
     e.preventDefault();
@@ -182,7 +235,7 @@ export default function DirectMessagesPage() {
                           </span>
                         )}
                       </div>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium truncate">{name}</p>
                         {conv.lastMessage ? (
                           <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
@@ -194,6 +247,11 @@ export default function DirectMessagesPage() {
                           </p>
                         )}
                       </div>
+                      {conv.unreadCount > 0 && (
+                        <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-zinc-900 px-1.5 text-[10px] font-bold text-white dark:bg-zinc-100 dark:text-zinc-900">
+                          {conv.unreadCount > 99 ? "99+" : conv.unreadCount}
+                        </span>
+                      )}
                     </Link>
                   </li>
                 );

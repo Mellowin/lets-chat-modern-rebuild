@@ -831,6 +831,7 @@ describe('WebsocketGateway', () => {
         conversationId,
         userId,
         createdAt: new Date(),
+        lastReadAt: new Date(),
       });
 
       await gateway.handleDirectJoin(socket, { conversationId });

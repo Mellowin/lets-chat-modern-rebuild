@@ -52,6 +52,7 @@ vi.mock("@/lib/auth-context", () => ({
 vi.mock("@/lib/direct-conversations-api", () => ({
   listDirectMessages: vi.fn(),
   sendDirectMessage: vi.fn(),
+  markDirectConversationRead: vi.fn().mockResolvedValue({ ok: true }),
 }));
 
 vi.mock("@/lib/socket-client", () => ({
