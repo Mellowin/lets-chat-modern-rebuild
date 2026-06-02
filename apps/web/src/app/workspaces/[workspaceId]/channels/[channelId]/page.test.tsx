@@ -127,7 +127,9 @@ describe("ChannelDetailPage — locale", () => {
     await waitFor(() => {
       expect(screen.getByText(/Назад до робочого простору/i)).toBeInTheDocument();
     });
-    expect(screen.getByText("Підключення")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Підключення")).toBeInTheDocument();
+    });
   });
 
   it("shows Russian socket status label", async () => {
@@ -137,7 +139,9 @@ describe("ChannelDetailPage — locale", () => {
     await waitFor(() => {
       expect(screen.getByText(/Назад к рабочему пространству/i)).toBeInTheDocument();
     });
-    expect(screen.getByText("Подключение")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Подключение")).toBeInTheDocument();
+    });
   });
 });
 
