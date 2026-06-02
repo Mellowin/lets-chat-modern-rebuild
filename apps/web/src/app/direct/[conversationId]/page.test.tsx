@@ -1454,3 +1454,655 @@ describe("DirectConversationPage — reply realtime", () => {
     expect(screen.getAllByText("Live reply").length).toBe(1);
   });
 });
+
+
+describe("DirectConversationPage — forward action", () => {
+  it("renders Forward action on each direct message", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-action-dm1")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("direct-forward-action-dm1")).toHaveTextContent(/Forward/i);
+  });
+
+  it("clicking Forward opens forward picker", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-forward-action-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-picker")).toBeInTheDocument();
+    });
+  });
+
+  it("forward picker shows message preview", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Message to forward",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-forward-action-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-picker")).toBeInTheDocument();
+    });
+    expect(screen.getByText(/Forward message/i)).toBeInTheDocument();
+    expect(screen.getByTestId("direct-forward-picker")).toHaveTextContent("Message to forward");
+    expect(screen.getByTestId("direct-forward-picker")).toHaveTextContent("Bob");
+  });
+
+  it("cancel closes forward picker", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-forward-action-dm1"));
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-picker")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-cancel-forward"));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("direct-forward-picker")).not.toBeInTheDocument();
+    });
+  });
+});
+
+describe("DirectConversationPage — forward target list", () => {
+  it("loads direct conversations when forward picker opens", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+      },
+    ]);
+    vi.mocked(listDirectConversations).mockResolvedValueOnce([
+      {
+        id: "dc1",
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null },
+        lastMessage: null,
+        unreadCount: 0,
+      },
+      {
+        id: "dc2",
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        otherParticipant: { id: "u4", username: "dave", displayName: "Dave", avatarUrl: null },
+        lastMessage: null,
+        unreadCount: 0,
+      },
+    ]);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-forward-action-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-target-dc2")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("direct-forward-target-dc2")).toHaveTextContent("Dave");
+  });
+
+  it("excludes current conversation from target list", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+      },
+    ]);
+    vi.mocked(listDirectConversations).mockResolvedValueOnce([
+      {
+        id: "dc1",
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null },
+        lastMessage: null,
+        unreadCount: 0,
+      },
+      {
+        id: "dc2",
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        otherParticipant: { id: "u4", username: "dave", displayName: "Dave", avatarUrl: null },
+        lastMessage: null,
+        unreadCount: 0,
+      },
+    ]);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-forward-action-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-target-dc2")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("direct-forward-target-dc1")).not.toBeInTheDocument();
+  });
+
+  it("shows no-targets message when there are no other conversations", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+      },
+    ]);
+    vi.mocked(listDirectConversations).mockResolvedValueOnce([
+      {
+        id: "dc1",
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null },
+        lastMessage: null,
+        unreadCount: 0,
+      },
+    ]);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-forward-action-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-picker")).toBeInTheDocument();
+    });
+    expect(screen.getByText(/No other direct conversations/i)).toBeInTheDocument();
+  });
+});
+
+describe("DirectConversationPage — send forward", () => {
+  it("selecting target calls sendDirectMessage with target conversation id", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+      },
+    ]);
+    vi.mocked(listDirectConversations).mockResolvedValueOnce([
+      {
+        id: "dc1",
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null },
+        lastMessage: null,
+        unreadCount: 0,
+      },
+      {
+        id: "dc2",
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        otherParticipant: { id: "u4", username: "dave", displayName: "Dave", avatarUrl: null },
+        lastMessage: null,
+        unreadCount: 0,
+      },
+    ]);
+    vi.mocked(sendDirectMessage).mockResolvedValueOnce({
+      id: "dm-fwd",
+      conversationId: "dc2",
+      content: "↪ Hello",
+      parentId: null,
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      editedAt: null,
+      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      parent: null,
+    });
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-forward-action-dm1"));
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-target-dc2")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-forward-target-dc2"));
+
+    await waitFor(() => {
+      expect(sendDirectMessage).toHaveBeenCalledWith("token", "dc2", { content: "↪ Hello" });
+    });
+  });
+
+  it("forwarded content includes prefix ↪ ", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Original text",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+      },
+    ]);
+    vi.mocked(listDirectConversations).mockResolvedValueOnce([
+      {
+        id: "dc1",
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null },
+        lastMessage: null,
+        unreadCount: 0,
+      },
+      {
+        id: "dc2",
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        otherParticipant: { id: "u4", username: "dave", displayName: "Dave", avatarUrl: null },
+        lastMessage: null,
+        unreadCount: 0,
+      },
+    ]);
+    vi.mocked(sendDirectMessage).mockResolvedValueOnce({
+      id: "dm-fwd",
+      conversationId: "dc2",
+      content: "↪ Original text",
+      parentId: null,
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      editedAt: null,
+      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      parent: null,
+    });
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-forward-action-dm1"));
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-target-dc2")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-forward-target-dc2"));
+
+    await waitFor(() => {
+      expect(sendDirectMessage).toHaveBeenCalledWith("token", "dc2", { content: "↪ Original text" });
+    });
+  });
+
+  it("successful forward closes picker", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+      },
+    ]);
+    vi.mocked(listDirectConversations).mockResolvedValueOnce([
+      {
+        id: "dc1",
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null },
+        lastMessage: null,
+        unreadCount: 0,
+      },
+      {
+        id: "dc2",
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        otherParticipant: { id: "u4", username: "dave", displayName: "Dave", avatarUrl: null },
+        lastMessage: null,
+        unreadCount: 0,
+      },
+    ]);
+    vi.mocked(sendDirectMessage).mockResolvedValueOnce({
+      id: "dm-fwd",
+      conversationId: "dc2",
+      content: "↪ Hello",
+      parentId: null,
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      editedAt: null,
+      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      parent: null,
+    });
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-forward-action-dm1"));
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-target-dc2")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-forward-target-dc2"));
+
+    await waitFor(() => {
+      expect(sendDirectMessage).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("direct-forward-picker")).not.toBeInTheDocument();
+    });
+  });
+
+  it("failed forward keeps picker open and shows error", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+      },
+    ]);
+    vi.mocked(listDirectConversations).mockResolvedValueOnce([
+      {
+        id: "dc1",
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null },
+        lastMessage: null,
+        unreadCount: 0,
+      },
+      {
+        id: "dc2",
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        otherParticipant: { id: "u4", username: "dave", displayName: "Dave", avatarUrl: null },
+        lastMessage: null,
+        unreadCount: 0,
+      },
+    ]);
+    vi.mocked(sendDirectMessage).mockRejectedValueOnce(new Error("Network error"));
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-forward-action-dm1"));
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-target-dc2")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-forward-target-dc2"));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Network error/i)).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId("direct-forward-picker")).toBeInTheDocument();
+  });
+
+  it("dispatches direct-conversations:changed after successful forward", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+      },
+    ]);
+    vi.mocked(listDirectConversations).mockResolvedValueOnce([
+      {
+        id: "dc1",
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null },
+        lastMessage: null,
+        unreadCount: 0,
+      },
+      {
+        id: "dc2",
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        otherParticipant: { id: "u4", username: "dave", displayName: "Dave", avatarUrl: null },
+        lastMessage: null,
+        unreadCount: 0,
+      },
+    ]);
+    vi.mocked(sendDirectMessage).mockResolvedValueOnce({
+      id: "dm-fwd",
+      conversationId: "dc2",
+      content: "↪ Hello",
+      parentId: null,
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      editedAt: null,
+      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      parent: null,
+    });
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent");
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-forward-action-dm1"));
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-target-dc2")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-forward-target-dc2"));
+
+    await waitFor(() => {
+      expect(sendDirectMessage).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(dispatchSpy).toHaveBeenCalledWith(
+        new CustomEvent("direct-conversations:changed"),
+      );
+    });
+
+    dispatchSpy.mockRestore();
+  });
+});
+
+describe("DirectConversationPage — forward regression", () => {
+  it("Reply still works after Forward action exists", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reply-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-reply-action-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reply-preview")).toBeInTheDocument();
+    });
+  });
+
+  it("Send normal message still works when Forward action exists", async () => {
+    mockMessages([]);
+    const newMsg = {
+      id: "dm1",
+      conversationId: "dc1",
+      content: "Normal message",
+      parentId: null,
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      editedAt: null,
+      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      parent: null,
+    };
+    vi.mocked(sendDirectMessage).mockResolvedValueOnce(newMsg);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Type a message/i)).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Type a message/i), "Normal message");
+    await userEvent.click(screen.getByRole("button", { name: /Send/i }));
+
+    await waitFor(() => {
+      expect(sendDirectMessage).toHaveBeenCalledWith("token", "dc1", { content: "Normal message" });
+    });
+
+    expect(screen.getByText("Normal message")).toBeInTheDocument();
+  });
+
+  it("Realtime incoming direct message still appends after forward UI added", async () => {
+    mockMessages([]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(socketOnMock).toHaveBeenCalledWith("direct:message:created", expect.any(Function));
+    });
+
+    const handler = socketHandlers["direct:message:created"];
+    handler({
+      id: "dm-live",
+      conversationId: "dc1",
+      content: "Live message",
+      parentId: null,
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      editedAt: null,
+      author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+      parent: null,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Live message")).toBeInTheDocument();
+    });
+  });
+});

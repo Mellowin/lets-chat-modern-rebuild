@@ -45,6 +45,13 @@ export default function DirectConversationPage() {
   const [socketError, setSocketError] = useState<string | null>(null);
   const [replyToMessage, setReplyToMessage] = useState<DirectMessage | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+  const [forwardMessage, setForwardMessage] = useState<DirectMessage | null>(null);
+  const [forwardConversations, setForwardConversations] = useState<DirectConversation[]>([]);
+  const [forwardState, setForwardState] = useState<
+    | { kind: "idle" }
+    | { kind: "loading" }
+    | { kind: "error"; message: string }
+  >({ kind: "idle" });
   const messagesScrollRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const didInitialScroll = useRef(false);
@@ -91,6 +98,7 @@ export default function DirectConversationPage() {
           setMessages({ kind: "success", data: msgData });
           const conv = convsData.find((c) => c.id === id) ?? null;
           setConversation({ kind: "success", data: conv });
+          setForwardConversations(convsData);
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : t("direct.failedLoadMessages");
@@ -272,6 +280,32 @@ export default function DirectConversationPage() {
     submitMessage();
   }
 
+  async function handleForwardSend(targetConversationId: string) {
+    if (!forwardMessage || !accessToken) return;
+    const forwardedContent = `↪ ${forwardMessage.content}`;
+    if (forwardedContent.length > 4000) {
+      setForwardState({ kind: "error", message: t("channel.errorMessageTooLong") });
+      return;
+    }
+    setForwardState({ kind: "loading" });
+    try {
+      await sendDirectMessage(accessToken, targetConversationId, { content: forwardedContent });
+      setForwardState({ kind: "idle" });
+      setForwardMessage(null);
+      notifyDirectConversationsChanged();
+      if (targetConversationId === conversationId) {
+        // If forwarded to current conversation, reload messages to show it
+        const refreshed = await listDirectMessages(accessToken, conversationId);
+        setMessages({ kind: "success", data: refreshed });
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t("direct.failedForwardMessage");
+      setForwardState({ kind: "error", message });
+    }
+  }
+
+  const forwardTargets = forwardConversations.filter((c) => c.id !== conversationId);
+
   if (authLoading) {
     return (
       <div className="flex flex-1 items-center justify-center p-6">
@@ -420,6 +454,13 @@ export default function DirectConversationPage() {
                             >
                               {t("direct.reply")}
                             </button>
+                            <button
+                              onClick={() => setForwardMessage(msg)}
+                              data-testid={`direct-forward-action-${msg.id}`}
+                              className="text-[10px] text-zinc-400 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-200 underline"
+                            >
+                              {t("direct.forward")}
+                            </button>
                           </div>
                           <div data-testid={`direct-message-bubble-wrap-${msg.id}`} className={isOwnMessage ? "ml-28 sm:ml-44" : ""}>
                             <div
@@ -548,6 +589,95 @@ export default function DirectConversationPage() {
           </form>
         </div>
       </main>
+
+      {forwardMessage && (
+        <div
+          data-testid="direct-forward-picker"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setForwardMessage(null);
+          }}
+        >
+          <div className="w-full max-w-sm rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-5 shadow-xl">
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                {t("direct.forwardMessage")}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setForwardMessage(null)}
+                data-testid="direct-cancel-forward"
+                className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                aria-label={t("direct.cancelForward")}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="mb-4 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 px-3 py-2">
+              <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                {getMessageAuthorName(forwardMessage)}
+              </p>
+              <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-300 line-clamp-3">
+                {getMessageSnippet(forwardMessage)}
+              </p>
+            </div>
+
+            <p className="mb-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+              {t("direct.forwardTo")}
+            </p>
+
+            {forwardTargets.length === 0 && (
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                {t("direct.noForwardTargets")}
+              </p>
+            )}
+
+            <ul className="max-h-60 overflow-y-auto space-y-1">
+              {forwardTargets.map((conv) => (
+                <li key={conv.id}>
+                  <button
+                    type="button"
+                    onClick={() => handleForwardSend(conv.id)}
+                    disabled={forwardState.kind === "loading"}
+                    data-testid={`direct-forward-target-${conv.id}`}
+                    className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-60"
+                  >
+                    <div className="relative h-8 w-8 shrink-0 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center overflow-hidden">
+                      {conv.otherParticipant?.avatarUrl ? (
+                        <Image
+                          src={getAvatarUrl(conv.otherParticipant.avatarUrl) || ""}
+                          alt=""
+                          fill
+                          sizes="32px"
+                          className="object-cover"
+                          unoptimized
+                        />
+                      ) : (
+                        <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                          {(conv.otherParticipant?.displayName || conv.otherParticipant?.username || "?").slice(0, 2).toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-sm text-zinc-700 dark:text-zinc-300 truncate">
+                      {conv.otherParticipant?.displayName || conv.otherParticipant?.username || t("messageAuthor.unknownUser")}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+
+            {forwardState.kind === "error" && (
+              <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs dark:border-red-900 dark:bg-red-950/30">
+                <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+                  <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                  {forwardState.message}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
