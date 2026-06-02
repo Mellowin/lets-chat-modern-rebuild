@@ -929,7 +929,19 @@ describe("DirectConversationPage — reply action", () => {
     render(<DirectConversationPage />);
 
     await waitFor(() => {
+
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+
+    });
+
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+
+    await waitFor(() => {
+
       expect(screen.getByTestId("direct-reply-action-dm1")).toBeInTheDocument();
+
     });
     expect(screen.getByTestId("direct-reply-action-dm1")).toHaveTextContent(/Reply/i);
   });
@@ -951,7 +963,19 @@ describe("DirectConversationPage — reply action", () => {
     render(<DirectConversationPage />);
 
     await waitFor(() => {
+
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+
+    });
+
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+
+    await waitFor(() => {
+
       expect(screen.getByTestId("direct-reply-action-dm1")).toBeInTheDocument();
+
     });
 
     await userEvent.click(screen.getByTestId("direct-reply-action-dm1"));
@@ -978,7 +1002,19 @@ describe("DirectConversationPage — reply action", () => {
     render(<DirectConversationPage />);
 
     await waitFor(() => {
+
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+
+    });
+
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+
+    await waitFor(() => {
+
       expect(screen.getByTestId("direct-reply-action-dm1")).toBeInTheDocument();
+
     });
 
     await userEvent.click(screen.getByTestId("direct-reply-action-dm1"));
@@ -1008,7 +1044,19 @@ describe("DirectConversationPage — reply action", () => {
     render(<DirectConversationPage />);
 
     await waitFor(() => {
+
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+
+    });
+
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+
+    await waitFor(() => {
+
       expect(screen.getByTestId("direct-reply-action-dm1")).toBeInTheDocument();
+
     });
 
     await userEvent.click(screen.getByTestId("direct-reply-action-dm1"));
@@ -1059,7 +1107,19 @@ describe("DirectConversationPage — send with parentId", () => {
     render(<DirectConversationPage />);
 
     await waitFor(() => {
+
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+
+    });
+
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+
+    await waitFor(() => {
+
       expect(screen.getByTestId("direct-reply-action-dm1")).toBeInTheDocument();
+
     });
 
     await userEvent.click(screen.getByTestId("direct-reply-action-dm1"));
@@ -1109,7 +1169,19 @@ describe("DirectConversationPage — send with parentId", () => {
     render(<DirectConversationPage />);
 
     await waitFor(() => {
+
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+
+    });
+
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+
+    await waitFor(() => {
+
       expect(screen.getByTestId("direct-reply-action-dm1")).toBeInTheDocument();
+
     });
 
     await userEvent.click(screen.getByTestId("direct-reply-action-dm1"));
@@ -1148,7 +1220,19 @@ describe("DirectConversationPage — send with parentId", () => {
     render(<DirectConversationPage />);
 
     await waitFor(() => {
+
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+
+    });
+
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+
+    await waitFor(() => {
+
       expect(screen.getByTestId("direct-reply-action-dm1")).toBeInTheDocument();
+
     });
 
     await userEvent.click(screen.getByTestId("direct-reply-action-dm1"));
@@ -1476,7 +1560,19 @@ describe("DirectConversationPage — forward action", () => {
     render(<DirectConversationPage />);
 
     await waitFor(() => {
+
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+
+    });
+
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+
+    await waitFor(() => {
+
       expect(screen.getByTestId("direct-forward-action-dm1")).toBeInTheDocument();
+
     });
     expect(screen.getByTestId("direct-forward-action-dm1")).toHaveTextContent(/Forward/i);
   });
@@ -1498,7 +1594,19 @@ describe("DirectConversationPage — forward action", () => {
     render(<DirectConversationPage />);
 
     await waitFor(() => {
+
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+
+    });
+
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+
+    await waitFor(() => {
+
       expect(screen.getByTestId("direct-forward-action-dm1")).toBeInTheDocument();
+
     });
 
     await userEvent.click(screen.getByTestId("direct-forward-action-dm1"));
@@ -1525,7 +1633,19 @@ describe("DirectConversationPage — forward action", () => {
     render(<DirectConversationPage />);
 
     await waitFor(() => {
+
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+
+    });
+
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+
+    await waitFor(() => {
+
       expect(screen.getByTestId("direct-forward-action-dm1")).toBeInTheDocument();
+
     });
 
     await userEvent.click(screen.getByTestId("direct-forward-action-dm1"));
@@ -1555,7 +1675,19 @@ describe("DirectConversationPage — forward action", () => {
     render(<DirectConversationPage />);
 
     await waitFor(() => {
+
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+
+    });
+
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+
+    await waitFor(() => {
+
       expect(screen.getByTestId("direct-forward-action-dm1")).toBeInTheDocument();
+
     });
 
     await userEvent.click(screen.getByTestId("direct-forward-action-dm1"));
@@ -1608,7 +1740,19 @@ describe("DirectConversationPage — forward target list", () => {
     render(<DirectConversationPage />);
 
     await waitFor(() => {
+
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+
+    });
+
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+
+    await waitFor(() => {
+
       expect(screen.getByTestId("direct-forward-action-dm1")).toBeInTheDocument();
+
     });
 
     await userEvent.click(screen.getByTestId("direct-forward-action-dm1"));
@@ -1655,7 +1799,19 @@ describe("DirectConversationPage — forward target list", () => {
     render(<DirectConversationPage />);
 
     await waitFor(() => {
+
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+
+    });
+
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+
+    await waitFor(() => {
+
       expect(screen.getByTestId("direct-forward-action-dm1")).toBeInTheDocument();
+
     });
 
     await userEvent.click(screen.getByTestId("direct-forward-action-dm1"));
@@ -1694,7 +1850,19 @@ describe("DirectConversationPage — forward target list", () => {
     render(<DirectConversationPage />);
 
     await waitFor(() => {
+
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+
+    });
+
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+
+    await waitFor(() => {
+
       expect(screen.getByTestId("direct-forward-action-dm1")).toBeInTheDocument();
+
     });
 
     await userEvent.click(screen.getByTestId("direct-forward-action-dm1"));
@@ -1754,7 +1922,19 @@ describe("DirectConversationPage — send forward", () => {
     render(<DirectConversationPage />);
 
     await waitFor(() => {
+
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+
+    });
+
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+
+    await waitFor(() => {
+
       expect(screen.getByTestId("direct-forward-action-dm1")).toBeInTheDocument();
+
     });
 
     await userEvent.click(screen.getByTestId("direct-forward-action-dm1"));
@@ -1816,7 +1996,19 @@ describe("DirectConversationPage — send forward", () => {
     render(<DirectConversationPage />);
 
     await waitFor(() => {
+
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+
+    });
+
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+
+    await waitFor(() => {
+
       expect(screen.getByTestId("direct-forward-action-dm1")).toBeInTheDocument();
+
     });
 
     await userEvent.click(screen.getByTestId("direct-forward-action-dm1"));
@@ -1878,7 +2070,19 @@ describe("DirectConversationPage — send forward", () => {
     render(<DirectConversationPage />);
 
     await waitFor(() => {
+
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+
+    });
+
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+
+    await waitFor(() => {
+
       expect(screen.getByTestId("direct-forward-action-dm1")).toBeInTheDocument();
+
     });
 
     await userEvent.click(screen.getByTestId("direct-forward-action-dm1"));
@@ -1934,7 +2138,19 @@ describe("DirectConversationPage — send forward", () => {
     render(<DirectConversationPage />);
 
     await waitFor(() => {
+
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+
+    });
+
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+
+    await waitFor(() => {
+
       expect(screen.getByTestId("direct-forward-action-dm1")).toBeInTheDocument();
+
     });
 
     await userEvent.click(screen.getByTestId("direct-forward-action-dm1"));
@@ -1999,7 +2215,19 @@ describe("DirectConversationPage — send forward", () => {
     render(<DirectConversationPage />);
 
     await waitFor(() => {
+
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+
+    });
+
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+
+    await waitFor(() => {
+
       expect(screen.getByTestId("direct-forward-action-dm1")).toBeInTheDocument();
+
     });
 
     await userEvent.click(screen.getByTestId("direct-forward-action-dm1"));
@@ -2041,7 +2269,19 @@ describe("DirectConversationPage — forward regression", () => {
     render(<DirectConversationPage />);
 
     await waitFor(() => {
+
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+
+    });
+
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+
+    await waitFor(() => {
+
       expect(screen.getByTestId("direct-reply-action-dm1")).toBeInTheDocument();
+
     });
 
     await userEvent.click(screen.getByTestId("direct-reply-action-dm1"));
@@ -2129,9 +2369,22 @@ describe("DirectConversationPage — reactions", () => {
     render(<DirectConversationPage />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("direct-react-dm1-👍")).toBeInTheDocument();
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
     });
-    expect(screen.getByTestId("direct-react-dm1-❤️")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-react-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-react-action-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reaction-picker-dm1")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("direct-reaction-option-dm1-👍")).toBeInTheDocument();
+    expect(screen.getByTestId("direct-reaction-option-dm1-❤️")).toBeInTheDocument();
   });
 
   it("renders reaction chips with count", async () => {
@@ -2311,7 +2564,19 @@ describe("DirectConversationPage — reaction regression", () => {
     render(<DirectConversationPage />);
 
     await waitFor(() => {
+
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+
+    });
+
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+
+    await waitFor(() => {
+
       expect(screen.getByTestId("direct-reply-action-dm1")).toBeInTheDocument();
+
     });
 
     await userEvent.click(screen.getByTestId("direct-reply-action-dm1"));
@@ -2339,7 +2604,19 @@ describe("DirectConversationPage — reaction regression", () => {
     render(<DirectConversationPage />);
 
     await waitFor(() => {
+
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+
+    });
+
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+
+    await waitFor(() => {
+
       expect(screen.getByTestId("direct-forward-action-dm1")).toBeInTheDocument();
+
     });
 
     await userEvent.click(screen.getByTestId("direct-forward-action-dm1"));
@@ -2591,10 +2868,22 @@ describe("DirectConversationPage — B89b reactedByMe viewer safety", () => {
     render(<DirectConversationPage />);
 
     await waitFor(() => {
-      expect(screen.getByTestId("direct-react-dm1-👍")).toBeInTheDocument();
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
     });
 
-    await userEvent.click(screen.getByTestId("direct-react-dm1-👍"));
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-react-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-react-action-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reaction-option-dm1-👍")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-reaction-option-dm1-👍"));
 
     await waitFor(() => {
       expect(screen.getByTestId("direct-reaction-chip-dm1-👍")).toBeInTheDocument();
@@ -2605,6 +2894,626 @@ describe("DirectConversationPage — B89b reactedByMe viewer safety", () => {
   });
 
   it("clicking own chip removes local active state after API success", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [{ emoji: "👍", count: 1, reactedByMe: true }],
+      },
+    ]);
+    const { removeDirectMessageReaction: removeMock } = await import("@/lib/direct-conversations-api");
+    vi.mocked(removeMock).mockResolvedValueOnce([]);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reaction-chip-dm1-👍")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-reaction-chip-dm1-👍"));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("direct-reaction-chip-dm1-👍")).not.toBeInTheDocument();
+    });
+  });
+});
+
+
+describe("DirectConversationPage — B90 menu UI", () => {
+  it("does not show Reply/Forward/React text buttons before menu opens", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByTestId("direct-message-menu-dm1")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("direct-reaction-picker-dm1")).not.toBeInTheDocument();
+  });
+
+  it("emoji options are not visible before reaction picker opens", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByTestId("direct-reaction-option-dm1-👍")).not.toBeInTheDocument();
+  });
+
+  it("reaction chips remain visible if message already has reactions", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [{ emoji: "👍", count: 2, reactedByMe: false }],
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reaction-chip-dm1-👍")).toBeInTheDocument();
+    });
+  });
+
+  it("menu trigger renders for each message", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "First",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+      {
+        id: "dm2",
+        conversationId: "dc1",
+        content: "Second",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("direct-message-menu-trigger-dm2")).toBeInTheDocument();
+  });
+
+  it("clicking menu trigger opens menu", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-dm1")).toBeInTheDocument();
+    });
+  });
+
+  it("menu contains Reply, React, Forward, Copy text", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-dm1")).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId("direct-reply-action-dm1")).toHaveTextContent(/Reply/i);
+    expect(screen.getByTestId("direct-react-action-dm1")).toHaveTextContent(/React/i);
+    expect(screen.getByTestId("direct-forward-action-dm1")).toHaveTextContent(/Forward/i);
+    expect(screen.getByTestId("direct-copy-text-action-dm1")).toHaveTextContent(/Copy text/i);
+  });
+
+  it("clicking outside closes menu", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-dm1")).toBeInTheDocument();
+    });
+
+    fireEvent.mouseDown(document.body);
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("direct-message-menu-dm1")).not.toBeInTheDocument();
+    });
+  });
+
+  it("pressing Escape closes menu", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-dm1")).toBeInTheDocument();
+    });
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("direct-message-menu-dm1")).not.toBeInTheDocument();
+    });
+  });
+
+  it("clicking Reply from menu opens reply preview and closes menu", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Original",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reply-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-reply-action-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reply-preview")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("direct-message-menu-dm1")).not.toBeInTheDocument();
+  });
+
+  it("clicking React from menu opens reaction picker and closes menu", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-react-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-react-action-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reaction-picker-dm1")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("direct-message-menu-dm1")).not.toBeInTheDocument();
+  });
+
+  it("selecting emoji from picker calls reaction API and closes picker", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    const { reactToDirectMessage: reactMock } = await import("@/lib/direct-conversations-api");
+    vi.mocked(reactMock).mockResolvedValueOnce([{ emoji: "👍", count: 1, reactedByMe: true }]);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-react-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-react-action-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reaction-option-dm1-👍")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-reaction-option-dm1-👍"));
+
+    await waitFor(() => {
+      expect(reactMock).toHaveBeenCalledWith("token", "dc1", "dm1", "👍");
+    });
+    expect(screen.queryByTestId("direct-reaction-picker-dm1")).not.toBeInTheDocument();
+  });
+
+  it("clicking Forward from menu opens forward picker and closes menu", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-forward-action-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-picker")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("direct-message-menu-dm1")).not.toBeInTheDocument();
+  });
+
+  it("clicking Copy text calls navigator.clipboard.writeText with message content and closes menu", async () => {
+    const writeTextMock = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: writeTextMock,
+      },
+    });
+
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Message to copy",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-copy-text-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-copy-text-action-dm1"));
+
+    await waitFor(() => {
+      expect(writeTextMock).toHaveBeenCalledWith("Message to copy");
+    });
+    expect(screen.queryByTestId("direct-message-menu-dm1")).not.toBeInTheDocument();
+  });
+});
+
+describe("DirectConversationPage — B90 regression", () => {
+  it("direct send still works", async () => {
+    mockMessages([]);
+    const newMsg = {
+      id: "dm1",
+      conversationId: "dc1",
+      content: "Hello",
+      parentId: null,
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      editedAt: null,
+      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      parent: null,
+    };
+    vi.mocked(sendDirectMessage).mockResolvedValueOnce(newMsg);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Type a message/i)).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Type a message/i), "Hello");
+    await userEvent.click(screen.getByRole("button", { name: /Send/i }));
+
+    await waitFor(() => {
+      expect(sendDirectMessage).toHaveBeenCalledWith("token", "dc1", { content: "Hello" });
+    });
+    expect(screen.getByText("Hello")).toBeInTheDocument();
+  });
+
+  it("direct reply send still works via menu", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Original",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    const newMsg = {
+      id: "dm2",
+      conversationId: "dc1",
+      content: "Reply text",
+      parentId: "dm1",
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      editedAt: null,
+      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      parent: {
+        id: "dm1",
+        content: "Original",
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+      },
+    };
+    vi.mocked(sendDirectMessage).mockResolvedValueOnce(newMsg);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reply-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-reply-action-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reply-preview")).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Type a message/i), "Reply text");
+    await userEvent.click(screen.getByRole("button", { name: /Send/i }));
+
+    await waitFor(() => {
+      expect(sendDirectMessage).toHaveBeenCalledWith("token", "dc1", { content: "Reply text", parentId: "dm1" });
+    });
+  });
+
+  it("direct forward send still works via menu", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    vi.mocked(listDirectConversations).mockResolvedValueOnce([
+      {
+        id: "dc1",
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null },
+        lastMessage: null,
+        unreadCount: 0,
+      },
+      {
+        id: "dc2",
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        otherParticipant: { id: "u4", username: "dave", displayName: "Dave", avatarUrl: null },
+        lastMessage: null,
+        unreadCount: 0,
+      },
+    ]);
+    vi.mocked(sendDirectMessage).mockResolvedValueOnce({
+      id: "dm-fwd",
+      conversationId: "dc2",
+      content: "↪ Hello",
+      parentId: null,
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      editedAt: null,
+      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      parent: null,
+    });
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-forward-action-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-target-dc2")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-forward-target-dc2"));
+
+    await waitFor(() => {
+      expect(sendDirectMessage).toHaveBeenCalledWith("token", "dc2", { content: "↪ Hello" });
+    });
+  });
+
+  it("reaction chip toggle still works", async () => {
     mockMessages([
       {
         id: "dm1",
