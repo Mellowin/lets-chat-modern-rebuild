@@ -43,11 +43,14 @@ export default function DirectConversationPage() {
     { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string }
   >({ kind: "idle" });
   const [socketError, setSocketError] = useState<string | null>(null);
+  const [replyToMessage, setReplyToMessage] = useState<DirectMessage | null>(null);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const messagesScrollRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const didInitialScroll = useRef(false);
   const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const socketRef = useRef<ReturnType<typeof createSocket> | null>(null);
+  const messageRefs = useRef<Record<string, HTMLLIElement | null>>({});
 
   function notifyDirectConversationsChanged() {
     window.dispatchEvent(new CustomEvent("direct-conversations:changed"));
@@ -210,6 +213,26 @@ export default function DirectConversationPage() {
     });
   }
 
+  function getMessageAuthorName(msg: DirectMessage) {
+    return msg.author.displayName || msg.author.username || t("messageAuthor.unknownUser");
+  }
+
+  function getMessageSnippet(msg: DirectMessage) {
+    const singleLine = msg.content.replace(/\s+/g, " ").trim();
+    if (singleLine.length <= 120) return singleLine;
+    return `${singleLine.slice(0, 117)}...`;
+  }
+
+  function scrollToMessage(messageId: string) {
+    const el = messageRefs.current[messageId];
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlightedMessageId(messageId);
+    window.setTimeout(() => {
+      setHighlightedMessageId((current) => (current === messageId ? null : current));
+    }, 1800);
+  }
+
   async function submitMessage() {
     const trimmed = content.trim();
     if (!trimmed) {
@@ -224,9 +247,13 @@ export default function DirectConversationPage() {
 
     setSendState({ kind: "loading" });
     try {
-      const input: SendDirectMessageInput = { content: trimmed };
+      const input: SendDirectMessageInput = {
+        content: trimmed,
+        ...(replyToMessage ? { parentId: replyToMessage.id } : {}),
+      };
       const msg = await sendDirectMessage(accessToken, conversationId, input);
       setContent("");
+      setReplyToMessage(null);
       setSendState({ kind: "idle" });
       appendMessage(msg);
       requestAnimationFrame(() => {
@@ -349,7 +376,14 @@ export default function DirectConversationPage() {
                         key={msg.id}
                         id={`message-${msg.id}`}
                         data-testid={`direct-message-row-${msg.id}`}
-                        className="flex items-start gap-3 rounded-xl"
+                        ref={(el) => {
+                          messageRefs.current[msg.id] = el;
+                        }}
+                        className={`flex items-start gap-3 rounded-xl transition-colors ${
+                          highlightedMessageId === msg.id
+                            ? "bg-yellow-100/70 dark:bg-yellow-900/30 ring-2 ring-yellow-300/80 dark:ring-yellow-700/70"
+                            : ""
+                        }`}
                       >
                         <div
                           data-testid={`direct-message-avatar-${msg.id}`}
@@ -379,6 +413,13 @@ export default function DirectConversationPage() {
                                 {t("channel.edited")}
                               </span>
                             )}
+                            <button
+                              onClick={() => setReplyToMessage(msg)}
+                              data-testid={`direct-reply-action-${msg.id}`}
+                              className="text-[10px] text-zinc-400 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-200 underline"
+                            >
+                              {t("direct.reply")}
+                            </button>
                           </div>
                           <div data-testid={`direct-message-bubble-wrap-${msg.id}`} className={isOwnMessage ? "ml-28 sm:ml-44" : ""}>
                             <div
@@ -389,6 +430,40 @@ export default function DirectConversationPage() {
                                   : "bg-white/95 dark:bg-zinc-900/95 border-zinc-200 dark:border-zinc-800"
                               }`}
                             >
+                              {msg.parentId && (
+                                <div className="mb-1.5" data-testid={`direct-quote-preview-${msg.id}`}>
+                                  {(() => {
+                                    const parent = messages.kind === "success"
+                                      ? messages.data.find((m) => m.id === msg.parentId)
+                                      : undefined;
+                                    if (parent) {
+                                      return (
+                                        <button
+                                          onClick={() => scrollToMessage(parent.id)}
+                                          className="flex w-full flex-col gap-0.5 rounded-lg border-l-4 border-zinc-400 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900/60 px-2.5 py-1.5 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors"
+                                        >
+                                          <span className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-300">
+                                            {getMessageAuthorName(parent)}
+                                          </span>
+                                          <span className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2">
+                                            {getMessageSnippet(parent)}
+                                          </span>
+                                        </button>
+                                      );
+                                    }
+                                    return (
+                                      <div className="flex flex-col gap-0.5 rounded-lg border-l-4 border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 px-2.5 py-1.5">
+                                        <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
+                                          {t("direct.reply")}
+                                        </span>
+                                        <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                                          {t("direct.originalMessageMissing")}
+                                        </span>
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+                              )}
                               <p className="whitespace-pre-wrap break-words text-sm leading-6 text-zinc-800 dark:text-zinc-200">
                                 {msg.content}
                               </p>
@@ -412,6 +487,27 @@ export default function DirectConversationPage() {
                   <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
                   {socketError}
                 </div>
+              </div>
+            )}
+            {replyToMessage && (
+              <div data-testid="direct-reply-preview" className="flex items-start justify-between gap-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 px-3 py-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                    {t("direct.replyingTo")} {getMessageAuthorName(replyToMessage)}
+                  </p>
+                  <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-300 truncate">
+                    {getMessageSnippet(replyToMessage)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setReplyToMessage(null)}
+                  data-testid="direct-cancel-reply"
+                  className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                  aria-label={t("direct.cancelReply")}
+                >
+                  ×
+                </button>
               </div>
             )}
             <textarea

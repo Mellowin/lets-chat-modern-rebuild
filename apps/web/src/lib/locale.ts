@@ -248,7 +248,11 @@ export type TranslationKey =
   | "direct.noMessages"
   | "direct.failedLoadMessages"
   | "direct.failedSendMessage"
-  | "direct.backToDirectMessages";
+  | "direct.backToDirectMessages"
+  | "direct.reply"
+  | "direct.replyingTo"
+  | "direct.cancelReply"
+  | "direct.originalMessageMissing";
 
 const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
   en: {
@@ -446,6 +450,10 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "direct.failedLoadMessages": "Failed to load messages",
     "direct.failedSendMessage": "Failed to send message",
     "direct.backToDirectMessages": "← Back to direct messages",
+    "direct.reply": "Reply",
+    "direct.replyingTo": "Replying to",
+    "direct.cancelReply": "Cancel reply",
+    "direct.originalMessageMissing": "Original message is not loaded",
     "workspace.confirmArchiveChannelPrefix": "Archive channel",
     "workspace.confirmArchiveChannelBody": "This will hide the channel from the workspace. Only the channel owner can do this.",
     "workspace.confirmRestoreChannelPrefix": "Restore channel",
@@ -679,6 +687,10 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "direct.failedLoadMessages": "Не вдалося завантажити повідомлення",
     "direct.failedSendMessage": "Не вдалося надіслати повідомлення",
     "direct.backToDirectMessages": "← Назад до особистих повідомлень",
+    "direct.reply": "Відповісти",
+    "direct.replyingTo": "Відповідь для",
+    "direct.cancelReply": "Скасувати відповідь",
+    "direct.originalMessageMissing": "Оригінальне повідомлення не завантажено",
     "workspace.confirmArchiveChannelPrefix": "Архівувати канал",
     "workspace.confirmArchiveChannelBody": "Це приховає канал з робочого простору. Це може зробити лише власник каналу.",
     "workspace.confirmRestoreChannelPrefix": "Відновити канал",
@@ -912,6 +924,10 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "direct.failedLoadMessages": "Не удалось загрузить сообщения",
     "direct.failedSendMessage": "Не удалось отправить сообщение",
     "direct.backToDirectMessages": "← Назад к личным сообщениям",
+    "direct.reply": "Ответить",
+    "direct.replyingTo": "Ответ для",
+    "direct.cancelReply": "Отменить ответ",
+    "direct.originalMessageMissing": "Исходное сообщение не загружено",
     "workspace.confirmArchiveChannelPrefix": "Архивировать канал",
     "workspace.confirmArchiveChannelBody": "Это скроет канал из рабочего пространства. Это может сделать только владелец канала.",
     "workspace.confirmRestoreChannelPrefix": "Восстановить канал",

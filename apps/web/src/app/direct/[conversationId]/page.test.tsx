@@ -907,3 +907,550 @@ describe("DirectConversationPage — layout and bubbles", () => {
     expect(screen.queryByText("bob")).not.toBeInTheDocument();
   });
 });
+
+
+describe("DirectConversationPage — reply action", () => {
+  it("renders Reply action on direct messages", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reply-action-dm1")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("direct-reply-action-dm1")).toHaveTextContent(/Reply/i);
+  });
+
+  it("clicking Reply opens composer reply preview", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Original message",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reply-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-reply-action-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reply-preview")).toBeInTheDocument();
+    });
+  });
+
+  it("reply preview shows author name and original snippet", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Original message text",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reply-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-reply-action-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reply-preview")).toBeInTheDocument();
+    });
+    expect(screen.getByText(/Replying to/i)).toBeInTheDocument();
+    expect(screen.getByTestId("direct-reply-preview")).toHaveTextContent("Bob");
+    expect(screen.getByTestId("direct-reply-preview")).toHaveTextContent("Original message text");
+  });
+
+  it("cancel reply clears preview", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Original",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reply-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-reply-action-dm1"));
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reply-preview")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-cancel-reply"));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("direct-reply-preview")).not.toBeInTheDocument();
+    });
+  });
+});
+
+describe("DirectConversationPage — send with parentId", () => {
+  it("sending while reply preview active calls sendDirectMessage with parentId", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Original",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+      },
+    ]);
+    const newMsg = {
+      id: "dm2",
+      conversationId: "dc1",
+      content: "Reply text",
+      parentId: "dm1",
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      editedAt: null,
+      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      parent: {
+        id: "dm1",
+        content: "Original",
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+      },
+    };
+    vi.mocked(sendDirectMessage).mockResolvedValueOnce(newMsg);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reply-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-reply-action-dm1"));
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reply-preview")).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Type a message/i), "Reply text");
+    await userEvent.click(screen.getByRole("button", { name: /Send/i }));
+
+    await waitFor(() => {
+      expect(sendDirectMessage).toHaveBeenCalledWith("token", "dc1", { content: "Reply text", parentId: "dm1" });
+    });
+  });
+
+  it("after successful send, reply preview clears", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Original",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+      },
+    ]);
+    const newMsg = {
+      id: "dm2",
+      conversationId: "dc1",
+      content: "Reply text",
+      parentId: "dm1",
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      editedAt: null,
+      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      parent: {
+        id: "dm1",
+        content: "Original",
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+      },
+    };
+    vi.mocked(sendDirectMessage).mockResolvedValueOnce(newMsg);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reply-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-reply-action-dm1"));
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reply-preview")).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Type a message/i), "Reply text");
+    await userEvent.click(screen.getByRole("button", { name: /Send/i }));
+
+    await waitFor(() => {
+      expect(sendDirectMessage).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("direct-reply-preview")).not.toBeInTheDocument();
+    });
+  });
+
+  it("after failed send, reply preview remains", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Original",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+      },
+    ]);
+    vi.mocked(sendDirectMessage).mockRejectedValueOnce(new Error("Network"));
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reply-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-reply-action-dm1"));
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reply-preview")).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Type a message/i), "Reply text");
+    await userEvent.click(screen.getByRole("button", { name: /Send/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Network/i)).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId("direct-reply-preview")).toBeInTheDocument();
+  });
+});
+
+describe("DirectConversationPage — quote preview", () => {
+  it("reply message with loaded parent renders quote preview inside bubble", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Original message",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+      },
+      {
+        id: "dm2",
+        conversationId: "dc1",
+        content: "Reply message",
+        parentId: "dm1",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        parent: {
+          id: "dm1",
+          content: "Original message",
+          author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        },
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-quote-preview-dm2")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("direct-quote-preview-dm2")).toHaveTextContent("Bob");
+    expect(screen.getByTestId("direct-quote-preview-dm2")).toHaveTextContent("Original message");
+  });
+
+  it("reply message with missing parent renders fallback text", async () => {
+    mockMessages([
+      {
+        id: "dm2",
+        conversationId: "dc1",
+        content: "Reply message",
+        parentId: "dm1",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        parent: null,
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-quote-preview-dm2")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("direct-quote-preview-dm2")).toHaveTextContent(/Original message is not loaded/i);
+  });
+
+  it("quote preview click scrolls to original message", async () => {
+    const scrollIntoViewMock = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoViewMock;
+
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Original message",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+      },
+      {
+        id: "dm2",
+        conversationId: "dc1",
+        content: "Reply message",
+        parentId: "dm1",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        parent: null,
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-quote-preview-dm2")).toBeInTheDocument();
+    });
+
+    const quoteButton = screen.getByTestId("direct-quote-preview-dm2").querySelector("button");
+    expect(quoteButton).toBeTruthy();
+    if (quoteButton) await userEvent.click(quoteButton);
+
+    await waitFor(() => {
+      expect(scrollIntoViewMock).toHaveBeenCalled();
+    });
+
+    scrollIntoViewMock.mockRestore();
+  });
+
+  it("quote preview click highlights original message", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Original message",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+      },
+      {
+        id: "dm2",
+        conversationId: "dc1",
+        content: "Reply message",
+        parentId: "dm1",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        parent: null,
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-quote-preview-dm2")).toBeInTheDocument();
+    });
+
+    const quoteButton = screen.getByTestId("direct-quote-preview-dm2").querySelector("button");
+    expect(quoteButton).toBeTruthy();
+    if (quoteButton) await userEvent.click(quoteButton);
+
+    await waitFor(() => {
+      const row = screen.getByTestId("direct-message-row-dm1");
+      expect(row.className).toContain("bg-yellow-100/70");
+    });
+  });
+
+  it("highlight clears after timeout", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Original message",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+      },
+      {
+        id: "dm2",
+        conversationId: "dc1",
+        content: "Reply message",
+        parentId: "dm1",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        parent: null,
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-quote-preview-dm2")).toBeInTheDocument();
+    });
+
+    const quoteButton = screen.getByTestId("direct-quote-preview-dm2").querySelector("button");
+    expect(quoteButton).toBeTruthy();
+    if (quoteButton) await userEvent.click(quoteButton);
+
+    await waitFor(() => {
+      const row = screen.getByTestId("direct-message-row-dm1");
+      expect(row.className).toContain("bg-yellow-100/70");
+    });
+
+    vi.advanceTimersByTime(2000);
+
+    await waitFor(() => {
+      const row = screen.getByTestId("direct-message-row-dm1");
+      expect(row.className).not.toContain("bg-yellow-100/70");
+    });
+
+    vi.useRealTimers();
+  });
+});
+
+describe("DirectConversationPage — reply realtime", () => {
+  it("incoming socket reply message appends and displays quote preview", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Original",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(socketOnMock).toHaveBeenCalledWith("direct:message:created", expect.any(Function));
+    });
+
+    const handler = socketHandlers["direct:message:created"];
+    handler({
+      id: "dm-live",
+      conversationId: "dc1",
+      content: "Live reply",
+      parentId: "dm1",
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      editedAt: null,
+      author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+      parent: {
+        id: "dm1",
+        content: "Original",
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Live reply")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("direct-quote-preview-dm-live")).toBeInTheDocument();
+    expect(screen.getByTestId("direct-quote-preview-dm-live")).toHaveTextContent("Bob");
+  });
+
+  it("duplicate incoming reply socket event does not duplicate message", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Original",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(socketOnMock).toHaveBeenCalledWith("direct:message:created", expect.any(Function));
+    });
+
+    const handler = socketHandlers["direct:message:created"];
+    const replyMsg = {
+      id: "dm-live",
+      conversationId: "dc1",
+      content: "Live reply",
+      parentId: "dm1",
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      editedAt: null,
+      author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+      parent: {
+        id: "dm1",
+        content: "Original",
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+      },
+    };
+    handler(replyMsg);
+    handler(replyMsg);
+
+    await waitFor(() => {
+      expect(screen.getByText("Live reply")).toBeInTheDocument();
+    });
+    expect(screen.getAllByText("Live reply").length).toBe(1);
+  });
+});

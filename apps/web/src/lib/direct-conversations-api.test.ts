@@ -141,6 +141,32 @@ describe("direct-conversations-api", () => {
       expect(result).toEqual(mock);
     });
 
+    it("sends parentId when provided", async () => {
+      const mock = {
+        id: "dm2",
+        conversationId: "dc1",
+        content: "reply",
+        parentId: "dm1",
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        editedAt: null,
+        author,
+        parent: null,
+      };
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(mock), { status: 201 }));
+
+      const result = await sendDirectMessage("token", "dc1", { content: "reply", parentId: "dm1" });
+
+      expect(fetch).toHaveBeenCalledWith(
+        `${API_BASE}/direct-conversations/dc1/messages`,
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ content: "reply", parentId: "dm1" }),
+        }),
+      );
+      expect(result).toEqual(mock);
+    });
+
     it("throws with fallback on non-json error", async () => {
       vi.mocked(fetch).mockResolvedValueOnce(new Response("fail", { status: 500, statusText: "Internal Server Error" }));
       await expect(sendDirectMessage("token", "dc1", { content: "x" })).rejects.toThrow(
