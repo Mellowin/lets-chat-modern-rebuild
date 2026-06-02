@@ -164,6 +164,26 @@ describe("DirectMessagesPage — start conversation", () => {
     expect(await screen.findByText(/User not found/i)).toBeInTheDocument();
   });
 
+  it("shows self conversation error from backend", async () => {
+    mockAuth();
+    vi.mocked(createDirectConversation).mockRejectedValue(
+      new Error("Cannot create a conversation with yourself"),
+    );
+
+    render(<DirectMessagesPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Username or email/i), "alice");
+    await userEvent.click(screen.getByRole("button", { name: /Start chat/i }));
+
+    expect(
+      await screen.findByText(/Cannot create a conversation with yourself/i),
+    ).toBeInTheDocument();
+  });
+
   it("does not submit when input is empty", async () => {
     mockAuth();
 

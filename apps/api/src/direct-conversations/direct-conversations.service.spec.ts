@@ -216,6 +216,36 @@ describe('DirectConversationsService', () => {
       const result = await service.create({ usernameOrEmail: 'bob' }, userId);
       expect(result.id).toBe(conversationId);
     });
+
+    it('throws NotFoundException when usernameOrEmail does not match any user', async () => {
+      usersRepository.findByUsername.mockResolvedValue(null);
+      usersRepository.findByEmail.mockResolvedValue(null);
+
+      await expect(
+        service.create({ usernameOrEmail: 'nobody' }, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('finds user by email when username does not match', async () => {
+      usersRepository.findByUsername.mockResolvedValue(null);
+      usersRepository.findByEmail.mockResolvedValue({
+        id: otherUserId,
+        username: 'bob',
+        displayName: 'Bob',
+        avatarUrl: null,
+      } as Awaited<ReturnType<UsersRepository['findById']>>);
+      repository.findByKey.mockResolvedValue(null);
+      repository.createConversation.mockResolvedValue(makeConversation());
+
+      const result = await service.create(
+        { usernameOrEmail: 'bob@example.com' },
+        userId,
+      );
+      expect(result.id).toBe(conversationId);
+      expect(usersRepository.findByEmail).toHaveBeenCalledWith(
+        'bob@example.com',
+      );
+    });
   });
 
   describe('list', () => {

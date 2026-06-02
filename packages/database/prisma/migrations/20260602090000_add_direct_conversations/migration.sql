@@ -1,4 +1,4 @@
-﻿-- CreateTable
+-- CreateTable
 CREATE TABLE "DirectConversation" (
     "id" UUID NOT NULL,
     "key" TEXT NOT NULL,
