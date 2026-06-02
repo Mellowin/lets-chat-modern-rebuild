@@ -11,8 +11,10 @@ import {
   listDirectMessages,
   sendDirectMessage,
   markDirectConversationRead,
+  listDirectConversations,
   type DirectMessage,
   type SendDirectMessageInput,
+  type DirectConversation,
 } from "@/lib/direct-conversations-api";
 import { createSocket } from "@/lib/socket-client";
 
@@ -22,6 +24,12 @@ type MessagesState =
   | { kind: "success"; data: DirectMessage[] }
   | { kind: "error"; message: string };
 
+type ConversationState =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "success"; data: DirectConversation | null }
+  | { kind: "error"; message: string };
+
 export default function DirectConversationPage() {
   const params = useParams();
   const conversationId =
@@ -29,6 +37,7 @@ export default function DirectConversationPage() {
   const { isLoading: authLoading, isAuthenticated, user, accessToken } = useAuth();
   const { t } = useLocale();
   const [messages, setMessages] = useState<MessagesState>({ kind: "idle" });
+  const [conversation, setConversation] = useState<ConversationState>({ kind: "idle" });
   const [content, setContent] = useState("");
   const [sendState, setSendState] = useState<
     { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string }
@@ -69,15 +78,22 @@ export default function DirectConversationPage() {
     let cancelled = false;
     async function load(token: string, id: string) {
       setMessages({ kind: "loading" });
+      setConversation({ kind: "loading" });
       try {
-        const data = await listDirectMessages(token, id);
+        const [msgData, convsData] = await Promise.all([
+          listDirectMessages(token, id),
+          listDirectConversations(token),
+        ]);
         if (!cancelled) {
-          setMessages({ kind: "success", data });
+          setMessages({ kind: "success", data: msgData });
+          const conv = convsData.find((c) => c.id === id) ?? null;
+          setConversation({ kind: "success", data: conv });
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : t("direct.failedLoadMessages");
         if (!cancelled) {
           setMessages({ kind: "error", message });
+          setConversation({ kind: "error", message });
         }
       }
     }
@@ -262,15 +278,45 @@ export default function DirectConversationPage() {
   return (
     <div className="flex h-[calc(100vh-4rem)] min-w-0 w-full max-w-none flex-col gap-4 overflow-hidden p-4 sm:p-6">
       <main className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
-        <Link
-          href="/direct"
-          className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-        >
-          {t("direct.backToDirectMessages")}
-        </Link>
+        <header className="shrink-0 flex items-center gap-3">
+          <Link
+            href="/direct"
+            className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+          >
+            {t("direct.backToDirectMessages")}
+          </Link>
+          {conversation.kind === "success" && conversation.data?.otherParticipant && (
+            <div className="flex items-center gap-2">
+              <div className="relative h-8 w-8 shrink-0 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center overflow-hidden">
+                {conversation.data.otherParticipant.avatarUrl ? (
+                  <Image
+                    src={getAvatarUrl(conversation.data.otherParticipant.avatarUrl) || ""}
+                    alt=""
+                    fill
+                    sizes="32px"
+                    className="object-cover"
+                    unoptimized
+                  />
+                ) : (
+                  <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                    {(conversation.data.otherParticipant.displayName || conversation.data.otherParticipant.username || "?").slice(0, 2).toUpperCase()}
+                  </span>
+                )}
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  {conversation.data.otherParticipant.displayName || conversation.data.otherParticipant.username || t("messageAuthor.unknownUser")}
+                </p>
+                <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
+                  {conversation.data.otherParticipant.username}
+                </p>
+              </div>
+            </div>
+          )}
+        </header>
 
         <div className="mt-4 flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950">
-          <div ref={messagesScrollRef} className="min-h-0 flex-1 overflow-y-auto bg-gradient-to-br from-[#e4efc4] via-[#c9e2bf] to-[#9cc7b2] px-4 py-3 dark:from-zinc-950 dark:via-emerald-950/40 dark:to-zinc-900">
+          <div ref={messagesScrollRef} data-testid="direct-messages-scroll" className="min-h-0 flex-1 overflow-y-auto bg-gradient-to-br from-[#e4efc4] via-[#c9e2bf] to-[#9cc7b2] px-4 py-3 dark:from-zinc-950 dark:via-emerald-950/40 dark:to-zinc-900">
             <div className="flex w-full max-w-3xl flex-col">
               {messages.kind === "loading" && (
                 <div className="mt-4 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
@@ -302,11 +348,11 @@ export default function DirectConversationPage() {
                       <li
                         key={msg.id}
                         id={`message-${msg.id}`}
-                        data-testid={`message-row-${msg.id}`}
+                        data-testid={`direct-message-row-${msg.id}`}
                         className="flex items-start gap-3 rounded-xl"
                       >
                         <div
-                          data-testid={`message-avatar-${msg.id}`}
+                          data-testid={`direct-message-avatar-${msg.id}`}
                           className="sticky bottom-3 self-end relative h-8 w-8 shrink-0 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center overflow-hidden"
                         >
                           {msg.author.avatarUrl ? (
@@ -318,7 +364,7 @@ export default function DirectConversationPage() {
                           )}
                         </div>
                         <div
-                          data-testid={`message-body-${msg.id}`}
+                          data-testid={`direct-message-body-${msg.id}`}
                           className="min-w-0 max-w-[80%]"
                         >
                           <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -334,9 +380,9 @@ export default function DirectConversationPage() {
                               </span>
                             )}
                           </div>
-                          <div data-testid={`message-bubble-wrap-${msg.id}`} className={isOwnMessage ? "ml-28 sm:ml-44" : ""}>
+                          <div data-testid={`direct-message-bubble-wrap-${msg.id}`} className={isOwnMessage ? "ml-28 sm:ml-44" : ""}>
                             <div
-                              data-testid={`message-bubble-${msg.id}`}
+                              data-testid={`direct-message-bubble-${msg.id}`}
                               className={`mt-1 w-fit max-w-full rounded-2xl border px-3 py-2 shadow-sm ${
                                 isOwnMessage
                                   ? "bg-emerald-50 border-emerald-200 text-zinc-900 dark:bg-emerald-950/40 dark:border-emerald-900 dark:text-zinc-100"
@@ -359,7 +405,7 @@ export default function DirectConversationPage() {
             </div>
           </div>
 
-          <form onSubmit={handleSendMessage} className="shrink-0 flex flex-col gap-2 border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4 shadow-sm">
+          <form onSubmit={handleSendMessage} data-testid="direct-composer" className="shrink-0 flex flex-col gap-2 border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4 shadow-sm">
             {socketError && (
               <div className="rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs dark:border-red-900 dark:bg-red-950/30">
                 <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">

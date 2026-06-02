@@ -2,7 +2,7 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import DirectConversationPage from "./page";
-import { listDirectMessages, sendDirectMessage, markDirectConversationRead } from "@/lib/direct-conversations-api";
+import { listDirectMessages, sendDirectMessage, markDirectConversationRead, listDirectConversations } from "@/lib/direct-conversations-api";
 
 const socketHandlers: Record<string, (...args: unknown[]) => void> = {};
 const socketOffHandlers: Record<string, ((...args: unknown[]) => void)[]> = {};
@@ -53,6 +53,7 @@ vi.mock("@/lib/direct-conversations-api", () => ({
   listDirectMessages: vi.fn(),
   sendDirectMessage: vi.fn(),
   markDirectConversationRead: vi.fn().mockResolvedValue({ ok: true }),
+  listDirectConversations: vi.fn(),
 }));
 
 vi.mock("@/lib/socket-client", () => ({
@@ -66,6 +67,16 @@ beforeEach(() => {
   Object.keys(socketHandlers).forEach((k) => delete socketHandlers[k]);
   Object.keys(socketOffHandlers).forEach((k) => delete socketOffHandlers[k]);
   mockSocketConnected = false;
+  vi.mocked(listDirectConversations).mockResolvedValue([
+    {
+      id: "dc1",
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null },
+      lastMessage: null,
+      unreadCount: 0,
+    },
+  ]);
 });
 
 function mockMessages(messagesData: unknown[] = []) {
@@ -746,5 +757,153 @@ describe("DirectConversationPage — mark as read", () => {
     });
 
     dispatchSpy.mockRestore();
+  });
+});
+
+describe("DirectConversationPage — layout and bubbles", () => {
+  it("renders messages inside scrollable chat panel", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+      },
+    ]);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-messages-scroll")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("direct-message-row-dm1")).toBeInTheDocument();
+  });
+
+  it("composer is visible after messages", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+      },
+    ]);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-composer")).toBeInTheDocument();
+    });
+  });
+
+  it("renders own message with emerald bubble styling", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "My message",
+        parentId: null,
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        parent: null,
+      },
+    ]);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-bubble-dm1")).toBeInTheDocument();
+    });
+
+    const bubble = screen.getByTestId("direct-message-bubble-dm1");
+    expect(bubble.className).toContain("bg-emerald-50");
+    expect(bubble.className).toContain("border-emerald-200");
+  });
+
+  it("renders other message with white bubble styling", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Other message",
+        parentId: null,
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+        parent: null,
+      },
+    ]);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-bubble-dm1")).toBeInTheDocument();
+    });
+
+    const bubble = screen.getByTestId("direct-message-bubble-dm1");
+    expect(bubble.className).toContain("bg-white");
+    expect(bubble.className).toContain("border-zinc-200");
+  });
+
+  it("indents own bubble compared to other bubble", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "My message",
+        parentId: null,
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        parent: null,
+      },
+    ]);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-bubble-wrap-dm1")).toBeInTheDocument();
+    });
+
+    const wrap = screen.getByTestId("direct-message-bubble-wrap-dm1");
+    expect(wrap.className).toContain("ml-28");
+  });
+
+  it("shows other participant name in header", async () => {
+    mockMessages([]);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Charlie")).toBeInTheDocument();
+    });
+    expect(screen.getByText("charlie")).toBeInTheDocument();
+  });
+
+  it("shows unknown user when conversation not found", async () => {
+    mockMessages([]);
+    vi.mocked(listDirectConversations).mockResolvedValueOnce([]);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Back to direct messages/i)).toBeInTheDocument();
+    });
+    // Header participant section should not render when conversation is null
+    expect(screen.queryByText("bob")).not.toBeInTheDocument();
   });
 });
