@@ -782,6 +782,8 @@ export default function ChannelDetailPage() {
                       id={`message-${msg.id}`}
                       data-testid={`message-row-${msg.id}`}
                       className={`flex items-start gap-3 rounded-xl transition-colors ${
+                        isOwnMessage ? "ml-10 sm:ml-16" : ""
+                      } ${
                         highlightedMessageId === msg.id
                           ? "bg-yellow-100/70 dark:bg-yellow-900/30 ring-2 ring-yellow-300/80 dark:ring-yellow-700/70"
                           : ""
