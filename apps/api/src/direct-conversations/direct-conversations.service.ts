@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -162,15 +161,21 @@ export class DirectConversationsService {
       await this.directConversations.listMessagesForConversation(
         conversationId,
       );
-    const reactionsMap = new Map<string, Array<{ emoji: string; count: number; reactedByMe: boolean }>>();
+    const reactionsMap = new Map<
+      string,
+      Array<{ emoji: string; count: number; reactedByMe: boolean }>
+    >();
     for (const message of messages) {
-      const reactions = await this.directConversations.getDirectMessageReactions(
-        message.id,
-        currentUserId,
-      );
+      const reactions =
+        await this.directConversations.getDirectMessageReactions(
+          message.id,
+          currentUserId,
+        );
       reactionsMap.set(message.id, reactions);
     }
-    return messages.map((m) => this.toMessageResponse(m, reactionsMap.get(m.id) ?? []));
+    return messages.map((m) =>
+      this.toMessageResponse(m, reactionsMap.get(m.id) ?? []),
+    );
   }
 
   async createMessage(
@@ -270,10 +275,11 @@ export class DirectConversationsService {
       dto.emoji,
     );
     if (existing) {
-      const reactions = await this.directConversations.getDirectMessageReactions(
-        messageId,
-        userId,
-      );
+      const reactions =
+        await this.directConversations.getDirectMessageReactions(
+          messageId,
+          userId,
+        );
       return reactions;
     }
 
@@ -293,7 +299,9 @@ export class DirectConversationsService {
       messageId,
       conversationId,
       emoji: dto.emoji,
-      user: user ? { id: user.id, username: user.username } : { id: userId, username: '' },
+      user: user
+        ? { id: user.id, username: user.username }
+        : { id: userId, username: '' },
       reactions,
     });
 
@@ -343,7 +351,9 @@ export class DirectConversationsService {
       messageId,
       conversationId,
       emoji: normalizedEmoji,
-      user: user ? { id: user.id, username: user.username } : { id: userId, username: '' },
+      user: user
+        ? { id: user.id, username: user.username }
+        : { id: userId, username: '' },
       reactions,
     });
 

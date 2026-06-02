@@ -7,8 +7,6 @@ import {
   Param,
   UseGuards,
   ParseUUIDPipe,
-  HttpCode,
-  HttpStatus,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -26,7 +24,7 @@ import { CreateDirectConversationDto } from './dto/create-direct-conversation.dt
 import { CreateDirectMessageDto } from './dto/create-direct-message.dto';
 import { CreateDirectReactionDto } from './dto/create-direct-reaction.dto';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
-  import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUserResponse } from '../auth/auth.service';
 
 @ApiTags('Direct Conversations')
@@ -112,7 +110,12 @@ export class DirectConversationsController {
     @Body() dto: CreateDirectReactionDto,
     @CurrentUser() user: AuthUserResponse,
   ) {
-    return this.directConversations.addReaction(conversationId, messageId, dto, user.id);
+    return this.directConversations.addReaction(
+      conversationId,
+      messageId,
+      dto,
+      user.id,
+    );
   }
 
   @Delete(':conversationId/messages/:messageId/reactions/:emoji')
@@ -128,6 +131,11 @@ export class DirectConversationsController {
     @Param('emoji') emoji: string,
     @CurrentUser() user: AuthUserResponse,
   ) {
-    return this.directConversations.removeReaction(conversationId, messageId, emoji, user.id);
+    return this.directConversations.removeReaction(
+      conversationId,
+      messageId,
+      emoji,
+      user.id,
+    );
   }
 }

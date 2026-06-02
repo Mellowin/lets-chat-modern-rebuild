@@ -674,227 +674,242 @@ describe('DirectConversationsService', () => {
   });
 
   describe('addReaction', () => {
-  it('adds reaction for participant', async () => {
-    repository.findParticipant.mockResolvedValue({
-      id: 'p1',
-      conversationId,
-      userId,
-      createdAt: new Date(),
-      lastReadAt: new Date(),
-    });
-    repository.findMessageById.mockResolvedValue({
-      id: messageId,
-      conversationId,
-      authorId: otherUserId,
-      parentId: null,
-      content: 'hello',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      editedAt: null,
-      deletedAt: null,
-    });
-    repository.findDirectReaction.mockResolvedValue(null);
-    repository.createDirectReaction.mockResolvedValue({
-      id: 'r1',
-      messageId,
-      userId,
-      emoji: '👍',
-      createdAt: new Date(),
-    });
-    repository.getDirectMessageReactions.mockResolvedValue([
-      { emoji: '👍', count: 1, reactedByMe: true },
-    ]);
-    usersRepository.findById.mockResolvedValue({
-      id: userId,
-      username: 'alice',
-      email: 'a@b.com',
-      passwordHash: 'hash',
-      displayName: null,
-      avatarUrl: null,
-      interfaceLanguage: 'en',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      deletedAt: null,
+    it('adds reaction for participant', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue({
+        id: messageId,
+        conversationId,
+        authorId: otherUserId,
+        parentId: null,
+        content: 'hello',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        editedAt: null,
+        deletedAt: null,
+      });
+      repository.findDirectReaction.mockResolvedValue(null);
+      repository.createDirectReaction.mockResolvedValue({
+        id: 'r1',
+        messageId,
+        userId,
+        emoji: '👍',
+        createdAt: new Date(),
+      });
+      repository.getDirectMessageReactions.mockResolvedValue([
+        { emoji: '👍', count: 1, reactedByMe: true },
+      ]);
+      usersRepository.findById.mockResolvedValue({
+        id: userId,
+        username: 'alice',
+        email: 'a@b.com',
+        passwordHash: 'hash',
+        displayName: null,
+        avatarUrl: null,
+        avatarUpdatedAt: null,
+        interfaceLanguage: 'en',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        deletedAt: null,
+      });
+
+      const result = await service.addReaction(
+        conversationId,
+        messageId,
+        { emoji: '👍' },
+        userId,
+      );
+      expect(result).toEqual([{ emoji: '👍', count: 1, reactedByMe: true }]);
+      expect(repository.createDirectReaction).toHaveBeenCalledWith({
+        messageId,
+        userId,
+        emoji: '👍',
+      });
+      expect(websocketEvents.broadcastDirectReactionAdded).toHaveBeenCalled();
     });
 
-    const result = await service.addReaction(conversationId, messageId, { emoji: '👍' }, userId);
-    expect(result).toEqual([{ emoji: '👍', count: 1, reactedByMe: true }]);
-    expect(repository.createDirectReaction).toHaveBeenCalledWith({
-      messageId,
-      userId,
-      emoji: '👍',
+    it('returns existing reactions without duplicate when reaction already exists', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue({
+        id: messageId,
+        conversationId,
+        authorId: otherUserId,
+        parentId: null,
+        content: 'hello',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        editedAt: null,
+        deletedAt: null,
+      });
+      repository.findDirectReaction.mockResolvedValue({
+        id: 'r1',
+        messageId,
+        userId,
+        emoji: '👍',
+        createdAt: new Date(),
+      });
+      repository.getDirectMessageReactions.mockResolvedValue([
+        { emoji: '👍', count: 1, reactedByMe: true },
+      ]);
+
+      const result = await service.addReaction(
+        conversationId,
+        messageId,
+        { emoji: '👍' },
+        userId,
+      );
+      expect(result).toEqual([{ emoji: '👍', count: 1, reactedByMe: true }]);
+      expect(repository.createDirectReaction).not.toHaveBeenCalled();
+      expect(
+        websocketEvents.broadcastDirectReactionAdded,
+      ).not.toHaveBeenCalled();
     });
-    expect(websocketEvents.broadcastDirectReactionAdded).toHaveBeenCalled();
+
+    it('throws ForbiddenException for non-participant', async () => {
+      repository.findParticipant.mockResolvedValue(null);
+
+      await expect(
+        service.addReaction(conversationId, messageId, { emoji: '👍' }, userId),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('throws NotFoundException for message from another conversation', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue({
+        id: messageId,
+        conversationId: '99999999-9999-9999-9999-999999999999',
+        authorId: otherUserId,
+        parentId: null,
+        content: 'hello',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        editedAt: null,
+        deletedAt: null,
+      });
+
+      await expect(
+        service.addReaction(conversationId, messageId, { emoji: '👍' }, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
   });
 
-  it('returns existing reactions without duplicate when reaction already exists', async () => {
-    repository.findParticipant.mockResolvedValue({
-      id: 'p1',
-      conversationId,
-      userId,
-      createdAt: new Date(),
-      lastReadAt: new Date(),
-    });
-    repository.findMessageById.mockResolvedValue({
-      id: messageId,
-      conversationId,
-      authorId: otherUserId,
-      parentId: null,
-      content: 'hello',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      editedAt: null,
-      deletedAt: null,
-    });
-    repository.findDirectReaction.mockResolvedValue({
-      id: 'r1',
-      messageId,
-      userId,
-      emoji: '👍',
-      createdAt: new Date(),
-    });
-    repository.getDirectMessageReactions.mockResolvedValue([
-      { emoji: '👍', count: 1, reactedByMe: true },
-    ]);
+  describe('removeReaction', () => {
+    it('removes reaction for participant', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue({
+        id: messageId,
+        conversationId,
+        authorId: otherUserId,
+        parentId: null,
+        content: 'hello',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        editedAt: null,
+        deletedAt: null,
+      });
+      repository.findDirectReaction.mockResolvedValue({
+        id: 'r1',
+        messageId,
+        userId,
+        emoji: '👍',
+        createdAt: new Date(),
+      });
+      repository.deleteDirectReaction.mockResolvedValue({
+        id: 'r1',
+        messageId,
+        userId,
+        emoji: '👍',
+        createdAt: new Date(),
+      });
+      repository.getDirectMessageReactions.mockResolvedValue([]);
+      usersRepository.findById.mockResolvedValue({
+        id: userId,
+        username: 'alice',
+        email: 'a@b.com',
+        passwordHash: 'hash',
+        displayName: null,
+        avatarUrl: null,
+        avatarUpdatedAt: null,
+        interfaceLanguage: 'en',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        deletedAt: null,
+      });
 
-    const result = await service.addReaction(conversationId, messageId, { emoji: '👍' }, userId);
-    expect(result).toEqual([{ emoji: '👍', count: 1, reactedByMe: true }]);
-    expect(repository.createDirectReaction).not.toHaveBeenCalled();
-    expect(websocketEvents.broadcastDirectReactionAdded).not.toHaveBeenCalled();
+      await service.removeReaction(conversationId, messageId, '👍', userId);
+      expect(repository.deleteDirectReaction).toHaveBeenCalledWith('r1');
+      expect(websocketEvents.broadcastDirectReactionRemoved).toHaveBeenCalled();
+    });
+
+    it('succeeds idempotently when reaction does not exist', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue({
+        id: messageId,
+        conversationId,
+        authorId: otherUserId,
+        parentId: null,
+        content: 'hello',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        editedAt: null,
+        deletedAt: null,
+      });
+      repository.findDirectReaction.mockResolvedValue(null);
+      repository.getDirectMessageReactions.mockResolvedValue([]);
+      usersRepository.findById.mockResolvedValue({
+        id: userId,
+        username: 'alice',
+        email: 'a@b.com',
+        passwordHash: 'hash',
+        displayName: null,
+        avatarUrl: null,
+        avatarUpdatedAt: null,
+        interfaceLanguage: 'en',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        deletedAt: null,
+      });
+
+      await service.removeReaction(conversationId, messageId, '👍', userId);
+      expect(repository.deleteDirectReaction).not.toHaveBeenCalled();
+      expect(websocketEvents.broadcastDirectReactionRemoved).toHaveBeenCalled();
+    });
+
+    it('throws ForbiddenException for non-participant', async () => {
+      repository.findParticipant.mockResolvedValue(null);
+
+      await expect(
+        service.removeReaction(conversationId, messageId, '👍', userId),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
   });
-
-  it('throws ForbiddenException for non-participant', async () => {
-    repository.findParticipant.mockResolvedValue(null);
-
-    await expect(
-      service.addReaction(conversationId, messageId, { emoji: '👍' }, userId),
-    ).rejects.toBeInstanceOf(ForbiddenException);
-  });
-
-  it('throws NotFoundException for message from another conversation', async () => {
-    repository.findParticipant.mockResolvedValue({
-      id: 'p1',
-      conversationId,
-      userId,
-      createdAt: new Date(),
-      lastReadAt: new Date(),
-    });
-    repository.findMessageById.mockResolvedValue({
-      id: messageId,
-      conversationId: '99999999-9999-9999-9999-999999999999',
-      authorId: otherUserId,
-      parentId: null,
-      content: 'hello',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      editedAt: null,
-      deletedAt: null,
-    });
-
-    await expect(
-      service.addReaction(conversationId, messageId, { emoji: '👍' }, userId),
-    ).rejects.toBeInstanceOf(NotFoundException);
-  });
-});
-
-describe('removeReaction', () => {
-  it('removes reaction for participant', async () => {
-    repository.findParticipant.mockResolvedValue({
-      id: 'p1',
-      conversationId,
-      userId,
-      createdAt: new Date(),
-      lastReadAt: new Date(),
-    });
-    repository.findMessageById.mockResolvedValue({
-      id: messageId,
-      conversationId,
-      authorId: otherUserId,
-      parentId: null,
-      content: 'hello',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      editedAt: null,
-      deletedAt: null,
-    });
-    repository.findDirectReaction.mockResolvedValue({
-      id: 'r1',
-      messageId,
-      userId,
-      emoji: '👍',
-      createdAt: new Date(),
-    });
-    repository.deleteDirectReaction.mockResolvedValue({
-      id: 'r1',
-      messageId,
-      userId,
-      emoji: '👍',
-      createdAt: new Date(),
-    });
-    repository.getDirectMessageReactions.mockResolvedValue([]);
-    usersRepository.findById.mockResolvedValue({
-      id: userId,
-      username: 'alice',
-      email: 'a@b.com',
-      passwordHash: 'hash',
-      displayName: null,
-      avatarUrl: null,
-      interfaceLanguage: 'en',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      deletedAt: null,
-    });
-
-    await service.removeReaction(conversationId, messageId, '👍', userId);
-    expect(repository.deleteDirectReaction).toHaveBeenCalledWith('r1');
-    expect(websocketEvents.broadcastDirectReactionRemoved).toHaveBeenCalled();
-  });
-
-  it('succeeds idempotently when reaction does not exist', async () => {
-    repository.findParticipant.mockResolvedValue({
-      id: 'p1',
-      conversationId,
-      userId,
-      createdAt: new Date(),
-      lastReadAt: new Date(),
-    });
-    repository.findMessageById.mockResolvedValue({
-      id: messageId,
-      conversationId,
-      authorId: otherUserId,
-      parentId: null,
-      content: 'hello',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      editedAt: null,
-      deletedAt: null,
-    });
-    repository.findDirectReaction.mockResolvedValue(null);
-    repository.getDirectMessageReactions.mockResolvedValue([]);
-    usersRepository.findById.mockResolvedValue({
-      id: userId,
-      username: 'alice',
-      email: 'a@b.com',
-      passwordHash: 'hash',
-      displayName: null,
-      avatarUrl: null,
-      interfaceLanguage: 'en',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      deletedAt: null,
-    });
-
-    await service.removeReaction(conversationId, messageId, '👍', userId);
-    expect(repository.deleteDirectReaction).not.toHaveBeenCalled();
-    expect(websocketEvents.broadcastDirectReactionRemoved).toHaveBeenCalled();
-  });
-
-  it('throws ForbiddenException for non-participant', async () => {
-    repository.findParticipant.mockResolvedValue(null);
-
-    await expect(
-      service.removeReaction(conversationId, messageId, '👍', userId),
-    ).rejects.toBeInstanceOf(ForbiddenException);
-  });
-});
 });

@@ -284,7 +284,11 @@ export class DirectConversationsRepository {
     });
   }
 
-  async createDirectReaction(data: { messageId: string; userId: string; emoji: string }) {
+  async createDirectReaction(data: {
+    messageId: string;
+    userId: string;
+    emoji: string;
+  }) {
     return this.prisma.directMessageReaction.create({ data });
   }
 
