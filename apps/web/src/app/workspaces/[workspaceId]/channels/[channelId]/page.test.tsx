@@ -2069,6 +2069,12 @@ describe("ChannelDetailPage — message alignment", () => {
     expect(screen.getByTestId("message-row-m1")).not.toHaveClass("ml-10");
     expect(screen.getByTestId("message-body-m1")).not.toHaveClass("ml-8");
     expect(screen.getByTestId("message-bubble-wrap-m1")).toHaveClass("ml-20");
+    expect(screen.getByTestId("message-avatar-m2")).toHaveClass("sticky");
+    expect(screen.getByTestId("message-avatar-m2")).toHaveClass("bottom-3");
+    expect(screen.getByTestId("message-avatar-m2")).toHaveClass("self-end");
+    expect(screen.getByTestId("message-avatar-m1")).toHaveClass("sticky");
+    expect(screen.getByTestId("message-avatar-m1")).toHaveClass("bottom-3");
+    expect(screen.getByTestId("message-avatar-m1")).toHaveClass("self-end");
   });
 
   it("shows quoted preview inside own reply bubble", async () => {

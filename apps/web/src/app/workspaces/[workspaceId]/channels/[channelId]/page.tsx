@@ -787,7 +787,10 @@ export default function ChannelDetailPage() {
                           : ""
                       }`}
                     >
-                      <div className="relative h-8 w-8 shrink-0 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center overflow-hidden">
+                      <div
+                        data-testid={`message-avatar-${msg.id}`}
+                        className="sticky bottom-3 self-end relative h-8 w-8 shrink-0 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center overflow-hidden"
+                      >
                         {msg.author.avatarUrl ? (
                           <Image src={getAvatarUrl(msg.author.avatarUrl) || ""} alt="" fill sizes="32px" className="object-cover" unoptimized />
                         ) : (
