@@ -205,6 +205,14 @@ export class DirectConversationsService {
       response,
     );
 
+    const participants =
+      await this.directConversations.findParticipants(conversationId);
+    this.websocketEvents.broadcastDirectConversationUpdated(
+      conversationId,
+      response,
+      participants.map((p) => p.userId),
+    );
+
     return response;
   }
 

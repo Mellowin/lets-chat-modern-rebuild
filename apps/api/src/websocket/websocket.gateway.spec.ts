@@ -133,6 +133,7 @@ describe('WebsocketGateway', () => {
         email: 'test@test.com',
         username: 'testuser',
       });
+      expect(socket.join).toHaveBeenCalledWith(`user:${userId}`);
       expect(socket.emit).toHaveBeenCalledWith('connected', { userId });
       expect(socket.disconnect).not.toHaveBeenCalled();
     });

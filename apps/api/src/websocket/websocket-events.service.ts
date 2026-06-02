@@ -228,4 +228,54 @@ export class WebsocketEventsService {
       );
     }
   }
+
+  broadcastDirectConversationUpdated(
+    conversationId: string,
+    payload: {
+      id: string;
+      conversationId: string;
+      content: string;
+      parentId: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+      editedAt: Date | null;
+      author: {
+        id: string;
+        username: string;
+        displayName: string | null;
+        avatarUrl: string | null;
+      };
+      parent: {
+        id: string;
+        content: string;
+        author: {
+          id: string;
+          username: string;
+          displayName: string | null;
+          avatarUrl: string | null;
+        };
+      } | null;
+    },
+    participantUserIds: string[],
+  ) {
+    for (const userId of participantUserIds) {
+      try {
+        this.gateway.broadcastToRoom(
+          `user:${userId}`,
+          'direct:conversation:updated',
+          payload,
+        );
+      } catch (error) {
+        this.logger.error(
+          {
+            conversationId,
+            userId,
+            messageId: payload.id,
+            error: (error as Error).message,
+          },
+          'Failed to broadcast direct:conversation:updated',
+        );
+      }
+    }
+  }
 }

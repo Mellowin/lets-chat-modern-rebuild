@@ -58,7 +58,7 @@ export default function DirectMessagesPage() {
     const socket = createSocket(accessToken);
     socketRef.current = socket;
 
-    function handleDirectMessageCreated(msg: DirectMessage) {
+    function handleDirectConversationUpdated(msg: DirectMessage) {
       setConversations((prev) => {
         if (prev.kind !== "success") return prev;
         const existingIndex = prev.data.findIndex((c) => c.id === msg.conversationId);
@@ -93,10 +93,10 @@ export default function DirectMessagesPage() {
       });
     }
 
-    socket.on("direct:message:created", handleDirectMessageCreated);
+    socket.on("direct:conversation:updated", handleDirectConversationUpdated);
 
     return () => {
-      socket.off("direct:message:created", handleDirectMessageCreated);
+      socket.off("direct:conversation:updated", handleDirectConversationUpdated);
       socket.disconnect();
       socketRef.current = null;
     };

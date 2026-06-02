@@ -101,6 +101,7 @@ describe('DirectConversationsService', () => {
             createConversation: jest.fn(),
             listForUser: jest.fn(),
             findParticipant: jest.fn(),
+            findParticipants: jest.fn(),
             createMessage: jest.fn(),
             findMessageById: jest.fn(),
             listMessagesForConversation: jest.fn(),
@@ -121,6 +122,7 @@ describe('DirectConversationsService', () => {
           provide: WebsocketEventsService,
           useValue: {
             broadcastDirectMessageCreated: jest.fn(),
+            broadcastDirectConversationUpdated: jest.fn(),
           },
         },
       ],
@@ -383,6 +385,7 @@ describe('DirectConversationsService', () => {
 
       // Validation happens at DTO level; service receives already-validated data.
       // We test the participant guard here.
+      repository.findParticipants.mockResolvedValue([{ userId }]);
       repository.createMessage.mockResolvedValue(
         makeMessage({ content: 'hi' }),
       );
@@ -403,6 +406,7 @@ describe('DirectConversationsService', () => {
         createdAt: new Date(),
         lastReadAt: new Date(),
       });
+      repository.findParticipants.mockResolvedValue([{ userId }]);
       repository.createMessage.mockResolvedValue(makeMessage());
 
       const result = await service.createMessage(
@@ -425,6 +429,10 @@ describe('DirectConversationsService', () => {
         lastReadAt: new Date(),
       });
       repository.createMessage.mockResolvedValue(makeMessage());
+      repository.findParticipants.mockResolvedValue([
+        { userId },
+        { userId: otherUserId },
+      ]);
 
       const result = await service.createMessage(
         conversationId,
@@ -441,6 +449,17 @@ describe('DirectConversationsService', () => {
           conversationId,
           content: 'hello',
         }),
+      );
+      expect(
+        websocketEvents.broadcastDirectConversationUpdated,
+      ).toHaveBeenCalledWith(
+        conversationId,
+        expect.objectContaining({
+          id: result.id,
+          conversationId,
+          content: 'hello',
+        }),
+        [userId, otherUserId],
       );
     });
 
@@ -460,6 +479,9 @@ describe('DirectConversationsService', () => {
 
       expect(
         websocketEvents.broadcastDirectMessageCreated,
+      ).not.toHaveBeenCalled();
+      expect(
+        websocketEvents.broadcastDirectConversationUpdated,
       ).not.toHaveBeenCalled();
     });
 
@@ -483,6 +505,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: null,
       });
+      repository.findParticipants.mockResolvedValue([{ userId }]);
       repository.createMessage.mockResolvedValue(
         makeMessage({
           content: 'reply',

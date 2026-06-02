@@ -294,7 +294,7 @@ describe("DirectMessagesPage — socket unread updates", () => {
       expect(screen.getByText("1")).toBeInTheDocument();
     });
 
-    const handler = socketHandlers["direct:message:created"];
+    const handler = socketHandlers["direct:conversation:updated"];
     handler({
       id: "dm-new",
       conversationId: "dc1",
@@ -323,7 +323,7 @@ describe("DirectMessagesPage — socket unread updates", () => {
       expect(screen.getByText("1")).toBeInTheDocument();
     });
 
-    const handler = socketHandlers["direct:message:created"];
+    const handler = socketHandlers["direct:conversation:updated"];
     handler({
       id: "dm-own",
       conversationId: "dc1",
@@ -354,7 +354,7 @@ describe("DirectMessagesPage — socket unread updates", () => {
       expect(screen.getByText("Bob")).toBeInTheDocument();
     });
 
-    const handler = socketHandlers["direct:message:created"];
+    const handler = socketHandlers["direct:conversation:updated"];
     const msg = {
       id: "dm-dup",
       conversationId: "dc1",
@@ -390,7 +390,7 @@ describe("DirectMessagesPage — socket unread updates", () => {
       expect(screen.getByText("Bob")).toBeInTheDocument();
     });
 
-    const handler = socketHandlers["direct:message:created"];
+    const handler = socketHandlers["direct:conversation:updated"];
     handler({
       id: "dm-own",
       conversationId: "dc1",
@@ -424,7 +424,7 @@ describe("DirectMessagesPage — socket unread updates", () => {
       expect(screen.getByText("Bob")).toBeInTheDocument();
     });
 
-    const handler = socketHandlers["direct:message:created"];
+    const handler = socketHandlers["direct:conversation:updated"];
     handler({
       id: "dm-other",
       conversationId: "dc1",

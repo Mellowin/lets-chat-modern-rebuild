@@ -142,6 +142,8 @@ export class WebsocketGateway
 
       this.presence.trackSocket(user.id, socketId);
 
+      await socket.join(`user:${user.id}`);
+
       this.logger.log({ socketId, userId: user.id }, 'Socket connected');
       socket.emit('connected', { userId: user.id });
     } catch (error) {

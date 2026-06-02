@@ -166,6 +166,13 @@ export class DirectConversationsRepository {
     });
   }
 
+  async findParticipants(conversationId: string) {
+    return this.prisma.directConversationParticipant.findMany({
+      where: { conversationId },
+      select: { userId: true },
+    });
+  }
+
   async updateParticipantLastRead(conversationId: string, userId: string) {
     return this.prisma.directConversationParticipant.update({
       where: {

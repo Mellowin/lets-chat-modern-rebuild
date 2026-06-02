@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { getWorkspaces, type Workspace } from "@/lib/workspaces-api";
 import { getChannels, type Channel } from "@/lib/channels-api";
 import { listDirectConversations, type DirectConversation } from "@/lib/direct-conversations-api";
+import { createSocket } from "@/lib/socket-client";
 
 type WorkspacesState =
   | { kind: "idle" }
@@ -98,9 +99,19 @@ export default function Sidebar() {
     }
 
     window.addEventListener("direct-conversations:changed", handleDirectConversationsChanged);
+
+    const token = accessToken;
+    const socket = createSocket(token);
+    function handleDirectConversationUpdated() {
+      load(token);
+    }
+    socket.on("direct:conversation:updated", handleDirectConversationUpdated);
+
     return () => {
       cancelled = true;
       window.removeEventListener("direct-conversations:changed", handleDirectConversationsChanged);
+      socket.off("direct:conversation:updated", handleDirectConversationUpdated);
+      socket.disconnect();
     };
   }, [isAuthenticated, accessToken]);
 
