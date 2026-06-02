@@ -41,6 +41,12 @@ export interface DirectMessageParentPreview {
   author: DirectMessageAuthor;
 }
 
+export interface DirectMessageReactionSummary {
+  emoji: string;
+  count: number;
+  reactedByMe: boolean;
+}
+
 export interface DirectMessage {
   id: string;
   conversationId: string;
@@ -51,6 +57,7 @@ export interface DirectMessage {
   editedAt: string | null;
   author: DirectMessageAuthor;
   parent: DirectMessageParentPreview | null;
+  reactions: DirectMessageReactionSummary[];
 }
 
 export interface SendDirectMessageInput {
@@ -171,4 +178,51 @@ export async function markDirectConversationRead(
   }
 
   return res.json() as Promise<{ ok: boolean }>;
+}
+
+export async function reactToDirectMessage(
+  accessToken: string,
+  conversationId: string,
+  messageId: string,
+  emoji: string,
+): Promise<DirectMessageReactionSummary[]> {
+  const res = await fetch(
+    `${API_BASE}/direct-conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}/reactions`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ emoji }),
+    },
+  );
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to add reaction: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<DirectMessageReactionSummary[]>;
+}
+
+export async function removeDirectMessageReaction(
+  accessToken: string,
+  conversationId: string,
+  messageId: string,
+  emoji: string,
+): Promise<void> {
+  const res = await fetch(
+    `${API_BASE}/direct-conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}/reactions/${encodeURIComponent(emoji)}`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to remove reaction: ${res.status} ${res.statusText}`));
+  }
 }

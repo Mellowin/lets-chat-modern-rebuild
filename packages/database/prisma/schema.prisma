@@ -73,6 +73,7 @@ model User {
   messageEdits          MessageEdit[]
   directConversationParticipants DirectConversationParticipant[]
   directMessages        DirectMessage[]
+  directMessageReactions DirectMessageReaction[]
 
   @@index([email])
   @@index([username])
@@ -409,10 +410,26 @@ model DirectMessage {
   author          User                @relation(fields: [authorId], references: [id], onDelete: Cascade)
   parent          DirectMessage?      @relation("DirectMessageReplies", fields: [parentId], references: [id])
   replies         DirectMessage[]     @relation("DirectMessageReplies")
+  reactions       DirectMessageReaction[]
 
   @@index([conversationId, createdAt])
   @@index([authorId])
   @@index([parentId])
+}
+
+model DirectMessageReaction {
+  id        String   @id @default(cuid())
+  messageId String   @db.Uuid
+  userId    String   @db.Uuid
+  emoji     String
+  createdAt DateTime @default(now())
+
+  message DirectMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+  @@index([userId])
 }
 
 // ── Raw SQL Migrations (run via prisma migrate dev --create-only) ───

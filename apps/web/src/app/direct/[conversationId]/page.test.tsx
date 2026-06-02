@@ -2106,3 +2106,244 @@ describe("DirectConversationPage — forward regression", () => {
     });
   });
 });
+
+
+describe("DirectConversationPage — reactions", () => {
+  it("renders quick reaction buttons on messages", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-react-dm1-👍")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("direct-react-dm1-❤️")).toBeInTheDocument();
+  });
+
+  it("renders reaction chips with count", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [{ emoji: "👍", count: 2, reactedByMe: false }],
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reaction-chip-dm1-👍")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("direct-reaction-chip-dm1-👍")).toHaveTextContent("👍2");
+  });
+
+  it("reactedByMe chip has active styling", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [{ emoji: "👍", count: 1, reactedByMe: true }],
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reaction-chip-dm1-👍")).toBeInTheDocument();
+    });
+    const chip = screen.getByTestId("direct-reaction-chip-dm1-👍");
+    expect(chip.className).toContain("bg-emerald-50");
+  });
+});
+
+describe("DirectConversationPage — reaction socket", () => {
+  it("socket direct:reaction:added updates reaction chip live", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(socketOnMock).toHaveBeenCalledWith("direct:reaction:added", expect.any(Function));
+    });
+
+    const handler = socketHandlers["direct:reaction:added"];
+    handler({
+      messageId: "dm1",
+      conversationId: "dc1",
+      emoji: "👍",
+      user: { id: "u2", username: "bob" },
+      reactions: [{ emoji: "👍", count: 1, reactedByMe: false }],
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reaction-chip-dm1-👍")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("direct-reaction-chip-dm1-👍")).toHaveTextContent("👍1");
+  });
+
+  it("socket direct:reaction:removed updates reaction chip live", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [{ emoji: "👍", count: 1, reactedByMe: false }],
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reaction-chip-dm1-👍")).toBeInTheDocument();
+    });
+
+    const handler = socketHandlers["direct:reaction:removed"];
+    handler({
+      messageId: "dm1",
+      conversationId: "dc1",
+      emoji: "👍",
+      user: { id: "u2", username: "bob" },
+      reactions: [],
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("direct-reaction-chip-dm1-👍")).not.toBeInTheDocument();
+    });
+  });
+
+  it("reaction socket events do not duplicate messages", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+
+    const addedHandler = socketHandlers["direct:reaction:added"];
+    addedHandler({
+      messageId: "dm1",
+      conversationId: "dc1",
+      emoji: "👍",
+      user: { id: "u2", username: "bob" },
+      reactions: [{ emoji: "👍", count: 1, reactedByMe: false }],
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reaction-chip-dm1-👍")).toBeInTheDocument();
+    });
+
+    expect(screen.getAllByText("Hello").length).toBe(1);
+  });
+});
+
+describe("DirectConversationPage — reaction regression", () => {
+  it("reply still works after reaction UI added", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reply-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-reply-action-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reply-preview")).toBeInTheDocument();
+    });
+  });
+
+  it("forward still works after reaction UI added", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-forward-action-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-picker")).toBeInTheDocument();
+    });
+  });
+});

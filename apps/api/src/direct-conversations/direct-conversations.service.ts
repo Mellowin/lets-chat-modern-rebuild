@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -9,6 +10,7 @@ import { WebsocketEventsService } from '../websocket/websocket-events.service';
 import { DirectConversationsRepository } from './direct-conversations.repository';
 import { CreateDirectConversationDto } from './dto/create-direct-conversation.dto';
 import { CreateDirectMessageDto } from './dto/create-direct-message.dto';
+import { CreateDirectReactionDto } from './dto/create-direct-reaction.dto';
 
 @Injectable()
 export class DirectConversationsService {
@@ -73,6 +75,7 @@ export class DirectConversationsService {
     message: Awaited<
       ReturnType<DirectConversationsRepository['createMessage']>
     >,
+    reactions?: Array<{ emoji: string; count: number; reactedByMe: boolean }>,
   ) {
     return {
       id: message.id,
@@ -90,6 +93,7 @@ export class DirectConversationsService {
             author: message.parent.author,
           }
         : null,
+      reactions: reactions ?? [],
     };
   }
 
@@ -158,7 +162,15 @@ export class DirectConversationsService {
       await this.directConversations.listMessagesForConversation(
         conversationId,
       );
-    return messages.map((m) => this.toMessageResponse(m));
+    const reactionsMap = new Map<string, Array<{ emoji: string; count: number; reactedByMe: boolean }>>();
+    for (const message of messages) {
+      const reactions = await this.directConversations.getDirectMessageReactions(
+        message.id,
+        currentUserId,
+      );
+      reactionsMap.set(message.id, reactions);
+    }
+    return messages.map((m) => this.toMessageResponse(m, reactionsMap.get(m.id) ?? []));
   }
 
   async createMessage(
@@ -231,5 +243,110 @@ export class DirectConversationsService {
     );
 
     return { ok: true };
+  }
+
+  async addReaction(
+    conversationId: string,
+    messageId: string,
+    dto: CreateDirectReactionDto,
+    userId: string,
+  ) {
+    const participant = await this.directConversations.findParticipant(
+      conversationId,
+      userId,
+    );
+    if (!participant) {
+      throw new ForbiddenException('Access denied');
+    }
+
+    const message = await this.directConversations.findMessageById(messageId);
+    if (!message || message.conversationId !== conversationId) {
+      throw new NotFoundException('Message not found');
+    }
+
+    const existing = await this.directConversations.findDirectReaction(
+      messageId,
+      userId,
+      dto.emoji,
+    );
+    if (existing) {
+      const reactions = await this.directConversations.getDirectMessageReactions(
+        messageId,
+        userId,
+      );
+      return reactions;
+    }
+
+    await this.directConversations.createDirectReaction({
+      messageId,
+      userId,
+      emoji: dto.emoji,
+    });
+
+    const reactions = await this.directConversations.getDirectMessageReactions(
+      messageId,
+      userId,
+    );
+
+    const user = await this.users.findById(userId);
+    this.websocketEvents.broadcastDirectReactionAdded(conversationId, {
+      messageId,
+      conversationId,
+      emoji: dto.emoji,
+      user: user ? { id: user.id, username: user.username } : { id: userId, username: '' },
+      reactions,
+    });
+
+    return reactions;
+  }
+
+  async removeReaction(
+    conversationId: string,
+    messageId: string,
+    emoji: string,
+    userId: string,
+  ) {
+    const participant = await this.directConversations.findParticipant(
+      conversationId,
+      userId,
+    );
+    if (!participant) {
+      throw new ForbiddenException('Access denied');
+    }
+
+    const message = await this.directConversations.findMessageById(messageId);
+    if (!message || message.conversationId !== conversationId) {
+      throw new NotFoundException('Message not found');
+    }
+
+    const normalizedEmoji = emoji.trim();
+    if (!normalizedEmoji || normalizedEmoji.length > 32) {
+      throw new BadRequestException('Invalid emoji');
+    }
+
+    const existing = await this.directConversations.findDirectReaction(
+      messageId,
+      userId,
+      normalizedEmoji,
+    );
+    if (existing) {
+      await this.directConversations.deleteDirectReaction(existing.id);
+    }
+
+    const reactions = await this.directConversations.getDirectMessageReactions(
+      messageId,
+      userId,
+    );
+
+    const user = await this.users.findById(userId);
+    this.websocketEvents.broadcastDirectReactionRemoved(conversationId, {
+      messageId,
+      conversationId,
+      emoji: normalizedEmoji,
+      user: user ? { id: user.id, username: user.username } : { id: userId, username: '' },
+      reactions,
+    });
+
+    return reactions;
   }
 }

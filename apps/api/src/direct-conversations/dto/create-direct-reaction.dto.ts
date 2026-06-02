@@ -1,0 +1,14 @@
+import { ApiProperty } from '@nestjs/swagger';
+import { IsString, MinLength, MaxLength } from 'class-validator';
+import { Transform } from 'class-transformer';
+
+export class CreateDirectReactionDto {
+  @ApiProperty({ example: '👍' })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(32)
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  emoji: string;
+}

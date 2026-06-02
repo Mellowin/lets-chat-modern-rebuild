@@ -277,4 +277,40 @@ export class DirectConversationsRepository {
       data: { updatedAt: new Date() },
     });
   }
+
+  async findDirectReaction(messageId: string, userId: string, emoji: string) {
+    return this.prisma.directMessageReaction.findFirst({
+      where: { messageId, userId, emoji },
+    });
+  }
+
+  async createDirectReaction(data: { messageId: string; userId: string; emoji: string }) {
+    return this.prisma.directMessageReaction.create({ data });
+  }
+
+  async deleteDirectReaction(id: string) {
+    return this.prisma.directMessageReaction.delete({ where: { id } });
+  }
+
+  async getDirectMessageReactions(messageId: string, currentUserId: string) {
+    const [groups, userReactions] = await Promise.all([
+      this.prisma.directMessageReaction.groupBy({
+        by: ['emoji'],
+        where: { messageId },
+        _count: { emoji: true },
+      }),
+      this.prisma.directMessageReaction.findMany({
+        where: { messageId, userId: currentUserId },
+        select: { emoji: true },
+      }),
+    ]);
+
+    const userEmojiSet = new Set(userReactions.map((r) => r.emoji));
+
+    return groups.map((g) => ({
+      emoji: g.emoji,
+      count: g._count.emoji,
+      reactedByMe: userEmojiSet.has(g.emoji),
+    }));
+  }
 }

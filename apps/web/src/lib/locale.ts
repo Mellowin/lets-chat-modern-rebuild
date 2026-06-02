@@ -258,7 +258,8 @@ export type TranslationKey =
   | "direct.forwardTo"
   | "direct.cancelForward"
   | "direct.failedForwardMessage"
-  | "direct.noForwardTargets";
+  | "direct.noForwardTargets"
+  | "direct.react";
 
 const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
   en: {
@@ -466,6 +467,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "direct.cancelForward": "Cancel forward",
     "direct.failedForwardMessage": "Failed to forward message",
     "direct.noForwardTargets": "No other direct conversations",
+    "direct.react": "React",
     "workspace.confirmArchiveChannelPrefix": "Archive channel",
     "workspace.confirmArchiveChannelBody": "This will hide the channel from the workspace. Only the channel owner can do this.",
     "workspace.confirmRestoreChannelPrefix": "Restore channel",
@@ -709,6 +711,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "direct.cancelForward": "Скасувати пересилання",
     "direct.failedForwardMessage": "Не вдалося переслати повідомлення",
     "direct.noForwardTargets": "Немає інших особистих чатів",
+    "direct.react": "Реакція",
     "workspace.confirmArchiveChannelPrefix": "Архівувати канал",
     "workspace.confirmArchiveChannelBody": "Це приховає канал з робочого простору. Це може зробити лише власник каналу.",
     "workspace.confirmRestoreChannelPrefix": "Відновити канал",
@@ -952,6 +955,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "direct.cancelForward": "Отменить пересылку",
     "direct.failedForwardMessage": "Не удалось переслать сообщение",
     "direct.noForwardTargets": "Нет других личных чатов",
+    "direct.react": "Реакция",
     "workspace.confirmArchiveChannelPrefix": "Архивировать канал",
     "workspace.confirmArchiveChannelBody": "Это скроет канал из рабочего пространства. Это может сделать только владелец канала.",
     "workspace.confirmRestoreChannelPrefix": "Восстановить канал",

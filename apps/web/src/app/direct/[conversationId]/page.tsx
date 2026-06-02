@@ -12,9 +12,12 @@ import {
   sendDirectMessage,
   markDirectConversationRead,
   listDirectConversations,
+  reactToDirectMessage,
+  removeDirectMessageReaction,
   type DirectMessage,
   type SendDirectMessageInput,
   type DirectConversation,
+  type DirectMessageReactionSummary,
 } from "@/lib/direct-conversations-api";
 import { createSocket } from "@/lib/socket-client";
 
@@ -46,6 +49,7 @@ export default function DirectConversationPage() {
   const [replyToMessage, setReplyToMessage] = useState<DirectMessage | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const [forwardMessage, setForwardMessage] = useState<DirectMessage | null>(null);
+  const quickEmojis = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
   const [forwardConversations, setForwardConversations] = useState<DirectConversation[]>([]);
   const [forwardState, setForwardState] = useState<
     | { kind: "idle" }
@@ -178,12 +182,36 @@ export default function DirectConversationPage() {
       joinRoom();
     }
 
+    function handleDirectReactionAdded(payload: {
+      messageId: string;
+      conversationId: string;
+      emoji: string;
+      user: { id: string; username: string };
+      reactions: DirectMessageReactionSummary[];
+    }) {
+      if (payload.conversationId !== conversationId) return;
+      updateMessageReactions(payload.messageId, payload.reactions);
+    }
+
+    function handleDirectReactionRemoved(payload: {
+      messageId: string;
+      conversationId: string;
+      emoji: string;
+      user: { id: string; username: string };
+      reactions: DirectMessageReactionSummary[];
+    }) {
+      if (payload.conversationId !== conversationId) return;
+      updateMessageReactions(payload.messageId, payload.reactions);
+    }
+
     socket.on("direct:message:created", handleDirectMessageCreated);
     socket.on("direct:joined", handleDirectJoined);
     socket.on("direct:error", handleDirectError);
     socket.on("connect_error", handleConnectError);
     socket.on("disconnect", handleDisconnect);
     socket.on("connected", handleServerConnected);
+    socket.on("direct:reaction:added", handleDirectReactionAdded);
+    socket.on("direct:reaction:removed", handleDirectReactionRemoved);
 
     // If socket is already connected, server auth is complete;
     // emit join immediately. For reconnects, serverConnected will fire.
@@ -198,6 +226,8 @@ export default function DirectConversationPage() {
       socket.off("connect_error", handleConnectError);
       socket.off("disconnect", handleDisconnect);
       socket.off("connected", handleServerConnected);
+      socket.off("direct:reaction:added", handleDirectReactionAdded);
+      socket.off("direct:reaction:removed", handleDirectReactionRemoved);
       socket.emit("direct:leave", { conversationId });
       socket.disconnect();
       socketRef.current = null;
@@ -219,6 +249,30 @@ export default function DirectConversationPage() {
       if (prev.data.some((m) => m.id === msg.id)) return prev;
       return { kind: "success", data: [...prev.data, msg] };
     });
+  }
+
+  function updateMessageReactions(messageId: string, reactions: DirectMessageReactionSummary[]) {
+    setMessages((prev) => {
+      if (prev.kind !== "success") return prev;
+      return {
+        kind: "success",
+        data: prev.data.map((m) => (m.id === messageId ? { ...m, reactions } : m)),
+      };
+    });
+  }
+
+  async function handleReactionClick(msg: DirectMessage, emoji: string) {
+    if (!accessToken || !conversationId) return;
+    const existing = msg.reactions.find((r) => r.emoji === emoji);
+    try {
+      if (existing?.reactedByMe) {
+        await removeDirectMessageReaction(accessToken, conversationId, msg.id, emoji);
+      } else {
+        await reactToDirectMessage(accessToken, conversationId, msg.id, emoji);
+      }
+    } catch {
+      // non-blocking; socket will sync if other user reacted
+    }
   }
 
   function getMessageAuthorName(msg: DirectMessage) {
@@ -461,6 +515,20 @@ export default function DirectConversationPage() {
                             >
                               {t("direct.forward")}
                             </button>
+                            <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
+                              {t("direct.react")}:
+                            </span>
+                            {quickEmojis.map((emoji) => (
+                              <button
+                                key={emoji}
+                                onClick={() => handleReactionClick(msg, emoji)}
+                                data-testid={`direct-react-${msg.id}-${emoji}`}
+                                className="text-[10px] hover:scale-110 transition-transform"
+                                aria-label={`${t("direct.react")} ${emoji}`}
+                              >
+                                {emoji}
+                              </button>
+                            ))}
                           </div>
                           <div data-testid={`direct-message-bubble-wrap-${msg.id}`} className={isOwnMessage ? "ml-28 sm:ml-44" : ""}>
                             <div
@@ -508,6 +576,25 @@ export default function DirectConversationPage() {
                               <p className="whitespace-pre-wrap break-words text-sm leading-6 text-zinc-800 dark:text-zinc-200">
                                 {msg.content}
                               </p>
+                              {msg.reactions && msg.reactions.length > 0 && (
+                                <div data-testid={`direct-reactions-${msg.id}`} className="mt-1.5 flex flex-wrap gap-1">
+                                  {msg.reactions.map((reaction) => (
+                                    <button
+                                      key={reaction.emoji}
+                                      onClick={() => handleReactionClick(msg, reaction.emoji)}
+                                      data-testid={`direct-reaction-chip-${msg.id}-${reaction.emoji}`}
+                                      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-colors ${
+                                        reaction.reactedByMe
+                                          ? "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-900 dark:text-emerald-400"
+                                          : "bg-white/80 border-zinc-200 text-zinc-600 dark:bg-zinc-900/60 dark:border-zinc-700 dark:text-zinc-300"
+                                      }`}
+                                    >
+                                      <span>{reaction.emoji}</span>
+                                      <span className="text-[10px] font-medium">{reaction.count}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>

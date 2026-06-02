@@ -5,6 +5,8 @@ import {
   listDirectMessages,
   sendDirectMessage,
   markDirectConversationRead,
+  reactToDirectMessage,
+  removeDirectMessageReaction,
 } from "./direct-conversations-api";
 
 const API_BASE = "http://localhost:3001/api/v1";
@@ -171,6 +173,51 @@ describe("direct-conversations-api", () => {
       vi.mocked(fetch).mockResolvedValueOnce(new Response("fail", { status: 500, statusText: "Internal Server Error" }));
       await expect(sendDirectMessage("token", "dc1", { content: "x" })).rejects.toThrow(
         "Failed to send message: 500 Internal Server Error",
+      );
+    });
+  });
+
+  describe("reactToDirectMessage", () => {
+    it("sends POST /direct-conversations/:id/messages/:msgId/reactions with emoji", async () => {
+      const mock = [{ emoji: "👍", count: 1, reactedByMe: true }];
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(mock), { status: 201 }));
+
+      const result = await reactToDirectMessage("token", "dc1", "dm1", "👍");
+
+      expect(fetch).toHaveBeenCalledWith(
+        `${API_BASE}/direct-conversations/dc1/messages/dm1/reactions`,
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ emoji: "👍" }),
+        }),
+      );
+      expect(result).toEqual(mock);
+    });
+
+    it("throws with fallback on non-json error", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(new Response("fail", { status: 500, statusText: "Internal Server Error" }));
+      await expect(reactToDirectMessage("token", "dc1", "dm1", "👍")).rejects.toThrow(
+        "Failed to add reaction: 500 Internal Server Error",
+      );
+    });
+  });
+
+  describe("removeDirectMessageReaction", () => {
+    it("sends DELETE /direct-conversations/:id/messages/:msgId/reactions/:emoji", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(null, { status: 204 }));
+
+      await removeDirectMessageReaction("token", "dc1", "dm1", "👍");
+
+      expect(fetch).toHaveBeenCalledWith(
+        `${API_BASE}/direct-conversations/dc1/messages/dm1/reactions/%F0%9F%91%8D`,
+        expect.objectContaining({ method: "DELETE" }),
+      );
+    });
+
+    it("throws with fallback on non-json error", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(new Response("fail", { status: 500, statusText: "Internal Server Error" }));
+      await expect(removeDirectMessageReaction("token", "dc1", "dm1", "👍")).rejects.toThrow(
+        "Failed to remove reaction: 500 Internal Server Error",
       );
     });
   });

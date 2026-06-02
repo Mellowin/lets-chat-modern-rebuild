@@ -2,10 +2,13 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   Body,
   Param,
   UseGuards,
   ParseUUIDPipe,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -21,8 +24,9 @@ import {
 import { DirectConversationsService } from './direct-conversations.service';
 import { CreateDirectConversationDto } from './dto/create-direct-conversation.dto';
 import { CreateDirectMessageDto } from './dto/create-direct-message.dto';
+import { CreateDirectReactionDto } from './dto/create-direct-reaction.dto';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
+  import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUserResponse } from '../auth/auth.service';
 
 @ApiTags('Direct Conversations')
@@ -93,5 +97,37 @@ export class DirectConversationsController {
     @CurrentUser() user: AuthUserResponse,
   ) {
     return this.directConversations.markAsRead(conversationId, user.id);
+  }
+
+  @Post(':conversationId/messages/:messageId/reactions')
+  @ApiOperation({ summary: 'Add reaction to direct message' })
+  @ApiCreatedResponse({ description: 'Reaction added' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiForbiddenResponse({ description: 'Access denied' })
+  @ApiNotFoundResponse({ description: 'Message not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async addReaction(
+    @Param('conversationId', ParseUUIDPipe) conversationId: string,
+    @Param('messageId', ParseUUIDPipe) messageId: string,
+    @Body() dto: CreateDirectReactionDto,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.directConversations.addReaction(conversationId, messageId, dto, user.id);
+  }
+
+  @Delete(':conversationId/messages/:messageId/reactions/:emoji')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Remove own reaction from direct message' })
+  @ApiBadRequestResponse({ description: 'Invalid emoji' })
+  @ApiForbiddenResponse({ description: 'Access denied' })
+  @ApiNotFoundResponse({ description: 'Message not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async removeReaction(
+    @Param('conversationId', ParseUUIDPipe) conversationId: string,
+    @Param('messageId', ParseUUIDPipe) messageId: string,
+    @Param('emoji') emoji: string,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    await this.directConversations.removeReaction(conversationId, messageId, emoji, user.id);
   }
 }

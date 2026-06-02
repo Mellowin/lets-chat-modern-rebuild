@@ -278,4 +278,74 @@ export class WebsocketEventsService {
       }
     }
   }
+
+  broadcastDirectReactionAdded(
+    conversationId: string,
+    payload: {
+      messageId: string;
+      conversationId: string;
+      emoji: string;
+      user: {
+        id: string;
+        username: string;
+      };
+      reactions: Array<{
+        emoji: string;
+        count: number;
+        reactedByMe: boolean;
+      }>;
+    },
+  ) {
+    try {
+      this.gateway.broadcastToRoom(
+        `direct-conversation:${conversationId}`,
+        'direct:reaction:added',
+        payload,
+      );
+    } catch (error) {
+      this.logger.error(
+        {
+          conversationId,
+          messageId: payload.messageId,
+          error: (error as Error).message,
+        },
+        'Failed to broadcast direct:reaction:added',
+      );
+    }
+  }
+
+  broadcastDirectReactionRemoved(
+    conversationId: string,
+    payload: {
+      messageId: string;
+      conversationId: string;
+      emoji: string;
+      user: {
+        id: string;
+        username: string;
+      };
+      reactions: Array<{
+        emoji: string;
+        count: number;
+        reactedByMe: boolean;
+      }>;
+    },
+  ) {
+    try {
+      this.gateway.broadcastToRoom(
+        `direct-conversation:${conversationId}`,
+        'direct:reaction:removed',
+        payload,
+      );
+    } catch (error) {
+      this.logger.error(
+        {
+          conversationId,
+          messageId: payload.messageId,
+          error: (error as Error).message,
+        },
+        'Failed to broadcast direct:reaction:removed',
+      );
+    }
+  }
 }
