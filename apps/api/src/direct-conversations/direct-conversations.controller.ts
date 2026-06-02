@@ -116,8 +116,8 @@ export class DirectConversationsController {
   }
 
   @Delete(':conversationId/messages/:messageId/reactions/:emoji')
-  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remove own reaction from direct message' })
+  @ApiOkResponse({ description: 'Reaction removed' })
   @ApiBadRequestResponse({ description: 'Invalid emoji' })
   @ApiForbiddenResponse({ description: 'Access denied' })
   @ApiNotFoundResponse({ description: 'Message not found' })
@@ -128,6 +128,6 @@ export class DirectConversationsController {
     @Param('emoji') emoji: string,
     @CurrentUser() user: AuthUserResponse,
   ) {
-    await this.directConversations.removeReaction(conversationId, messageId, emoji, user.id);
+    return this.directConversations.removeReaction(conversationId, messageId, emoji, user.id);
   }
 }

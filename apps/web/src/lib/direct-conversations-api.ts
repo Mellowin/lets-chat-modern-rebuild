@@ -211,12 +211,13 @@ export async function removeDirectMessageReaction(
   conversationId: string,
   messageId: string,
   emoji: string,
-): Promise<void> {
+): Promise<DirectMessageReactionSummary[]> {
   const res = await fetch(
     `${API_BASE}/direct-conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}/reactions/${encodeURIComponent(emoji)}`,
     {
       method: "DELETE",
       headers: {
+        Accept: "application/json",
         Authorization: `Bearer ${accessToken}`,
       },
     },
@@ -225,4 +226,6 @@ export async function removeDirectMessageReaction(
   if (!res.ok) {
     throw new Error(await parseErrorMessage(res, `Failed to remove reaction: ${res.status} ${res.statusText}`));
   }
+
+  return res.json() as Promise<DirectMessageReactionSummary[]>;
 }

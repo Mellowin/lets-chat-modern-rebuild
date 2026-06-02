@@ -203,15 +203,17 @@ describe("direct-conversations-api", () => {
   });
 
   describe("removeDirectMessageReaction", () => {
-    it("sends DELETE /direct-conversations/:id/messages/:msgId/reactions/:emoji", async () => {
-      vi.mocked(fetch).mockResolvedValueOnce(new Response(null, { status: 204 }));
+    it("sends DELETE and returns updated reactions", async () => {
+      const mock = [{ emoji: "👍", count: 1, reactedByMe: false }];
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(mock), { status: 200 }));
 
-      await removeDirectMessageReaction("token", "dc1", "dm1", "👍");
+      const result = await removeDirectMessageReaction("token", "dc1", "dm1", "👍");
 
       expect(fetch).toHaveBeenCalledWith(
         `${API_BASE}/direct-conversations/dc1/messages/dm1/reactions/%F0%9F%91%8D`,
         expect.objectContaining({ method: "DELETE" }),
       );
+      expect(result).toEqual(mock);
     });
 
     it("throws with fallback on non-json error", async () => {

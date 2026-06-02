@@ -54,6 +54,8 @@ vi.mock("@/lib/direct-conversations-api", () => ({
   sendDirectMessage: vi.fn(),
   markDirectConversationRead: vi.fn().mockResolvedValue({ ok: true }),
   listDirectConversations: vi.fn(),
+  reactToDirectMessage: vi.fn(),
+  removeDirectMessageReaction: vi.fn(),
 }));
 
 vi.mock("@/lib/socket-client", () => ({
@@ -2344,6 +2346,292 @@ describe("DirectConversationPage — reaction regression", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("direct-forward-picker")).toBeInTheDocument();
+    });
+  });
+});
+
+
+describe("DirectConversationPage — B89b reactedByMe viewer safety", () => {
+  it("socket added from another user updates count but reactedByMe stays false", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(socketOnMock).toHaveBeenCalledWith("direct:reaction:added", expect.any(Function));
+    });
+
+    const handler = socketHandlers["direct:reaction:added"];
+    handler({
+      messageId: "dm1",
+      conversationId: "dc1",
+      emoji: "👍",
+      user: { id: "u2", username: "bob" },
+      reactions: [{ emoji: "👍", count: 1, reactedByMe: true }],
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reaction-chip-dm1-👍")).toBeInTheDocument();
+    });
+    const chip = screen.getByTestId("direct-reaction-chip-dm1-👍");
+    expect(chip).toHaveTextContent("👍1");
+    expect(chip.className).not.toContain("bg-emerald-50");
+  });
+
+  it("socket added from self sets reactedByMe true", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(socketOnMock).toHaveBeenCalledWith("direct:reaction:added", expect.any(Function));
+    });
+
+    const handler = socketHandlers["direct:reaction:added"];
+    handler({
+      messageId: "dm1",
+      conversationId: "dc1",
+      emoji: "👍",
+      user: { id: "u1", username: "alice" },
+      reactions: [{ emoji: "👍", count: 1, reactedByMe: true }],
+    });
+
+    await waitFor(() => {
+      const chip = screen.getByTestId("direct-reaction-chip-dm1-👍");
+      expect(chip.className).toContain("bg-emerald-50");
+    });
+  });
+
+  it("another user adds same emoji after current user reacted — count updates, reactedByMe stays true", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [{ emoji: "👍", count: 1, reactedByMe: true }],
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reaction-chip-dm1-👍")).toBeInTheDocument();
+    });
+
+    const handler = socketHandlers["direct:reaction:added"];
+    handler({
+      messageId: "dm1",
+      conversationId: "dc1",
+      emoji: "👍",
+      user: { id: "u2", username: "bob" },
+      reactions: [{ emoji: "👍", count: 2, reactedByMe: true }],
+    });
+
+    await waitFor(() => {
+      const chip = screen.getByTestId("direct-reaction-chip-dm1-👍");
+      expect(chip).toHaveTextContent("👍2");
+      expect(chip.className).toContain("bg-emerald-50");
+    });
+  });
+
+  it("another user removes emoji but current user still reacted — count drops, reactedByMe stays true", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [{ emoji: "👍", count: 2, reactedByMe: true }],
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reaction-chip-dm1-👍")).toBeInTheDocument();
+    });
+
+    const handler = socketHandlers["direct:reaction:removed"];
+    handler({
+      messageId: "dm1",
+      conversationId: "dc1",
+      emoji: "👍",
+      user: { id: "u2", username: "bob" },
+      reactions: [{ emoji: "👍", count: 1, reactedByMe: false }],
+    });
+
+    await waitFor(() => {
+      const chip = screen.getByTestId("direct-reaction-chip-dm1-👍");
+      expect(chip).toHaveTextContent("👍1");
+      expect(chip.className).toContain("bg-emerald-50");
+    });
+  });
+
+  it("current user removes own emoji via socket — reactedByMe becomes false", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [{ emoji: "👍", count: 1, reactedByMe: true }],
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reaction-chip-dm1-👍")).toBeInTheDocument();
+    });
+
+    const handler = socketHandlers["direct:reaction:removed"];
+    handler({
+      messageId: "dm1",
+      conversationId: "dc1",
+      emoji: "👍",
+      user: { id: "u1", username: "alice" },
+      reactions: [],
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("direct-reaction-chip-dm1-👍")).not.toBeInTheDocument();
+    });
+  });
+
+  it("final reaction removed from another user and current user never reacted — chip disappears", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [{ emoji: "👍", count: 1, reactedByMe: false }],
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reaction-chip-dm1-👍")).toBeInTheDocument();
+    });
+
+    const handler = socketHandlers["direct:reaction:removed"];
+    handler({
+      messageId: "dm1",
+      conversationId: "dc1",
+      emoji: "👍",
+      user: { id: "u2", username: "bob" },
+      reactions: [],
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("direct-reaction-chip-dm1-👍")).not.toBeInTheDocument();
+    });
+  });
+
+  it("clicking quick emoji updates local UI after API success", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    const { reactToDirectMessage: reactMock } = await import("@/lib/direct-conversations-api");
+    vi.mocked(reactMock).mockResolvedValueOnce([{ emoji: "👍", count: 1, reactedByMe: true }]);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-react-dm1-👍")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-react-dm1-👍"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reaction-chip-dm1-👍")).toBeInTheDocument();
+    });
+    const chip = screen.getByTestId("direct-reaction-chip-dm1-👍");
+    expect(chip).toHaveTextContent("👍1");
+    expect(chip.className).toContain("bg-emerald-50");
+  });
+
+  it("clicking own chip removes local active state after API success", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [{ emoji: "👍", count: 1, reactedByMe: true }],
+      },
+    ]);
+    const { removeDirectMessageReaction: removeMock } = await import("@/lib/direct-conversations-api");
+    vi.mocked(removeMock).mockResolvedValueOnce([]);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reaction-chip-dm1-👍")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-reaction-chip-dm1-👍"));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("direct-reaction-chip-dm1-👍")).not.toBeInTheDocument();
     });
   });
 });
