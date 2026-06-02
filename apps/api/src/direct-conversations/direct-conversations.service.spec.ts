@@ -11,6 +11,7 @@ import {
   DirectMessageWithAuthorAndParent,
 } from './direct-conversations.repository';
 import { UsersRepository } from '../users/users.repository';
+import { WebsocketEventsService } from '../websocket/websocket-events.service';
 
 const userId = '11111111-1111-1111-1111-111111111111';
 const otherUserId = '22222222-2222-2222-2222-222222222222';
@@ -84,6 +85,7 @@ describe('DirectConversationsService', () => {
   let service: DirectConversationsService;
   let repository: jest.Mocked<DirectConversationsRepository>;
   let usersRepository: jest.Mocked<UsersRepository>;
+  let websocketEvents: jest.Mocked<WebsocketEventsService>;
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -111,12 +113,19 @@ describe('DirectConversationsService', () => {
             findByEmail: jest.fn(),
           },
         },
+        {
+          provide: WebsocketEventsService,
+          useValue: {
+            broadcastDirectMessageCreated: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
     service = moduleRef.get(DirectConversationsService);
     repository = moduleRef.get(DirectConversationsRepository);
     usersRepository = moduleRef.get(UsersRepository);
+    websocketEvents = moduleRef.get(WebsocketEventsService);
   });
 
   afterEach(() => {
@@ -310,6 +319,51 @@ describe('DirectConversationsService', () => {
       expect(repository.touchConversationUpdatedAt).toHaveBeenCalledWith(
         conversationId,
       );
+    });
+
+    it('broadcasts direct:message:created after successful create', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+      });
+      repository.createMessage.mockResolvedValue(makeMessage());
+
+      const result = await service.createMessage(
+        conversationId,
+        { content: 'hello' },
+        userId,
+      );
+
+      expect(
+        websocketEvents.broadcastDirectMessageCreated,
+      ).toHaveBeenCalledWith(
+        conversationId,
+        expect.objectContaining({
+          id: result.id,
+          conversationId,
+          content: 'hello',
+        }),
+      );
+    });
+
+    it('does not broadcast if create fails', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+      });
+      repository.createMessage.mockRejectedValue(new Error('DB error'));
+
+      await expect(
+        service.createMessage(conversationId, { content: 'hi' }, userId),
+      ).rejects.toThrow('DB error');
+
+      expect(
+        websocketEvents.broadcastDirectMessageCreated,
+      ).not.toHaveBeenCalled();
     });
 
     it('supports parentId reply to a direct message', async () => {

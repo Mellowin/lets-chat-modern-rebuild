@@ -11,6 +11,7 @@ import { NotFoundException } from '@nestjs/common';
 import { TokenService } from '../auth/token.service';
 import { UsersRepository } from '../users/users.repository';
 import { ChannelsService } from '../channels/channels.service';
+import { DirectConversationsRepository } from '../direct-conversations/direct-conversations.repository';
 import { PresenceService } from './presence.service';
 
 const websocketCorsOrigin = process.env.CORS_ORIGIN
@@ -58,6 +59,7 @@ export class WebsocketGateway
     private readonly tokenService: TokenService,
     private readonly usersRepository: UsersRepository,
     private readonly channelsService: ChannelsService,
+    private readonly directConversations: DirectConversationsRepository,
     private readonly presence: PresenceService,
   ) {}
 
@@ -285,6 +287,85 @@ export class WebsocketGateway
       'Left channel room',
     );
     socket.emit('channel:left', { channelId });
+  }
+
+  @SubscribeMessage('direct:join')
+  async handleDirectJoin(socket: Socket, payload: { conversationId: unknown }) {
+    const userId = this.getUserId(socket);
+    if (!userId) {
+      socket.emit('direct:error', { message: 'Not authenticated' });
+      return;
+    }
+
+    const { conversationId } = payload;
+
+    if (!isValidUUID(conversationId)) {
+      socket.emit('direct:error', { message: 'Invalid UUID' });
+      return;
+    }
+
+    const participant = await this.directConversations.findParticipant(
+      conversationId,
+      userId,
+    );
+    if (!participant) {
+      socket.emit('direct:error', { message: 'Access denied' });
+      return;
+    }
+
+    const room = `direct-conversation:${conversationId}`;
+    await socket.join(room);
+    this.presence.addSocketRoom(socket.id, room);
+    this.presence.addUserRoom(userId, room);
+
+    this.logger.log(
+      { socketId: socket.id, userId, conversationId },
+      'Joined direct conversation room',
+    );
+    socket.emit('direct:joined', { conversationId });
+  }
+
+  @SubscribeMessage('direct:leave')
+  async handleDirectLeave(
+    socket: Socket,
+    payload: { conversationId: unknown },
+  ) {
+    const userId = this.getUserId(socket);
+    if (!userId) {
+      socket.emit('direct:error', { message: 'Not authenticated' });
+      return;
+    }
+
+    const { conversationId } = payload;
+
+    if (!isValidUUID(conversationId)) {
+      socket.emit('direct:error', { message: 'Invalid UUID' });
+      return;
+    }
+
+    const room = `direct-conversation:${conversationId}`;
+
+    if (!socket.rooms.has(room)) {
+      socket.emit('direct:error', {
+        message: 'Direct conversation room not joined',
+        conversationId,
+      });
+      return;
+    }
+
+    this.presence.removeSocketRoom(socket.id, room);
+
+    if (!this.presence.hasOtherSocketInRoom(userId, socket.id, room)) {
+      this.presence.removeUserRoom(userId, room);
+    }
+
+    await socket.leave(room);
+
+    this.logger.log(
+      { socketId: socket.id, userId, conversationId },
+      'Left direct conversation room',
+    );
+    socket.emit('direct:left', { conversationId });
   }
 
   @SubscribeMessage('typing:start')

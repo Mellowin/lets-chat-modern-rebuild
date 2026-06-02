@@ -182,4 +182,50 @@ export class WebsocketEventsService {
       );
     }
   }
+
+  broadcastDirectMessageCreated(
+    conversationId: string,
+    payload: {
+      id: string;
+      conversationId: string;
+      content: string;
+      parentId: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+      editedAt: Date | null;
+      author: {
+        id: string;
+        username: string;
+        displayName: string | null;
+        avatarUrl: string | null;
+      };
+      parent: {
+        id: string;
+        content: string;
+        author: {
+          id: string;
+          username: string;
+          displayName: string | null;
+          avatarUrl: string | null;
+        };
+      } | null;
+    },
+  ) {
+    try {
+      this.gateway.broadcastToRoom(
+        `direct-conversation:${conversationId}`,
+        'direct:message:created',
+        payload,
+      );
+    } catch (error) {
+      this.logger.error(
+        {
+          conversationId,
+          messageId: payload.id,
+          error: (error as Error).message,
+        },
+        'Failed to broadcast direct:message:created',
+      );
+    }
+  }
 }

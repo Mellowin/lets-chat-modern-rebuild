@@ -6,6 +6,7 @@ import { WebsocketGateway } from './websocket.gateway';
 import { TokenService } from '../auth/token.service';
 import { UsersRepository } from '../users/users.repository';
 import { ChannelsService } from '../channels/channels.service';
+import { DirectConversationsRepository } from '../direct-conversations/direct-conversations.repository';
 import { PresenceService } from './presence.service';
 
 function createMockSocket(overrides: Partial<Socket> = {}): Socket {
@@ -45,10 +46,12 @@ describe('WebsocketGateway', () => {
   let tokenService: jest.Mocked<TokenService>;
   let usersRepository: jest.Mocked<UsersRepository>;
   let channelsService: jest.Mocked<ChannelsService>;
+  let directConversations: jest.Mocked<DirectConversationsRepository>;
 
   const userId = '11111111-1111-1111-1111-111111111111';
   const workspaceId = '22222222-2222-2222-2222-222222222222';
   const channelId = '33333333-3333-3333-3333-333333333333';
+  const conversationId = '44444444-4444-4444-4444-444444444444';
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -72,6 +75,12 @@ describe('WebsocketGateway', () => {
             findById: jest.fn(),
           },
         },
+        {
+          provide: DirectConversationsRepository,
+          useValue: {
+            findParticipant: jest.fn(),
+          },
+        },
         PresenceService,
       ],
     }).compile();
@@ -80,6 +89,7 @@ describe('WebsocketGateway', () => {
     tokenService = moduleRef.get(TokenService);
     usersRepository = moduleRef.get(UsersRepository);
     channelsService = moduleRef.get(ChannelsService);
+    directConversations = moduleRef.get(DirectConversationsRepository);
 
     gateway.server = createMockServer();
   });
@@ -807,6 +817,125 @@ describe('WebsocketGateway', () => {
         'test:event',
         { foo: 'bar' },
       );
+    });
+  });
+
+  describe('handleDirectJoin', () => {
+    it('should join room and emit direct:joined when user is participant', async () => {
+      const socket = createMockSocket({
+        data: { user: { id: userId } },
+      });
+
+      directConversations.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+      });
+
+      await gateway.handleDirectJoin(socket, { conversationId });
+
+      expect(directConversations.findParticipant).toHaveBeenCalledWith(
+        conversationId,
+        userId,
+      );
+      expect(socket.join).toHaveBeenCalledWith(
+        `direct-conversation:${conversationId}`,
+      );
+      expect(socket.emit).toHaveBeenCalledWith('direct:joined', {
+        conversationId,
+      });
+    });
+
+    it('should reject when not authenticated', async () => {
+      const socket = createMockSocket();
+
+      await gateway.handleDirectJoin(socket, { conversationId });
+
+      expect(socket.emit).toHaveBeenCalledWith('direct:error', {
+        message: 'Not authenticated',
+      });
+      expect(directConversations.findParticipant).not.toHaveBeenCalled();
+    });
+
+    it('should reject invalid conversationId UUID', async () => {
+      const socket = createMockSocket({
+        data: { user: { id: userId } },
+      });
+
+      await gateway.handleDirectJoin(socket, { conversationId: 'bad' });
+
+      expect(socket.emit).toHaveBeenCalledWith('direct:error', {
+        message: 'Invalid UUID',
+      });
+    });
+
+    it('should reject when user is not a participant', async () => {
+      const socket = createMockSocket({
+        data: { user: { id: userId } },
+      });
+
+      directConversations.findParticipant.mockResolvedValue(null);
+
+      await gateway.handleDirectJoin(socket, { conversationId });
+
+      expect(socket.emit).toHaveBeenCalledWith('direct:error', {
+        message: 'Access denied',
+      });
+      expect(socket.join).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('handleDirectLeave', () => {
+    it('should leave room and emit direct:left', async () => {
+      const socket = createMockSocket({
+        data: { user: { id: userId } },
+      });
+      socket.rooms.add(`direct-conversation:${conversationId}`);
+
+      await gateway.handleDirectLeave(socket, { conversationId });
+
+      expect(socket.leave).toHaveBeenCalledWith(
+        `direct-conversation:${conversationId}`,
+      );
+      expect(socket.emit).toHaveBeenCalledWith('direct:left', {
+        conversationId,
+      });
+    });
+
+    it('should reject when not authenticated', async () => {
+      const socket = createMockSocket();
+
+      await gateway.handleDirectLeave(socket, { conversationId });
+
+      expect(socket.emit).toHaveBeenCalledWith('direct:error', {
+        message: 'Not authenticated',
+      });
+    });
+
+    it('should reject invalid conversationId UUID', async () => {
+      const socket = createMockSocket({
+        data: { user: { id: userId } },
+      });
+
+      await gateway.handleDirectLeave(socket, { conversationId: 'bad' });
+
+      expect(socket.emit).toHaveBeenCalledWith('direct:error', {
+        message: 'Invalid UUID',
+      });
+    });
+
+    it('should reject when room not joined', async () => {
+      const socket = createMockSocket({
+        data: { user: { id: userId } },
+      });
+
+      await gateway.handleDirectLeave(socket, { conversationId });
+
+      expect(socket.emit).toHaveBeenCalledWith('direct:error', {
+        message: 'Direct conversation room not joined',
+        conversationId,
+      });
     });
   });
 });

@@ -13,6 +13,7 @@ import {
   type DirectMessage,
   type SendDirectMessageInput,
 } from "@/lib/direct-conversations-api";
+import { createSocket } from "@/lib/socket-client";
 
 type MessagesState =
   | { kind: "idle" }
@@ -35,11 +36,18 @@ export default function DirectConversationPage() {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const didInitialScroll = useRef(false);
   const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const socketRef = useRef<ReturnType<typeof createSocket> | null>(null);
 
   function scrollMessagesToBottom(behavior: ScrollBehavior = "smooth") {
     if (typeof messagesEndRef.current?.scrollIntoView === "function") {
       messagesEndRef.current.scrollIntoView({ behavior, block: "end" });
     }
+  }
+
+  function isNearBottom() {
+    const el = messagesScrollRef.current;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 160;
   }
 
   useEffect(() => {
@@ -72,6 +80,38 @@ export default function DirectConversationPage() {
       cancelled = true;
     };
   }, [isAuthenticated, conversationId, accessToken, t]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !conversationId || !accessToken) return;
+
+    const socket = createSocket(accessToken);
+    socketRef.current = socket;
+
+    socket.on("connect", () => {
+      socket.emit("direct:join", { conversationId });
+    });
+
+    socket.on("direct:message:created", (msg: DirectMessage) => {
+      if (msg.conversationId !== conversationId) return;
+      if (msg.author.id === user?.id) {
+        appendMessage(msg);
+        requestAnimationFrame(() => scrollMessagesToBottom("smooth"));
+        return;
+      }
+      const wasNearBottom = isNearBottom();
+      appendMessage(msg);
+      if (wasNearBottom) {
+        requestAnimationFrame(() => scrollMessagesToBottom("smooth"));
+      }
+    });
+
+    return () => {
+      socket.emit("direct:leave", { conversationId });
+      socket.disconnect();
+      socketRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, conversationId, accessToken]);
 
   useEffect(() => {
     if (!conversationId) return;

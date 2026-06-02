@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { UsersRepository } from '../users/users.repository';
+import { WebsocketEventsService } from '../websocket/websocket-events.service';
 import { DirectConversationsRepository } from './direct-conversations.repository';
 import { CreateDirectConversationDto } from './dto/create-direct-conversation.dto';
 import { CreateDirectMessageDto } from './dto/create-direct-message.dto';
@@ -14,6 +15,7 @@ export class DirectConversationsService {
   constructor(
     private readonly directConversations: DirectConversationsRepository,
     private readonly users: UsersRepository,
+    private readonly websocketEvents: WebsocketEventsService,
   ) {}
 
   private makePairKey(userIdA: string, userIdB: string): string {
@@ -187,6 +189,12 @@ export class DirectConversationsService {
 
     await this.directConversations.touchConversationUpdatedAt(conversationId);
 
-    return this.toMessageResponse(message);
+    const response = this.toMessageResponse(message);
+    this.websocketEvents.broadcastDirectMessageCreated(
+      conversationId,
+      response,
+    );
+
+    return response;
   }
 }

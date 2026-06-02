@@ -4,6 +4,13 @@ import userEvent from "@testing-library/user-event";
 import DirectConversationPage from "./page";
 import { listDirectMessages, sendDirectMessage } from "@/lib/direct-conversations-api";
 
+const socketHandlers: Record<string, (...args: unknown[]) => void> = {};
+const socketOnMock = vi.fn((event: string, handler: (...args: unknown[]) => void) => {
+  socketHandlers[event] = handler;
+});
+const socketEmitMock = vi.fn();
+const socketDisconnectMock = vi.fn();
+
 vi.mock("next/navigation", () => ({
   useParams: () => ({ conversationId: "dc1" }),
 }));
@@ -22,10 +29,20 @@ vi.mock("@/lib/direct-conversations-api", () => ({
   sendDirectMessage: vi.fn(),
 }));
 
+vi.mock("@/lib/socket-client", () => ({
+  createSocket: vi.fn(() => ({
+    on: socketOnMock,
+    emit: socketEmitMock,
+    disconnect: socketDisconnectMock,
+    off: vi.fn(),
+  })),
+}));
+
 beforeEach(() => {
   localStorage.clear();
   sessionStorage.setItem("accessToken", "token");
   vi.clearAllMocks();
+  Object.keys(socketHandlers).forEach((k) => delete socketHandlers[k]);
 });
 
 function mockMessages(messagesData: unknown[] = []) {
@@ -385,5 +402,159 @@ describe("DirectConversationPage — loads messages", () => {
       expect(screen.getByText("First message")).toBeInTheDocument();
     });
     expect(screen.getByText("Second message")).toBeInTheDocument();
+  });
+});
+
+describe("DirectConversationPage — socket", () => {
+  it("joins direct conversation socket room on connect", async () => {
+    mockMessages([]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(socketOnMock).toHaveBeenCalledWith("connect", expect.any(Function));
+    });
+
+    const connectHandler = socketOnMock.mock.calls.find((c) => c[0] === "connect")?.[1] as (() => void);
+    connectHandler();
+
+    await waitFor(() => {
+      expect(socketEmitMock).toHaveBeenCalledWith("direct:join", { conversationId: "dc1" });
+    });
+  });
+
+  it("leaves direct conversation socket room on unmount", async () => {
+    mockMessages([]);
+    const { unmount } = render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Type a message/i)).toBeInTheDocument();
+    });
+
+    unmount();
+
+    await waitFor(() => {
+      expect(socketEmitMock).toHaveBeenCalledWith("direct:leave", { conversationId: "dc1" });
+    });
+    expect(socketDisconnectMock).toHaveBeenCalled();
+  });
+
+  it("appends incoming direct:message:created", async () => {
+    mockMessages([]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(socketOnMock).toHaveBeenCalledWith("direct:message:created", expect.any(Function));
+    });
+
+    const handler = socketOnMock.mock.calls.find((c) => c[0] === "direct:message:created")?.[1] as ((msg: unknown) => void);
+    handler({
+      id: "dm-live",
+      conversationId: "dc1",
+      content: "Live message",
+      parentId: null,
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      editedAt: null,
+      author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+      parent: null,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Live message")).toBeInTheDocument();
+    });
+  });
+
+  it("ignores duplicate incoming message by id", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Original",
+        parentId: null,
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+        parent: null,
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Original")).toBeInTheDocument();
+    });
+
+    const handler = socketOnMock.mock.calls.find((c) => c[0] === "direct:message:created")?.[1] as ((msg: unknown) => void);
+    handler({
+      id: "dm1",
+      conversationId: "dc1",
+      content: "Original",
+      parentId: null,
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      editedAt: null,
+      author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+      parent: null,
+    });
+
+    expect(screen.getAllByText("Original").length).toBe(1);
+  });
+
+  it("ignores socket message for another conversation", async () => {
+    mockMessages([]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(socketOnMock).toHaveBeenCalledWith("direct:message:created", expect.any(Function));
+    });
+
+    const handler = socketOnMock.mock.calls.find((c) => c[0] === "direct:message:created")?.[1] as ((msg: unknown) => void);
+    handler({
+      id: "dm-other",
+      conversationId: "dc-other",
+      content: "Other conv",
+      parentId: null,
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      editedAt: null,
+      author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+      parent: null,
+    });
+
+    expect(screen.queryByText("Other conv")).not.toBeInTheDocument();
+  });
+
+  it("sending message via HTTP still appends once if socket event also fires", async () => {
+    mockMessages([]);
+    const newMsg = {
+      id: "dm1",
+      conversationId: "dc1",
+      content: "Hello",
+      parentId: null,
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      editedAt: null,
+      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      parent: null,
+    };
+    vi.mocked(sendDirectMessage).mockResolvedValueOnce(newMsg);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Type a message/i)).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Type a message/i), "Hello");
+    await userEvent.click(screen.getByRole("button", { name: /Send/i }));
+
+    await waitFor(() => {
+      expect(sendDirectMessage).toHaveBeenCalled();
+    });
+
+    const handler = socketOnMock.mock.calls.find((c) => c[0] === "direct:message:created")?.[1] as ((msg: unknown) => void);
+    handler(newMsg);
+
+    expect(screen.getAllByText("Hello").length).toBe(1);
   });
 });
