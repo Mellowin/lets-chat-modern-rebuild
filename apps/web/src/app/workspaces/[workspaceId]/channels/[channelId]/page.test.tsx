@@ -430,6 +430,55 @@ describe("ChannelDetailPage — composer", () => {
   });
 });
 
+describe("ChannelDetailPage — composer focus", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.setItem("accessToken", "token");
+    vi.clearAllMocks();
+    socketOnMock.mockReset();
+    socketEmitMock.mockReset();
+    socketDisconnectMock.mockReset();
+  });
+
+  it("focuses composer textarea after channel loads", async () => {
+    mockChannelAndMessages([]);
+    render(<ChannelDetailPage />);
+    const textarea = await screen.findByPlaceholderText(/Type a message/i);
+    await waitFor(() => {
+      expect(textarea).toHaveFocus();
+    });
+  });
+
+  it("keeps composer focused after sending a message", async () => {
+    mockChannelAndMessages([]);
+    const newMsg = {
+      id: "m1",
+      channelId: "ch1",
+      content: "Hello",
+      parentId: null,
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      editedAt: null,
+      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+    };
+    vi.mocked(createMessage).mockResolvedValueOnce(newMsg);
+
+    render(<ChannelDetailPage />);
+
+    const textarea = await screen.findByPlaceholderText(/Type a message/i);
+    await userEvent.type(textarea, "Hello");
+    await userEvent.click(screen.getByRole("button", { name: /Send/i }));
+
+    await waitFor(() => {
+      expect(createMessage).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(textarea).toHaveFocus();
+    });
+  });
+});
+
 describe("ChannelDetailPage — message author identity", () => {
   beforeEach(() => {
     localStorage.clear();
@@ -2038,7 +2087,8 @@ describe("ChannelDetailPage — message alignment", () => {
     expect(row).toHaveClass("items-start");
     expect(row).not.toHaveClass("ml-10");
     expect(screen.getByTestId("message-body-m1")).not.toHaveClass("ml-8");
-    expect(screen.getByTestId("message-bubble-wrap-m1")).toHaveClass("ml-20");
+    expect(screen.getByTestId("message-bubble-wrap-m1")).toHaveClass("ml-28");
+    expect(screen.getByTestId("message-bubble-wrap-m1")).toHaveClass("sm:ml-44");
   });
 
   it("renders other user messages left-aligned", async () => {
@@ -2052,7 +2102,8 @@ describe("ChannelDetailPage — message alignment", () => {
     expect(row).toHaveClass("items-start");
     expect(row).not.toHaveClass("ml-10");
     expect(screen.getByTestId("message-body-m2")).not.toHaveClass("ml-8");
-    expect(screen.getByTestId("message-bubble-wrap-m2")).not.toHaveClass("ml-20");
+    expect(screen.getByTestId("message-bubble-wrap-m2")).not.toHaveClass("ml-28");
+    expect(screen.getByTestId("message-bubble-wrap-m2")).not.toHaveClass("sm:ml-44");
   });
 
   it("shows avatars for all messages", async () => {
@@ -2064,11 +2115,13 @@ describe("ChannelDetailPage — message alignment", () => {
     expect(screen.getByTestId("message-row-m2")).toHaveClass("items-start");
     expect(screen.getByTestId("message-row-m2")).not.toHaveClass("ml-10");
     expect(screen.getByTestId("message-body-m2")).not.toHaveClass("ml-8");
-    expect(screen.getByTestId("message-bubble-wrap-m2")).not.toHaveClass("ml-20");
+    expect(screen.getByTestId("message-bubble-wrap-m2")).not.toHaveClass("ml-28");
+    expect(screen.getByTestId("message-bubble-wrap-m2")).not.toHaveClass("sm:ml-44");
     expect(screen.getByTestId("message-row-m1")).toHaveClass("items-start");
     expect(screen.getByTestId("message-row-m1")).not.toHaveClass("ml-10");
     expect(screen.getByTestId("message-body-m1")).not.toHaveClass("ml-8");
-    expect(screen.getByTestId("message-bubble-wrap-m1")).toHaveClass("ml-20");
+    expect(screen.getByTestId("message-bubble-wrap-m1")).toHaveClass("ml-28");
+    expect(screen.getByTestId("message-bubble-wrap-m1")).toHaveClass("sm:ml-44");
     expect(screen.getByTestId("message-avatar-m2")).toHaveClass("sticky");
     expect(screen.getByTestId("message-avatar-m2")).toHaveClass("bottom-3");
     expect(screen.getByTestId("message-avatar-m2")).toHaveClass("self-end");

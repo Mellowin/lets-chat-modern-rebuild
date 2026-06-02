@@ -86,6 +86,7 @@ export default function ChannelDetailPage() {
   const messagesScrollRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const didInitialScroll = useRef(false);
+  const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   function scrollMessagesToBottom(behavior: ScrollBehavior = "smooth") {
     if (typeof messagesEndRef.current?.scrollIntoView === "function") {
@@ -105,6 +106,18 @@ export default function ChannelDetailPage() {
       scrollMessagesToBottom("auto");
     }
   }, [messages.kind]);
+
+  const channelIdForFocus = channel.kind === "success" ? channel.data.id : null;
+
+  useEffect(() => {
+    if (!channelIdForFocus) return;
+    if (editingMessageId) return;
+    if (isMembersOpen) return;
+    const frame = window.requestAnimationFrame(() => {
+      composerTextareaRef.current?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [channelIdForFocus, editingMessageId, isMembersOpen]);
 
   useEffect(() => {
     if (!isAuthenticated || !workspaceId || !channelId || !accessToken) return;
@@ -406,10 +419,14 @@ export default function ChannelDetailPage() {
       setReplyTargetId(null);
       setSendState({ kind: "idle" });
       appendMessage(msg);
-      requestAnimationFrame(() => scrollMessagesToBottom("smooth"));
+      requestAnimationFrame(() => {
+        scrollMessagesToBottom("smooth");
+        composerTextareaRef.current?.focus();
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : t("channel.errorSendMessageFailed");
       setSendState({ kind: "error", message });
+      requestAnimationFrame(() => composerTextareaRef.current?.focus());
     }
   }
 
@@ -842,7 +859,7 @@ export default function ChannelDetailPage() {
                             </>
                           )}
                         </div>
-                        <div data-testid={`message-bubble-wrap-${msg.id}`} className={isOwnMessage ? "ml-20 sm:ml-32" : ""}>
+                        <div data-testid={`message-bubble-wrap-${msg.id}`} className={isOwnMessage ? "ml-28 sm:ml-44" : ""}>
                           <div
                             data-testid={`message-bubble-${msg.id}`}
                             className={`mt-1 w-fit max-w-full rounded-2xl border px-3 py-2 shadow-sm ${
@@ -962,6 +979,7 @@ export default function ChannelDetailPage() {
               </div>
             )}
             <textarea
+              ref={composerTextareaRef}
               rows={2}
               placeholder={t("channel.messagePlaceholder")}
               value={content}
