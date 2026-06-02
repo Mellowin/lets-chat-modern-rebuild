@@ -798,7 +798,7 @@ export default function ChannelDetailPage() {
                       </div>
                       <div
                         data-testid={`message-body-${msg.id}`}
-                        className={`min-w-0 max-w-[80%] ${isOwnMessage ? "ml-8 sm:ml-14" : ""}`}
+                        className="min-w-0 max-w-[80%]"
                       >
                         <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
                           <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 truncate">
@@ -839,13 +839,15 @@ export default function ChannelDetailPage() {
                             </>
                           )}
                         </div>
-                        <div
-                          className={`mt-1 w-fit max-w-full rounded-2xl border px-3 py-2 shadow-sm ${
-                            isOwnMessage
-                              ? "bg-emerald-50 border-emerald-200 text-zinc-900 dark:bg-emerald-950/40 dark:border-emerald-900 dark:text-zinc-100"
-                              : "bg-white/95 dark:bg-zinc-900/95 border-zinc-200 dark:border-zinc-800"
-                          }`}
-                        >
+                        <div data-testid={`message-bubble-wrap-${msg.id}`} className={isOwnMessage ? "ml-12 sm:ml-20" : ""}>
+                          <div
+                            data-testid={`message-bubble-${msg.id}`}
+                            className={`mt-1 w-fit max-w-full rounded-2xl border px-3 py-2 shadow-sm ${
+                              isOwnMessage
+                                ? "bg-emerald-50 border-emerald-200 text-zinc-900 dark:bg-emerald-950/40 dark:border-emerald-900 dark:text-zinc-100"
+                                : "bg-white/95 dark:bg-zinc-900/95 border-zinc-200 dark:border-zinc-800"
+                            }`}
+                          >
                           {msg.parentId && (
                             <div className="mb-1.5">
                               {(() => {
@@ -918,6 +920,7 @@ export default function ChannelDetailPage() {
                               {msg.content}
                             </p>
                           )}
+                          </div>
                         </div>
                       </div>
                     </li>
