@@ -32,6 +32,7 @@ export default function DirectConversationPage() {
   const [sendState, setSendState] = useState<
     { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string }
   >({ kind: "idle" });
+  const [socketError, setSocketError] = useState<string | null>(null);
   const messagesScrollRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const didInitialScroll = useRef(false);
@@ -87,11 +88,11 @@ export default function DirectConversationPage() {
     const socket = createSocket(accessToken);
     socketRef.current = socket;
 
-    socket.on("connect", () => {
+    function joinRoom() {
       socket.emit("direct:join", { conversationId });
-    });
+    }
 
-    socket.on("direct:message:created", (msg: DirectMessage) => {
+    function handleDirectMessageCreated(msg: DirectMessage) {
       if (msg.conversationId !== conversationId) return;
       if (msg.author.id === user?.id) {
         appendMessage(msg);
@@ -103,9 +104,50 @@ export default function DirectConversationPage() {
       if (wasNearBottom) {
         requestAnimationFrame(() => scrollMessagesToBottom("smooth"));
       }
-    });
+    }
+
+    function handleDirectJoined() {
+      setSocketError(null);
+    }
+
+    function handleDirectError(err: { message?: string }) {
+      const message = err?.message || t("channel.socketError");
+      setSocketError(message);
+    }
+
+    function handleConnectError(err: Error) {
+      setSocketError(err.message || t("channel.socketError"));
+    }
+
+    function handleDisconnect() {
+      // disconnected state is normal; keep last error if any
+    }
+
+    function handleServerConnected() {
+      setSocketError(null);
+      joinRoom();
+    }
+
+    socket.on("direct:message:created", handleDirectMessageCreated);
+    socket.on("direct:joined", handleDirectJoined);
+    socket.on("direct:error", handleDirectError);
+    socket.on("connect_error", handleConnectError);
+    socket.on("disconnect", handleDisconnect);
+    socket.on("connected", handleServerConnected);
+
+    // If socket is already connected, server auth is complete;
+    // emit join immediately. For reconnects, serverConnected will fire.
+    if (socket.connected) {
+      joinRoom();
+    }
 
     return () => {
+      socket.off("direct:message:created", handleDirectMessageCreated);
+      socket.off("direct:joined", handleDirectJoined);
+      socket.off("direct:error", handleDirectError);
+      socket.off("connect_error", handleConnectError);
+      socket.off("disconnect", handleDisconnect);
+      socket.off("connected", handleServerConnected);
       socket.emit("direct:leave", { conversationId });
       socket.disconnect();
       socketRef.current = null;
@@ -295,6 +337,14 @@ export default function DirectConversationPage() {
           </div>
 
           <form onSubmit={handleSendMessage} className="shrink-0 flex flex-col gap-2 border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4 shadow-sm">
+            {socketError && (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs dark:border-red-900 dark:bg-red-950/30">
+                <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+                  <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                  {socketError}
+                </div>
+              </div>
+            )}
             <textarea
               ref={composerTextareaRef}
               rows={2}

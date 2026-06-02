@@ -5,11 +5,36 @@ import DirectConversationPage from "./page";
 import { listDirectMessages, sendDirectMessage } from "@/lib/direct-conversations-api";
 
 const socketHandlers: Record<string, (...args: unknown[]) => void> = {};
+const socketOffHandlers: Record<string, ((...args: unknown[]) => void)[]> = {};
 const socketOnMock = vi.fn((event: string, handler: (...args: unknown[]) => void) => {
   socketHandlers[event] = handler;
+  if (!socketOffHandlers[event]) socketOffHandlers[event] = [];
+  socketOffHandlers[event].push(handler);
+});
+const socketOffMock = vi.fn((event: string, handler: (...args: unknown[]) => void) => {
+  if (socketOffHandlers[event]) {
+    socketOffHandlers[event] = socketOffHandlers[event].filter((h) => h !== handler);
+  }
+  if (socketHandlers[event] === handler) {
+    delete socketHandlers[event];
+  }
 });
 const socketEmitMock = vi.fn();
 const socketDisconnectMock = vi.fn();
+
+let mockSocketConnected = false;
+
+function makeMockSocket() {
+  return {
+    on: socketOnMock,
+    off: socketOffMock,
+    emit: socketEmitMock,
+    disconnect: socketDisconnectMock,
+    get connected() {
+      return mockSocketConnected;
+    },
+  };
+}
 
 vi.mock("next/navigation", () => ({
   useParams: () => ({ conversationId: "dc1" }),
@@ -30,12 +55,7 @@ vi.mock("@/lib/direct-conversations-api", () => ({
 }));
 
 vi.mock("@/lib/socket-client", () => ({
-  createSocket: vi.fn(() => ({
-    on: socketOnMock,
-    emit: socketEmitMock,
-    disconnect: socketDisconnectMock,
-    off: vi.fn(),
-  })),
+  createSocket: vi.fn(() => makeMockSocket()),
 }));
 
 beforeEach(() => {
@@ -43,6 +63,8 @@ beforeEach(() => {
   sessionStorage.setItem("accessToken", "token");
   vi.clearAllMocks();
   Object.keys(socketHandlers).forEach((k) => delete socketHandlers[k]);
+  Object.keys(socketOffHandlers).forEach((k) => delete socketOffHandlers[k]);
+  mockSocketConnected = false;
 });
 
 function mockMessages(messagesData: unknown[] = []) {
@@ -406,19 +428,46 @@ describe("DirectConversationPage — loads messages", () => {
 });
 
 describe("DirectConversationPage — socket", () => {
-  it("joins direct conversation socket room on connect", async () => {
+  it("joins direct conversation socket room on server connected event", async () => {
     mockMessages([]);
     render(<DirectConversationPage />);
 
     await waitFor(() => {
-      expect(socketOnMock).toHaveBeenCalledWith("connect", expect.any(Function));
+      expect(socketOnMock).toHaveBeenCalledWith("connected", expect.any(Function));
     });
 
-    const connectHandler = socketOnMock.mock.calls.find((c) => c[0] === "connect")?.[1] as (() => void);
-    connectHandler();
+    const connectedHandler = socketHandlers["connected"];
+    connectedHandler();
 
     await waitFor(() => {
       expect(socketEmitMock).toHaveBeenCalledWith("direct:join", { conversationId: "dc1" });
+    });
+  });
+
+  it("emits direct:join even when socket is already connected before effect completes", async () => {
+    mockSocketConnected = true;
+    mockMessages([]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(socketEmitMock).toHaveBeenCalledWith("direct:join", { conversationId: "dc1" });
+    });
+  });
+
+  it("rejoins direct room after reconnect", async () => {
+    mockMessages([]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(socketOnMock).toHaveBeenCalledWith("connected", expect.any(Function));
+    });
+
+    const connectedHandler = socketHandlers["connected"];
+    connectedHandler();
+    connectedHandler();
+
+    await waitFor(() => {
+      expect(socketEmitMock.mock.calls.filter((c) => c[0] === "direct:join").length).toBe(2);
     });
   });
 
@@ -438,6 +487,24 @@ describe("DirectConversationPage — socket", () => {
     expect(socketDisconnectMock).toHaveBeenCalled();
   });
 
+  it("cleans up direct socket listeners on unmount", async () => {
+    mockMessages([]);
+    const { unmount } = render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Type a message/i)).toBeInTheDocument();
+    });
+
+    unmount();
+
+    expect(socketOffMock).toHaveBeenCalledWith("connected", expect.any(Function));
+    expect(socketOffMock).toHaveBeenCalledWith("direct:message:created", expect.any(Function));
+    expect(socketOffMock).toHaveBeenCalledWith("direct:joined", expect.any(Function));
+    expect(socketOffMock).toHaveBeenCalledWith("direct:error", expect.any(Function));
+    expect(socketOffMock).toHaveBeenCalledWith("connect_error", expect.any(Function));
+    expect(socketOffMock).toHaveBeenCalledWith("disconnect", expect.any(Function));
+  });
+
   it("appends incoming direct:message:created", async () => {
     mockMessages([]);
     render(<DirectConversationPage />);
@@ -446,7 +513,7 @@ describe("DirectConversationPage — socket", () => {
       expect(socketOnMock).toHaveBeenCalledWith("direct:message:created", expect.any(Function));
     });
 
-    const handler = socketOnMock.mock.calls.find((c) => c[0] === "direct:message:created")?.[1] as ((msg: unknown) => void);
+    const handler = socketHandlers["direct:message:created"];
     handler({
       id: "dm-live",
       conversationId: "dc1",
@@ -484,7 +551,7 @@ describe("DirectConversationPage — socket", () => {
       expect(screen.getByText("Original")).toBeInTheDocument();
     });
 
-    const handler = socketOnMock.mock.calls.find((c) => c[0] === "direct:message:created")?.[1] as ((msg: unknown) => void);
+    const handler = socketHandlers["direct:message:created"];
     handler({
       id: "dm1",
       conversationId: "dc1",
@@ -508,7 +575,7 @@ describe("DirectConversationPage — socket", () => {
       expect(socketOnMock).toHaveBeenCalledWith("direct:message:created", expect.any(Function));
     });
 
-    const handler = socketOnMock.mock.calls.find((c) => c[0] === "direct:message:created")?.[1] as ((msg: unknown) => void);
+    const handler = socketHandlers["direct:message:created"];
     handler({
       id: "dm-other",
       conversationId: "dc-other",
@@ -552,9 +619,25 @@ describe("DirectConversationPage — socket", () => {
       expect(sendDirectMessage).toHaveBeenCalled();
     });
 
-    const handler = socketOnMock.mock.calls.find((c) => c[0] === "direct:message:created")?.[1] as ((msg: unknown) => void);
+    const handler = socketHandlers["direct:message:created"];
     handler(newMsg);
 
     expect(screen.getAllByText("Hello").length).toBe(1);
+  });
+
+  it("shows realtime error when direct:error is received", async () => {
+    mockMessages([]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(socketOnMock).toHaveBeenCalledWith("direct:error", expect.any(Function));
+    });
+
+    const handler = socketHandlers["direct:error"];
+    handler({ message: "Access denied" });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Access denied/i)).toBeInTheDocument();
+    });
   });
 });
