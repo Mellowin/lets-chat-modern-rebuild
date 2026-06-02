@@ -296,6 +296,12 @@ export class DirectConversationsRepository {
     return this.prisma.directMessageReaction.delete({ where: { id } });
   }
 
+  async deleteDirectReactionsForUser(messageId: string, userId: string) {
+    return this.prisma.directMessageReaction.deleteMany({
+      where: { messageId, userId },
+    });
+  }
+
   async getDirectMessageReactions(messageId: string, currentUserId: string) {
     const [groups, userReactions] = await Promise.all([
       this.prisma.directMessageReaction.groupBy({

@@ -269,19 +269,42 @@ export class DirectConversationsService {
       throw new NotFoundException('Message not found');
     }
 
-    const existing = await this.directConversations.findDirectReaction(
+    const existingSameEmoji = await this.directConversations.findDirectReaction(
       messageId,
       userId,
       dto.emoji,
     );
-    if (existing) {
+
+    if (existingSameEmoji) {
+      // Toggle off: user clicked the same emoji they already have
+      await this.directConversations.deleteDirectReaction(existingSameEmoji.id);
+
       const reactions =
         await this.directConversations.getDirectMessageReactions(
           messageId,
           userId,
         );
+
+      const user = await this.users.findById(userId);
+      this.websocketEvents.broadcastDirectReactionRemoved(conversationId, {
+        messageId,
+        conversationId,
+        emoji: dto.emoji,
+        user: user
+          ? { id: user.id, username: user.username }
+          : { id: userId, username: '' },
+        reactions,
+      });
+
       return reactions;
     }
+
+    // Replace: remove any previous reaction by this user on this message,
+    // then create the new one.
+    await this.directConversations.deleteDirectReactionsForUser(
+      messageId,
+      userId,
+    );
 
     await this.directConversations.createDirectReaction({
       messageId,

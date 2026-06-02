@@ -234,7 +234,7 @@ export default function DirectConversationPage() {
       reactions: Array<{ emoji: string; count: number; reactedByMe?: boolean }>;
     }) {
       if (payload.conversationId !== conversationId) return;
-      updateMessageReactionsFromEvent(payload.messageId, payload.reactions, payload.user.id, "added");
+      updateMessageReactionsFromEvent(payload.messageId, payload.reactions, payload.user.id);
     }
 
     function handleDirectReactionRemoved(payload: {
@@ -245,7 +245,7 @@ export default function DirectConversationPage() {
       reactions: Array<{ emoji: string; count: number; reactedByMe?: boolean }>;
     }) {
       if (payload.conversationId !== conversationId) return;
-      updateMessageReactionsFromEvent(payload.messageId, payload.reactions, payload.user.id, "removed");
+      updateMessageReactionsFromEvent(payload.messageId, payload.reactions, payload.user.id);
     }
 
     socket.on("direct:message:created", handleDirectMessageCreated);
@@ -338,38 +338,33 @@ export default function DirectConversationPage() {
     incoming: Array<{ emoji: string; count: number; reactedByMe?: boolean }>,
     eventUserId: string,
     currentUserId: string | undefined,
-    eventType: "added" | "removed",
   ): DirectMessageReactionSummary[] {
     const incomingMap = new Map(incoming.map((r) => [r.emoji, r]));
     const previousMap = new Map(previous.map((r) => [r.emoji, r]));
 
     const result: DirectMessageReactionSummary[] = [];
     for (const [emoji, reaction] of incomingMap) {
-      const prevReaction = previousMap.get(emoji);
-      let reactedByMe = prevReaction?.reactedByMe ?? false;
-      if (eventUserId === currentUserId) {
-        reactedByMe = eventType === "added";
+      let reactedByMe = reaction.reactedByMe ?? false;
+      if (eventUserId !== currentUserId) {
+        // Backend computed reactedByMe for the actor, not for current viewer.
+        // Preserve our own reactedByMe state.
+        const prevReaction = previousMap.get(emoji);
+        if (prevReaction) {
+          reactedByMe = prevReaction.reactedByMe;
+        } else {
+          reactedByMe = false;
+        }
       }
       result.push({ emoji, count: reaction.count, reactedByMe });
     }
 
-    // If an emoji was in previous but not in incoming (count dropped to 0),
-    // and current user reacted to it, but event was from another user removing,
-    // we still need to show it if current user reacted. However, backend
-    // should include it if count > 0. If count became 0, it's omitted.
-    // We only keep emojis that are in incoming (count > 0) or were
-    // reactedByMe by current user and event didn't remove it.
     for (const [emoji, prevReaction] of previousMap) {
       if (incomingMap.has(emoji)) continue;
       if (prevReaction.reactedByMe && eventUserId !== currentUserId) {
         // Another user removed their reaction, but current user still has it
-        // Count should be at least 1 (current user's reaction)
         result.push({ emoji, count: 1, reactedByMe: true });
-      } else if (prevReaction.reactedByMe && eventUserId === currentUserId && eventType === "removed") {
-        // Current user removed own reaction — don't include since count is now 0
-        continue;
-      } else if (!prevReaction.reactedByMe) {
-        // Another user removed and current user never reacted — don't include
+      } else {
+        // Current user removed or replaced it, or current user never had it
         continue;
       }
     }
@@ -381,7 +376,6 @@ export default function DirectConversationPage() {
     messageId: string,
     incoming: Array<{ emoji: string; count: number; reactedByMe?: boolean }>,
     eventUserId: string,
-    eventType: "added" | "removed",
   ) {
     setMessages((prev) => {
       if (prev.kind !== "success") return prev;
@@ -394,7 +388,6 @@ export default function DirectConversationPage() {
             incoming,
             eventUserId,
             user?.id,
-            eventType,
           );
           return { ...m, reactions: merged };
         }),
