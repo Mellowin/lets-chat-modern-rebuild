@@ -2036,7 +2036,8 @@ describe("ChannelDetailPage — message alignment", () => {
     });
     const row = screen.getByTestId("message-row-m1");
     expect(row).toHaveClass("items-start");
-    expect(row).toHaveClass("ml-10");
+    expect(row).not.toHaveClass("ml-10");
+    expect(screen.getByTestId("message-body-m1")).toHaveClass("ml-8");
   });
 
   it("renders other user messages left-aligned", async () => {
@@ -2049,6 +2050,7 @@ describe("ChannelDetailPage — message alignment", () => {
     expect(row).not.toHaveClass("justify-end");
     expect(row).toHaveClass("items-start");
     expect(row).not.toHaveClass("ml-10");
+    expect(screen.getByTestId("message-body-m2")).not.toHaveClass("ml-8");
   });
 
   it("shows avatars for all messages", async () => {
@@ -2059,8 +2061,10 @@ describe("ChannelDetailPage — message alignment", () => {
     });
     expect(screen.getByTestId("message-row-m2")).toHaveClass("items-start");
     expect(screen.getByTestId("message-row-m2")).not.toHaveClass("ml-10");
+    expect(screen.getByTestId("message-body-m2")).not.toHaveClass("ml-8");
     expect(screen.getByTestId("message-row-m1")).toHaveClass("items-start");
-    expect(screen.getByTestId("message-row-m1")).toHaveClass("ml-10");
+    expect(screen.getByTestId("message-row-m1")).not.toHaveClass("ml-10");
+    expect(screen.getByTestId("message-body-m1")).toHaveClass("ml-8");
   });
 
   it("shows quoted preview inside own reply bubble", async () => {
