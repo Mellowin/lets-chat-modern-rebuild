@@ -13,6 +13,14 @@ interface CreateMessageInput {
   parentId?: string;
 }
 
+export type DirectConversationWithParticipants = NonNullable<
+  Awaited<ReturnType<DirectConversationsRepository['findById']>>
+>;
+
+export type DirectMessageWithAuthorAndParent = Awaited<
+  ReturnType<DirectConversationsRepository['createMessage']>
+>;
+
 @Injectable()
 export class DirectConversationsRepository {
   constructor(private readonly prisma: PrismaService) {}

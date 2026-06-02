@@ -26,9 +26,10 @@ export class DirectConversationsService {
     conversation: NonNullable<
       Awaited<ReturnType<DirectConversationsRepository['findById']>>
     >,
+    currentUserId: string,
   ) {
     const otherParticipant = conversation.participants.find(
-      (p) => p.user.id !== undefined,
+      (p) => p.user.id !== currentUserId,
     )?.user;
 
     const lastMessage = conversation.messages[0] ?? null;
@@ -113,7 +114,7 @@ export class DirectConversationsService {
     const existing = await this.directConversations.findByKey(key);
 
     if (existing) {
-      return this.toConversationResponse(existing);
+      return this.toConversationResponse(existing, currentUserId);
     }
 
     const created = await this.directConversations.createConversation({
@@ -121,13 +122,15 @@ export class DirectConversationsService {
       participantIds: [currentUserId, targetUser.id],
     });
 
-    return this.toConversationResponse(created);
+    return this.toConversationResponse(created, currentUserId);
   }
 
   async list(currentUserId: string) {
     const conversations =
       await this.directConversations.listForUser(currentUserId);
-    return conversations.map((c) => this.toConversationResponse(c));
+    return conversations.map((c) =>
+      this.toConversationResponse(c, currentUserId),
+    );
   }
 
   async listMessages(conversationId: string, currentUserId: string) {
