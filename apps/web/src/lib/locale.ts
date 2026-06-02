@@ -233,7 +233,22 @@ export type TranslationKey =
   | "dashboard.confirmArchiveWorkspaceBody"
   | "dashboard.confirmDeclineInvitation"
   | "dashboard.confirmDeclineChannelInvitation"
-  | "dashboard.confirmRestoreWorkspacePrefix";
+  | "dashboard.confirmRestoreWorkspacePrefix"
+  | "direct.title"
+  | "direct.startChat"
+  | "direct.usernameOrEmail"
+  | "direct.noConversations"
+  | "direct.loadingConversations"
+  | "direct.failedLoadConversations"
+  | "direct.failedStartConversation"
+  | "direct.typeMessage"
+  | "direct.send"
+  | "direct.sending"
+  | "direct.loadingMessages"
+  | "direct.noMessages"
+  | "direct.failedLoadMessages"
+  | "direct.failedSendMessage"
+  | "direct.backToDirectMessages";
 
 const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
   en: {
@@ -416,6 +431,21 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "channel.socketJoined": "Joined",
     "channel.socketError": "Error",
     "messageAuthor.unknownUser": "Unknown user",
+    "direct.title": "Direct messages",
+    "direct.startChat": "Start chat",
+    "direct.usernameOrEmail": "Username or email",
+    "direct.noConversations": "No conversations yet.",
+    "direct.loadingConversations": "Loading conversations…",
+    "direct.failedLoadConversations": "Failed to load conversations",
+    "direct.failedStartConversation": "Failed to start conversation",
+    "direct.typeMessage": "Type a message…",
+    "direct.send": "Send",
+    "direct.sending": "Sending…",
+    "direct.loadingMessages": "Loading messages…",
+    "direct.noMessages": "No messages yet.",
+    "direct.failedLoadMessages": "Failed to load messages",
+    "direct.failedSendMessage": "Failed to send message",
+    "direct.backToDirectMessages": "← Back to direct messages",
     "workspace.confirmArchiveChannelPrefix": "Archive channel",
     "workspace.confirmArchiveChannelBody": "This will hide the channel from the workspace. Only the channel owner can do this.",
     "workspace.confirmRestoreChannelPrefix": "Restore channel",
@@ -634,6 +664,21 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "channel.socketJoined": "Приєднано",
     "channel.socketError": "Помилка",
     "messageAuthor.unknownUser": "Невідомий користувач",
+    "direct.title": "Особисті повідомлення",
+    "direct.startChat": "Почати чат",
+    "direct.usernameOrEmail": "Імʼя користувача або email",
+    "direct.noConversations": "Розмов ще немає.",
+    "direct.loadingConversations": "Завантажуємо розмови…",
+    "direct.failedLoadConversations": "Не вдалося завантажити розмови",
+    "direct.failedStartConversation": "Не вдалося почати розмову",
+    "direct.typeMessage": "Напишіть повідомлення…",
+    "direct.send": "Надіслати",
+    "direct.sending": "Надсилаємо…",
+    "direct.loadingMessages": "Завантажуємо повідомлення…",
+    "direct.noMessages": "Повідомлень ще немає.",
+    "direct.failedLoadMessages": "Не вдалося завантажити повідомлення",
+    "direct.failedSendMessage": "Не вдалося надіслати повідомлення",
+    "direct.backToDirectMessages": "← Назад до особистих повідомлень",
     "workspace.confirmArchiveChannelPrefix": "Архівувати канал",
     "workspace.confirmArchiveChannelBody": "Це приховає канал з робочого простору. Це може зробити лише власник каналу.",
     "workspace.confirmRestoreChannelPrefix": "Відновити канал",
@@ -852,6 +897,21 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "channel.socketJoined": "Подключено к каналу",
     "channel.socketError": "Ошибка",
     "messageAuthor.unknownUser": "Неизвестный пользователь",
+    "direct.title": "Личные сообщения",
+    "direct.startChat": "Начать чат",
+    "direct.usernameOrEmail": "Имя пользователя или email",
+    "direct.noConversations": "Разговоров пока нет.",
+    "direct.loadingConversations": "Загружаем разговоры…",
+    "direct.failedLoadConversations": "Не удалось загрузить разговоры",
+    "direct.failedStartConversation": "Не удалось начать разговор",
+    "direct.typeMessage": "Напишите сообщение…",
+    "direct.send": "Отправить",
+    "direct.sending": "Отправляем…",
+    "direct.loadingMessages": "Загружаем сообщения…",
+    "direct.noMessages": "Сообщений пока нет.",
+    "direct.failedLoadMessages": "Не удалось загрузить сообщения",
+    "direct.failedSendMessage": "Не удалось отправить сообщение",
+    "direct.backToDirectMessages": "← Назад к личным сообщениям",
     "workspace.confirmArchiveChannelPrefix": "Архивировать канал",
     "workspace.confirmArchiveChannelBody": "Это скроет канал из рабочего пространства. Это может сделать только владелец канала.",
     "workspace.confirmRestoreChannelPrefix": "Восстановить канал",

@@ -157,6 +157,25 @@ export default function Sidebar() {
         </ul>
       )}
 
+      {/* Direct Messages */}
+      <div className="mt-6 text-xs font-medium text-zinc-400 uppercase tracking-wider px-2 py-1">
+        Direct
+      </div>
+      <ul className="mt-1 space-y-0.5">
+        <li>
+          <Link
+            href="/direct"
+            className={`block rounded-md px-2 py-1.5 text-sm transition-colors ${
+              pathname?.startsWith("/direct")
+                ? "bg-zinc-200 dark:bg-zinc-800 font-medium text-zinc-900 dark:text-zinc-100"
+                : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
+            }`}
+          >
+            <span className="truncate block">Direct messages</span>
+          </Link>
+        </li>
+      </ul>
+
       {/* Channels */}
       {activeWorkspaceId && (
         <>
