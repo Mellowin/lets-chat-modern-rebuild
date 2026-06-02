@@ -839,7 +839,7 @@ export default function ChannelDetailPage() {
                             </>
                           )}
                         </div>
-                        <div data-testid={`message-bubble-wrap-${msg.id}`} className={isOwnMessage ? "ml-12 sm:ml-20" : ""}>
+                        <div data-testid={`message-bubble-wrap-${msg.id}`} className={isOwnMessage ? "ml-20 sm:ml-32" : ""}>
                           <div
                             data-testid={`message-bubble-${msg.id}`}
                             className={`mt-1 w-fit max-w-full rounded-2xl border px-3 py-2 shadow-sm ${
