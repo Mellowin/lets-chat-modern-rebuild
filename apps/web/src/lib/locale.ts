@@ -266,7 +266,12 @@ export type TranslationKey =
   | "direct.noForwardTargets"
   | "direct.react"
   | "direct.copyText"
-  | "direct.messageMenu";
+  | "direct.messageMenu"
+  | "direct.edit"
+  | "direct.editingMessage"
+  | "direct.cancelEdit"
+  | "direct.failedEditMessage"
+  | "direct.saveEdit";
 
 const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
   en: {
@@ -482,6 +487,11 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "direct.react": "React",
     "direct.copyText": "Copy text",
     "direct.messageMenu": "Message actions",
+    "direct.edit": "Edit",
+    "direct.editingMessage": "Editing message",
+    "direct.cancelEdit": "Cancel edit",
+    "direct.failedEditMessage": "Failed to edit message",
+    "direct.saveEdit": "Save",
     "workspace.confirmArchiveChannelPrefix": "Archive channel",
     "workspace.confirmArchiveChannelBody": "This will hide the channel from the workspace. Only the channel owner can do this.",
     "workspace.confirmRestoreChannelPrefix": "Restore channel",
@@ -733,6 +743,11 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "direct.react": "Реакція",
     "direct.copyText": "Копіювати текст",
     "direct.messageMenu": "Дії з повідомленням",
+    "direct.edit": "Редагувати",
+    "direct.editingMessage": "Редагування повідомлення",
+    "direct.cancelEdit": "Скасувати редагування",
+    "direct.failedEditMessage": "Не вдалося відредагувати повідомлення",
+    "direct.saveEdit": "Зберегти",
     "workspace.confirmArchiveChannelPrefix": "Архівувати канал",
     "workspace.confirmArchiveChannelBody": "Це приховає канал з робочого простору. Це може зробити лише власник каналу.",
     "workspace.confirmRestoreChannelPrefix": "Відновити канал",
@@ -984,6 +999,11 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "direct.react": "Реакция",
     "direct.copyText": "Копировать текст",
     "direct.messageMenu": "Действия с сообщением",
+    "direct.edit": "Редактировать",
+    "direct.editingMessage": "Редактирование сообщения",
+    "direct.cancelEdit": "Отменить редактирование",
+    "direct.failedEditMessage": "Не удалось отредактировать сообщение",
+    "direct.saveEdit": "Сохранить",
     "workspace.confirmArchiveChannelPrefix": "Архивировать канал",
     "workspace.confirmArchiveChannelBody": "Это скроет канал из рабочего пространства. Это может сделать только владелец канала.",
     "workspace.confirmRestoreChannelPrefix": "Восстановить канал",

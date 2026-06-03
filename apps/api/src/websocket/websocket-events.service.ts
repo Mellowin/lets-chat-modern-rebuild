@@ -249,6 +249,57 @@ export class WebsocketEventsService {
     }
   }
 
+  broadcastDirectMessageUpdated(
+    conversationId: string,
+    payload: {
+      id: string;
+      conversationId: string;
+      content: string;
+      parentId: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+      editedAt: Date | null;
+      author: {
+        id: string;
+        username: string;
+        displayName: string | null;
+        avatarUrl: string | null;
+      };
+      parent: {
+        id: string;
+        content: string;
+        author: {
+          id: string;
+          username: string;
+          displayName: string | null;
+          avatarUrl: string | null;
+        };
+      } | null;
+      reactions: Array<{
+        emoji: string;
+        count: number;
+        reactedByMe: boolean;
+      }>;
+    },
+  ) {
+    try {
+      this.gateway.broadcastToRoom(
+        `direct-conversation:${conversationId}`,
+        'direct:message:updated',
+        payload,
+      );
+    } catch (error) {
+      this.logger.error(
+        {
+          conversationId,
+          messageId: payload.id,
+          error: (error as Error).message,
+        },
+        'Failed to broadcast direct:message:updated',
+      );
+    }
+  }
+
   broadcastDirectConversationUpdated(
     conversationId: string,
     payload: {

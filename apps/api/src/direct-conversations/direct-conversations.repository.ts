@@ -302,6 +302,35 @@ export class DirectConversationsRepository {
     });
   }
 
+  async updateDirectMessageContent(messageId: string, content: string) {
+    return this.prisma.directMessage.update({
+      where: { id: messageId },
+      data: { content, editedAt: new Date() },
+      include: {
+        author: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+        parent: {
+          include: {
+            author: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
   async getDirectMessageReactions(messageId: string, currentUserId: string) {
     const [groups, userReactions] = await Promise.all([
       this.prisma.directMessageReaction.groupBy({

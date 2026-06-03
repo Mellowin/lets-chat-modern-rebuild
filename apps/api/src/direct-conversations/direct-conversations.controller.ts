@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Body,
   Param,
@@ -23,6 +24,7 @@ import { DirectConversationsService } from './direct-conversations.service';
 import { CreateDirectConversationDto } from './dto/create-direct-conversation.dto';
 import { CreateDirectMessageDto } from './dto/create-direct-message.dto';
 import { CreateDirectReactionDto } from './dto/create-direct-reaction.dto';
+import { UpdateDirectMessageDto } from './dto/update-direct-message.dto';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUserResponse } from '../auth/auth.service';
@@ -115,6 +117,27 @@ export class DirectConversationsController {
       messageId,
       dto,
       user.id,
+    );
+  }
+
+  @Patch(':conversationId/messages/:messageId')
+  @ApiOperation({ summary: 'Edit own direct message' })
+  @ApiOkResponse({ description: 'Message updated' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiForbiddenResponse({ description: 'Access denied' })
+  @ApiNotFoundResponse({ description: 'Message not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async updateMessage(
+    @Param('conversationId', ParseUUIDPipe) conversationId: string,
+    @Param('messageId', ParseUUIDPipe) messageId: string,
+    @Body() dto: UpdateDirectMessageDto,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.directConversations.updateMessage(
+      conversationId,
+      messageId,
+      user.id,
+      dto.content,
     );
   }
 

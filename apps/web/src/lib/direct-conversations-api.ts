@@ -65,6 +65,10 @@ export interface SendDirectMessageInput {
   parentId?: string;
 }
 
+export interface UpdateDirectMessageInput {
+  content: string;
+}
+
 async function parseErrorMessage(res: Response, fallback: string): Promise<string> {
   let message = fallback;
   try {
@@ -204,6 +208,32 @@ export async function reactToDirectMessage(
   }
 
   return res.json() as Promise<DirectMessageReactionSummary[]>;
+}
+
+export async function updateDirectMessage(
+  accessToken: string,
+  conversationId: string,
+  messageId: string,
+  input: UpdateDirectMessageInput,
+): Promise<DirectMessage> {
+  const res = await fetch(
+    `${API_BASE}/direct-conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(input),
+    },
+  );
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to edit message: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<DirectMessage>;
 }
 
 export async function removeDirectMessageReaction(

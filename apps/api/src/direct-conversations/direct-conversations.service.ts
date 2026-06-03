@@ -233,6 +233,56 @@ export class DirectConversationsService {
     return response;
   }
 
+  async updateMessage(
+    conversationId: string,
+    messageId: string,
+    userId: string,
+    content: string,
+  ) {
+    const participant = await this.directConversations.findParticipant(
+      conversationId,
+      userId,
+    );
+    if (!participant) {
+      throw new ForbiddenException('Access denied');
+    }
+
+    const message = await this.directConversations.findMessageById(messageId);
+    if (!message || message.conversationId !== conversationId) {
+      throw new NotFoundException('Message not found');
+    }
+
+    if (message.authorId !== userId) {
+      throw new ForbiddenException('Only the author can edit this message');
+    }
+
+    const trimmed = content.trim();
+    if (!trimmed) {
+      throw new BadRequestException('Content is required');
+    }
+    if (trimmed.length > 4000) {
+      throw new BadRequestException('Content must be at most 4000 characters');
+    }
+
+    const updated = await this.directConversations.updateDirectMessageContent(
+      messageId,
+      trimmed,
+    );
+
+    const reactions = await this.directConversations.getDirectMessageReactions(
+      messageId,
+      userId,
+    );
+
+    const response = this.toMessageResponse(updated, reactions);
+    this.websocketEvents.broadcastDirectMessageUpdated(
+      conversationId,
+      response,
+    );
+
+    return response;
+  }
+
   async markAsRead(conversationId: string, currentUserId: string) {
     const participant = await this.directConversations.findParticipant(
       conversationId,

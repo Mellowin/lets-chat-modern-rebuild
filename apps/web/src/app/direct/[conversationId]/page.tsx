@@ -14,8 +14,10 @@ import {
   listDirectConversations,
   reactToDirectMessage,
   removeDirectMessageReaction,
+  updateDirectMessage,
   type DirectMessage,
   type SendDirectMessageInput,
+  type UpdateDirectMessageInput,
   type DirectConversation,
   type DirectMessageReactionSummary,
 } from "@/lib/direct-conversations-api";
@@ -59,6 +61,12 @@ export default function DirectConversationPage() {
   const quickEmojis = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
   const [forwardConversations, setForwardConversations] = useState<DirectConversation[]>([]);
   const [forwardState, setForwardState] = useState<
+    | { kind: "idle" }
+    | { kind: "loading" }
+    | { kind: "error"; message: string }
+  >({ kind: "idle" });
+  const [editingMessage, setEditingMessage] = useState<DirectMessage | null>(null);
+  const [editState, setEditState] = useState<
     | { kind: "idle" }
     | { kind: "loading" }
     | { kind: "error"; message: string }
@@ -128,6 +136,50 @@ export default function DirectConversationPage() {
     setForwardMessage(msg);
   }
 
+  function handleEditStart(msg: DirectMessage) {
+    closeMenuAndPicker();
+    setForwardMessage(null);
+    setReplyToMessage(null);
+    setEditingMessage(msg);
+    setContent(msg.content);
+    setEditState({ kind: "idle" });
+    requestAnimationFrame(() => composerTextareaRef.current?.focus());
+  }
+
+  function handleEditCancel() {
+    setEditingMessage(null);
+    setContent("");
+    setEditState({ kind: "idle" });
+    requestAnimationFrame(() => composerTextareaRef.current?.focus());
+  }
+
+  async function handleEditSubmit() {
+    if (!editingMessage || !accessToken || !conversationId) return;
+    const trimmed = content.trim();
+    if (!trimmed) {
+      setEditState({ kind: "error", message: t("channel.errorMessageEmpty") });
+      return;
+    }
+    if (trimmed.length > 4000) {
+      setEditState({ kind: "error", message: t("channel.errorMessageTooLong") });
+      return;
+    }
+    setEditState({ kind: "loading" });
+    try {
+      const input: UpdateDirectMessageInput = { content: trimmed };
+      const updated = await updateDirectMessage(accessToken, conversationId, editingMessage.id, input);
+      updateMessageInState(updated);
+      setEditingMessage(null);
+      setContent("");
+      setEditState({ kind: "idle" });
+      requestAnimationFrame(() => composerTextareaRef.current?.focus());
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t("direct.failedEditMessage");
+      setEditState({ kind: "error", message });
+      requestAnimationFrame(() => composerTextareaRef.current?.focus());
+    }
+  }
+
   async function handleCopyText(content: string) {
     closeMenuAndPicker();
     try {
@@ -154,6 +206,96 @@ export default function DirectConversationPage() {
     const el = messagesScrollRef.current;
     if (!el) return true;
     return el.scrollHeight - el.scrollTop - el.clientHeight < 160;
+  }
+
+  function appendMessage(msg: DirectMessage) {
+    setMessages((prev) => {
+      if (prev.kind !== "success") return prev;
+      if (prev.data.some((m) => m.id === msg.id)) return prev;
+      return { kind: "success", data: [...prev.data, msg] };
+    });
+  }
+
+  function updateMessageInState(msg: DirectMessage) {
+    setMessages((prev) => {
+      if (prev.kind !== "success") return prev;
+      return {
+        kind: "success",
+        data: prev.data.map((m) => (m.id === msg.id ? msg : m)),
+      };
+    });
+  }
+
+  function updateMessageReactions(messageId: string, reactions: DirectMessageReactionSummary[]) {
+    setMessages((prev) => {
+      if (prev.kind !== "success") return prev;
+      return {
+        kind: "success",
+        data: prev.data.map((m) => (m.id === messageId ? { ...m, reactions } : m)),
+      };
+    });
+  }
+
+  function mergeReactionSummaryForViewer(
+    previous: DirectMessageReactionSummary[],
+    incoming: Array<{ emoji: string; count: number; reactedByMe?: boolean }>,
+    eventUserId: string,
+    currentUserId: string | undefined,
+  ): DirectMessageReactionSummary[] {
+    const incomingMap = new Map(incoming.map((r) => [r.emoji, r]));
+    const previousMap = new Map(previous.map((r) => [r.emoji, r]));
+
+    const result: DirectMessageReactionSummary[] = [];
+    for (const [emoji, reaction] of incomingMap) {
+      let reactedByMe = reaction.reactedByMe ?? false;
+      if (eventUserId !== currentUserId) {
+        // Backend computed reactedByMe for the actor, not for current viewer.
+        // Preserve our own reactedByMe state.
+        const prevReaction = previousMap.get(emoji);
+        if (prevReaction) {
+          reactedByMe = prevReaction.reactedByMe;
+        } else {
+          reactedByMe = false;
+        }
+      }
+      result.push({ emoji, count: reaction.count, reactedByMe });
+    }
+
+    for (const [emoji, prevReaction] of previousMap) {
+      if (incomingMap.has(emoji)) continue;
+      if (prevReaction.reactedByMe && eventUserId !== currentUserId) {
+        // Another user removed their reaction, but current user still has it
+        result.push({ emoji, count: 1, reactedByMe: true });
+      } else {
+        // Current user removed or replaced it, or current user never had it
+        continue;
+      }
+    }
+
+    return result;
+  }
+
+  function updateMessageReactionsFromEvent(
+    messageId: string,
+    incoming: Array<{ emoji: string; count: number; reactedByMe?: boolean }>,
+    eventUserId: string,
+  ) {
+    setMessages((prev) => {
+      if (prev.kind !== "success") return prev;
+      return {
+        kind: "success",
+        data: prev.data.map((m) => {
+          if (m.id !== messageId) return m;
+          const merged = mergeReactionSummaryForViewer(
+            m.reactions,
+            incoming,
+            eventUserId,
+            user?.id,
+          );
+          return { ...m, reactions: merged };
+        }),
+      };
+    });
   }
 
   useEffect(() => {
@@ -237,6 +379,11 @@ export default function DirectConversationPage() {
       }
     }
 
+    function handleDirectMessageUpdated(msg: DirectMessage) {
+      if (msg.conversationId !== conversationId) return;
+      updateMessageInState(msg);
+    }
+
     function handleDirectJoined() {
       setSocketError(null);
     }
@@ -282,6 +429,7 @@ export default function DirectConversationPage() {
     }
 
     socket.on("direct:message:created", handleDirectMessageCreated);
+    socket.on("direct:message:updated", handleDirectMessageUpdated);
     socket.on("direct:joined", handleDirectJoined);
     socket.on("direct:error", handleDirectError);
     socket.on("connect_error", handleConnectError);
@@ -298,6 +446,7 @@ export default function DirectConversationPage() {
 
     return () => {
       socket.off("direct:message:created", handleDirectMessageCreated);
+      socket.off("direct:message:updated", handleDirectMessageUpdated);
       socket.off("direct:joined", handleDirectJoined);
       socket.off("direct:error", handleDirectError);
       socket.off("connect_error", handleConnectError);
@@ -352,86 +501,6 @@ export default function DirectConversationPage() {
     return () => window.cancelAnimationFrame(frame);
   }, [conversationId]);
 
-  function appendMessage(msg: DirectMessage) {
-    setMessages((prev) => {
-      if (prev.kind !== "success") return prev;
-      if (prev.data.some((m) => m.id === msg.id)) return prev;
-      return { kind: "success", data: [...prev.data, msg] };
-    });
-  }
-
-  function updateMessageReactions(messageId: string, reactions: DirectMessageReactionSummary[]) {
-    setMessages((prev) => {
-      if (prev.kind !== "success") return prev;
-      return {
-        kind: "success",
-        data: prev.data.map((m) => (m.id === messageId ? { ...m, reactions } : m)),
-      };
-    });
-  }
-
-  function mergeReactionSummaryForViewer(
-    previous: DirectMessageReactionSummary[],
-    incoming: Array<{ emoji: string; count: number; reactedByMe?: boolean }>,
-    eventUserId: string,
-    currentUserId: string | undefined,
-  ): DirectMessageReactionSummary[] {
-    const incomingMap = new Map(incoming.map((r) => [r.emoji, r]));
-    const previousMap = new Map(previous.map((r) => [r.emoji, r]));
-
-    const result: DirectMessageReactionSummary[] = [];
-    for (const [emoji, reaction] of incomingMap) {
-      let reactedByMe = reaction.reactedByMe ?? false;
-      if (eventUserId !== currentUserId) {
-        // Backend computed reactedByMe for the actor, not for current viewer.
-        // Preserve our own reactedByMe state.
-        const prevReaction = previousMap.get(emoji);
-        if (prevReaction) {
-          reactedByMe = prevReaction.reactedByMe;
-        } else {
-          reactedByMe = false;
-        }
-      }
-      result.push({ emoji, count: reaction.count, reactedByMe });
-    }
-
-    for (const [emoji, prevReaction] of previousMap) {
-      if (incomingMap.has(emoji)) continue;
-      if (prevReaction.reactedByMe && eventUserId !== currentUserId) {
-        // Another user removed their reaction, but current user still has it
-        result.push({ emoji, count: 1, reactedByMe: true });
-      } else {
-        // Current user removed or replaced it, or current user never had it
-        continue;
-      }
-    }
-
-    return result;
-  }
-
-  function updateMessageReactionsFromEvent(
-    messageId: string,
-    incoming: Array<{ emoji: string; count: number; reactedByMe?: boolean }>,
-    eventUserId: string,
-  ) {
-    setMessages((prev) => {
-      if (prev.kind !== "success") return prev;
-      return {
-        kind: "success",
-        data: prev.data.map((m) => {
-          if (m.id !== messageId) return m;
-          const merged = mergeReactionSummaryForViewer(
-            m.reactions,
-            incoming,
-            eventUserId,
-            user?.id,
-          );
-          return { ...m, reactions: merged };
-        }),
-      };
-    });
-  }
-
   async function handleReactionClick(msg: DirectMessage, emoji: string) {
     if (!accessToken || !conversationId) return;
     const existing = msg.reactions.find((r) => r.emoji === emoji);
@@ -469,6 +538,10 @@ export default function DirectConversationPage() {
   }
 
   async function submitMessage() {
+    if (editingMessage) {
+      await handleEditSubmit();
+      return;
+    }
     const trimmed = content.trim();
     if (!trimmed) {
       setSendState({ kind: "error", message: t("channel.errorMessageEmpty") });
@@ -779,6 +852,27 @@ export default function DirectConversationPage() {
                 </div>
               </div>
             )}
+            {editingMessage && (
+              <div data-testid="direct-edit-preview" className="flex items-start justify-between gap-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 px-3 py-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                    {t("direct.editingMessage")}
+                  </p>
+                  <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-300 truncate">
+                    {getMessageSnippet(editingMessage)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleEditCancel}
+                  data-testid="direct-cancel-edit"
+                  className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                  aria-label={t("direct.cancelEdit")}
+                >
+                  ×
+                </button>
+              </div>
+            )}
             {replyToMessage && (
               <div data-testid="direct-reply-preview" className="flex items-start justify-between gap-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 px-3 py-2">
                 <div className="min-w-0 flex-1">
@@ -812,7 +906,7 @@ export default function DirectConversationPage() {
                   submitMessage();
                 }
               }}
-              disabled={sendState.kind === "loading"}
+              disabled={sendState.kind === "loading" || editState.kind === "loading"}
               className="w-full resize-none rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100 disabled:opacity-60"
             />
             <div className="flex items-center justify-between gap-2">
@@ -821,12 +915,26 @@ export default function DirectConversationPage() {
               </div>
               <button
                 type="submit"
-                disabled={sendState.kind === "loading"}
+                disabled={sendState.kind === "loading" || editState.kind === "loading"}
                 className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
               >
-                {sendState.kind === "loading" ? t("direct.sending") : t("direct.send")}
+                {editingMessage
+                  ? editState.kind === "loading"
+                    ? t("channel.savingEdit")
+                    : t("direct.saveEdit")
+                  : sendState.kind === "loading"
+                    ? t("direct.sending")
+                    : t("direct.send")}
               </button>
             </div>
+            {editState.kind === "error" && (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs dark:border-red-900 dark:bg-red-950/30">
+                <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+                  <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                  {editState.message}
+                </div>
+              </div>
+            )}
             {sendState.kind === "error" && (
               <div className="rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs dark:border-red-900 dark:bg-red-950/30">
                 <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
@@ -854,6 +962,17 @@ export default function DirectConversationPage() {
             if (!activeMenuMessage) return null;
             return (
               <>
+                {activeMenuMessage.author.id === user?.id && (
+                  <button
+                    onClick={() => handleEditStart(activeMenuMessage)}
+                    data-testid={`direct-edit-action-${activeMenuMessage.id}`}
+                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                    role="menuitem"
+                  >
+                    <span className="text-base">✏️</span>
+                    <span>{t("direct.edit")}</span>
+                  </button>
+                )}
                 <button
                   onClick={() => handleReply(activeMenuMessage)}
                   data-testid={`direct-reply-action-${activeMenuMessage.id}`}

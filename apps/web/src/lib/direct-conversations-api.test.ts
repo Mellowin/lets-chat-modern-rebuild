@@ -7,6 +7,7 @@ import {
   markDirectConversationRead,
   reactToDirectMessage,
   removeDirectMessageReaction,
+  updateDirectMessage,
 } from "./direct-conversations-api";
 
 const API_BASE = "http://localhost:3001/api/v1";
@@ -221,6 +222,40 @@ describe("direct-conversations-api", () => {
       await expect(removeDirectMessageReaction("token", "dc1", "dm1", "👍")).rejects.toThrow(
         "Failed to remove reaction: 500 Internal Server Error",
       );
+    });
+  });
+
+  describe("updateDirectMessage", () => {
+    it("sends PATCH with content", async () => {
+      const mock = {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "updated",
+        parentId: null,
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        editedAt: "2024-01-02T00:00:00Z",
+        author,
+        parent: null,
+        reactions: [],
+      };
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(mock), { status: 200 }));
+
+      const result = await updateDirectMessage("token", "dc1", "dm1", { content: "updated" });
+
+      expect(fetch).toHaveBeenCalledWith(
+        `${API_BASE}/direct-conversations/dc1/messages/dm1`,
+        expect.objectContaining({
+          method: "PATCH",
+          body: JSON.stringify({ content: "updated" }),
+        }),
+      );
+      expect(result).toEqual(mock);
+    });
+
+    it("throws with backend error message", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ message: "Forbidden" }), { status: 403 }));
+      await expect(updateDirectMessage("token", "dc1", "dm1", { content: "x" })).rejects.toThrow("Forbidden");
     });
   });
 

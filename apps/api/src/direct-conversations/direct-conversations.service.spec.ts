@@ -108,6 +108,7 @@ describe('DirectConversationsService', () => {
             touchConversationUpdatedAt: jest.fn(),
             updateParticipantLastRead: jest.fn(),
             countUnreadMessages: jest.fn(),
+            updateDirectMessageContent: jest.fn(),
             findDirectReaction: jest.fn(),
             createDirectReaction: jest.fn(),
             deleteDirectReaction: jest.fn(),
@@ -128,6 +129,7 @@ describe('DirectConversationsService', () => {
           useValue: {
             broadcastDirectMessageCreated: jest.fn(),
             broadcastDirectConversationUpdated: jest.fn(),
+            broadcastDirectMessageUpdated: jest.fn(),
             broadcastDirectReactionAdded: jest.fn(),
             broadcastDirectReactionRemoved: jest.fn(),
           },
@@ -671,6 +673,172 @@ describe('DirectConversationsService', () => {
         service.markAsRead(conversationId, userId),
       ).rejects.toBeInstanceOf(ForbiddenException);
       expect(repository.updateParticipantLastRead).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateMessage', () => {
+    it('allows author to edit own message', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p-current',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue(makeMessage());
+      repository.updateDirectMessageContent.mockResolvedValue(
+        makeMessage({ content: 'updated', editedAt: new Date() }),
+      );
+      repository.getDirectMessageReactions.mockResolvedValue([]);
+
+      const result = await service.updateMessage(
+        conversationId,
+        messageId,
+        userId,
+        'updated',
+      );
+      expect(result.content).toBe('updated');
+      expect(result.editedAt).not.toBeNull();
+      expect(websocketEvents.broadcastDirectMessageUpdated).toHaveBeenCalled();
+    });
+
+    it('trims content before updating', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p-current',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue(makeMessage());
+      repository.updateDirectMessageContent.mockResolvedValue(
+        makeMessage({ content: 'trimmed', editedAt: new Date() }),
+      );
+      repository.getDirectMessageReactions.mockResolvedValue([]);
+
+      const result = await service.updateMessage(
+        conversationId,
+        messageId,
+        userId,
+        '  trimmed  ',
+      );
+      expect(repository.updateDirectMessageContent).toHaveBeenCalledWith(
+        messageId,
+        'trimmed',
+      );
+      expect(result.content).toBe('trimmed');
+    });
+
+    it('rejects empty content', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p-current',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue(makeMessage());
+
+      await expect(
+        service.updateMessage(conversationId, messageId, userId, '   '),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('rejects content longer than 4000 chars', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p-current',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue(makeMessage());
+
+      await expect(
+        service.updateMessage(
+          conversationId,
+          messageId,
+          userId,
+          'x'.repeat(4001),
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('rejects non-author participant', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p-other',
+        conversationId,
+        userId: otherUserId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue(makeMessage());
+
+      await expect(
+        service.updateMessage(
+          conversationId,
+          messageId,
+          otherUserId,
+          'updated',
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('rejects non-participant', async () => {
+      repository.findParticipant.mockResolvedValue(null);
+
+      await expect(
+        service.updateMessage(
+          conversationId,
+          messageId,
+          'random-user',
+          'updated',
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('rejects message from another conversation', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p-current',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue(
+        makeMessage({ conversationId: 'other-conv-id' }),
+      );
+
+      await expect(
+        service.updateMessage(conversationId, messageId, userId, 'updated'),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('returns reactions in response', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p-current',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue(makeMessage());
+      repository.updateDirectMessageContent.mockResolvedValue(
+        makeMessage({ content: 'updated', editedAt: new Date() }),
+      );
+      repository.getDirectMessageReactions.mockResolvedValue([
+        { emoji: '👍', count: 1, reactedByMe: true },
+      ]);
+
+      const result = await service.updateMessage(
+        conversationId,
+        messageId,
+        userId,
+        'updated',
+      );
+      expect(result.reactions).toEqual([
+        { emoji: '👍', count: 1, reactedByMe: true },
+      ]);
     });
   });
 
