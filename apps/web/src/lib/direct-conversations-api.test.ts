@@ -8,6 +8,7 @@ import {
   reactToDirectMessage,
   removeDirectMessageReaction,
   updateDirectMessage,
+  deleteDirectMessage,
 } from "./direct-conversations-api";
 
 const API_BASE = "http://localhost:3001/api/v1";
@@ -276,6 +277,25 @@ describe("direct-conversations-api", () => {
     it("throws with backend error message", async () => {
       vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ message: "Access denied" }), { status: 403 }));
       await expect(markDirectConversationRead("token", "dc1")).rejects.toThrow("Access denied");
+    });
+  });
+
+  describe("deleteDirectMessage", () => {
+    it("sends DELETE /direct-conversations/:id/messages/:msgId", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+
+      const result = await deleteDirectMessage("token", "dc1", "dm1");
+
+      expect(fetch).toHaveBeenCalledWith(
+        `${API_BASE}/direct-conversations/dc1/messages/dm1`,
+        expect.objectContaining({ method: "DELETE" }),
+      );
+      expect(result).toEqual({ ok: true });
+    });
+
+    it("throws on API error", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ message: "Not found" }), { status: 404 }));
+      await expect(deleteDirectMessage("token", "dc1", "dm1")).rejects.toThrow("Not found");
     });
   });
 });

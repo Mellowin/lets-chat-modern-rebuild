@@ -141,6 +141,24 @@ export class DirectConversationsController {
     );
   }
 
+  @Delete(':conversationId/messages/:messageId')
+  @ApiOperation({ summary: 'Delete own direct message' })
+  @ApiOkResponse({ description: 'Message deleted' })
+  @ApiForbiddenResponse({ description: 'Access denied' })
+  @ApiNotFoundResponse({ description: 'Message not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async deleteMessage(
+    @Param('conversationId', ParseUUIDPipe) conversationId: string,
+    @Param('messageId', ParseUUIDPipe) messageId: string,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.directConversations.deleteMessage(
+      conversationId,
+      messageId,
+      user.id,
+    );
+  }
+
   @Delete(':conversationId/messages/:messageId/reactions/:emoji')
   @ApiOperation({ summary: 'Remove own reaction from direct message' })
   @ApiOkResponse({ description: 'Reaction removed' })

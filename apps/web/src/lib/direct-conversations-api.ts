@@ -259,3 +259,26 @@ export async function removeDirectMessageReaction(
 
   return res.json() as Promise<DirectMessageReactionSummary[]>;
 }
+
+export async function deleteDirectMessage(
+  accessToken: string,
+  conversationId: string,
+  messageId: string,
+): Promise<{ ok: true }> {
+  const res = await fetch(
+    `${API_BASE}/direct-conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}`,
+    {
+      method: "DELETE",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to delete message: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<{ ok: true }>;
+}

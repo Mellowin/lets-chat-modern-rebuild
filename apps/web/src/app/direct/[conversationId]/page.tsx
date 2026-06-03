@@ -15,6 +15,7 @@ import {
   reactToDirectMessage,
   removeDirectMessageReaction,
   updateDirectMessage,
+  deleteDirectMessage,
   type DirectMessage,
   type SendDirectMessageInput,
   type UpdateDirectMessageInput,
@@ -180,6 +181,30 @@ export default function DirectConversationPage() {
     }
   }
 
+  async function handleDelete(msg: DirectMessage) {
+    closeMenuAndPicker();
+    if (!window.confirm(t("direct.confirmDelete"))) return;
+    if (!accessToken || !conversationId) return;
+    try {
+      await deleteDirectMessage(accessToken, conversationId, msg.id);
+      removeMessageFromState(msg.id);
+      if (editingMessage?.id === msg.id) {
+        setEditingMessage(null);
+        setContent("");
+        setEditState({ kind: "idle" });
+      }
+      if (replyToMessage?.id === msg.id) {
+        setReplyToMessage(null);
+      }
+      if (forwardMessage?.id === msg.id) {
+        setForwardMessage(null);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t("direct.failedDeleteMessage");
+      setSocketError(message);
+    }
+  }
+
   async function handleCopyText(content: string) {
     closeMenuAndPicker();
     try {
@@ -222,6 +247,16 @@ export default function DirectConversationPage() {
       return {
         kind: "success",
         data: prev.data.map((m) => (m.id === msg.id ? msg : m)),
+      };
+    });
+  }
+
+  function removeMessageFromState(messageId: string) {
+    setMessages((prev) => {
+      if (prev.kind !== "success") return prev;
+      return {
+        kind: "success",
+        data: prev.data.filter((m) => m.id !== messageId),
       };
     });
   }
@@ -384,6 +419,25 @@ export default function DirectConversationPage() {
       updateMessageInState(msg);
     }
 
+    function handleDirectMessageDeleted(payload: {
+      conversationId: string;
+      messageId: string;
+    }) {
+      if (payload.conversationId !== conversationId) return;
+      removeMessageFromState(payload.messageId);
+      if (editingMessage?.id === payload.messageId) {
+        setEditingMessage(null);
+        setContent("");
+        setEditState({ kind: "idle" });
+      }
+      if (replyToMessage?.id === payload.messageId) {
+        setReplyToMessage(null);
+      }
+      if (forwardMessage?.id === payload.messageId) {
+        setForwardMessage(null);
+      }
+    }
+
     function handleDirectJoined() {
       setSocketError(null);
     }
@@ -430,6 +484,7 @@ export default function DirectConversationPage() {
 
     socket.on("direct:message:created", handleDirectMessageCreated);
     socket.on("direct:message:updated", handleDirectMessageUpdated);
+    socket.on("direct:message:deleted", handleDirectMessageDeleted);
     socket.on("direct:joined", handleDirectJoined);
     socket.on("direct:error", handleDirectError);
     socket.on("connect_error", handleConnectError);
@@ -447,6 +502,7 @@ export default function DirectConversationPage() {
     return () => {
       socket.off("direct:message:created", handleDirectMessageCreated);
       socket.off("direct:message:updated", handleDirectMessageUpdated);
+      socket.off("direct:message:deleted", handleDirectMessageDeleted);
       socket.off("direct:joined", handleDirectJoined);
       socket.off("direct:error", handleDirectError);
       socket.off("connect_error", handleConnectError);
@@ -1013,6 +1069,17 @@ export default function DirectConversationPage() {
                   <span className="text-base">📋</span>
                   <span>{t("direct.copyText")}</span>
                 </button>
+                {activeMenuMessage.author.id === user?.id && (
+                  <button
+                    onClick={() => handleDelete(activeMenuMessage)}
+                    data-testid={`direct-delete-action-${activeMenuMessage.id}`}
+                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+                    role="menuitem"
+                  >
+                    <span className="text-base">🗑️</span>
+                    <span>{t("direct.delete")}</span>
+                  </button>
+                )}
               </>
             );
           })()}

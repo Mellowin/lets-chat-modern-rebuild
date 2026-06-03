@@ -271,7 +271,10 @@ export type TranslationKey =
   | "direct.editingMessage"
   | "direct.cancelEdit"
   | "direct.failedEditMessage"
-  | "direct.saveEdit";
+  | "direct.saveEdit"
+  | "direct.delete"
+  | "direct.confirmDelete"
+  | "direct.failedDeleteMessage";
 
 const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
   en: {
@@ -492,6 +495,9 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "direct.cancelEdit": "Cancel edit",
     "direct.failedEditMessage": "Failed to edit message",
     "direct.saveEdit": "Save",
+    "direct.delete": "Delete",
+    "direct.confirmDelete": "Delete this message?",
+    "direct.failedDeleteMessage": "Failed to delete message",
     "workspace.confirmArchiveChannelPrefix": "Archive channel",
     "workspace.confirmArchiveChannelBody": "This will hide the channel from the workspace. Only the channel owner can do this.",
     "workspace.confirmRestoreChannelPrefix": "Restore channel",
@@ -748,6 +754,9 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "direct.cancelEdit": "Скасувати редагування",
     "direct.failedEditMessage": "Не вдалося відредагувати повідомлення",
     "direct.saveEdit": "Зберегти",
+    "direct.delete": "Видалити",
+    "direct.confirmDelete": "Видалити це повідомлення?",
+    "direct.failedDeleteMessage": "Не вдалося видалити повідомлення",
     "workspace.confirmArchiveChannelPrefix": "Архівувати канал",
     "workspace.confirmArchiveChannelBody": "Це приховає канал з робочого простору. Це може зробити лише власник каналу.",
     "workspace.confirmRestoreChannelPrefix": "Відновити канал",
@@ -1004,6 +1013,9 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "direct.cancelEdit": "Отменить редактирование",
     "direct.failedEditMessage": "Не удалось отредактировать сообщение",
     "direct.saveEdit": "Сохранить",
+    "direct.delete": "Удалить",
+    "direct.confirmDelete": "Удалить это сообщение?",
+    "direct.failedDeleteMessage": "Не удалось удалить сообщение",
     "workspace.confirmArchiveChannelPrefix": "Архивировать канал",
     "workspace.confirmArchiveChannelBody": "Это скроет канал из рабочего пространства. Это может сделать только владелец канала.",
     "workspace.confirmRestoreChannelPrefix": "Восстановить канал",

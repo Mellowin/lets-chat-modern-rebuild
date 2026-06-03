@@ -2,7 +2,7 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import DirectConversationPage from "./page";
-import { listDirectMessages, sendDirectMessage, markDirectConversationRead, listDirectConversations, updateDirectMessage } from "@/lib/direct-conversations-api";
+import { listDirectMessages, sendDirectMessage, markDirectConversationRead, listDirectConversations, updateDirectMessage, deleteDirectMessage } from "@/lib/direct-conversations-api";
 
 const socketHandlers: Record<string, (...args: unknown[]) => void> = {};
 const socketOffHandlers: Record<string, ((...args: unknown[]) => void)[]> = {};
@@ -60,6 +60,7 @@ vi.mock("@/lib/direct-conversations-api", () => ({
   reactToDirectMessage: vi.fn(),
   removeDirectMessageReaction: vi.fn(),
   updateDirectMessage: vi.fn(),
+  deleteDirectMessage: vi.fn(),
 }));
 
 vi.mock("@/lib/socket-client", () => ({
@@ -74,6 +75,7 @@ beforeEach(() => {
   Object.keys(socketOffHandlers).forEach((k) => delete socketOffHandlers[k]);
   mockSocketConnected = false;
   routerPushMock.mockClear();
+  vi.mocked(deleteDirectMessage).mockReset();
   vi.mocked(listDirectConversations).mockResolvedValue([
     {
       id: "dc1",
@@ -5214,6 +5216,728 @@ describe("DirectConversationPage — B97 regression", () => {
 
     await waitFor(() => {
       expect(screen.queryByTestId("direct-reaction-chip-dm1-👍")).not.toBeInTheDocument();
+    });
+  });
+
+  it("mark-read on load still works", async () => {
+    mockMessages([]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(markDirectConversationRead).toHaveBeenCalledWith("token", "dc1");
+    });
+  });
+});
+
+
+describe("DirectConversationPage — B98 delete", () => {
+  it("Delete action appears for own message", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-delete-action-dm1")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("direct-delete-action-dm1")).toHaveTextContent(/Delete/i);
+  });
+
+  it("Delete action does not appear for other user's message", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-dm1")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByTestId("direct-delete-action-dm1")).not.toBeInTheDocument();
+  });
+
+  it("cancel confirm does not call API and keeps message", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    vi.stubGlobal("confirm", vi.fn(() => false));
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-delete-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-delete-action-dm1"));
+
+    expect(deleteDirectMessage).not.toHaveBeenCalled();
+    expect(screen.getByText("Hello")).toBeInTheDocument();
+
+    vi.unstubAllGlobals();
+  });
+
+  it("confirm delete calls API and removes message from DOM", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    vi.mocked(deleteDirectMessage).mockResolvedValueOnce({ ok: true });
+    vi.stubGlobal("confirm", vi.fn(() => true));
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-delete-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-delete-action-dm1"));
+
+    await waitFor(() => {
+      expect(deleteDirectMessage).toHaveBeenCalledWith("token", "dc1", "dm1");
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText("Hello")).not.toBeInTheDocument();
+    });
+
+    vi.unstubAllGlobals();
+  });
+
+  it("failed delete keeps message visible", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    vi.mocked(deleteDirectMessage).mockRejectedValueOnce(new Error("Network error"));
+    vi.stubGlobal("confirm", vi.fn(() => true));
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-delete-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-delete-action-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+
+    vi.unstubAllGlobals();
+  });
+
+  it("socket direct:message:deleted removes message", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(socketOnMock).toHaveBeenCalledWith("direct:message:deleted", expect.any(Function));
+    });
+
+    const handler = socketHandlers["direct:message:deleted"];
+    handler({ conversationId: "dc1", messageId: "dm1" });
+
+    await waitFor(() => {
+      expect(screen.queryByText("Hello")).not.toBeInTheDocument();
+    });
+  });
+
+  it("socket delete does not duplicate/append", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(socketOnMock).toHaveBeenCalledWith("direct:message:deleted", expect.any(Function));
+    });
+
+    const handler = socketHandlers["direct:message:deleted"];
+    handler({ conversationId: "dc1", messageId: "dm1" });
+    handler({ conversationId: "dc1", messageId: "dm1" });
+
+    await waitFor(() => {
+      expect(screen.queryByText("Hello")).not.toBeInTheDocument();
+    });
+  });
+
+  it("deleting message currently being edited clears edit mode", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Original",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    vi.mocked(deleteDirectMessage).mockResolvedValueOnce({ ok: true });
+    vi.stubGlobal("confirm", vi.fn(() => true));
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-edit-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-edit-action-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-edit-preview")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-delete-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-delete-action-dm1"));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("direct-edit-preview")).not.toBeInTheDocument();
+    });
+
+    vi.unstubAllGlobals();
+  });
+
+  it("deleting message currently being replied to clears reply preview", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Original",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    vi.mocked(deleteDirectMessage).mockResolvedValueOnce({ ok: true });
+    vi.stubGlobal("confirm", vi.fn(() => true));
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reply-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-reply-action-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reply-preview")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-delete-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-delete-action-dm1"));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("direct-reply-preview")).not.toBeInTheDocument();
+    });
+
+    vi.unstubAllGlobals();
+  });
+
+  it("deleting message currently being forwarded closes forward picker", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    vi.mocked(listDirectConversations).mockResolvedValueOnce([
+      {
+        id: "dc1",
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null },
+        lastMessage: null,
+        unreadCount: 0,
+      },
+      {
+        id: "dc2",
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        otherParticipant: { id: "u4", username: "dave", displayName: "Dave", avatarUrl: null },
+        lastMessage: null,
+        unreadCount: 0,
+      },
+    ]);
+    vi.mocked(deleteDirectMessage).mockResolvedValueOnce({ ok: true });
+    vi.stubGlobal("confirm", vi.fn(() => true));
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-forward-action-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-picker")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-delete-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-delete-action-dm1"));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("direct-forward-picker")).not.toBeInTheDocument();
+    });
+
+    vi.unstubAllGlobals();
+  });
+
+  it("reply whose parent was deleted shows missing fallback", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Parent",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+      {
+        id: "dm2",
+        conversationId: "dc1",
+        content: "Reply",
+        parentId: "dm1",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        parent: { id: "dm1", content: "Parent", author: { id: "u1", username: "alice", displayName: null, avatarUrl: null } },
+        reactions: [],
+      },
+    ]);
+    vi.mocked(deleteDirectMessage).mockResolvedValueOnce({ ok: true });
+    vi.stubGlobal("confirm", vi.fn(() => true));
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-delete-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-delete-action-dm1"));
+
+    await waitFor(() => {
+      expect(screen.queryByText("Parent")).not.toBeInTheDocument();
+    });
+
+    // The reply should still be visible with missing fallback
+    expect(screen.getByTestId("direct-message-bubble-dm2")).toHaveTextContent(/Reply/);
+    expect(screen.getByTestId("direct-quote-preview-dm2")).toHaveTextContent(/Original message is not loaded/i);
+
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("DirectConversationPage — B98 regression", () => {
+  it("direct send still works", async () => {
+    mockMessages([]);
+    const newMsg = {
+      id: "dm1",
+      conversationId: "dc1",
+      content: "Hello",
+      parentId: null,
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      editedAt: null,
+      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      parent: null,
+    };
+    vi.mocked(sendDirectMessage).mockResolvedValueOnce(newMsg);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Type a message/i)).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Type a message/i), "Hello");
+    await userEvent.click(screen.getByRole("button", { name: /Send/i }));
+
+    await waitFor(() => {
+      expect(sendDirectMessage).toHaveBeenCalledWith("token", "dc1", { content: "Hello" });
+    });
+    expect(screen.getByText("Hello")).toBeInTheDocument();
+  });
+
+  it("edit still works", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Original",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    const { updateDirectMessage: updateMock } = await import("@/lib/direct-conversations-api");
+    vi.mocked(updateMock).mockResolvedValueOnce({
+      id: "dm1",
+      conversationId: "dc1",
+      content: "Updated",
+      parentId: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      editedAt: new Date().toISOString(),
+      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      parent: null,
+      reactions: [],
+    });
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-edit-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-edit-action-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-edit-preview")).toBeInTheDocument();
+    });
+
+    const textarea = screen.getByPlaceholderText(/Type a message/i);
+    await userEvent.clear(textarea);
+    await userEvent.type(textarea, "Updated");
+    await userEvent.click(screen.getByRole("button", { name: /Save/i }));
+
+    await waitFor(() => {
+      expect(updateMock).toHaveBeenCalledWith("token", "dc1", "dm1", { content: "Updated" });
+    });
+  });
+
+  it("reply still works via menu", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Original",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reply-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-reply-action-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reply-preview")).toBeInTheDocument();
+    });
+  });
+
+  it("forward still works via menu", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    vi.mocked(listDirectConversations).mockResolvedValueOnce([
+      {
+        id: "dc1",
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null },
+        lastMessage: null,
+        unreadCount: 0,
+      },
+      {
+        id: "dc2",
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        otherParticipant: { id: "u4", username: "dave", displayName: "Dave", avatarUrl: null },
+        lastMessage: null,
+        unreadCount: 0,
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-forward-action-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-picker")).toBeInTheDocument();
+    });
+  });
+
+  it("reactions still work", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [{ emoji: "👍", count: 1, reactedByMe: true }],
+      },
+    ]);
+    const { removeDirectMessageReaction: removeMock } = await import("@/lib/direct-conversations-api");
+    vi.mocked(removeMock).mockResolvedValueOnce([]);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reaction-chip-dm1-👍")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-reaction-chip-dm1-👍"));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("direct-reaction-chip-dm1-👍")).not.toBeInTheDocument();
+    });
+  });
+
+  it("copy text still works via menu", async () => {
+    const writeTextMock = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: writeTextMock,
+      },
+    });
+
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Message to copy",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-copy-text-action-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-copy-text-action-dm1"));
+
+    await waitFor(() => {
+      expect(writeTextMock).toHaveBeenCalledWith("Message to copy");
     });
   });
 

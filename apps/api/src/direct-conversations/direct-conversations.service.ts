@@ -283,6 +283,42 @@ export class DirectConversationsService {
     return response;
   }
 
+  async deleteMessage(
+    conversationId: string,
+    messageId: string,
+    userId: string,
+  ) {
+    const participant = await this.directConversations.findParticipant(
+      conversationId,
+      userId,
+    );
+    if (!participant) {
+      throw new ForbiddenException('Access denied');
+    }
+
+    const message = await this.directConversations.findMessageById(messageId);
+    if (!message || message.conversationId !== conversationId) {
+      throw new NotFoundException('Message not found');
+    }
+
+    if (message.authorId !== userId) {
+      throw new ForbiddenException('Only the author can delete this message');
+    }
+
+    if (message.deletedAt) {
+      return { ok: true };
+    }
+
+    await this.directConversations.softDeleteDirectMessage(messageId);
+
+    this.websocketEvents.broadcastDirectMessageDeleted(conversationId, {
+      conversationId,
+      messageId,
+    });
+
+    return { ok: true };
+  }
+
   async markAsRead(conversationId: string, currentUserId: string) {
     const participant = await this.directConversations.findParticipant(
       conversationId,

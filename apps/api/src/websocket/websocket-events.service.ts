@@ -419,4 +419,29 @@ export class WebsocketEventsService {
       );
     }
   }
+
+  broadcastDirectMessageDeleted(
+    conversationId: string,
+    payload: {
+      conversationId: string;
+      messageId: string;
+    },
+  ) {
+    try {
+      this.gateway.broadcastToRoom(
+        `direct-conversation:${conversationId}`,
+        'direct:message:deleted',
+        payload,
+      );
+    } catch (error) {
+      this.logger.error(
+        {
+          conversationId,
+          messageId: payload.messageId,
+          error: (error as Error).message,
+        },
+        'Failed to broadcast direct:message:deleted',
+      );
+    }
+  }
 }

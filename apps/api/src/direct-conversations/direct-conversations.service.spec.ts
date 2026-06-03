@@ -109,6 +109,7 @@ describe('DirectConversationsService', () => {
             updateParticipantLastRead: jest.fn(),
             countUnreadMessages: jest.fn(),
             updateDirectMessageContent: jest.fn(),
+            softDeleteDirectMessage: jest.fn(),
             findDirectReaction: jest.fn(),
             createDirectReaction: jest.fn(),
             deleteDirectReaction: jest.fn(),
@@ -130,6 +131,7 @@ describe('DirectConversationsService', () => {
             broadcastDirectMessageCreated: jest.fn(),
             broadcastDirectConversationUpdated: jest.fn(),
             broadcastDirectMessageUpdated: jest.fn(),
+            broadcastDirectMessageDeleted: jest.fn(),
             broadcastDirectReactionAdded: jest.fn(),
             broadcastDirectReactionRemoved: jest.fn(),
           },
@@ -1414,6 +1416,161 @@ describe('DirectConversationsService', () => {
       await expect(
         service.removeReaction(conversationId, messageId, '👍', userId),
       ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+  });
+
+  describe('deleteMessage', () => {
+    it('allows author to delete own message', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p-current',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue(makeMessage());
+      repository.softDeleteDirectMessage.mockResolvedValue({
+        id: messageId,
+        conversationId,
+        authorId: userId,
+        parentId: null,
+        content: 'hello',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        editedAt: null,
+        deletedAt: new Date(),
+      });
+
+      const result = await service.deleteMessage(
+        conversationId,
+        messageId,
+        userId,
+      );
+      expect(result).toEqual({ ok: true });
+      expect(repository.softDeleteDirectMessage).toHaveBeenCalledWith(
+        messageId,
+      );
+      expect(
+        websocketEvents.broadcastDirectMessageDeleted,
+      ).toHaveBeenCalledWith(conversationId, {
+        conversationId,
+        messageId,
+      });
+    });
+
+    it('is idempotent for already deleted message', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p-current',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue(
+        makeMessage({ deletedAt: new Date() }),
+      );
+
+      const result = await service.deleteMessage(
+        conversationId,
+        messageId,
+        userId,
+      );
+      expect(result).toEqual({ ok: true });
+      expect(repository.softDeleteDirectMessage).not.toHaveBeenCalled();
+    });
+
+    it('rejects non-author participant', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p-other',
+        conversationId,
+        userId: otherUserId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue(makeMessage());
+
+      await expect(
+        service.deleteMessage(conversationId, messageId, otherUserId),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('rejects non-participant', async () => {
+      repository.findParticipant.mockResolvedValue(null);
+
+      await expect(
+        service.deleteMessage(conversationId, messageId, 'random-user'),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('rejects message from another conversation', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p-current',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue(
+        makeMessage({ conversationId: 'other-conv-id' }),
+      );
+
+      await expect(
+        service.deleteMessage(conversationId, messageId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('does not broadcast when message was already deleted', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p-current',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue(
+        makeMessage({ deletedAt: new Date() }),
+      );
+
+      await service.deleteMessage(conversationId, messageId, userId);
+      expect(
+        websocketEvents.broadcastDirectMessageDeleted,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('soft delete and listMessages filter out deleted message', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p-current',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue(makeMessage());
+      repository.softDeleteDirectMessage.mockResolvedValue(
+        makeMessage({ deletedAt: new Date() }),
+      );
+
+      await service.deleteMessage(conversationId, messageId, userId);
+      expect(repository.softDeleteDirectMessage).toHaveBeenCalledWith(
+        messageId,
+      );
+    });
+
+    it('replies to deleted parent do not crash listMessages', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p-current',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue(makeMessage());
+      repository.softDeleteDirectMessage.mockResolvedValue(
+        makeMessage({ deletedAt: new Date() }),
+      );
+
+      await service.deleteMessage(conversationId, messageId, userId);
+      expect(repository.softDeleteDirectMessage).toHaveBeenCalled();
     });
   });
 });

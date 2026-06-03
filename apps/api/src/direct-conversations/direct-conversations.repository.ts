@@ -302,6 +302,13 @@ export class DirectConversationsRepository {
     });
   }
 
+  async softDeleteDirectMessage(id: string) {
+    return this.prisma.directMessage.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+  }
+
   async updateDirectMessageContent(messageId: string, content: string) {
     return this.prisma.directMessage.update({
       where: { id: messageId },
