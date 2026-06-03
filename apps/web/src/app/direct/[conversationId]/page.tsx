@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -280,6 +280,18 @@ export default function DirectConversationPage() {
     });
   }
 
+  const markAllReadInState = useCallback(() => {
+    setMessages((prev) => {
+      if (prev.kind !== "success") return prev;
+      return {
+        kind: "success",
+        data: prev.data.map((m) =>
+          m.author.id !== user?.id ? { ...m, isUnreadForMe: false } : m,
+        ),
+      };
+    });
+  }, [user?.id]);
+
   function updateMessageInState(msg: DirectMessage) {
     setMessages((prev) => {
       if (prev.kind !== "success") return prev;
@@ -410,19 +422,21 @@ export default function DirectConversationPage() {
         }
       }
     }
-    load(accessToken, conversationId);
-    // Mark as read when opening conversation
-    markDirectConversationRead(accessToken, conversationId)
-      .then(() => {
-        notifyDirectConversationsChanged();
-      })
-      .catch(() => {
-        // non-blocking
-      });
+    load(accessToken, conversationId).then(() => {
+      if (cancelled) return;
+      markDirectConversationRead(accessToken, conversationId)
+        .then(() => {
+          notifyDirectConversationsChanged();
+          markAllReadInState();
+        })
+        .catch(() => {
+          // non-blocking
+        });
+    });
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, conversationId, accessToken, t]);
+  }, [isAuthenticated, conversationId, accessToken, t, markAllReadInState]);
 
   useEffect(() => {
     if (!isAuthenticated || !conversationId || !accessToken) return;
@@ -442,7 +456,7 @@ export default function DirectConversationPage() {
         return;
       }
       const wasNearBottom = isNearBottom();
-      appendMessage(msg);
+      appendMessage({ ...msg, isUnreadForMe: false });
       if (wasNearBottom) {
         requestAnimationFrame(() => scrollMessagesToBottom("smooth"));
       }
@@ -451,6 +465,7 @@ export default function DirectConversationPage() {
         markDirectConversationRead(accessToken, conversationId)
           .then(() => {
             notifyDirectConversationsChanged();
+            markAllReadInState();
           })
           .catch(() => {
             // non-blocking
@@ -891,11 +906,22 @@ export default function DirectConversationPage() {
 
               {messages.kind === "success" && messages.data.length > 0 && (
                 <ul className="mt-4 space-y-3">
-                  {messages.data.map((msg) => {
-                    const isOwnMessage = user?.id === msg.author.id;
-                    return (
-                      <li
-                        key={msg.id}
+                  {(() => {
+                    const firstUnreadIndex = messages.data.findIndex((m) => m.isUnreadForMe && m.author.id !== user?.id);
+                    return messages.data.map((msg, index) => {
+                      const isOwnMessage = user?.id === msg.author.id;
+                      const showSeparator = index === firstUnreadIndex;
+                      return [
+                        showSeparator ? (
+                          <li key="unread-separator" data-testid="direct-unread-separator" className="flex justify-center py-2">
+                            <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 px-3 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                              {t("direct.unreadMessages")}
+                            </span>
+                          </li>
+                        ) : null,
+                        (
+                          <li
+                            key={msg.id}
                         id={`message-${msg.id}`}
                         data-testid={`direct-message-row-${msg.id}`}
                         ref={(el) => {
@@ -1027,9 +1053,11 @@ export default function DirectConversationPage() {
 
                           </div>
                         </div>
-                      </li>
-                    );
-                  })}
+                          </li>
+                        ),
+                      ];
+                    });
+                  })()}
                 </ul>
               )}
 

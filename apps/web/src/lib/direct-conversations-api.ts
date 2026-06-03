@@ -60,6 +60,7 @@ export interface DirectMessage {
   parent: DirectMessageParentPreview | null;
   reactions: DirectMessageReactionSummary[];
   readByOtherParticipant: boolean;
+  isUnreadForMe: boolean;
 }
 
 export interface SendDirectMessageInput {

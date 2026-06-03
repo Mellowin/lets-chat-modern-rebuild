@@ -6642,3 +6642,634 @@ describe("DirectConversationPage — B98 regression", () => {
     });
   });
 });
+
+
+describe("DirectConversationPage — unread separator", () => {
+  it("no separator when no unread messages", async () => {
+    vi.mocked(markDirectConversationRead).mockImplementation(() => new Promise(() => {}));
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+        parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("direct-unread-separator")).not.toBeInTheDocument();
+  });
+
+  it("separator appears before first unread incoming message", async () => {
+    vi.mocked(markDirectConversationRead).mockImplementation(() => new Promise(() => {}));
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Old",
+        parentId: null,
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+        parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
+      },
+      {
+        id: "dm2",
+        conversationId: "dc1",
+        content: "Unread1",
+        parentId: null,
+        createdAt: "2024-01-01T01:00:00Z",
+        updatedAt: "2024-01-01T01:00:00Z",
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+        parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: true,
+      },
+      {
+        id: "dm3",
+        conversationId: "dc1",
+        content: "Unread2",
+        parentId: null,
+        createdAt: "2024-01-01T02:00:00Z",
+        updatedAt: "2024-01-01T02:00:00Z",
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+        parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: true,
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-unread-separator")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("direct-unread-separator")).toHaveTextContent("Unread messages");
+  });
+
+  it("separator appears only once even with multiple unread messages", async () => {
+    vi.mocked(markDirectConversationRead).mockImplementation(() => new Promise(() => {}));
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Old",
+        parentId: null,
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+        parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
+      },
+      {
+        id: "dm2",
+        conversationId: "dc1",
+        content: "Unread1",
+        parentId: null,
+        createdAt: "2024-01-01T01:00:00Z",
+        updatedAt: "2024-01-01T01:00:00Z",
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+        parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: true,
+      },
+      {
+        id: "dm3",
+        conversationId: "dc1",
+        content: "Unread2",
+        parentId: null,
+        createdAt: "2024-01-01T02:00:00Z",
+        updatedAt: "2024-01-01T02:00:00Z",
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+        parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: true,
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-unread-separator")).toBeInTheDocument();
+    });
+    expect(screen.getAllByTestId("direct-unread-separator").length).toBe(1);
+  });
+
+  it("separator does not appear before own unread-like messages", async () => {
+    vi.mocked(markDirectConversationRead).mockImplementation(() => new Promise(() => {}));
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Own",
+        parentId: null,
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
+      },
+      {
+        id: "dm2",
+        conversationId: "dc1",
+        content: "Own unread-like",
+        parentId: null,
+        createdAt: "2024-01-01T01:00:00Z",
+        updatedAt: "2024-01-01T01:00:00Z",
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: true,
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Own unread-like")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("direct-unread-separator")).not.toBeInTheDocument();
+  });
+
+  it("separator disappears after mark read succeeds", async () => {
+    const resolvers: Array<() => void> = [];
+    vi.mocked(markDirectConversationRead).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvers.push(() => resolve({ ok: true }));
+        }),
+    );
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Unread",
+        parentId: null,
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+        parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: true,
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-unread-separator")).toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      expect(resolvers.length).toBe(1);
+    });
+    resolvers[0]();
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("direct-unread-separator")).not.toBeInTheDocument();
+    });
+  });
+
+  it("incoming message while open does not create duplicate separator", async () => {
+    const resolvers: Array<() => void> = [];
+    vi.mocked(markDirectConversationRead).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvers.push(() => resolve({ ok: true }));
+        }),
+    );
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Unread",
+        parentId: null,
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+        parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: true,
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-unread-separator")).toBeInTheDocument();
+    });
+
+    const handler = socketHandlers["direct:message:created"];
+    handler({
+      id: "dm-live",
+      conversationId: "dc1",
+      content: "Live",
+      parentId: null,
+      createdAt: "2024-01-01T01:00:00Z",
+      updatedAt: "2024-01-01T01:00:00Z",
+      editedAt: null,
+      author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+      parent: null,
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Live")).toBeInTheDocument();
+    });
+
+    // Resolve the auto-mark-read triggered by incoming message
+    await waitFor(() => {
+      expect(resolvers.length).toBe(2);
+    });
+    resolvers[1]();
+
+    // Auto-mark-read removes the separator; verify no duplicate ever appeared
+    await waitFor(() => {
+      expect(screen.queryByTestId("direct-unread-separator")).not.toBeInTheDocument();
+    });
+  });
+});
+
+describe("DirectConversationPage — B105 regression", () => {
+  it("send still works", async () => {
+    mockMessages([]);
+    const newMsg = {
+      id: "dm1",
+      conversationId: "dc1",
+      content: "Hello",
+      parentId: null,
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      editedAt: null,
+      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      parent: null,
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
+    };
+    vi.mocked(sendDirectMessage).mockResolvedValueOnce(newMsg);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Type a message/i)).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Type a message/i), "Hello");
+    await userEvent.click(screen.getByRole("button", { name: /Send/i }));
+
+    await waitFor(() => {
+      expect(sendDirectMessage).toHaveBeenCalledWith("token", "dc1", { content: "Hello" });
+    });
+    expect(screen.getByText("Hello")).toBeInTheDocument();
+  });
+
+  it("edit still works", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Original",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
+      },
+    ]);
+    const { updateDirectMessage: updateMock } = await import("@/lib/direct-conversations-api");
+    vi.mocked(updateMock).mockResolvedValueOnce({
+      id: "dm1",
+      conversationId: "dc1",
+      content: "Updated",
+      parentId: null,
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      editedAt: new Date().toISOString(),
+      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      parent: null,
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
+    });
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-edit-action-dm1")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByTestId("direct-edit-action-dm1"));
+
+    const textarea = screen.getByPlaceholderText(/Type a message/i);
+    await userEvent.clear(textarea);
+    await userEvent.type(textarea, "Updated");
+    await userEvent.click(screen.getByRole("button", { name: /Save/i }));
+
+    await waitFor(() => {
+      expect(updateMock).toHaveBeenCalledWith("token", "dc1", "dm1", { content: "Updated" });
+    });
+    expect(screen.getByText("Updated")).toBeInTheDocument();
+  });
+
+  it("delete still works", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
+      },
+    ]);
+    vi.mocked(deleteDirectMessage).mockResolvedValueOnce({ ok: true });
+    vi.stubGlobal("confirm", vi.fn(() => true));
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-delete-action-dm1")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByTestId("direct-delete-action-dm1"));
+
+    await waitFor(() => {
+      expect(deleteDirectMessage).toHaveBeenCalledWith("token", "dc1", "dm1");
+    });
+    expect(screen.queryByText("Hello")).not.toBeInTheDocument();
+
+    vi.unstubAllGlobals();
+  });
+
+  it("reply still works", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Original",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
+      },
+    ]);
+    const newMsg = {
+      id: "dm2",
+      conversationId: "dc1",
+      content: "Reply",
+      parentId: "dm1",
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      editedAt: null,
+      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      parent: {
+        id: "dm1",
+        content: "Original",
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+      },
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
+    };
+    vi.mocked(sendDirectMessage).mockResolvedValueOnce(newMsg);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reply-action-dm1")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByTestId("direct-reply-action-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reply-preview")).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Type a message/i), "Reply");
+    await userEvent.click(screen.getByRole("button", { name: /Send/i }));
+
+    await waitFor(() => {
+      expect(sendDirectMessage).toHaveBeenCalledWith("token", "dc1", { content: "Reply", parentId: "dm1" });
+    });
+  });
+
+  it("forward still works", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
+      },
+    ]);
+    vi.mocked(listDirectConversations).mockResolvedValueOnce([
+      {
+        id: "dc1",
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null },
+        lastMessage: null,
+        unreadCount: 0,
+        isOnline: false,
+      },
+      {
+        id: "dc2",
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        otherParticipant: { id: "u4", username: "dave", displayName: "Dave", avatarUrl: null },
+        lastMessage: null,
+        unreadCount: 0,
+        isOnline: false,
+      },
+    ]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-action-dm1")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByTestId("direct-forward-action-dm1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-forward-picker")).toBeInTheDocument();
+    });
+  });
+
+  it("reactions still work", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [{ emoji: "👍", count: 1, reactedByMe: true }],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
+      },
+    ]);
+    const { removeDirectMessageReaction: removeMock } = await import("@/lib/direct-conversations-api");
+    vi.mocked(removeMock).mockResolvedValueOnce([]);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reaction-chip-dm1-👍")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-reaction-chip-dm1-👍"));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("direct-reaction-chip-dm1-👍")).not.toBeInTheDocument();
+    });
+  });
+
+  it("typing still works", async () => {
+    mockMessages([]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(socketHandlers["direct:typing"]).toBeDefined();
+    });
+
+    const handler = socketHandlers["direct:typing"];
+    handler({
+      conversationId: "dc1",
+      user: { id: "u2", username: "bob", displayName: "Bob" },
+      isTyping: true,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-typing-indicator")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("direct-typing-indicator")).toHaveTextContent(/Bob is typing/i);
+  });
+
+  it("presence still works", async () => {
+    mockMessages([]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Offline")).toBeInTheDocument();
+    });
+
+    const handler = socketHandlers["presence:online"];
+    handler({ user: { id: "u3", username: "charlie" }, status: "online" });
+
+    await waitFor(() => {
+      expect(screen.getByText("Online")).toBeInTheDocument();
+    });
+  });
+
+  it("read receipts still work", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "My message",
+        parentId: null,
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
+      },
+    ]);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-read-receipt-dm1")).toHaveTextContent("Sent");
+    });
+
+    socketHandlers["connected"]?.();
+    socketHandlers["direct:conversation:read"]?.({
+      conversationId: "dc1",
+      userId: "u3",
+      readAt: "2024-01-01T12:00:00Z",
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-read-receipt-dm1")).toHaveTextContent("Seen");
+    });
+  });
+});

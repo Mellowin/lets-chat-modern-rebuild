@@ -80,6 +80,7 @@ export class DirectConversationsService {
       ReturnType<DirectConversationsRepository['createMessage']>
     >,
     currentUserId: string,
+    myLastReadAt: Date | null,
     otherParticipantLastReadAt: Date | null,
     reactions?: Array<{ emoji: string; count: number; reactedByMe: boolean }>,
   ) {
@@ -107,6 +108,10 @@ export class DirectConversationsService {
               otherParticipantLastReadAt >= message.createdAt
             )
           : false,
+      isUnreadForMe:
+        message.authorId === currentUserId
+          ? false
+          : myLastReadAt === null || message.createdAt > myLastReadAt,
     };
   }
 
@@ -173,6 +178,8 @@ export class DirectConversationsService {
 
     const participants =
       await this.directConversations.findParticipants(conversationId);
+    const myParticipant = participants.find((p) => p.userId === currentUserId);
+    const myLastReadAt = myParticipant?.lastReadAt ?? null;
     const otherParticipant = participants.find(
       (p) => p.userId !== currentUserId,
     );
@@ -198,6 +205,7 @@ export class DirectConversationsService {
       this.toMessageResponse(
         m,
         currentUserId,
+        myLastReadAt,
         otherParticipantLastReadAt,
         reactionsMap.get(m.id) ?? [],
       ),
@@ -235,6 +243,8 @@ export class DirectConversationsService {
 
     const participants =
       await this.directConversations.findParticipants(conversationId);
+    const myParticipant = participants.find((p) => p.userId === currentUserId);
+    const myLastReadAt = myParticipant?.lastReadAt ?? null;
     const otherParticipant = participants.find(
       (p) => p.userId !== currentUserId,
     );
@@ -252,6 +262,7 @@ export class DirectConversationsService {
     const response = this.toMessageResponse(
       message,
       currentUserId,
+      myLastReadAt,
       otherParticipantLastReadAt,
     );
     this.websocketEvents.broadcastDirectMessageCreated(
@@ -301,6 +312,8 @@ export class DirectConversationsService {
 
     const participants =
       await this.directConversations.findParticipants(conversationId);
+    const myParticipant = participants.find((p) => p.userId === userId);
+    const myLastReadAt = myParticipant?.lastReadAt ?? null;
     const otherParticipant = participants.find((p) => p.userId !== userId);
     const otherParticipantLastReadAt = otherParticipant?.lastReadAt ?? null;
 
@@ -317,6 +330,7 @@ export class DirectConversationsService {
     const response = this.toMessageResponse(
       updated,
       userId,
+      myLastReadAt,
       otherParticipantLastReadAt,
       reactions,
     );

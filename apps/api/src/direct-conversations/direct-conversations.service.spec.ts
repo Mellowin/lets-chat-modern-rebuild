@@ -489,6 +489,120 @@ describe('DirectConversationsService', () => {
       const result = await service.listMessages(conversationId, userId);
       expect(result[0].readByOtherParticipant).toBe(false);
     });
+
+    it('marks incoming messages after lastReadAt as isUnreadForMe true', async () => {
+      const msgCreatedAt = new Date('2024-01-01T12:00:00Z');
+      const myLastReadAt = new Date('2024-01-01T10:00:00Z');
+      repository.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: myLastReadAt,
+      });
+      repository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: myLastReadAt },
+        { userId: otherUserId, lastReadAt: null },
+      ]);
+      repository.listMessagesForConversation.mockResolvedValue([
+        makeMessage({
+          createdAt: msgCreatedAt,
+          authorId: otherUserId,
+          author: {
+            id: otherUserId,
+            username: 'bob',
+            displayName: 'Bob',
+            avatarUrl: null,
+          },
+        }),
+      ]);
+      repository.getDirectMessageReactions.mockResolvedValue([]);
+
+      const result = await service.listMessages(conversationId, userId);
+      expect(result[0].isUnreadForMe).toBe(true);
+    });
+
+    it('marks incoming messages before/equal lastReadAt as isUnreadForMe false', async () => {
+      const msgCreatedAt = new Date('2024-01-01T09:00:00Z');
+      const myLastReadAt = new Date('2024-01-01T10:00:00Z');
+      repository.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: myLastReadAt,
+      });
+      repository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: myLastReadAt },
+        { userId: otherUserId, lastReadAt: null },
+      ]);
+      repository.listMessagesForConversation.mockResolvedValue([
+        makeMessage({
+          createdAt: msgCreatedAt,
+          authorId: otherUserId,
+          author: {
+            id: otherUserId,
+            username: 'bob',
+            displayName: 'Bob',
+            avatarUrl: null,
+          },
+        }),
+      ]);
+      repository.getDirectMessageReactions.mockResolvedValue([]);
+
+      const result = await service.listMessages(conversationId, userId);
+      expect(result[0].isUnreadForMe).toBe(false);
+    });
+
+    it('marks own messages as isUnreadForMe false', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: null,
+      });
+      repository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: null },
+      ]);
+      repository.listMessagesForConversation.mockResolvedValue([
+        makeMessage({ authorId: userId }),
+      ]);
+      repository.getDirectMessageReactions.mockResolvedValue([]);
+
+      const result = await service.listMessages(conversationId, userId);
+      expect(result[0].isUnreadForMe).toBe(false);
+    });
+
+    it('marks incoming messages unread when lastReadAt is null', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: null,
+      });
+      repository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: null },
+      ]);
+      repository.listMessagesForConversation.mockResolvedValue([
+        makeMessage({
+          authorId: otherUserId,
+          author: {
+            id: otherUserId,
+            username: 'bob',
+            displayName: 'Bob',
+            avatarUrl: null,
+          },
+        }),
+      ]);
+      repository.getDirectMessageReactions.mockResolvedValue([]);
+
+      const result = await service.listMessages(conversationId, userId);
+      expect(result[0].isUnreadForMe).toBe(true);
+    });
   });
 
   describe('createMessage', () => {
@@ -570,6 +684,28 @@ describe('DirectConversationsService', () => {
         userId,
       );
       expect(result.readByOtherParticipant).toBe(false);
+    });
+
+    it('returns isUnreadForMe false for author on create', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: null,
+      });
+      repository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: null },
+      ]);
+      repository.createMessage.mockResolvedValue(makeMessage());
+
+      const result = await service.createMessage(
+        conversationId,
+        { content: 'hello' },
+        userId,
+      );
+      expect(result.isUnreadForMe).toBe(false);
     });
 
     it('broadcasts direct:message:created after successful create', async () => {
@@ -1109,6 +1245,33 @@ describe('DirectConversationsService', () => {
         'updated',
       );
       expect(result.readByOtherParticipant).toBe(true);
+    });
+
+    it('preserves isUnreadForMe false for own message in update response', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p-current',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: null },
+      ]);
+      repository.findMessageById.mockResolvedValue(makeMessage());
+      repository.updateDirectMessageContent.mockResolvedValue(
+        makeMessage({ content: 'updated', editedAt: new Date() }),
+      );
+      repository.getDirectMessageReactions.mockResolvedValue([]);
+
+      const result = await service.updateMessage(
+        conversationId,
+        messageId,
+        userId,
+        'updated',
+      );
+      expect(result.isUnreadForMe).toBe(false);
     });
 
     it('does not broadcast direct:conversation:updated when editing a non-last message', async () => {

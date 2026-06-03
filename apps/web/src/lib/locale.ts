@@ -280,7 +280,8 @@ export type TranslationKey =
   | "direct.confirmDelete"
   | "direct.failedDeleteMessage"
   | "direct.typing"
-  | "direct.typingFallback";
+  | "direct.typingFallback"
+  | "direct.unreadMessages";
 
 const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string) => string)>> = {
   en: {
@@ -510,6 +511,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "direct.failedDeleteMessage": "Failed to delete message",
     "direct.typing": "{arg0} is typing…",
     "direct.typingFallback": "Someone is typing…",
+    "direct.unreadMessages": "Unread messages",
     "workspace.confirmArchiveChannelPrefix": "Archive channel",
     "workspace.confirmArchiveChannelBody": "This will hide the channel from the workspace. Only the channel owner can do this.",
     "workspace.confirmRestoreChannelPrefix": "Restore channel",
@@ -775,6 +777,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "direct.failedDeleteMessage": "Не вдалося видалити повідомлення",
     "direct.typing": "{arg0} друкує…",
     "direct.typingFallback": "Хтось друкує…",
+    "direct.unreadMessages": "Непрочитані повідомлення",
     "workspace.confirmArchiveChannelPrefix": "Архівувати канал",
     "workspace.confirmArchiveChannelBody": "Це приховає канал з робочого простору. Це може зробити лише власник каналу.",
     "workspace.confirmRestoreChannelPrefix": "Відновити канал",
@@ -1040,6 +1043,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "direct.failedDeleteMessage": "Не удалось удалить сообщение",
     "direct.typing": "{arg0} печатает…",
     "direct.typingFallback": "Кто-то печатает…",
+    "direct.unreadMessages": "Непрочитанные сообщения",
     "workspace.confirmArchiveChannelPrefix": "Архивировать канал",
     "workspace.confirmArchiveChannelBody": "Это скроет канал из рабочего пространства. Это может сделать только владелец канала.",
     "workspace.confirmRestoreChannelPrefix": "Восстановить канал",
