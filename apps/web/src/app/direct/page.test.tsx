@@ -76,6 +76,7 @@ function mockConversation(overrides?: Partial<DirectConversation>): DirectConver
     otherParticipant: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
     lastMessage: { id: "dm1", content: "Hey", createdAt: "2024-01-01T00:00:00Z", authorId: "u2" },
     unreadCount: 3,
+    isOnline: false,
     ...overrides,
   };
 }
@@ -647,5 +648,114 @@ describe("DirectMessagesPage — socket unread updates", () => {
     });
 
     expect(screen.queryByText("Hey")).not.toBeInTheDocument();
+  });
+
+  it("shows offline presence dot by default", async () => {
+    mockAuth();
+    vi.mocked(listDirectConversations).mockResolvedValue([mockConversation({ isOnline: false })]);
+
+    render(<DirectMessagesPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-list-presence-dc1")).toBeInTheDocument();
+    });
+  });
+
+  it("shows online presence dot when other participant is online", async () => {
+    mockAuth();
+    vi.mocked(listDirectConversations).mockResolvedValue([mockConversation({ isOnline: true })]);
+
+    render(<DirectMessagesPage />);
+
+    await waitFor(() => {
+      const dot = screen.getByTestId("direct-list-presence-dot-dc1");
+      expect(dot).toHaveClass("bg-emerald-500");
+    });
+  });
+
+  it("updates presence to online on presence:online for matching row", async () => {
+    mockAuth();
+    vi.mocked(listDirectConversations).mockResolvedValue([mockConversation({ isOnline: false })]);
+
+    render(<DirectMessagesPage />);
+
+    await waitFor(() => {
+      const dot = screen.getByTestId("direct-list-presence-dot-dc1");
+      expect(dot).toHaveClass("bg-zinc-400");
+    });
+
+    const handler = socketHandlers["presence:online"];
+    handler({ user: { id: "u2", username: "bob" }, status: "online" });
+
+    await waitFor(() => {
+      const dot = screen.getByTestId("direct-list-presence-dot-dc1");
+      expect(dot).toHaveClass("bg-emerald-500");
+    });
+  });
+
+  it("updates presence to offline on presence:offline for matching row", async () => {
+    mockAuth();
+    vi.mocked(listDirectConversations).mockResolvedValue([mockConversation({ isOnline: true })]);
+
+    render(<DirectMessagesPage />);
+
+    await waitFor(() => {
+      const dot = screen.getByTestId("direct-list-presence-dot-dc1");
+      expect(dot).toHaveClass("bg-emerald-500");
+    });
+
+    const handler = socketHandlers["presence:offline"];
+    handler({ user: { id: "u2", username: "bob" }, status: "offline" });
+
+    await waitFor(() => {
+      const dot = screen.getByTestId("direct-list-presence-dot-dc1");
+      expect(dot).toHaveClass("bg-zinc-400");
+    });
+  });
+
+  it("does not change unread count on presence event", async () => {
+    mockAuth();
+    vi.mocked(listDirectConversations).mockResolvedValue([mockConversation({ unreadCount: 3, isOnline: false })]);
+
+    render(<DirectMessagesPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("3")).toBeInTheDocument();
+    });
+
+    const handler = socketHandlers["presence:online"];
+    handler({ user: { id: "u2", username: "bob" }, status: "online" });
+
+    await waitFor(() => {
+      const dot = screen.getByTestId("direct-list-presence-dot-dc1");
+      expect(dot).toHaveClass("bg-emerald-500");
+    });
+
+    expect(screen.getByText("3")).toBeInTheDocument();
+  });
+
+  it("does not move row to top on presence event", async () => {
+    mockAuth();
+    vi.mocked(listDirectConversations).mockResolvedValue([
+      mockConversation({ id: "dc2", updatedAt: "2024-01-02T00:00:00Z", unreadCount: 0, otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null }, lastMessage: { id: "dm2", content: "Later", createdAt: "2024-01-02T00:00:00Z", authorId: "u3" } }),
+      mockConversation({ id: "dc1", updatedAt: "2024-01-01T00:00:00Z", unreadCount: 1 }),
+    ]);
+
+    render(<DirectMessagesPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Bob")).toBeInTheDocument();
+    });
+
+    const handler = socketHandlers["presence:online"];
+    handler({ user: { id: "u2", username: "bob" }, status: "online" });
+
+    await waitFor(() => {
+      const dot = screen.getByTestId("direct-list-presence-dot-dc1");
+      expect(dot).toHaveClass("bg-emerald-500");
+    });
+
+    const links = screen.getAllByRole("link");
+    expect(links[0]).toHaveAttribute("href", "/direct/dc2");
   });
 });

@@ -79,6 +79,7 @@ describe('WebsocketGateway', () => {
           provide: DirectConversationsRepository,
           useValue: {
             findParticipant: jest.fn(),
+            findParticipants: jest.fn().mockResolvedValue([]),
           },
         },
         PresenceService,
@@ -937,6 +938,135 @@ describe('WebsocketGateway', () => {
       expect(socket.emit).toHaveBeenCalledWith('direct:error', {
         message: 'Direct conversation room not joined',
         conversationId,
+      });
+    });
+  });
+
+  describe('handleDirectJoin presence', () => {
+    it('should emit presence:online on direct join', async () => {
+      const socket = createMockSocket({
+        data: {
+          user: { id: userId, username: 'testuser', displayName: 'Test User' },
+        },
+      });
+
+      directConversations.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+
+      await gateway.handleDirectJoin(socket, { conversationId });
+
+      expect(socket.to).toHaveBeenCalledWith(
+        `direct-conversation:${conversationId}`,
+      );
+      expect(
+        socket.to(`direct-conversation:${conversationId}`).emit,
+      ).toHaveBeenCalledWith('presence:online', {
+        user: { id: userId, username: 'testuser', displayName: 'Test User' },
+        status: 'online',
+      });
+    });
+
+    it('should emit presence:offline on direct leave when no other socket in room', async () => {
+      const socket = createMockSocket({
+        id: 'socket-d1',
+        data: {
+          user: { id: userId, username: 'testuser', displayName: 'Test User' },
+        },
+      });
+      socket.rooms.add(`direct-conversation:${conversationId}`);
+      gateway['presence']['userSockets'].set(
+        userId,
+        new Set(['socket-d1', 'socket-d2']),
+      );
+      gateway['presence']['socketRooms'].set(
+        'socket-d1',
+        new Set([`direct-conversation:${conversationId}`]),
+      );
+      gateway['presence']['socketRooms'].set('socket-d2', new Set());
+      gateway['presence']['userRooms'].set(
+        userId,
+        new Set([`direct-conversation:${conversationId}`]),
+      );
+
+      await gateway.handleDirectLeave(socket, { conversationId });
+
+      expect(socket.to).toHaveBeenCalledWith(
+        `direct-conversation:${conversationId}`,
+      );
+      expect(
+        socket.to(`direct-conversation:${conversationId}`).emit,
+      ).toHaveBeenCalledWith('presence:offline', {
+        user: { id: userId, username: 'testuser', displayName: 'Test User' },
+        status: 'offline',
+      });
+    });
+
+    it('should not emit offline on direct leave when another socket still in room', async () => {
+      const socket1 = createMockSocket({
+        id: 'socket-e1',
+        data: { user: { id: userId, username: 'testuser' } },
+      });
+      const socket2 = createMockSocket({
+        id: 'socket-e2',
+        data: { user: { id: userId, username: 'testuser' } },
+      });
+      socket1.rooms.add(`direct-conversation:${conversationId}`);
+      socket2.rooms.add(`direct-conversation:${conversationId}`);
+      gateway['presence']['userSockets'].set(
+        userId,
+        new Set(['socket-e1', 'socket-e2']),
+      );
+      gateway['presence']['socketRooms'].set(
+        'socket-e1',
+        new Set([`direct-conversation:${conversationId}`]),
+      );
+      gateway['presence']['socketRooms'].set(
+        'socket-e2',
+        new Set([`direct-conversation:${conversationId}`]),
+      );
+      gateway['presence']['userRooms'].set(
+        userId,
+        new Set([`direct-conversation:${conversationId}`]),
+      );
+
+      await gateway.handleDirectLeave(socket1, { conversationId });
+
+      expect(socket1.to).not.toHaveBeenCalled();
+    });
+
+    it('should emit presence:offline on disconnect for direct room', () => {
+      const socket = createMockSocket({
+        id: 'socket-f',
+        data: {
+          user: { id: userId, username: 'testuser', displayName: 'Test User' },
+        },
+      });
+      gateway['presence']['userSockets'].set(userId, new Set(['socket-f']));
+      gateway['presence']['socketRooms'].set(
+        'socket-f',
+        new Set([`direct-conversation:${conversationId}`]),
+      );
+      gateway['presence']['userRooms'].set(
+        userId,
+        new Set([`direct-conversation:${conversationId}`]),
+      );
+
+      gateway.handleDisconnect(socket);
+
+      expect(gateway['presence']['userSockets'].has(userId)).toBe(false);
+      expect(gateway.server.to).toHaveBeenCalledWith(
+        `direct-conversation:${conversationId}`,
+      );
+      expect(
+        gateway.server.to(`direct-conversation:${conversationId}`).emit,
+      ).toHaveBeenCalledWith('presence:offline', {
+        user: { id: userId, username: 'testuser', displayName: 'Test User' },
+        status: 'offline',
       });
     });
   });

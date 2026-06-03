@@ -64,6 +64,22 @@ export class WebsocketGateway
     private readonly presence: PresenceService,
   ) {}
 
+  private async broadcastPresenceToOtherParticipant(
+    conversationId: string,
+    userId: string,
+    event: 'presence:online' | 'presence:offline',
+    user: { id: string; username?: string | null; displayName?: string | null },
+  ) {
+    const participants = await this.directConversations.findParticipants(conversationId);
+    const other = participants.find((p) => p.userId !== userId);
+    if (other) {
+      this.server.to(`user:${other.userId}`).emit(event, {
+        user,
+        status: event === 'presence:online' ? 'online' : 'offline',
+      });
+    }
+  }
+
   private getHandshakeToken(socket: Socket): string | null {
     const auth: unknown = socket.handshake.auth;
 
@@ -158,7 +174,7 @@ export class WebsocketGateway
     }
   }
 
-  handleDisconnect(socket: Socket) {
+  async handleDisconnect(socket: Socket) {
     const socketId = socket.id;
     const userId = this.getSocketUser(socket)?.id;
     const rooms = this.presence.getSocketRooms(socketId);
@@ -170,13 +186,26 @@ export class WebsocketGateway
 
       for (const room of rooms) {
         if (!this.presence.hasOtherSocketInRoom(userId, socketId, room)) {
+          const user = {
+            id: userId,
+            username: this.getSocketUser(socket)?.username,
+            displayName: this.getSocketUser(socket)?.displayName,
+          };
           this.server.to(room).emit('presence:offline', {
-            user: {
-              id: userId,
-              username: this.getSocketUser(socket)?.username,
-            },
+            user,
             status: 'offline',
           });
+
+          if (room.startsWith('direct-conversation:')) {
+            const conversationId = room.replace('direct-conversation:', '');
+            await this.broadcastPresenceToOtherParticipant(
+              conversationId,
+              userId,
+              'presence:offline',
+              user,
+            );
+          }
+
           this.presence.removeUserRoom(userId, room);
         }
       }
@@ -322,6 +351,24 @@ export class WebsocketGateway
     this.presence.addSocketRoom(socket.id, room);
     this.presence.addUserRoom(userId, room);
 
+    const user = {
+      id: userId,
+      username: this.getSocketUser(socket)?.username,
+      displayName: this.getSocketUser(socket)?.displayName,
+    };
+
+    socket.to(room).emit('presence:online', {
+      user,
+      status: 'online',
+    });
+
+    await this.broadcastPresenceToOtherParticipant(
+      conversationId,
+      userId,
+      'presence:online',
+      user,
+    );
+
     this.logger.log(
       { socketId: socket.id, userId, conversationId },
       'Joined direct conversation room',
@@ -359,7 +406,23 @@ export class WebsocketGateway
 
     this.presence.removeSocketRoom(socket.id, room);
 
+    const user = {
+      id: userId,
+      username: this.getSocketUser(socket)?.username,
+      displayName: this.getSocketUser(socket)?.displayName,
+    };
+
     if (!this.presence.hasOtherSocketInRoom(userId, socket.id, room)) {
+      socket.to(room).emit('presence:offline', {
+        user,
+        status: 'offline',
+      });
+      await this.broadcastPresenceToOtherParticipant(
+        conversationId,
+        userId,
+        'presence:offline',
+        user,
+      );
       this.presence.removeUserRoom(userId, room);
     }
 

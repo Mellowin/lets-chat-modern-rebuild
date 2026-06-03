@@ -73,6 +73,7 @@ export default function DirectConversationPage() {
     | { kind: "error"; message: string }
   >({ kind: "idle" });
   const [typingUser, setTypingUser] = useState<{ id: string; username: string; displayName: string | null } | null>(null);
+  const [presenceStatus, setPresenceStatus] = useState<"online" | "offline">("offline");
   const messagesScrollRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const didInitialScroll = useRef(false);
@@ -395,6 +396,11 @@ export default function DirectConversationPage() {
           const conv = convsData.find((c) => c.id === id) ?? null;
           setConversation({ kind: "success", data: conv });
           setForwardConversations(convsData);
+          if (conv?.isOnline) {
+            setPresenceStatus("online");
+          } else {
+            setPresenceStatus("offline");
+          }
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : t("direct.failedLoadMessages");
@@ -544,6 +550,22 @@ export default function DirectConversationPage() {
       }
     }
 
+    function handlePresenceOnline(payload: {
+      user: { id: string; username: string; displayName?: string | null };
+      status: string;
+    }) {
+      if (payload.user.id === user?.id) return;
+      setPresenceStatus("online");
+    }
+
+    function handlePresenceOffline(payload: {
+      user: { id: string; username: string; displayName?: string | null };
+      status: string;
+    }) {
+      if (payload.user.id === user?.id) return;
+      setPresenceStatus("offline");
+    }
+
     socket.on("direct:message:created", handleDirectMessageCreated);
     socket.on("direct:message:updated", handleDirectMessageUpdated);
     socket.on("direct:message:deleted", handleDirectMessageDeleted);
@@ -555,6 +577,8 @@ export default function DirectConversationPage() {
     socket.on("direct:reaction:added", handleDirectReactionAdded);
     socket.on("direct:reaction:removed", handleDirectReactionRemoved);
     socket.on("direct:typing", handleDirectTyping);
+    socket.on("presence:online", handlePresenceOnline);
+    socket.on("presence:offline", handlePresenceOffline);
 
     // If socket is already connected, server auth is complete;
     // emit join immediately. For reconnects, serverConnected will fire.
@@ -574,6 +598,8 @@ export default function DirectConversationPage() {
       socket.off("direct:reaction:added", handleDirectReactionAdded);
       socket.off("direct:reaction:removed", handleDirectReactionRemoved);
       socket.off("direct:typing", handleDirectTyping);
+      socket.off("presence:online", handlePresenceOnline);
+      socket.off("presence:offline", handlePresenceOffline);
       emitTypingStop();
       clearTypingTimeouts();
       socket.emit("direct:leave", { conversationId });
@@ -794,8 +820,19 @@ export default function DirectConversationPage() {
                 <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                   {conversation.data.otherParticipant.displayName || conversation.data.otherParticipant.username || t("messageAuthor.unknownUser")}
                 </p>
-                <p className="text-[10px] text-zinc-500 dark:text-zinc-400">
-                  {conversation.data.otherParticipant.username}
+                <p
+                  data-testid="direct-presence-status"
+                  className="text-[10px] text-zinc-500 dark:text-zinc-400 flex items-center gap-1"
+                >
+                  <span
+                    data-testid="direct-presence-dot"
+                    className={`inline-block h-1.5 w-1.5 rounded-full ${
+                      presenceStatus === "online"
+                        ? "bg-emerald-500"
+                        : "bg-zinc-400 dark:bg-zinc-500"
+                    }`}
+                  />
+                  {presenceStatus === "online" ? t("direct.online") : t("direct.offline")}
                 </p>
               </div>
             </div>

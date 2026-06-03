@@ -15,6 +15,6 @@ import { PresenceService } from './presence.service';
     forwardRef(() => DirectConversationsModule),
   ],
   providers: [WebsocketGateway, WebsocketEventsService, PresenceService],
-  exports: [WebsocketEventsService],
+  exports: [WebsocketEventsService, PresenceService],
 })
 export class WebsocketModule {}

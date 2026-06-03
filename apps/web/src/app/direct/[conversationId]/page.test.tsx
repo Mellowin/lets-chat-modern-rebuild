@@ -84,6 +84,7 @@ beforeEach(() => {
       otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null },
       lastMessage: null,
       unreadCount: 0,
+      isOnline: false,
     },
   ]);
 });
@@ -663,6 +664,114 @@ describe("DirectConversationPage — socket", () => {
   });
 });
 
+describe("DirectConversationPage — presence", () => {
+  it("shows Offline by default", async () => {
+    mockMessages([]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Offline")).toBeInTheDocument();
+    });
+  });
+
+  it("shows Online when other participant is online from initial load", async () => {
+    mockMessages([]);
+    vi.mocked(listDirectConversations).mockResolvedValue([
+      {
+        id: "dc1",
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null },
+        lastMessage: null,
+        unreadCount: 0,
+        isOnline: true,
+      },
+    ]);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Online")).toBeInTheDocument();
+    });
+  });
+
+  it("updates to Online on presence:online from other user", async () => {
+    mockMessages([]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Offline")).toBeInTheDocument();
+    });
+
+    const handler = socketHandlers["presence:online"];
+    handler({ user: { id: "u3", username: "charlie" }, status: "online" });
+
+    await waitFor(() => {
+      expect(screen.getByText("Online")).toBeInTheDocument();
+    });
+  });
+
+  it("updates to Offline on presence:offline from other user", async () => {
+    mockMessages([]);
+    vi.mocked(listDirectConversations).mockResolvedValue([
+      {
+        id: "dc1",
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null },
+        lastMessage: null,
+        unreadCount: 0,
+        isOnline: true,
+      },
+    ]);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Online")).toBeInTheDocument();
+    });
+
+    const handler = socketHandlers["presence:offline"];
+    handler({ user: { id: "u3", username: "charlie" }, status: "offline" });
+
+    await waitFor(() => {
+      expect(screen.getByText("Offline")).toBeInTheDocument();
+    });
+  });
+
+  it("ignores presence:online from self", async () => {
+    mockMessages([]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Offline")).toBeInTheDocument();
+    });
+
+    const handler = socketHandlers["presence:online"];
+    handler({ user: { id: "u1", username: "alice" }, status: "online" });
+
+    await waitFor(() => {
+      expect(screen.getByText("Offline")).toBeInTheDocument();
+    });
+  });
+
+  it("ignores presence event from unrelated user", async () => {
+    mockMessages([]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Offline")).toBeInTheDocument();
+    });
+
+    const handler = socketHandlers["presence:online"];
+    handler({ user: { id: "u99", username: "stranger" }, status: "online" });
+
+    await waitFor(() => {
+      expect(screen.getByText("Offline")).toBeInTheDocument();
+    });
+  });
+});
+
 describe("DirectConversationPage — mark as read", () => {
   it("calls markDirectConversationRead on page load", async () => {
     mockMessages([]);
@@ -902,7 +1011,7 @@ describe("DirectConversationPage — layout and bubbles", () => {
     await waitFor(() => {
       expect(screen.getByText("Charlie")).toBeInTheDocument();
     });
-    expect(screen.getByText("charlie")).toBeInTheDocument();
+    expect(screen.getByTestId("direct-presence-status")).toBeInTheDocument();
   });
 
   it("shows unknown user when conversation not found", async () => {

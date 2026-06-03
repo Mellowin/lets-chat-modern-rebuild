@@ -21,6 +21,7 @@ export interface DirectConversation {
   otherParticipant: DirectConversationOtherParticipant | null;
   lastMessage: DirectConversationLastMessage | null;
   unreadCount: number;
+  isOnline: boolean;
 }
 
 export interface CreateDirectConversationInput {

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { UsersRepository } from '../users/users.repository';
 import { WebsocketEventsService } from '../websocket/websocket-events.service';
+import { PresenceService } from '../websocket/presence.service';
 import { DirectConversationsRepository } from './direct-conversations.repository';
 import { CreateDirectConversationDto } from './dto/create-direct-conversation.dto';
 import { CreateDirectMessageDto } from './dto/create-direct-message.dto';
@@ -17,6 +18,7 @@ export class DirectConversationsService {
     private readonly directConversations: DirectConversationsRepository,
     private readonly users: UsersRepository,
     private readonly websocketEvents: WebsocketEventsService,
+    private readonly presence: PresenceService,
   ) {}
 
   private makePairKey(userIdA: string, userIdB: string): string {
@@ -67,6 +69,9 @@ export class DirectConversationsService {
           }
         : null,
       unreadCount,
+      isOnline: otherParticipant
+        ? this.presence.isUserTracked(otherParticipant.id)
+        : false,
     };
   }
 

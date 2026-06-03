@@ -153,10 +153,52 @@ export default function DirectMessagesPage() {
       }, 0);
     }
 
+    function handlePresenceOnline(payload: {
+      user: { id: string; username: string; displayName?: string | null };
+      status: string;
+    }) {
+      setConversations((prev) => {
+        if (prev.kind !== "success") return prev;
+        const existingIndex = prev.data.findIndex(
+          (c) => c.otherParticipant?.id === payload.user.id,
+        );
+        if (existingIndex === -1) return prev;
+        const updated = [...prev.data];
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          isOnline: true,
+        };
+        return { kind: "success", data: updated };
+      });
+    }
+
+    function handlePresenceOffline(payload: {
+      user: { id: string; username: string; displayName?: string | null };
+      status: string;
+    }) {
+      setConversations((prev) => {
+        if (prev.kind !== "success") return prev;
+        const existingIndex = prev.data.findIndex(
+          (c) => c.otherParticipant?.id === payload.user.id,
+        );
+        if (existingIndex === -1) return prev;
+        const updated = [...prev.data];
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          isOnline: false,
+        };
+        return { kind: "success", data: updated };
+      });
+    }
+
     socket.on("direct:conversation:updated", handleDirectConversationUpdated);
+    socket.on("presence:online", handlePresenceOnline);
+    socket.on("presence:offline", handlePresenceOffline);
 
     return () => {
       socket.off("direct:conversation:updated", handleDirectConversationUpdated);
+      socket.off("presence:online", handlePresenceOnline);
+      socket.off("presence:offline", handlePresenceOffline);
       socket.disconnect();
       socketRef.current = null;
     };
@@ -280,7 +322,10 @@ export default function DirectMessagesPage() {
                       href={`/direct/${conv.id}`}
                       className="flex items-center gap-3 flex-1 min-w-0"
                     >
-                      <div className="relative h-8 w-8 shrink-0 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center overflow-hidden">
+                      <div
+                        data-testid={`direct-list-presence-${conv.id}`}
+                        className="relative h-8 w-8 shrink-0 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center overflow-hidden"
+                      >
                         {other?.avatarUrl ? (
                           <Image
                             src={getAvatarUrl(other.avatarUrl) || ""}
@@ -295,6 +340,14 @@ export default function DirectMessagesPage() {
                             {name.slice(0, 2).toUpperCase()}
                           </span>
                         )}
+                        <span
+                          data-testid={`direct-list-presence-dot-${conv.id}`}
+                          className={`absolute bottom-0 right-0 h-2 w-2 rounded-full border border-white dark:border-zinc-900 ${
+                            conv.isOnline
+                              ? "bg-emerald-500"
+                              : "bg-zinc-400 dark:bg-zinc-500"
+                          }`}
+                        />
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium truncate">{name}</p>

@@ -12,6 +12,7 @@ import {
 } from './direct-conversations.repository';
 import { UsersRepository } from '../users/users.repository';
 import { WebsocketEventsService } from '../websocket/websocket-events.service';
+import { PresenceService } from '../websocket/presence.service';
 
 const userId = '11111111-1111-1111-1111-111111111111';
 const otherUserId = '22222222-2222-2222-2222-222222222222';
@@ -88,6 +89,7 @@ describe('DirectConversationsService', () => {
   let repository: jest.Mocked<DirectConversationsRepository>;
   let usersRepository: jest.Mocked<UsersRepository>;
   let websocketEvents: jest.Mocked<WebsocketEventsService>;
+  let presence: jest.Mocked<PresenceService>;
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -136,6 +138,12 @@ describe('DirectConversationsService', () => {
             broadcastDirectReactionRemoved: jest.fn(),
           },
         },
+        {
+          provide: PresenceService,
+          useValue: {
+            isUserTracked: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -143,6 +151,7 @@ describe('DirectConversationsService', () => {
     repository = moduleRef.get(DirectConversationsRepository);
     usersRepository = moduleRef.get(UsersRepository);
     websocketEvents = moduleRef.get(WebsocketEventsService);
+    presence = moduleRef.get(PresenceService);
   });
 
   afterEach(() => {
@@ -337,6 +346,24 @@ describe('DirectConversationsService', () => {
         userId,
         expect.any(Date),
       );
+    });
+
+    it('includes isOnline true when other user is tracked', async () => {
+      repository.listForUser.mockResolvedValue([makeConversation()]);
+      repository.countUnreadMessages.mockResolvedValue(0);
+      presence.isUserTracked.mockReturnValue(true);
+
+      const result = await service.list(userId);
+      expect(result[0].isOnline).toBe(true);
+    });
+
+    it('includes isOnline false when other user is not tracked', async () => {
+      repository.listForUser.mockResolvedValue([makeConversation()]);
+      repository.countUnreadMessages.mockResolvedValue(0);
+      presence.isUserTracked.mockReturnValue(false);
+
+      const result = await service.list(userId);
+      expect(result[0].isOnline).toBe(false);
     });
   });
 
