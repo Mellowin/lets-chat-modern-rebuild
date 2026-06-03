@@ -7,8 +7,6 @@ import {
   Param,
   UseGuards,
   ParseUUIDPipe,
-  HttpCode,
-  HttpStatus,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -16,8 +14,6 @@ import {
   ApiBearerAuth,
   ApiCreatedResponse,
   ApiOkResponse,
-  ApiNoContentResponse,
-  ApiConflictResponse,
   ApiBadRequestResponse,
   ApiNotFoundResponse,
   ApiUnauthorizedResponse,
@@ -38,9 +34,8 @@ export class ReactionsController {
   constructor(private readonly reactions: ReactionsService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Add reaction to message' })
-  @ApiCreatedResponse({ description: 'Reaction added' })
-  @ApiConflictResponse({ description: 'Reaction already exists' })
+  @ApiOperation({ summary: 'Add or toggle reaction on message' })
+  @ApiCreatedResponse({ description: 'Reaction summary after add/toggle' })
   @ApiNotFoundResponse({ description: 'Message or channel not found' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   async create(
@@ -60,9 +55,8 @@ export class ReactionsController {
   }
 
   @Delete(':emoji')
-  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remove own reaction' })
-  @ApiNoContentResponse({ description: 'Reaction removed' })
+  @ApiOkResponse({ description: 'Reaction summary after removal' })
   @ApiBadRequestResponse({ description: 'Invalid emoji' })
   @ApiNotFoundResponse({ description: 'Reaction or message not found' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
@@ -73,7 +67,7 @@ export class ReactionsController {
     @Param('emoji') emoji: string,
     @CurrentUser() user: AuthUserResponse,
   ) {
-    await this.reactions.removeReaction(
+    return this.reactions.removeReaction(
       workspaceId,
       channelId,
       messageId,

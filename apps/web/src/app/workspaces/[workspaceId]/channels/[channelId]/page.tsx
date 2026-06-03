@@ -9,7 +9,7 @@ import { useLocale, translate, getLocale } from "@/lib/locale";
 import { getChannel, getChannelMembers, removeChannelMember, archiveChannel, leaveChannel, type Channel, type ChannelMember } from "@/lib/channels-api";
 import { createChannelInvite } from "@/lib/channel-invites-api";
 
-import { getMessages, createMessage, updateMessage, deleteMessage, type Message, type CreateMessageInput, type UpdateMessageInput } from "@/lib/messages-api";
+import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, type Message, type CreateMessageInput, type UpdateMessageInput, type ReactionSummary } from "@/lib/messages-api";
 import { createSocket } from "@/lib/socket-client";
 import { getAvatarUrl } from "@/lib/avatar-url";
 import { MessageAuthor } from "@/components/MessageAuthor";
@@ -87,6 +87,11 @@ export default function ChannelDetailPage() {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const didInitialScroll = useRef(false);
   const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [messageMenuId, setMessageMenuId] = useState<string | null>(null);
+  const [messageMenuPosition, setMessageMenuPosition] = useState<{ top: number; left: number } | null>(null);
+  const [reactionPickerMessageId, setReactionPickerMessageId] = useState<string | null>(null);
+  const [reactionPickerPosition, setReactionPickerPosition] = useState<{ top: number; left: number } | null>(null);
+  const quickEmojis = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
 
   function scrollMessagesToBottom(behavior: ScrollBehavior = "smooth") {
     if (typeof messagesEndRef.current?.scrollIntoView === "function") {
@@ -98,6 +103,49 @@ export default function ChannelDetailPage() {
     const el = messagesScrollRef.current;
     if (!el) return true;
     return el.scrollHeight - el.scrollTop - el.clientHeight < 160;
+  }
+
+  function getMenuPosition(rect: DOMRect): { top: number; left: number } {
+    const menuWidth = 180;
+    const menuHeight = 180;
+    const gap = 8;
+    const padding = 12;
+
+    let left = rect.right + gap;
+    if (left + menuWidth > window.innerWidth - padding) {
+      left = rect.left - menuWidth - gap;
+    }
+    left = Math.max(padding, Math.min(left, window.innerWidth - menuWidth - padding));
+
+    let top = rect.top;
+    if (top + menuHeight > window.innerHeight - padding) {
+      top = window.innerHeight - menuHeight - padding;
+    }
+    top = Math.max(padding, top);
+
+    return { top, left };
+  }
+
+  function openMenuForElement(messageId: string, element: HTMLElement) {
+    const rect = element.getBoundingClientRect();
+    setMessageMenuPosition(getMenuPosition(rect));
+    setReactionPickerPosition(null);
+    setReactionPickerMessageId(null);
+    setMessageMenuId(messageId);
+  }
+
+  function openReactionPickerAt(messageId: string, position: { top: number; left: number }) {
+    setReactionPickerPosition(position);
+    setMessageMenuPosition(null);
+    setMessageMenuId(null);
+    setReactionPickerMessageId(messageId);
+  }
+
+  function closeMenuAndPicker() {
+    setMessageMenuId(null);
+    setMessageMenuPosition(null);
+    setReactionPickerMessageId(null);
+    setReactionPickerPosition(null);
   }
 
   useEffect(() => {
@@ -299,6 +347,28 @@ export default function ChannelDetailPage() {
       });
     });
 
+    socket.on("reaction:added", (payload: {
+      messageId: string;
+      channelId: string;
+      emoji: string;
+      user: { id: string; username: string };
+      reactions: Array<{ emoji: string; count: number; reactedByMe?: boolean }>;
+    }) => {
+      if (payload.channelId !== channelId) return;
+      updateMessageReactionsFromEvent(payload.messageId, payload.reactions, payload.user.id);
+    });
+
+    socket.on("reaction:removed", (payload: {
+      messageId: string;
+      channelId: string;
+      emoji: string;
+      user: { id: string; username: string };
+      reactions: Array<{ emoji: string; count: number; reactedByMe?: boolean }>;
+    }) => {
+      if (payload.channelId !== channelId) return;
+      updateMessageReactionsFromEvent(payload.messageId, payload.reactions, payload.user.id);
+    });
+
     return () => {
       if (typingTimeoutRef.current) {
         window.clearTimeout(typingTimeoutRef.current);
@@ -314,6 +384,32 @@ export default function ChannelDetailPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, workspaceId, channelId, accessToken]);
+
+  useEffect(() => {
+    function handleDocumentClick(e: MouseEvent) {
+      const target = e.target as HTMLElement;
+      if (
+        target.closest('[data-testid^="channel-message-menu-"]') ||
+        target.closest('[data-testid^="channel-message-menu-trigger-"]') ||
+        target.closest('[data-testid^="channel-reaction-picker-"]')
+      ) {
+        return;
+      }
+      closeMenuAndPicker();
+    }
+    document.addEventListener("mousedown", handleDocumentClick);
+    return () => document.removeEventListener("mousedown", handleDocumentClick);
+  }, []);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        closeMenuAndPicker();
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   function appendMessage(msg: Message) {
     setMessages((prev) => {
@@ -341,6 +437,106 @@ export default function ChannelDetailPage() {
         data: prev.data.filter((m) => m.id !== messageId),
       };
     });
+  }
+
+  function updateMessageReactions(messageId: string, reactions: ReactionSummary[]) {
+    setMessages((prev) => {
+      if (prev.kind !== "success") return prev;
+      return {
+        kind: "success",
+        data: prev.data.map((m) => (m.id === messageId ? { ...m, reactions } : m)),
+      };
+    });
+  }
+
+  function mergeReactionSummaryForViewer(
+    previous: ReactionSummary[],
+    incoming: Array<{ emoji: string; count: number; reactedByMe?: boolean }>,
+    eventUserId: string,
+    currentUserId: string | undefined,
+  ): ReactionSummary[] {
+    const incomingMap = new Map(incoming.map((r) => [r.emoji, r]));
+    const previousMap = new Map(previous.map((r) => [r.emoji, r]));
+
+    const result: ReactionSummary[] = [];
+    for (const [emoji, reaction] of incomingMap) {
+      let reactedByMe = reaction.reactedByMe ?? false;
+      if (eventUserId !== currentUserId) {
+        const prevReaction = previousMap.get(emoji);
+        if (prevReaction) {
+          reactedByMe = prevReaction.reactedByMe;
+        } else {
+          reactedByMe = false;
+        }
+      }
+      result.push({ emoji, count: reaction.count, reactedByMe });
+    }
+
+    for (const [emoji, prevReaction] of previousMap) {
+      if (incomingMap.has(emoji)) continue;
+      if (prevReaction.reactedByMe && eventUserId !== currentUserId) {
+        result.push({ emoji, count: 1, reactedByMe: true });
+      } else {
+        continue;
+      }
+    }
+
+    return result;
+  }
+
+  function updateMessageReactionsFromEvent(
+    messageId: string,
+    incoming: Array<{ emoji: string; count: number; reactedByMe?: boolean }>,
+    eventUserId: string,
+  ) {
+    setMessages((prev) => {
+      if (prev.kind !== "success") return prev;
+      return {
+        kind: "success",
+        data: prev.data.map((m) => {
+          if (m.id !== messageId) return m;
+          const merged = mergeReactionSummaryForViewer(
+            m.reactions,
+            incoming,
+            eventUserId,
+            user?.id,
+          );
+          return { ...m, reactions: merged };
+        }),
+      };
+    });
+  }
+
+  async function handleReactionClick(msg: Message, emoji: string) {
+    if (!accessToken || !workspaceId || !channelId) return;
+    const existing = msg.reactions.find((r) => r.emoji === emoji);
+    try {
+      if (existing?.reactedByMe) {
+        const reactions = await removeMessageReaction(accessToken, workspaceId, channelId, msg.id, emoji);
+        updateMessageReactions(msg.id, reactions);
+      } else {
+        const reactions = await addMessageReaction(accessToken, workspaceId, channelId, msg.id, emoji);
+        updateMessageReactions(msg.id, reactions);
+      }
+    } catch {
+      // non-blocking
+    }
+  }
+
+  async function handleCopyText(content: string) {
+    closeMenuAndPicker();
+    try {
+      await navigator.clipboard.writeText(content);
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = content;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+    }
   }
 
   function isEditable(msg: Message) {
@@ -765,7 +961,7 @@ export default function ChannelDetailPage() {
           )}
         </div>
 
-        <div ref={messagesScrollRef} className="min-h-0 flex-1 overflow-y-auto bg-gradient-to-br from-[#e4efc4] via-[#c9e2bf] to-[#9cc7b2] px-4 py-3 dark:from-zinc-950 dark:via-emerald-950/40 dark:to-zinc-900">
+        <div ref={messagesScrollRef} onScroll={() => { closeMenuAndPicker(); }} className="min-h-0 flex-1 overflow-y-auto bg-gradient-to-br from-[#e4efc4] via-[#c9e2bf] to-[#9cc7b2] px-4 py-3 dark:from-zinc-950 dark:via-emerald-950/40 dark:to-zinc-900">
           <div className="flex w-full max-w-3xl flex-col">
             {messages.kind === "loading" && (
               <div className="mt-4 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
@@ -858,10 +1054,26 @@ export default function ChannelDetailPage() {
                               </button>
                             </>
                           )}
+                          {editingMessageId !== msg.id && (
+                            <button
+                              onClick={(e) => openMenuForElement(msg.id, e.currentTarget)}
+                              data-testid={`channel-message-menu-trigger-${msg.id}`}
+                              className="ml-auto inline-flex h-5 w-5 items-center justify-center rounded text-xs text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                              aria-label={t("channel.messageMenu")}
+                              aria-haspopup="menu"
+                              aria-expanded={messageMenuId === msg.id}
+                            >
+                              ⋯
+                            </button>
+                          )}
                         </div>
                         <div data-testid={`message-bubble-wrap-${msg.id}`} className={isOwnMessage ? "ml-28 sm:ml-44" : ""}>
                           <div
                             data-testid={`message-bubble-${msg.id}`}
+                            onContextMenu={(e) => {
+                              e.preventDefault();
+                              openMenuForElement(msg.id, e.currentTarget);
+                            }}
                             className={`mt-1 w-fit max-w-full rounded-2xl border px-3 py-2 shadow-sm ${
                               isOwnMessage
                                 ? "bg-emerald-50 border-emerald-200 text-zinc-900 dark:bg-emerald-950/40 dark:border-emerald-900 dark:text-zinc-100"
@@ -939,6 +1151,25 @@ export default function ChannelDetailPage() {
                             <p className="whitespace-pre-wrap break-words text-sm leading-6 text-zinc-800 dark:text-zinc-200">
                               {msg.content}
                             </p>
+                          )}
+                          {msg.reactions && msg.reactions.length > 0 && (
+                            <div data-testid={`channel-reactions-${msg.id}`} className="mt-1.5 flex flex-wrap gap-1">
+                              {msg.reactions.map((reaction) => (
+                                <button
+                                  key={reaction.emoji}
+                                  onClick={() => handleReactionClick(msg, reaction.emoji)}
+                                  data-testid={`channel-reaction-chip-${msg.id}-${reaction.emoji}`}
+                                  className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-colors ${
+                                    reaction.reactedByMe
+                                      ? "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-900 dark:text-emerald-400"
+                                      : "bg-white/80 border-zinc-200 text-zinc-600 dark:bg-zinc-900/60 dark:border-zinc-700 dark:text-zinc-300"
+                                  }`}
+                                >
+                                  <span>{reaction.emoji}</span>
+                                  <span className="text-[10px] font-medium">{reaction.count}</span>
+                                </button>
+                              ))}
+                            </div>
                           )}
                           </div>
                         </div>
@@ -1024,6 +1255,91 @@ export default function ChannelDetailPage() {
         )}
       </div>
       </main>
+
+      {messageMenuId && messageMenuPosition && (
+        <div
+          data-testid={`channel-message-menu-${messageMenuId}`}
+          style={{ top: messageMenuPosition.top, left: messageMenuPosition.left }}
+          className="fixed z-50 w-44 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-1 shadow-lg"
+          role="menu"
+        >
+          {(() => {
+            const activeMenuMessage =
+              messages.kind === "success"
+                ? messages.data.find((m) => m.id === messageMenuId) ?? null
+                : null;
+            if (!activeMenuMessage) return null;
+            return (
+              <>
+                <button
+                  onClick={() => {
+                    closeMenuAndPicker();
+                    setReplyTargetId(activeMenuMessage.id);
+                  }}
+                  data-testid={`channel-reply-action-${activeMenuMessage.id}`}
+                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                  role="menuitem"
+                >
+                  <span className="text-base">↩</span>
+                  <span>{t("channel.reply")}</span>
+                </button>
+                <button
+                  onClick={() => {
+                    if (messageMenuPosition) {
+                      openReactionPickerAt(activeMenuMessage.id, messageMenuPosition);
+                    }
+                  }}
+                  data-testid={`channel-react-action-${activeMenuMessage.id}`}
+                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                  role="menuitem"
+                >
+                  <span className="text-base">😊</span>
+                  <span>{t("channel.react")}</span>
+                </button>
+                <button
+                  onClick={() => handleCopyText(activeMenuMessage.content)}
+                  data-testid={`channel-copy-text-action-${activeMenuMessage.id}`}
+                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                  role="menuitem"
+                >
+                  <span className="text-base">📋</span>
+                  <span>{t("channel.copyText")}</span>
+                </button>
+              </>
+            );
+          })()}
+        </div>
+      )}
+
+      {reactionPickerMessageId && reactionPickerPosition && (
+        <div
+          data-testid={`channel-reaction-picker-${reactionPickerMessageId}`}
+          style={{ top: reactionPickerPosition.top, left: reactionPickerPosition.left }}
+          className="fixed z-50 flex flex-wrap gap-1 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-1.5 shadow-sm"
+        >
+          {quickEmojis.map((emoji) => (
+            <button
+              key={emoji}
+              onClick={() => {
+                const msg =
+                  messages.kind === "success"
+                    ? messages.data.find((m) => m.id === reactionPickerMessageId)
+                    : undefined;
+                if (msg) {
+                  handleReactionClick(msg, emoji);
+                }
+                closeMenuAndPicker();
+              }}
+              data-testid={`channel-reaction-option-${reactionPickerMessageId}-${emoji}`}
+              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              aria-label={`${t("channel.react")} ${emoji}`}
+            >
+              {emoji}
+            </button>
+          ))}
+        </div>
+      )}
+
     {isMembersOpen && (
       <div className="fixed inset-0 z-40">
         <div className="absolute inset-0 bg-black/20" onClick={() => setIsMembersOpen(false)} />

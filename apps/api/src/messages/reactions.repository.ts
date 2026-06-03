@@ -11,9 +11,9 @@ export class ReactionsRepository {
     });
   }
 
-  async findDeleted(messageId: string, userId: string, emoji: string) {
-    return this.prisma.reaction.findFirst({
-      where: { messageId, userId, emoji, deletedAt: { not: null } },
+  async findActiveByUser(messageId: string, userId: string) {
+    return this.prisma.reaction.findMany({
+      where: { messageId, userId, deletedAt: null },
     });
   }
 
@@ -21,16 +21,17 @@ export class ReactionsRepository {
     return this.prisma.reaction.create({ data });
   }
 
-  async restore(id: string) {
-    return this.prisma.reaction.update({
-      where: { id },
-      data: { deletedAt: null },
-    });
-  }
-
   async softDelete(id: string) {
     return this.prisma.reaction.update({
       where: { id },
+      data: { deletedAt: new Date() },
+    });
+  }
+
+  async softDeleteMany(ids: string[]) {
+    if (ids.length === 0) return;
+    await this.prisma.reaction.updateMany({
+      where: { id: { in: ids } },
       data: { deletedAt: new Date() },
     });
   }

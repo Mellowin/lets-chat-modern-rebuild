@@ -1,11 +1,9 @@
 import {
   BadRequestException,
-  ConflictException,
   Injectable,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@lets-chat/database';
 import { ChannelsService } from '../channels/channels.service';
 import { UsersRepository } from '../users/users.repository';
 import { MessagesRepository } from './messages.repository';
@@ -35,63 +33,46 @@ export class ReactionsService {
     await this.channels.findById(workspaceId, channelId, userId);
     await this.validateMessage(channelId, messageId);
 
-    const active = await this.reactions.findActive(
+    const userReactions = await this.reactions.findActiveByUser(
       messageId,
       userId,
-      dto.emoji,
     );
-    if (active) {
-      throw new ConflictException('Reaction already exists');
-    }
+    const sameEmojiReaction = userReactions.find((r) => r.emoji === dto.emoji);
 
-    const deleted = await this.reactions.findDeleted(
-      messageId,
-      userId,
-      dto.emoji,
-    );
-    if (deleted) {
-      try {
-        const restored = await this.reactions.restore(deleted.id);
-        await this.broadcastReactionAdded(
-          channelId,
-          messageId,
-          restored.emoji,
-          userId,
-        );
-        return restored;
-      } catch (error) {
-        if (
-          error instanceof Prisma.PrismaClientKnownRequestError &&
-          error.code === 'P2002'
-        ) {
-          throw new ConflictException('Reaction already exists');
-        }
-        throw error;
-      }
-    }
-
-    try {
-      const created = await this.reactions.create({
-        messageId,
-        userId,
-        emoji: dto.emoji,
-      });
-      await this.broadcastReactionAdded(
+    if (sameEmojiReaction) {
+      // Toggle off same emoji
+      await this.reactions.softDelete(sameEmojiReaction.id);
+      const summary = await this.reactions.listWithCounts(messageId, userId);
+      await this.broadcastReactionRemoved(
         channelId,
         messageId,
-        created.emoji,
+        dto.emoji,
         userId,
+        summary,
       );
-      return created;
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        throw new ConflictException('Reaction already exists');
-      }
-      throw error;
+      return summary;
     }
+
+    // Replace any different emoji(s) with the new one
+    if (userReactions.length > 0) {
+      await this.reactions.softDeleteMany(userReactions.map((r) => r.id));
+    }
+
+    const created = await this.reactions.create({
+      messageId,
+      userId,
+      emoji: dto.emoji,
+    });
+
+    const summary = await this.reactions.listWithCounts(messageId, userId);
+    await this.broadcastReactionAdded(
+      channelId,
+      messageId,
+      created.emoji,
+      userId,
+      summary,
+    );
+    return summary;
   }
 
   async removeReaction(
@@ -119,12 +100,15 @@ export class ReactionsService {
     }
 
     await this.reactions.softDelete(active.id);
+    const summary = await this.reactions.listWithCounts(messageId, userId);
     await this.broadcastReactionRemoved(
       channelId,
       messageId,
       active.emoji,
       userId,
+      summary,
     );
+    return summary;
   }
 
   async listReactions(
@@ -144,6 +128,7 @@ export class ReactionsService {
     messageId: string,
     emoji: string,
     userId: string,
+    reactions: Array<{ emoji: string; count: number; reactedByMe?: boolean }>,
   ) {
     try {
       const user = await this.users.findById(userId);
@@ -157,6 +142,7 @@ export class ReactionsService {
           id: user.id,
           username: user.username,
         },
+        reactions,
       });
     } catch (error) {
       this.logger.error(
@@ -171,6 +157,7 @@ export class ReactionsService {
     messageId: string,
     emoji: string,
     userId: string,
+    reactions: Array<{ emoji: string; count: number; reactedByMe?: boolean }>,
   ) {
     try {
       const user = await this.users.findById(userId);
@@ -184,6 +171,7 @@ export class ReactionsService {
           id: user.id,
           username: user.username,
         },
+        reactions,
       });
     } catch (error) {
       this.logger.error(

@@ -29,6 +29,10 @@ export class MessagesRepository {
             avatarUrl: true,
           },
         },
+        reactions: {
+          where: { deletedAt: null },
+          select: { emoji: true, userId: true },
+        },
       },
     });
   }
@@ -57,6 +61,10 @@ export class MessagesRepository {
             avatarUrl: true,
           },
         },
+        reactions: {
+          where: { deletedAt: null },
+          select: { emoji: true, userId: true },
+        },
       },
     });
   }
@@ -82,6 +90,10 @@ export class MessagesRepository {
               displayName: true,
               avatarUrl: true,
             },
+          },
+          reactions: {
+            where: { deletedAt: null },
+            select: { emoji: true, userId: true },
           },
         },
       }),

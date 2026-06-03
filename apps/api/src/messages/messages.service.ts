@@ -22,21 +22,41 @@ export class MessagesService {
     private readonly websocketEvents: WebsocketEventsService,
   ) {}
 
-  private toMessageResponse(message: {
-    id: string;
-    channelId: string;
-    content: string;
-    parentId: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-    editedAt: Date | null;
-    author: {
+  private toMessageResponse(
+    message: {
       id: string;
-      username: string;
-      displayName: string | null;
-      avatarUrl: string | null;
-    };
-  }) {
+      channelId: string;
+      content: string;
+      parentId: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+      editedAt: Date | null;
+      author: {
+        id: string;
+        username: string;
+        displayName: string | null;
+        avatarUrl: string | null;
+      };
+      reactions: Array<{ emoji: string; userId: string }>;
+    },
+    userId: string,
+  ) {
+    const emojiCounts = new Map<string, number>();
+    const myEmojis = new Set<string>();
+    for (const r of message.reactions ?? []) {
+      emojiCounts.set(r.emoji, (emojiCounts.get(r.emoji) ?? 0) + 1);
+      if (r.userId === userId) {
+        myEmojis.add(r.emoji);
+      }
+    }
+    const reactions = Array.from(emojiCounts.entries())
+      .map(([emoji, count]) => ({
+        emoji,
+        count,
+        reactedByMe: myEmojis.has(emoji),
+      }))
+      .sort((a, b) => a.emoji.localeCompare(b.emoji));
+
     return {
       id: message.id,
       channelId: message.channelId,
@@ -46,6 +66,7 @@ export class MessagesService {
       updatedAt: message.updatedAt,
       editedAt: message.editedAt,
       author: message.author,
+      reactions,
     };
   }
 
@@ -99,7 +120,7 @@ export class MessagesService {
       parentId: dto.parentId,
     });
 
-    const response = this.toMessageResponse(message);
+    const response = this.toMessageResponse(message, userId);
     this.websocketEvents.broadcastMessageCreated(channelId, response);
 
     return response;
@@ -120,7 +141,7 @@ export class MessagesService {
       limit,
       before,
     );
-    return messages.map((m) => this.toMessageResponse(m));
+    return messages.map((m) => this.toMessageResponse(m, userId));
   }
 
   async update(
@@ -155,7 +176,7 @@ export class MessagesService {
       dto.content,
       userId,
     );
-    const response = this.toMessageResponse(updated);
+    const response = this.toMessageResponse(updated, userId);
     this.websocketEvents.broadcastMessageUpdated(channelId, response);
     return response;
   }

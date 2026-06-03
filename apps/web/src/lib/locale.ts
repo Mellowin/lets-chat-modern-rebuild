@@ -191,6 +191,11 @@ export type TranslationKey =
   | "channel.errorSendInvitationFailed"
   | "channel.errorSendMessageFailed"
   | "channel.errorRemoveMemberFailed"
+  | "channel.react"
+  | "channel.failedReactMessage"
+  | "channel.failedRemoveReaction"
+  | "channel.copyText"
+  | "channel.messageMenu"
   | "channel.socketDisconnected"
   | "channel.socketConnecting"
   | "channel.socketConnected"
@@ -438,6 +443,11 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "channel.errorSendInvitationFailed": "Failed to send invitation",
     "channel.errorSendMessageFailed": "Failed to send message",
     "channel.errorRemoveMemberFailed": "Failed to remove member",
+    "channel.react": "React",
+    "channel.failedReactMessage": "Failed to add reaction",
+    "channel.failedRemoveReaction": "Failed to remove reaction",
+    "channel.copyText": "Copy text",
+    "channel.messageMenu": "Message actions",
     "channel.socketDisconnected": "Disconnected",
     "channel.socketConnecting": "Connecting",
     "channel.socketConnected": "Connected",
@@ -684,6 +694,11 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "channel.errorSendInvitationFailed": "Не вдалося надіслати запрошення",
     "channel.errorSendMessageFailed": "Не вдалося надіслати повідомлення",
     "channel.errorRemoveMemberFailed": "Не вдалося вилучити учасника",
+    "channel.react": "Реакція",
+    "channel.failedReactMessage": "Не вдалося додати реакцію",
+    "channel.failedRemoveReaction": "Не вдалося прибрати реакцію",
+    "channel.copyText": "Копіювати текст",
+    "channel.messageMenu": "Дії з повідомленням",
     "channel.socketDisconnected": "Відʼєднано",
     "channel.socketConnecting": "Підключення",
     "channel.socketConnected": "Підключено",
@@ -930,6 +945,11 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "channel.errorSendInvitationFailed": "Не удалось отправить приглашение",
     "channel.errorSendMessageFailed": "Не удалось отправить сообщение",
     "channel.errorRemoveMemberFailed": "Не удалось удалить участника",
+    "channel.react": "Реакция",
+    "channel.failedReactMessage": "Не удалось добавить реакцию",
+    "channel.failedRemoveReaction": "Не удалось убрать реакцию",
+    "channel.copyText": "Копировать текст",
+    "channel.messageMenu": "Действия с сообщением",
     "channel.socketDisconnected": "Отключено",
     "channel.socketConnecting": "Подключение",
     "channel.socketConnected": "Подключено",

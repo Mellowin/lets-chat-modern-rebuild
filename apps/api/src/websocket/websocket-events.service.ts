@@ -23,6 +23,11 @@ export class WebsocketEventsService {
         displayName: string | null;
         avatarUrl: string | null;
       };
+      reactions: Array<{
+        emoji: string;
+        count: number;
+        reactedByMe: boolean;
+      }>;
     },
   ) {
     try {
@@ -55,6 +60,11 @@ export class WebsocketEventsService {
         displayName: string | null;
         avatarUrl: string | null;
       };
+      reactions: Array<{
+        emoji: string;
+        count: number;
+        reactedByMe: boolean;
+      }>;
     },
   ) {
     try {
@@ -103,6 +113,11 @@ export class WebsocketEventsService {
         id: string;
         username: string;
       };
+      reactions: Array<{
+        emoji: string;
+        count: number;
+        reactedByMe?: boolean;
+      }>;
     },
   ) {
     try {
@@ -133,6 +148,11 @@ export class WebsocketEventsService {
         id: string;
         username: string;
       };
+      reactions: Array<{
+        emoji: string;
+        count: number;
+        reactedByMe?: boolean;
+      }>;
     },
   ) {
     try {

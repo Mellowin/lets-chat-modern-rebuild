@@ -7,6 +7,12 @@ export interface MessageAuthor {
   avatarUrl: string | null;
 }
 
+export interface ReactionSummary {
+  emoji: string;
+  count: number;
+  reactedByMe: boolean;
+}
+
 export interface Message {
   id: string;
   channelId: string;
@@ -16,6 +22,7 @@ export interface Message {
   updatedAt: string;
   editedAt: string | null;
   author: MessageAuthor;
+  reactions: ReactionSummary[];
 }
 
 export interface CreateMessageInput {
@@ -155,4 +162,72 @@ export async function deleteMessage(
     }
     throw new Error(message);
   }
+}
+
+export async function addMessageReaction(
+  accessToken: string,
+  workspaceId: string,
+  channelId: string,
+  messageId: string,
+  emoji: string,
+): Promise<ReactionSummary[]> {
+  const res = await fetch(
+    `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(messageId)}/reactions`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ emoji }),
+    },
+  );
+
+  if (!res.ok) {
+    let message = `Failed to add reaction: ${res.status} ${res.statusText}`;
+    try {
+      const body = await res.json();
+      if (body?.message) message = body.message;
+      else if (body?.error) message = body.error;
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+
+  return res.json() as Promise<ReactionSummary[]>;
+}
+
+export async function removeMessageReaction(
+  accessToken: string,
+  workspaceId: string,
+  channelId: string,
+  messageId: string,
+  emoji: string,
+): Promise<ReactionSummary[]> {
+  const res = await fetch(
+    `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(messageId)}/reactions/${encodeURIComponent(emoji)}`,
+    {
+      method: "DELETE",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
+
+  if (!res.ok) {
+    let message = `Failed to remove reaction: ${res.status} ${res.statusText}`;
+    try {
+      const body = await res.json();
+      if (body?.message) message = body.message;
+      else if (body?.error) message = body.error;
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+
+  return res.json() as Promise<ReactionSummary[]>;
 }
