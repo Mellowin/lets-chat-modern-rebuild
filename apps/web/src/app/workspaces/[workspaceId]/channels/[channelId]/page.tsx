@@ -10,6 +10,7 @@ import { getChannel, getChannelMembers, removeChannelMember, archiveChannel, lea
 import { createChannelInvite } from "@/lib/channel-invites-api";
 
 import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, type Message, type CreateMessageInput, type UpdateMessageInput, type ReactionSummary } from "@/lib/messages-api";
+import { sendDirectMessage, listDirectConversations, type DirectConversation } from "@/lib/direct-conversations-api";
 import { createSocket } from "@/lib/socket-client";
 import { getAvatarUrl } from "@/lib/avatar-url";
 import { MessageAuthor } from "@/components/MessageAuthor";
@@ -91,6 +92,10 @@ export default function ChannelDetailPage() {
   const [messageMenuPosition, setMessageMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [reactionPickerMessageId, setReactionPickerMessageId] = useState<string | null>(null);
   const [reactionPickerPosition, setReactionPickerPosition] = useState<{ top: number; left: number } | null>(null);
+  const [forwardModalMessage, setForwardModalMessage] = useState<Message | null>(null);
+  const [forwardTargets, setForwardTargets] = useState<DirectConversation[] | null>(null);
+  const [forwardError, setForwardError] = useState<string | null>(null);
+  const [forwarding, setForwarding] = useState(false);
   const quickEmojis = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
 
   function scrollMessagesToBottom(behavior: ScrollBehavior = "smooth") {
@@ -595,6 +600,38 @@ export default function ChannelDetailPage() {
     }
   }
 
+  async function handleForward(message: Message) {
+    closeMenuAndPicker();
+    if (!accessToken) return;
+    setForwardModalMessage(message);
+    setForwarding(true);
+    setForwardError(null);
+    try {
+      const list = await listDirectConversations(accessToken);
+      setForwardTargets(list.filter((c) => c.otherParticipant?.id !== user?.id));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : t("channel.errorForwardFailed");
+      setForwardError(msg);
+    } finally {
+      setForwarding(false);
+    }
+  }
+
+  async function handleForwardSend(targetConversationId: string) {
+    if (!accessToken || !forwardModalMessage) return;
+    setForwarding(true);
+    setForwardError(null);
+    try {
+      await sendDirectMessage(accessToken, targetConversationId, { content: `↪ ${forwardModalMessage.content}` });
+      setForwardModalMessage(null);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t("channel.errorForwardFailed");
+      setForwardError(message);
+    } finally {
+      setForwarding(false);
+    }
+  }
+
   async function submitMessage() {
     const trimmed = content.trim();
     if (!trimmed) {
@@ -1036,24 +1073,6 @@ export default function ChannelDetailPage() {
                               {t("channel.reply")}
                             </button>
                           )}
-                          {isOwnMessage && editingMessageId !== msg.id && (
-                            <>
-                              {isEditable(msg) && (
-                                <button
-                                  onClick={() => handleEditStart(msg)}
-                                  className="text-[10px] text-zinc-400 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-200 underline"
-                                >
-                                  {t("channel.edit")}
-                                </button>
-                              )}
-                              <button
-                                onClick={() => handleDelete(msg.id)}
-                                className="text-[10px] text-zinc-400 hover:text-red-600 dark:text-zinc-500 dark:hover:text-red-400 underline"
-                              >
-                                {t("channel.delete")}
-                              </button>
-                            </>
-                          )}
                           {editingMessageId !== msg.id && (
                             <button
                               onClick={(e) => openMenuForElement(msg.id, e.currentTarget)}
@@ -1269,8 +1288,23 @@ export default function ChannelDetailPage() {
                 ? messages.data.find((m) => m.id === messageMenuId) ?? null
                 : null;
             if (!activeMenuMessage) return null;
+            const isOwn = activeMenuMessage.author.id === user?.id;
             return (
               <>
+                {isOwn && isEditable(activeMenuMessage) && (
+                  <button
+                    onClick={() => {
+                      closeMenuAndPicker();
+                      handleEditStart(activeMenuMessage);
+                    }}
+                    data-testid={`channel-edit-action-${activeMenuMessage.id}`}
+                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                    role="menuitem"
+                  >
+                    <span className="text-base">✏️</span>
+                    <span>{t("channel.edit")}</span>
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     closeMenuAndPicker();
@@ -1297,6 +1331,15 @@ export default function ChannelDetailPage() {
                   <span>{t("channel.react")}</span>
                 </button>
                 <button
+                  onClick={() => handleForward(activeMenuMessage)}
+                  data-testid={`channel-forward-action-${activeMenuMessage.id}`}
+                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                  role="menuitem"
+                >
+                  <span className="text-base">↪</span>
+                  <span>{t("channel.forward")}</span>
+                </button>
+                <button
                   onClick={() => handleCopyText(activeMenuMessage.content)}
                   data-testid={`channel-copy-text-action-${activeMenuMessage.id}`}
                   className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
@@ -1305,6 +1348,20 @@ export default function ChannelDetailPage() {
                   <span className="text-base">📋</span>
                   <span>{t("channel.copyText")}</span>
                 </button>
+                {isOwn && (
+                  <button
+                    onClick={() => {
+                      closeMenuAndPicker();
+                      handleDelete(activeMenuMessage.id);
+                    }}
+                    data-testid={`channel-delete-action-${activeMenuMessage.id}`}
+                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+                    role="menuitem"
+                  >
+                    <span className="text-base">🗑️</span>
+                    <span>{t("channel.delete")}</span>
+                  </button>
+                )}
               </>
             );
           })()}
@@ -1337,6 +1394,43 @@ export default function ChannelDetailPage() {
               {emoji}
             </button>
           ))}
+        </div>
+      )}
+
+      {forwardModalMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setForwardModalMessage(null)} />
+          <div className="relative z-10 w-full max-w-sm rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-lg">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold">{t("channel.forwardTo")}</h3>
+              <button
+                onClick={() => setForwardModalMessage(null)}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                aria-label={t("channel.cancel")}
+              >
+                ×
+              </button>
+            </div>
+            {forwardTargets === null || forwardTargets.length === 0 ? (
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">{forwardError || t("channel.noConversations")}</p>
+            ) : (
+              <div className="max-h-60 overflow-y-auto space-y-1">
+                {forwardTargets.map((conv) => (
+                  <button
+                    key={conv.id}
+                    onClick={() => handleForwardSend(conv.id)}
+                    disabled={forwarding}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-50"
+                  >
+                    <div className="h-8 w-8 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                      {(conv.otherParticipant?.displayName || conv.otherParticipant?.username || "?").slice(0, 2).toUpperCase()}
+                    </div>
+                    <span className="truncate">{conv.otherParticipant?.displayName || conv.otherParticipant?.username || t("messageAuthor.unknownUser")}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

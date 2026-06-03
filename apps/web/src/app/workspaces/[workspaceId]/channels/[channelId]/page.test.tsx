@@ -5,6 +5,7 @@ import ChannelDetailPage from "./page";
 import { getChannel, getChannelMembers, addChannelMember, removeChannelMember, leaveChannel, archiveChannel, type ChannelMember } from "@/lib/channels-api";
 import { createChannelInvite } from "@/lib/channel-invites-api";
 import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, Message } from "@/lib/messages-api";
+import { sendDirectMessage, listDirectConversations } from "@/lib/direct-conversations-api";
 
 const socketHandlers: Record<string, (...args: unknown[]) => void> = {};
 const socketOnMock = vi.fn((event: string, handler: (...args: unknown[]) => void) => {
@@ -50,6 +51,11 @@ vi.mock("@/lib/messages-api", () => ({
   deleteMessage: vi.fn(),
   addMessageReaction: vi.fn(),
   removeMessageReaction: vi.fn(),
+}));
+
+vi.mock("@/lib/direct-conversations-api", () => ({
+  sendDirectMessage: vi.fn(),
+  listDirectConversations: vi.fn(),
 }));
 
 vi.mock("@/lib/socket-client", () => ({
@@ -670,7 +676,7 @@ describe("ChannelDetailPage — edit/delete", () => {
     author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
   };
 
-  it("shows Edit and Delete buttons on own message", async () => {
+  it("shows Edit and Delete actions in menu for own message", async () => {
     mockChannelAndMessages([ownMessage]);
     render(<ChannelDetailPage />);
 
@@ -678,11 +684,12 @@ describe("ChannelDetailPage — edit/delete", () => {
       expect(screen.getByText("Hello")).toBeInTheDocument();
     });
 
-    expect(screen.getByRole("button", { name: /Edit/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Delete/i })).toBeInTheDocument();
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
+    expect(screen.getByTestId("channel-edit-action-m1")).toBeInTheDocument();
+    expect(screen.getByTestId("channel-delete-action-m1")).toBeInTheDocument();
   });
 
-  it("hides Edit and Delete buttons on other user's message", async () => {
+  it("hides Edit and Delete actions in menu for other user's message", async () => {
     mockChannelAndMessages([otherMessage]);
     render(<ChannelDetailPage />);
 
@@ -690,8 +697,9 @@ describe("ChannelDetailPage — edit/delete", () => {
       expect(screen.getByText("Hi")).toBeInTheDocument();
     });
 
-    expect(screen.queryByRole("button", { name: /Edit/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Delete/i })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m2"));
+    expect(screen.queryByTestId("channel-edit-action-m2")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("channel-delete-action-m2")).not.toBeInTheDocument();
   });
 
   it("edits own message successfully", async () => {
@@ -708,7 +716,8 @@ describe("ChannelDetailPage — edit/delete", () => {
       expect(screen.getByText("Hello")).toBeInTheDocument();
     });
 
-    await userEvent.click(screen.getByRole("button", { name: /Edit/i }));
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
+    await userEvent.click(screen.getByTestId("channel-edit-action-m1"));
 
     const editTextarea = screen.getByDisplayValue("Hello");
     await userEvent.clear(editTextarea);
@@ -732,7 +741,8 @@ describe("ChannelDetailPage — edit/delete", () => {
       expect(screen.getByText("Hello")).toBeInTheDocument();
     });
 
-    await userEvent.click(screen.getByRole("button", { name: /Edit/i }));
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
+    await userEvent.click(screen.getByTestId("channel-edit-action-m1"));
 
     const editTextarea = screen.getByDisplayValue("Hello");
     await userEvent.clear(editTextarea);
@@ -751,7 +761,8 @@ describe("ChannelDetailPage — edit/delete", () => {
       expect(screen.getByText("Hello")).toBeInTheDocument();
     });
 
-    await userEvent.click(screen.getByRole("button", { name: /Edit/i }));
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
+    await userEvent.click(screen.getByTestId("channel-edit-action-m1"));
 
     const editTextarea = screen.getByDisplayValue("Hello");
     await userEvent.type(editTextarea, "Changed");
@@ -773,7 +784,8 @@ describe("ChannelDetailPage — edit/delete", () => {
       expect(screen.getByText("Hello")).toBeInTheDocument();
     });
 
-    await userEvent.click(screen.getByRole("button", { name: /Delete/i }));
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
+    await userEvent.click(screen.getByTestId("channel-delete-action-m1"));
 
     await waitFor(() => {
       expect(deleteMessage).toHaveBeenCalledWith("token", "ws1", "ch1", "m1");
@@ -792,7 +804,8 @@ describe("ChannelDetailPage — edit/delete", () => {
       expect(screen.getByText("Hello")).toBeInTheDocument();
     });
 
-    await userEvent.click(screen.getByRole("button", { name: /Delete/i }));
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
+    await userEvent.click(screen.getByTestId("channel-delete-action-m1"));
 
     expect(deleteMessage).not.toHaveBeenCalled();
     expect(screen.getByText("Hello")).toBeInTheDocument();
@@ -809,7 +822,8 @@ describe("ChannelDetailPage — edit/delete", () => {
       expect(screen.getByText("Hello")).toBeInTheDocument();
     });
 
-    await userEvent.click(screen.getByRole("button", { name: /Delete/i }));
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
+    await userEvent.click(screen.getByTestId("channel-delete-action-m1"));
 
     await waitFor(() => {
       expect(deleteMessage).toHaveBeenCalledWith("token", "ws1", "ch1", "m1");
@@ -851,8 +865,9 @@ describe("ChannelDetailPage — message action locale", () => {
       expect(screen.getByText("Hello")).toBeInTheDocument();
     });
 
-    expect(screen.getByRole("button", { name: /Редагувати/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Видалити/i })).toBeInTheDocument();
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
+    expect(screen.getByTestId("channel-edit-action-m1")).toBeInTheDocument();
+    expect(screen.getByTestId("channel-delete-action-m1")).toBeInTheDocument();
   });
 
   it("shows Russian Edit and Delete buttons", async () => {
@@ -864,8 +879,9 @@ describe("ChannelDetailPage — message action locale", () => {
       expect(screen.getByText("Hello")).toBeInTheDocument();
     });
 
-    expect(screen.getByRole("button", { name: /Редактировать/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Удалить/i })).toBeInTheDocument();
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
+    expect(screen.getByTestId("channel-edit-action-m1")).toBeInTheDocument();
+    expect(screen.getByTestId("channel-delete-action-m1")).toBeInTheDocument();
   });
 
   it("shows Ukrainian edited and reply labels", async () => {
@@ -915,7 +931,8 @@ describe("ChannelDetailPage — message action locale", () => {
       expect(screen.getByText("Hello")).toBeInTheDocument();
     });
 
-    await userEvent.click(screen.getByRole("button", { name: /Редагувати/i }));
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
+    await userEvent.click(screen.getByTestId("channel-edit-action-m1"));
 
     expect(screen.getByRole("button", { name: /Зберегти/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Скасувати/i })).toBeInTheDocument();
@@ -930,7 +947,8 @@ describe("ChannelDetailPage — message action locale", () => {
       expect(screen.getByText("Hello")).toBeInTheDocument();
     });
 
-    await userEvent.click(screen.getByRole("button", { name: /Редактировать/i }));
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
+    await userEvent.click(screen.getByTestId("channel-edit-action-m1"));
 
     expect(screen.getByRole("button", { name: /Сохранить/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Отмена/i })).toBeInTheDocument();
@@ -948,7 +966,8 @@ describe("ChannelDetailPage — message action locale", () => {
       expect(screen.getByText("Hello")).toBeInTheDocument();
     });
 
-    await userEvent.click(screen.getByRole("button", { name: /Видалити/i }));
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
+    await userEvent.click(screen.getByTestId("channel-delete-action-m1"));
 
     expect(confirmSpy).toHaveBeenCalledWith("Видалити це повідомлення?");
     confirmSpy.mockRestore();
@@ -966,7 +985,8 @@ describe("ChannelDetailPage — message action locale", () => {
       expect(screen.getByText("Hello")).toBeInTheDocument();
     });
 
-    await userEvent.click(screen.getByRole("button", { name: /Удалить/i }));
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
+    await userEvent.click(screen.getByTestId("channel-delete-action-m1"));
 
     expect(confirmSpy).toHaveBeenCalledWith("Удалить это сообщение?");
     confirmSpy.mockRestore();
@@ -2342,7 +2362,8 @@ describe("ChannelDetailPage — replies", () => {
     await waitFor(() => {
       expect(screen.getByText("Standalone")).toBeInTheDocument();
     });
-    await userEvent.click(screen.getByRole("button", { name: /Edit/i }));
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m3"));
+    await userEvent.click(screen.getByTestId("channel-edit-action-m3"));
     expect(screen.queryByRole("button", { name: /Reply/i })).not.toBeInTheDocument();
   });
 
@@ -2865,7 +2886,8 @@ describe("ChannelDetailPage — reactions", () => {
       expect(screen.getByText("Editable")).toBeInTheDocument();
     });
 
-    await userEvent.click(screen.getByRole("button", { name: /Edit/i }));
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
+    await userEvent.click(screen.getByTestId("channel-edit-action-m1"));
     const editTextarea = screen.getByDisplayValue("Editable");
     await userEvent.clear(editTextarea);
     await userEvent.type(editTextarea, "Updated");
@@ -2876,10 +2898,124 @@ describe("ChannelDetailPage — reactions", () => {
     expect(screen.getByText("Updated")).toBeInTheDocument();
 
     vi.spyOn(window, "confirm").mockReturnValue(true);
-    await userEvent.click(screen.getByRole("button", { name: /Delete/i }));
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
+    await userEvent.click(screen.getByTestId("channel-delete-action-m1"));
     await waitFor(() => {
       expect(deleteMessage).toHaveBeenCalledWith("token", "ws1", "ch1", "m1");
     });
     expect(screen.queryByText("Updated")).not.toBeInTheDocument();
+  });
+});
+
+describe("ChannelDetailPage — forward", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    sessionStorage.setItem("accessToken", "token");
+    Object.keys(socketHandlers).forEach((k) => delete socketHandlers[k]);
+    window.alert = vi.fn();
+  });
+
+  const ownMessage = {
+    id: "m1",
+    channelId: "ch1",
+    content: "Hello",
+    parentId: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    editedAt: null,
+    author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+  };
+
+  it("shows Forward action in message menu", async () => {
+    mockChannelAndMessages([ownMessage]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
+    expect(screen.getByTestId("channel-forward-action-m1")).toBeInTheDocument();
+  });
+
+  it("opens forward modal and sends message to selected conversation", async () => {
+    mockChannelAndMessages([ownMessage]);
+    vi.mocked(listDirectConversations).mockResolvedValueOnce([
+      {
+        id: "dc1",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        otherParticipant: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        lastMessage: null,
+        unreadCount: 0,
+        isOnline: false,
+      },
+    ]);
+    vi.mocked(sendDirectMessage).mockResolvedValueOnce({
+      id: "dm1",
+      conversationId: "dc1",
+      content: "↪ Hello",
+      parentId: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      editedAt: null,
+      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      parent: null,
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
+    });
+
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
+    await userEvent.click(screen.getByTestId("channel-forward-action-m1"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Forward to")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByText("Bob"));
+
+    await waitFor(() => {
+      expect(sendDirectMessage).toHaveBeenCalledWith("token", "dc1", { content: "↪ Hello" });
+    });
+    expect(screen.queryByText("Forward to")).not.toBeInTheDocument();
+  });
+
+  it("shows error when loading conversations fails", async () => {
+    mockChannelAndMessages([ownMessage]);
+    vi.mocked(listDirectConversations).mockRejectedValueOnce(new Error("Network error"));
+
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
+    await userEvent.click(screen.getByTestId("channel-forward-action-m1"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Network error")).toBeInTheDocument();
+    });
+  });
+
+  it("shows 'no conversations' when list is empty", async () => {
+    mockChannelAndMessages([ownMessage]);
+    vi.mocked(listDirectConversations).mockResolvedValueOnce([]);
+
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
+    await userEvent.click(screen.getByTestId("channel-forward-action-m1"));
+
+    await waitFor(() => {
+      expect(screen.getByText("No direct conversations yet.")).toBeInTheDocument();
+    });
   });
 });

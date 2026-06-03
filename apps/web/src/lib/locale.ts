@@ -195,6 +195,10 @@ export type TranslationKey =
   | "channel.failedReactMessage"
   | "channel.failedRemoveReaction"
   | "channel.copyText"
+  | "channel.forward"
+  | "channel.forwardTo"
+  | "channel.errorForwardFailed"
+  | "channel.noConversations"
   | "channel.messageMenu"
   | "channel.socketDisconnected"
   | "channel.socketConnecting"
@@ -462,6 +466,10 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.failedReactMessage": "Failed to add reaction",
     "channel.failedRemoveReaction": "Failed to remove reaction",
     "channel.copyText": "Copy text",
+    "channel.forward": "Forward",
+    "channel.forwardTo": "Forward to",
+    "channel.errorForwardFailed": "Failed to forward message",
+    "channel.noConversations": "No direct conversations yet.",
     "channel.messageMenu": "Message actions",
     "channel.socketDisconnected": "Disconnected",
     "channel.socketConnecting": "Connecting",
@@ -728,6 +736,10 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.failedReactMessage": "Не вдалося додати реакцію",
     "channel.failedRemoveReaction": "Не вдалося прибрати реакцію",
     "channel.copyText": "Копіювати текст",
+    "channel.forward": "Переслати",
+    "channel.forwardTo": "Переслати до",
+    "channel.errorForwardFailed": "Не вдалося переслати повідомлення",
+    "channel.noConversations": "Особистих розмов ще немає.",
     "channel.messageMenu": "Дії з повідомленням",
     "channel.socketDisconnected": "Відʼєднано",
     "channel.socketConnecting": "Підключення",
@@ -994,6 +1006,10 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.failedReactMessage": "Не удалось добавить реакцию",
     "channel.failedRemoveReaction": "Не удалось убрать реакцию",
     "channel.copyText": "Копировать текст",
+    "channel.forward": "Переслать",
+    "channel.forwardTo": "Переслать в",
+    "channel.errorForwardFailed": "Не удалось переслать сообщение",
+    "channel.noConversations": "Личных переписок пока нет.",
     "channel.messageMenu": "Действия с сообщением",
     "channel.socketDisconnected": "Отключено",
     "channel.socketConnecting": "Подключение",
