@@ -1065,14 +1065,6 @@ export default function ChannelDetailPage() {
                               {t("channel.edited")}
                             </span>
                           )}
-                          {editingMessageId !== msg.id && !msg.parentId && (
-                            <button
-                              onClick={() => setReplyTargetId(msg.id)}
-                              className="text-[10px] text-zinc-400 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-200 underline"
-                            >
-                              {t("channel.reply")}
-                            </button>
-                          )}
                           {editingMessageId !== msg.id && (
                             <button
                               onClick={(e) => openMenuForElement(msg.id, e.currentTarget)}

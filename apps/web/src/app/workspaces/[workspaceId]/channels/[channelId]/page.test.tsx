@@ -2338,34 +2338,18 @@ describe("ChannelDetailPage — replies", () => {
     author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
   };
 
-  it("shows Reply button on regular messages", async () => {
+  it("does not show inline Reply button on regular messages", async () => {
     mockChannelAndMessages([ownStandaloneMessage]);
     render(<ChannelDetailPage />);
     await waitFor(() => {
       expect(screen.getByText("Standalone")).toBeInTheDocument();
-    });
-    expect(screen.getByRole("button", { name: /Reply/i })).toBeInTheDocument();
-  });
-
-  it("hides Reply button on reply messages", async () => {
-    mockChannelAndMessages([replyMessage]);
-    render(<ChannelDetailPage />);
-    await waitFor(() => {
-      expect(screen.getByText("This is a reply")).toBeInTheDocument();
     });
     expect(screen.queryByRole("button", { name: /Reply/i })).not.toBeInTheDocument();
-  });
-
-  it("hides Reply button while editing a message", async () => {
-    mockChannelAndMessages([ownStandaloneMessage]);
-    render(<ChannelDetailPage />);
-    await waitFor(() => {
-      expect(screen.getByText("Standalone")).toBeInTheDocument();
-    });
     await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m3"));
-    await userEvent.click(screen.getByTestId("channel-edit-action-m3"));
-    expect(screen.queryByRole("button", { name: /Reply/i })).not.toBeInTheDocument();
+    expect(screen.getByTestId("channel-reply-action-m3")).toBeInTheDocument();
   });
+
+
 
   it("shows quoted preview with author and snippet for loaded parent", async () => {
     mockChannelAndMessages([parentMessage, replyMessage]);
@@ -2392,7 +2376,8 @@ describe("ChannelDetailPage — replies", () => {
     await waitFor(() => {
       expect(screen.getByText("Parent message content")).toBeInTheDocument();
     });
-    await userEvent.click(screen.getByRole("button", { name: /Reply/i }));
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
+    await userEvent.click(screen.getByTestId("channel-reply-action-m1"));
     expect(screen.getByText(/Replying to/i)).toBeInTheDocument();
     expect(screen.getByText("Bob")).toBeInTheDocument();
     expect(screen.getAllByText("Parent message content").length).toBe(2);
@@ -2405,7 +2390,8 @@ describe("ChannelDetailPage — replies", () => {
     await waitFor(() => {
       expect(screen.getByText("Parent message content")).toBeInTheDocument();
     });
-    await userEvent.click(screen.getByRole("button", { name: /Reply/i }));
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
+    await userEvent.click(screen.getByTestId("channel-reply-action-m1"));
     expect(screen.getByText(/Replying to/i)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /Cancel reply/i }));
     expect(screen.queryByText(/Replying to/i)).not.toBeInTheDocument();
@@ -2428,7 +2414,8 @@ describe("ChannelDetailPage — replies", () => {
     await waitFor(() => {
       expect(screen.getByText("Parent message content")).toBeInTheDocument();
     });
-    await userEvent.click(screen.getByRole("button", { name: /Reply/i }));
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
+    await userEvent.click(screen.getByTestId("channel-reply-action-m1"));
     await userEvent.type(screen.getByPlaceholderText(/Type a message/i), "My reply");
     await userEvent.click(screen.getByRole("button", { name: /Send/i }));
 
@@ -2449,7 +2436,8 @@ describe("ChannelDetailPage — replies", () => {
     await waitFor(() => {
       expect(screen.getByText("Parent message content")).toBeInTheDocument();
     });
-    await userEvent.click(screen.getByRole("button", { name: /Reply/i }));
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
+    await userEvent.click(screen.getByTestId("channel-reply-action-m1"));
     await userEvent.type(screen.getByPlaceholderText(/Type a message/i), "My reply");
     await userEvent.click(screen.getByRole("button", { name: /Send/i }));
 
@@ -2849,7 +2837,8 @@ describe("ChannelDetailPage — reactions", () => {
       expect(screen.getByText("Parent")).toBeInTheDocument();
     });
 
-    await userEvent.click(screen.getByRole("button", { name: /Reply/i }));
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
+    await userEvent.click(screen.getByTestId("channel-reply-action-m1"));
     await userEvent.type(screen.getByPlaceholderText(/Type a message/i), "Reply text");
     await userEvent.click(screen.getByRole("button", { name: /Send/i }));
 
