@@ -260,7 +260,9 @@ describe("WorkspaceDetailPage — archived channels", () => {
       expect(screen.getByText("Archived channels")).toBeInTheDocument();
     });
 
-    expect(screen.getByText("old-general")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("old-general")).toBeInTheDocument();
+    });
     expect(screen.getByRole("button", { name: /Restore/i })).toBeInTheDocument();
   });
 
