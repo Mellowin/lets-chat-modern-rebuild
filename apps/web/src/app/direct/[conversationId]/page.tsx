@@ -72,12 +72,16 @@ export default function DirectConversationPage() {
     | { kind: "loading" }
     | { kind: "error"; message: string }
   >({ kind: "idle" });
+  const [typingUser, setTypingUser] = useState<{ id: string; username: string; displayName: string | null } | null>(null);
   const messagesScrollRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const didInitialScroll = useRef(false);
   const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const socketRef = useRef<ReturnType<typeof createSocket> | null>(null);
   const messageRefs = useRef<Record<string, HTMLLIElement | null>>({});
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoHideTypingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isTypingEmittedRef = useRef(false);
 
   function notifyDirectConversationsChanged() {
     window.dispatchEvent(new CustomEvent("direct-conversations:changed"));
@@ -124,6 +128,40 @@ export default function DirectConversationPage() {
     setMessageMenuPosition(null);
     setReactionPickerMessageId(null);
     setReactionPickerPosition(null);
+  }
+
+  function emitTypingStop() {
+    const socket = socketRef.current;
+    if (socket && isTypingEmittedRef.current && conversationId) {
+      socket.emit("direct:typing:stop", { conversationId });
+      isTypingEmittedRef.current = false;
+    }
+  }
+
+  function handleTypingStart() {
+    const socket = socketRef.current;
+    if (!socket || !conversationId) return;
+    if (!isTypingEmittedRef.current) {
+      socket.emit("direct:typing:start", { conversationId });
+      isTypingEmittedRef.current = true;
+    }
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    typingTimeoutRef.current = setTimeout(() => {
+      emitTypingStop();
+    }, 1200);
+  }
+
+  function clearTypingTimeouts() {
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+    if (autoHideTypingRef.current) {
+      clearTimeout(autoHideTypingRef.current);
+      autoHideTypingRef.current = null;
+    }
   }
 
   function handleReply(msg: DirectMessage) {
@@ -482,6 +520,30 @@ export default function DirectConversationPage() {
       updateMessageReactionsFromEvent(payload.messageId, payload.reactions, payload.user.id);
     }
 
+    function handleDirectTyping(payload: {
+      conversationId: string;
+      user: { id: string; username: string; displayName: string | null };
+      isTyping: boolean;
+    }) {
+      if (payload.conversationId !== conversationId) return;
+      if (payload.user.id === user?.id) return;
+      if (payload.isTyping) {
+        setTypingUser(payload.user);
+        if (autoHideTypingRef.current) {
+          clearTimeout(autoHideTypingRef.current);
+        }
+        autoHideTypingRef.current = setTimeout(() => {
+          setTypingUser(null);
+        }, 3000);
+      } else {
+        setTypingUser(null);
+        if (autoHideTypingRef.current) {
+          clearTimeout(autoHideTypingRef.current);
+          autoHideTypingRef.current = null;
+        }
+      }
+    }
+
     socket.on("direct:message:created", handleDirectMessageCreated);
     socket.on("direct:message:updated", handleDirectMessageUpdated);
     socket.on("direct:message:deleted", handleDirectMessageDeleted);
@@ -492,6 +554,7 @@ export default function DirectConversationPage() {
     socket.on("connected", handleServerConnected);
     socket.on("direct:reaction:added", handleDirectReactionAdded);
     socket.on("direct:reaction:removed", handleDirectReactionRemoved);
+    socket.on("direct:typing", handleDirectTyping);
 
     // If socket is already connected, server auth is complete;
     // emit join immediately. For reconnects, serverConnected will fire.
@@ -510,6 +573,9 @@ export default function DirectConversationPage() {
       socket.off("connected", handleServerConnected);
       socket.off("direct:reaction:added", handleDirectReactionAdded);
       socket.off("direct:reaction:removed", handleDirectReactionRemoved);
+      socket.off("direct:typing", handleDirectTyping);
+      emitTypingStop();
+      clearTypingTimeouts();
       socket.emit("direct:leave", { conversationId });
       socket.disconnect();
       socketRef.current = null;
@@ -596,6 +662,7 @@ export default function DirectConversationPage() {
   async function submitMessage() {
     if (editingMessage) {
       await handleEditSubmit();
+      emitTypingStop();
       return;
     }
     const trimmed = content.trim();
@@ -619,6 +686,7 @@ export default function DirectConversationPage() {
       setContent("");
       setReplyToMessage(null);
       setSendState({ kind: "idle" });
+      emitTypingStop();
       appendMessage(msg);
       requestAnimationFrame(() => {
         scrollMessagesToBottom("smooth");
@@ -950,12 +1018,26 @@ export default function DirectConversationPage() {
                 </button>
               </div>
             )}
+            {typingUser && (
+              <div data-testid="direct-typing-indicator" className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                {t("direct.typing", typingUser.displayName || typingUser.username)}
+              </div>
+            )}
             <textarea
               ref={composerTextareaRef}
               rows={2}
               placeholder={t("direct.typeMessage")}
               value={content}
-              onChange={(e) => setContent(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                setContent(value);
+                if (value.trim().length > 0) {
+                  handleTypingStart();
+                } else {
+                  emitTypingStop();
+                }
+              }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();

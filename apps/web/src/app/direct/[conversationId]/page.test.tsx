@@ -5229,6 +5229,379 @@ describe("DirectConversationPage — B97 regression", () => {
   });
 });
 
+describe("DirectConversationPage — B100 typing indicator", () => {
+  it("typing indicator hidden by default", async () => {
+    mockMessages([]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-composer")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByTestId("direct-typing-indicator")).not.toBeInTheDocument();
+  });
+
+  it("receiving direct:typing true from other user shows indicator", async () => {
+    mockMessages([]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(socketHandlers["direct:typing"]).toBeDefined();
+    });
+
+    const handler = socketHandlers["direct:typing"];
+    handler({
+      conversationId: "dc1",
+      user: { id: "u2", username: "bob", displayName: "Bob" },
+      isTyping: true,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-typing-indicator")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("direct-typing-indicator")).toHaveTextContent(/Bob is typing/i);
+  });
+
+  it("receiving direct:typing false hides indicator", async () => {
+    mockMessages([]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(socketHandlers["direct:typing"]).toBeDefined();
+    });
+
+    const handler = socketHandlers["direct:typing"];
+    handler({
+      conversationId: "dc1",
+      user: { id: "u2", username: "bob", displayName: "Bob" },
+      isTyping: true,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-typing-indicator")).toBeInTheDocument();
+    });
+
+    handler({
+      conversationId: "dc1",
+      user: { id: "u2", username: "bob", displayName: "Bob" },
+      isTyping: false,
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("direct-typing-indicator")).not.toBeInTheDocument();
+    });
+  });
+
+  it("typing event from current user is ignored", async () => {
+    mockMessages([]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(socketHandlers["direct:typing"]).toBeDefined();
+    });
+
+    const handler = socketHandlers["direct:typing"];
+    handler({
+      conversationId: "dc1",
+      user: { id: "u1", username: "alice", displayName: null },
+      isTyping: true,
+    });
+
+    expect(screen.queryByTestId("direct-typing-indicator")).not.toBeInTheDocument();
+  });
+
+  it("typing event from another conversation is ignored", async () => {
+    mockMessages([]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(socketHandlers["direct:typing"]).toBeDefined();
+    });
+
+    const handler = socketHandlers["direct:typing"];
+    handler({
+      conversationId: "other-conv",
+      user: { id: "u2", username: "bob", displayName: "Bob" },
+      isTyping: true,
+    });
+
+    expect(screen.queryByTestId("direct-typing-indicator")).not.toBeInTheDocument();
+  });
+
+  it("indicator auto-hides after timeout", async () => {
+    mockMessages([]);
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(socketHandlers["direct:typing"]).toBeDefined();
+    });
+
+    const handler = socketHandlers["direct:typing"];
+    handler({
+      conversationId: "dc1",
+      user: { id: "u2", username: "bob", displayName: "Bob" },
+      isTyping: true,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-typing-indicator")).toBeInTheDocument();
+    });
+
+    vi.advanceTimersByTime(3000);
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("direct-typing-indicator")).not.toBeInTheDocument();
+    });
+
+    vi.useRealTimers();
+  });
+
+  it("typing in composer emits direct:typing:start", async () => {
+    mockMessages([]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Type a message/i)).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Type a message/i), "H");
+
+    await waitFor(() => {
+      expect(socketEmitMock).toHaveBeenCalledWith("direct:typing:start", { conversationId: "dc1" });
+    });
+  });
+
+  it("stopping typing emits direct:typing:stop after debounce", async () => {
+    mockMessages([]);
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Type a message/i)).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Type a message/i), "H");
+
+    await waitFor(() => {
+      expect(socketEmitMock).toHaveBeenCalledWith("direct:typing:start", { conversationId: "dc1" });
+    });
+
+    vi.advanceTimersByTime(1200);
+
+    await waitFor(() => {
+      expect(socketEmitMock).toHaveBeenCalledWith("direct:typing:stop", { conversationId: "dc1" });
+    });
+
+    vi.useRealTimers();
+  });
+
+  it("submitting message emits direct:typing:stop", async () => {
+    mockMessages([]);
+    const newMsg = {
+      id: "dm1",
+      conversationId: "dc1",
+      content: "Hello",
+      parentId: null,
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      editedAt: null,
+      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      parent: null,
+    };
+    vi.mocked(sendDirectMessage).mockResolvedValueOnce(newMsg);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Type a message/i)).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Type a message/i), "Hello");
+    await userEvent.click(screen.getByRole("button", { name: /Send/i }));
+
+    await waitFor(() => {
+      expect(socketEmitMock).toHaveBeenCalledWith("direct:typing:stop", { conversationId: "dc1" });
+    });
+  });
+
+  it("clearing composer emits direct:typing:stop", async () => {
+    mockMessages([]);
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Type a message/i)).toBeInTheDocument();
+    });
+
+    const textarea = screen.getByPlaceholderText(/Type a message/i);
+    await userEvent.type(textarea, "Hello");
+    await userEvent.clear(textarea);
+
+    await waitFor(() => {
+      expect(socketEmitMock).toHaveBeenCalledWith("direct:typing:stop", { conversationId: "dc1" });
+    });
+  });
+
+  it("send still works", async () => {
+    mockMessages([]);
+    const newMsg = {
+      id: "dm1",
+      conversationId: "dc1",
+      content: "Hello",
+      parentId: null,
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      editedAt: null,
+      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      parent: null,
+    };
+    vi.mocked(sendDirectMessage).mockResolvedValueOnce(newMsg);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Type a message/i)).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Type a message/i), "Hello");
+    await userEvent.click(screen.getByRole("button", { name: /Send/i }));
+
+    await waitFor(() => {
+      expect(sendDirectMessage).toHaveBeenCalledWith("token", "dc1", { content: "Hello" });
+    });
+    expect(screen.getByText("Hello")).toBeInTheDocument();
+  });
+
+  it("edit still works", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Original",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    const { updateDirectMessage: updateMock } = await import("@/lib/direct-conversations-api");
+    vi.mocked(updateMock).mockResolvedValueOnce({
+      id: "dm1",
+      conversationId: "dc1",
+      content: "Updated",
+      parentId: null,
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      editedAt: new Date().toISOString(),
+      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      parent: null,
+      reactions: [],
+    });
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-edit-action-dm1")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByTestId("direct-edit-action-dm1"));
+
+    const textarea = screen.getByPlaceholderText(/Type a message/i);
+    await userEvent.clear(textarea);
+    await userEvent.type(textarea, "Updated");
+    await userEvent.click(screen.getByRole("button", { name: /Save/i }));
+
+    await waitFor(() => {
+      expect(updateMock).toHaveBeenCalledWith("token", "dc1", "dm1", { content: "Updated" });
+    });
+    expect(screen.getByText("Updated")).toBeInTheDocument();
+  });
+
+  it("delete still works", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    vi.mocked(deleteDirectMessage).mockResolvedValueOnce({ ok: true });
+    vi.stubGlobal("confirm", vi.fn(() => true));
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-delete-action-dm1")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByTestId("direct-delete-action-dm1"));
+
+    await waitFor(() => {
+      expect(deleteDirectMessage).toHaveBeenCalledWith("token", "dc1", "dm1");
+    });
+    expect(screen.queryByText("Hello")).not.toBeInTheDocument();
+
+    vi.unstubAllGlobals();
+  });
+
+  it("reactions still work", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Hello",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        parent: null,
+        reactions: [],
+      },
+    ]);
+    const { reactToDirectMessage: reactMock } = await import("@/lib/direct-conversations-api");
+    vi.mocked(reactMock).mockResolvedValueOnce([{ emoji: "👍", count: 1, reactedByMe: true }]);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-react-action-dm1")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByTestId("direct-react-action-dm1"));
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reaction-option-dm1-👍")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByTestId("direct-reaction-option-dm1-👍"));
+
+    await waitFor(() => {
+      expect(reactMock).toHaveBeenCalledWith("token", "dc1", "dm1", "👍");
+    });
+  });
+});
+
 
 describe("DirectConversationPage — B98 delete", () => {
   it("Delete action appears for own message", async () => {

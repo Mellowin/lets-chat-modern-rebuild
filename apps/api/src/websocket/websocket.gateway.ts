@@ -35,6 +35,7 @@ type SocketUser = {
   id: string;
   email: string;
   username: string;
+  displayName: string | null;
 };
 
 type SocketDataWithUser = {
@@ -138,6 +139,7 @@ export class WebsocketGateway
         id: user.id,
         email: user.email,
         username: user.username,
+        displayName: user.displayName,
       };
 
       this.presence.trackSocket(user.id, socketId);
@@ -394,6 +396,76 @@ export class WebsocketGateway
       payload.channelId,
       'typing:stopped',
     );
+  }
+
+  @SubscribeMessage('direct:typing:start')
+  async handleDirectTypingStart(
+    socket: Socket,
+    payload: { conversationId: unknown },
+  ) {
+    await this.broadcastDirectTyping(socket, payload.conversationId, true);
+  }
+
+  @SubscribeMessage('direct:typing:stop')
+  async handleDirectTypingStop(
+    socket: Socket,
+    payload: { conversationId: unknown },
+  ) {
+    await this.broadcastDirectTyping(socket, payload.conversationId, false);
+  }
+
+  private async broadcastDirectTyping(
+    socket: Socket,
+    conversationId: unknown,
+    isTyping: boolean,
+  ) {
+    const userId = this.getUserId(socket);
+    if (!userId) {
+      socket.emit('direct:typing:error', { message: 'Not authenticated' });
+      return;
+    }
+
+    if (!isValidUUID(conversationId)) {
+      socket.emit('direct:typing:error', { message: 'Invalid UUID' });
+      return;
+    }
+
+    const room = `direct-conversation:${conversationId}`;
+    if (!socket.rooms.has(room)) {
+      socket.emit('direct:typing:error', {
+        message: 'Direct conversation room not joined',
+        conversationId,
+      });
+      return;
+    }
+
+    const participant = await this.directConversations.findParticipant(
+      conversationId,
+      userId,
+    );
+    if (!participant) {
+      socket.emit('direct:typing:error', {
+        message: 'Access denied',
+        conversationId,
+      });
+      return;
+    }
+
+    const user = this.getSocketUser(socket);
+    if (!user?.username) {
+      socket.emit('direct:typing:error', { message: 'User data missing' });
+      return;
+    }
+
+    socket.to(room).emit('direct:typing', {
+      conversationId,
+      user: {
+        id: userId,
+        username: user.username,
+        displayName: user.displayName,
+      },
+      isTyping,
+    });
   }
 
   private async broadcastTyping(

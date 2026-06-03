@@ -274,9 +274,11 @@ export type TranslationKey =
   | "direct.saveEdit"
   | "direct.delete"
   | "direct.confirmDelete"
-  | "direct.failedDeleteMessage";
+  | "direct.failedDeleteMessage"
+  | "direct.typing"
+  | "direct.typingFallback";
 
-const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
+const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string) => string)>> = {
   en: {
     "header.profile": "Profile",
     "header.logout": "Logout",
@@ -498,6 +500,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "direct.delete": "Delete",
     "direct.confirmDelete": "Delete this message?",
     "direct.failedDeleteMessage": "Failed to delete message",
+    "direct.typing": "{arg0} is typing…",
+    "direct.typingFallback": "Someone is typing…",
     "workspace.confirmArchiveChannelPrefix": "Archive channel",
     "workspace.confirmArchiveChannelBody": "This will hide the channel from the workspace. Only the channel owner can do this.",
     "workspace.confirmRestoreChannelPrefix": "Restore channel",
@@ -757,6 +761,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "direct.delete": "Видалити",
     "direct.confirmDelete": "Видалити це повідомлення?",
     "direct.failedDeleteMessage": "Не вдалося видалити повідомлення",
+    "direct.typing": "{arg0} друкує…",
+    "direct.typingFallback": "Хтось друкує…",
     "workspace.confirmArchiveChannelPrefix": "Архівувати канал",
     "workspace.confirmArchiveChannelBody": "Це приховає канал з робочого простору. Це може зробити лише власник каналу.",
     "workspace.confirmRestoreChannelPrefix": "Відновити канал",
@@ -1016,6 +1022,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     "direct.delete": "Удалить",
     "direct.confirmDelete": "Удалить это сообщение?",
     "direct.failedDeleteMessage": "Не удалось удалить сообщение",
+    "direct.typing": "{arg0} печатает…",
+    "direct.typingFallback": "Кто-то печатает…",
     "workspace.confirmArchiveChannelPrefix": "Архивировать канал",
     "workspace.confirmArchiveChannelBody": "Это скроет канал из рабочего пространства. Это может сделать только владелец канала.",
     "workspace.confirmRestoreChannelPrefix": "Восстановить канал",
@@ -1079,13 +1087,14 @@ export function localeLabel(locale: Locale): string {
 }
 
 export function translate(locale: Locale, key: TranslationKey): string {
-  return DICTIONARY[locale][key];
+  const value = DICTIONARY[locale][key];
+  return typeof value === "function" ? value("") : value;
 }
 
 export function useLocale(): {
   locale: Locale;
   setLocale: (locale: Locale) => void;
-  t: (key: TranslationKey) => string;
+  t: (key: TranslationKey, ...args: string[]) => string;
 } {
   const locale = useSyncExternalStore<Locale>(
     (callback) => {
@@ -1102,7 +1111,16 @@ export function useLocale(): {
   }, []);
 
   const t = useCallback(
-    (key: TranslationKey) => translate(locale, key),
+    (key: TranslationKey, ...args: string[]) => {
+      let value = DICTIONARY[locale][key];
+      if (typeof value === "function") {
+        return args[0] ? value(args[0]) : value("");
+      }
+      for (let i = 0; i < args.length; i++) {
+        value = (value as string).replace(`{arg${i}}`, args[i]);
+      }
+      return value as string;
+    },
     [locale],
   );
 

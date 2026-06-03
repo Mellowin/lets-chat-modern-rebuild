@@ -940,4 +940,163 @@ describe('WebsocketGateway', () => {
       });
     });
   });
+
+  describe('handleDirectTypingStart', () => {
+    it('should broadcast direct:typing with isTyping true for participant', async () => {
+      const socket = createMockSocket({
+        data: {
+          user: { id: userId, username: 'testuser', displayName: 'Test User' },
+        },
+      });
+      socket.rooms.add(`direct-conversation:${conversationId}`);
+
+      directConversations.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+
+      await gateway.handleDirectTypingStart(socket, { conversationId });
+
+      expect(directConversations.findParticipant).toHaveBeenCalledWith(
+        conversationId,
+        userId,
+      );
+      expect(socket.to).toHaveBeenCalledWith(
+        `direct-conversation:${conversationId}`,
+      );
+      expect(
+        socket.to(`direct-conversation:${conversationId}`).emit,
+      ).toHaveBeenCalledWith('direct:typing', {
+        conversationId,
+        user: { id: userId, username: 'testuser', displayName: 'Test User' },
+        isTyping: true,
+      });
+    });
+
+    it('should reject when not authenticated', async () => {
+      const socket = createMockSocket();
+
+      await gateway.handleDirectTypingStart(socket, { conversationId });
+
+      expect(socket.emit).toHaveBeenCalledWith('direct:typing:error', {
+        message: 'Not authenticated',
+      });
+    });
+
+    it('should reject invalid conversationId', async () => {
+      const socket = createMockSocket({
+        data: { user: { id: userId, username: 'testuser', displayName: null } },
+      });
+
+      await gateway.handleDirectTypingStart(socket, { conversationId: 'bad' });
+
+      expect(socket.emit).toHaveBeenCalledWith('direct:typing:error', {
+        message: 'Invalid UUID',
+      });
+    });
+
+    it('should reject when room not joined', async () => {
+      const socket = createMockSocket({
+        data: { user: { id: userId, username: 'testuser', displayName: null } },
+      });
+
+      await gateway.handleDirectTypingStart(socket, { conversationId });
+
+      expect(socket.emit).toHaveBeenCalledWith('direct:typing:error', {
+        message: 'Direct conversation room not joined',
+        conversationId,
+      });
+    });
+
+    it('should reject when user is not a participant', async () => {
+      const socket = createMockSocket({
+        data: { user: { id: userId, username: 'testuser', displayName: null } },
+      });
+      socket.rooms.add(`direct-conversation:${conversationId}`);
+
+      directConversations.findParticipant.mockResolvedValue(null);
+
+      await gateway.handleDirectTypingStart(socket, { conversationId });
+
+      expect(socket.emit).toHaveBeenCalledWith('direct:typing:error', {
+        message: 'Access denied',
+        conversationId,
+      });
+    });
+
+    it('should reject when user data is missing', async () => {
+      const socket = createMockSocket({
+        data: { user: { id: userId } },
+      });
+      socket.rooms.add(`direct-conversation:${conversationId}`);
+
+      directConversations.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+
+      await gateway.handleDirectTypingStart(socket, { conversationId });
+
+      expect(socket.to).not.toHaveBeenCalled();
+      expect(socket.emit).toHaveBeenCalledWith('direct:typing:error', {
+        message: 'User data missing',
+      });
+    });
+  });
+
+  describe('handleDirectTypingStop', () => {
+    it('should broadcast direct:typing with isTyping false for participant', async () => {
+      const socket = createMockSocket({
+        data: { user: { id: userId, username: 'testuser', displayName: null } },
+      });
+      socket.rooms.add(`direct-conversation:${conversationId}`);
+
+      directConversations.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+
+      await gateway.handleDirectTypingStop(socket, { conversationId });
+
+      expect(directConversations.findParticipant).toHaveBeenCalledWith(
+        conversationId,
+        userId,
+      );
+      expect(socket.to).toHaveBeenCalledWith(
+        `direct-conversation:${conversationId}`,
+      );
+      expect(
+        socket.to(`direct-conversation:${conversationId}`).emit,
+      ).toHaveBeenCalledWith('direct:typing', {
+        conversationId,
+        user: { id: userId, username: 'testuser', displayName: null },
+        isTyping: false,
+      });
+    });
+
+    it('should reject non-participant', async () => {
+      const socket = createMockSocket({
+        data: { user: { id: userId, username: 'testuser', displayName: null } },
+      });
+      socket.rooms.add(`direct-conversation:${conversationId}`);
+
+      directConversations.findParticipant.mockResolvedValue(null);
+
+      await gateway.handleDirectTypingStop(socket, { conversationId });
+
+      expect(socket.emit).toHaveBeenCalledWith('direct:typing:error', {
+        message: 'Access denied',
+        conversationId,
+      });
+    });
+  });
 });
