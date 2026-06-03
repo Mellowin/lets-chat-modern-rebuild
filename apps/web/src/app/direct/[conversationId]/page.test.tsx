@@ -787,7 +787,9 @@ describe("DirectConversationPage — layout and bubbles", () => {
     await waitFor(() => {
       expect(screen.getByTestId("direct-messages-scroll")).toBeInTheDocument();
     });
-    expect(screen.getByTestId("direct-message-row-dm1")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-row-dm1")).toBeInTheDocument();
+    });
   });
 
   it("composer is visible after messages", async () => {
