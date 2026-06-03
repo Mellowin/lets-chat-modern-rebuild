@@ -79,6 +79,8 @@ export class DirectConversationsService {
     message: Awaited<
       ReturnType<DirectConversationsRepository['createMessage']>
     >,
+    currentUserId: string,
+    otherParticipantLastReadAt: Date | null,
     reactions?: Array<{ emoji: string; count: number; reactedByMe: boolean }>,
   ) {
     return {
@@ -98,6 +100,13 @@ export class DirectConversationsService {
           }
         : null,
       reactions: reactions ?? [],
+      readByOtherParticipant:
+        message.authorId === currentUserId
+          ? !!(
+              otherParticipantLastReadAt &&
+              otherParticipantLastReadAt >= message.createdAt
+            )
+          : false,
     };
   }
 
@@ -162,6 +171,13 @@ export class DirectConversationsService {
       throw new ForbiddenException('Access denied');
     }
 
+    const participants =
+      await this.directConversations.findParticipants(conversationId);
+    const otherParticipant = participants.find(
+      (p) => p.userId !== currentUserId,
+    );
+    const otherParticipantLastReadAt = otherParticipant?.lastReadAt ?? null;
+
     const messages =
       await this.directConversations.listMessagesForConversation(
         conversationId,
@@ -179,7 +195,12 @@ export class DirectConversationsService {
       reactionsMap.set(message.id, reactions);
     }
     return messages.map((m) =>
-      this.toMessageResponse(m, reactionsMap.get(m.id) ?? []),
+      this.toMessageResponse(
+        m,
+        currentUserId,
+        otherParticipantLastReadAt,
+        reactionsMap.get(m.id) ?? [],
+      ),
     );
   }
 
@@ -212,6 +233,13 @@ export class DirectConversationsService {
       }
     }
 
+    const participants =
+      await this.directConversations.findParticipants(conversationId);
+    const otherParticipant = participants.find(
+      (p) => p.userId !== currentUserId,
+    );
+    const otherParticipantLastReadAt = otherParticipant?.lastReadAt ?? null;
+
     const message = await this.directConversations.createMessage({
       conversationId,
       authorId: currentUserId,
@@ -221,14 +249,16 @@ export class DirectConversationsService {
 
     await this.directConversations.touchConversationUpdatedAt(conversationId);
 
-    const response = this.toMessageResponse(message);
+    const response = this.toMessageResponse(
+      message,
+      currentUserId,
+      otherParticipantLastReadAt,
+    );
     this.websocketEvents.broadcastDirectMessageCreated(
       conversationId,
       response,
     );
 
-    const participants =
-      await this.directConversations.findParticipants(conversationId);
     this.websocketEvents.broadcastDirectConversationUpdated(
       conversationId,
       response,
@@ -269,6 +299,11 @@ export class DirectConversationsService {
       throw new BadRequestException('Content must be at most 4000 characters');
     }
 
+    const participants =
+      await this.directConversations.findParticipants(conversationId);
+    const otherParticipant = participants.find((p) => p.userId !== userId);
+    const otherParticipantLastReadAt = otherParticipant?.lastReadAt ?? null;
+
     const updated = await this.directConversations.updateDirectMessageContent(
       messageId,
       trimmed,
@@ -279,7 +314,12 @@ export class DirectConversationsService {
       userId,
     );
 
-    const response = this.toMessageResponse(updated, reactions);
+    const response = this.toMessageResponse(
+      updated,
+      userId,
+      otherParticipantLastReadAt,
+      reactions,
+    );
     this.websocketEvents.broadcastDirectMessageUpdated(
       conversationId,
       response,
@@ -377,6 +417,13 @@ export class DirectConversationsService {
       conversationId,
       currentUserId,
     );
+
+    const readAt = new Date();
+    this.websocketEvents.broadcastDirectConversationRead(conversationId, {
+      conversationId,
+      userId: currentUserId,
+      readAt: readAt.toISOString(),
+    });
 
     return { ok: true };
   }

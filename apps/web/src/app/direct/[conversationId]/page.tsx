@@ -580,6 +580,30 @@ export default function DirectConversationPage() {
     socket.on("presence:online", handlePresenceOnline);
     socket.on("presence:offline", handlePresenceOffline);
 
+    function handleDirectConversationRead(payload: {
+      conversationId: string;
+      userId: string;
+      readAt: string;
+    }) {
+      if (payload.conversationId !== conversationId) return;
+      if (payload.userId === user?.id) return;
+      setMessages((prev) => {
+        if (prev.kind !== "success") return prev;
+        return {
+          kind: "success",
+          data: prev.data.map((m) => {
+            if (m.author.id !== user?.id) return m;
+            if (m.createdAt <= payload.readAt) {
+              return { ...m, readByOtherParticipant: true };
+            }
+            return m;
+          }),
+        };
+      });
+    }
+
+    socket.on("direct:conversation:read", handleDirectConversationRead);
+
     // If socket is already connected, server auth is complete;
     // emit join immediately. For reconnects, serverConnected will fire.
     if (socket.connected) {
@@ -600,6 +624,7 @@ export default function DirectConversationPage() {
       socket.off("direct:typing", handleDirectTyping);
       socket.off("presence:online", handlePresenceOnline);
       socket.off("presence:offline", handlePresenceOffline);
+      socket.off("direct:conversation:read", handleDirectConversationRead);
       emitTypingStop();
       clearTypingTimeouts();
       socket.emit("direct:leave", { conversationId });
@@ -908,6 +933,14 @@ export default function DirectConversationPage() {
                             {msg.editedAt && (
                               <span className="text-[10px] text-zinc-400 dark:text-zinc-500 italic">
                                 {t("channel.edited")}
+                              </span>
+                            )}
+                            {isOwnMessage && (
+                              <span
+                                data-testid={`direct-read-receipt-${msg.id}`}
+                                className="text-[10px] text-zinc-400 dark:text-zinc-500"
+                              >
+                                {msg.readByOtherParticipant ? t("direct.seen") : t("direct.sent")}
                               </span>
                             )}
                             <button

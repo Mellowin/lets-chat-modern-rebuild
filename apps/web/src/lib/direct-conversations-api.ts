@@ -59,6 +59,7 @@ export interface DirectMessage {
   author: DirectMessageAuthor;
   parent: DirectMessageParentPreview | null;
   reactions: DirectMessageReactionSummary[];
+  readByOtherParticipant: boolean;
 }
 
 export interface SendDirectMessageInput {

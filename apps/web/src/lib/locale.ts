@@ -253,6 +253,8 @@ export type TranslationKey =
   | "direct.noMessages"
   | "direct.online"
   | "direct.offline"
+  | "direct.sent"
+  | "direct.seen"
   | "direct.failedLoadMessages"
   | "direct.failedSendMessage"
   | "direct.backToDirectMessages"
@@ -480,6 +482,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "direct.noMessages": "No messages yet.",
     "direct.online": "Online",
     "direct.offline": "Offline",
+    "direct.sent": "Sent",
+    "direct.seen": "Seen",
     "direct.failedLoadMessages": "Failed to load messages",
     "direct.failedSendMessage": "Failed to send message",
     "direct.backToDirectMessages": "← Back to direct messages",
@@ -743,6 +747,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "direct.noMessages": "Повідомлень ще немає.",
     "direct.online": "Онлайн",
     "direct.offline": "Офлайн",
+    "direct.sent": "Надіслано",
+    "direct.seen": "Переглянуто",
     "direct.failedLoadMessages": "Не вдалося завантажити повідомлення",
     "direct.failedSendMessage": "Не вдалося надіслати повідомлення",
     "direct.backToDirectMessages": "← Назад до особистих повідомлень",
@@ -1006,6 +1012,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "direct.noMessages": "Сообщений пока нет.",
     "direct.online": "Онлайн",
     "direct.offline": "Офлайн",
+    "direct.sent": "Отправлено",
+    "direct.seen": "Просмотрено",
     "direct.failedLoadMessages": "Не удалось загрузить сообщения",
     "direct.failedSendMessage": "Не удалось отправить сообщение",
     "direct.backToDirectMessages": "← Назад к личным сообщениям",

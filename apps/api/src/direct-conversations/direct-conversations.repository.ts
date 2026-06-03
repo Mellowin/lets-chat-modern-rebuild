@@ -173,7 +173,7 @@ export class DirectConversationsRepository {
   async findParticipants(conversationId: string) {
     return this.prisma.directConversationParticipant.findMany({
       where: { conversationId },
-      select: { userId: true },
+      select: { userId: true, lastReadAt: true },
     });
   }
 

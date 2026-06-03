@@ -136,6 +136,7 @@ describe('DirectConversationsService', () => {
             broadcastDirectMessageDeleted: jest.fn(),
             broadcastDirectReactionAdded: jest.fn(),
             broadcastDirectReactionRemoved: jest.fn(),
+            broadcastDirectConversationRead: jest.fn(),
           },
         },
         {
@@ -384,6 +385,10 @@ describe('DirectConversationsService', () => {
         createdAt: new Date(),
         lastReadAt: new Date(),
       });
+      repository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: null },
+      ]);
       repository.listMessagesForConversation.mockResolvedValue([
         makeMessage({
           content: 'hello',
@@ -402,6 +407,87 @@ describe('DirectConversationsService', () => {
       expect(result).toHaveLength(1);
       expect(result[0].content).toBe('hello');
       expect(result[0].reactions).toEqual([]);
+    });
+
+    it('marks own messages as readByOtherParticipant true when other lastReadAt >= createdAt', async () => {
+      const msgCreatedAt = new Date('2024-01-01T10:00:00Z');
+      const otherLastReadAt = new Date('2024-01-01T11:00:00Z');
+      repository.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: otherLastReadAt },
+      ]);
+      repository.listMessagesForConversation.mockResolvedValue([
+        makeMessage({
+          createdAt: msgCreatedAt,
+          authorId: userId,
+        }),
+      ]);
+      repository.getDirectMessageReactions.mockResolvedValue([]);
+
+      const result = await service.listMessages(conversationId, userId);
+      expect(result[0].readByOtherParticipant).toBe(true);
+    });
+
+    it('marks own messages as readByOtherParticipant false when other lastReadAt < createdAt', async () => {
+      const msgCreatedAt = new Date('2024-01-01T10:00:00Z');
+      const otherLastReadAt = new Date('2024-01-01T09:00:00Z');
+      repository.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: otherLastReadAt },
+      ]);
+      repository.listMessagesForConversation.mockResolvedValue([
+        makeMessage({
+          createdAt: msgCreatedAt,
+          authorId: userId,
+        }),
+      ]);
+      repository.getDirectMessageReactions.mockResolvedValue([]);
+
+      const result = await service.listMessages(conversationId, userId);
+      expect(result[0].readByOtherParticipant).toBe(false);
+    });
+
+    it('marks other user messages readByOtherParticipant false for current viewer', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: new Date() },
+      ]);
+      repository.listMessagesForConversation.mockResolvedValue([
+        makeMessage({
+          authorId: otherUserId,
+          author: {
+            id: otherUserId,
+            username: 'bob',
+            displayName: 'Bob',
+            avatarUrl: null,
+          },
+        }),
+      ]);
+      repository.getDirectMessageReactions.mockResolvedValue([]);
+
+      const result = await service.listMessages(conversationId, userId);
+      expect(result[0].readByOtherParticipant).toBe(false);
     });
   });
 
@@ -425,7 +511,9 @@ describe('DirectConversationsService', () => {
 
       // Validation happens at DTO level; service receives already-validated data.
       // We test the participant guard here.
-      repository.findParticipants.mockResolvedValue([{ userId }]);
+      repository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+      ]);
       repository.createMessage.mockResolvedValue(
         makeMessage({ content: 'hi' }),
       );
@@ -446,7 +534,9 @@ describe('DirectConversationsService', () => {
         createdAt: new Date(),
         lastReadAt: new Date(),
       });
-      repository.findParticipants.mockResolvedValue([{ userId }]);
+      repository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+      ]);
       repository.createMessage.mockResolvedValue(makeMessage());
 
       const result = await service.createMessage(
@@ -460,6 +550,28 @@ describe('DirectConversationsService', () => {
       );
     });
 
+    it('returns readByOtherParticipant false initially', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: null },
+      ]);
+      repository.createMessage.mockResolvedValue(makeMessage());
+
+      const result = await service.createMessage(
+        conversationId,
+        { content: 'hello' },
+        userId,
+      );
+      expect(result.readByOtherParticipant).toBe(false);
+    });
+
     it('broadcasts direct:message:created after successful create', async () => {
       repository.findParticipant.mockResolvedValue({
         id: 'p1',
@@ -470,8 +582,8 @@ describe('DirectConversationsService', () => {
       });
       repository.createMessage.mockResolvedValue(makeMessage());
       repository.findParticipants.mockResolvedValue([
-        { userId },
-        { userId: otherUserId },
+        { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: null },
       ]);
 
       const result = await service.createMessage(
@@ -511,6 +623,10 @@ describe('DirectConversationsService', () => {
         createdAt: new Date(),
         lastReadAt: new Date(),
       });
+      repository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: null },
+      ]);
       repository.createMessage.mockRejectedValue(new Error('DB error'));
 
       await expect(
@@ -545,7 +661,9 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: null,
       });
-      repository.findParticipants.mockResolvedValue([{ userId }]);
+      repository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+      ]);
       repository.createMessage.mockResolvedValue(
         makeMessage({
           content: 'reply',
@@ -695,6 +813,48 @@ describe('DirectConversationsService', () => {
       );
     });
 
+    it('broadcasts direct:conversation:read after marking as read', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: null,
+      });
+      repository.updateParticipantLastRead.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+
+      await service.markAsRead(conversationId, userId);
+
+      expect(
+        websocketEvents.broadcastDirectConversationRead,
+      ).toHaveBeenCalledWith(
+        conversationId,
+        expect.objectContaining({
+          conversationId,
+          userId,
+          readAt: expect.any(String) as string,
+        }),
+      );
+    });
+
+    it('does not broadcast when user is not a participant', async () => {
+      repository.findParticipant.mockResolvedValue(null);
+
+      await expect(
+        service.markAsRead(conversationId, userId),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(repository.updateParticipantLastRead).not.toHaveBeenCalled();
+      expect(
+        websocketEvents.broadcastDirectConversationRead,
+      ).not.toHaveBeenCalled();
+    });
+
     it('throws ForbiddenException when user is not a participant', async () => {
       repository.findParticipant.mockResolvedValue(null);
 
@@ -714,6 +874,10 @@ describe('DirectConversationsService', () => {
         createdAt: new Date(),
         lastReadAt: new Date(),
       });
+      repository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: null },
+      ]);
       repository.findMessageById.mockResolvedValue(makeMessage());
       repository.updateDirectMessageContent.mockResolvedValue(
         makeMessage({ content: 'updated', editedAt: new Date() }),
@@ -739,6 +903,10 @@ describe('DirectConversationsService', () => {
         createdAt: new Date(),
         lastReadAt: new Date(),
       });
+      repository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: null },
+      ]);
       repository.findMessageById.mockResolvedValue(makeMessage());
       repository.updateDirectMessageContent.mockResolvedValue(
         makeMessage({ content: 'trimmed', editedAt: new Date() }),
@@ -851,6 +1019,10 @@ describe('DirectConversationsService', () => {
         createdAt: new Date(),
         lastReadAt: new Date(),
       });
+      repository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: null },
+      ]);
       repository.findMessageById.mockResolvedValue(makeMessage());
       repository.updateDirectMessageContent.mockResolvedValue(
         makeMessage({ content: 'updated', editedAt: new Date() }),
@@ -889,8 +1061,8 @@ describe('DirectConversationsService', () => {
         }),
       );
       repository.findParticipants.mockResolvedValue([
-        { userId },
-        { userId: otherUserId },
+        { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: null },
       ]);
 
       await service.updateMessage(conversationId, messageId, userId, 'updated');
@@ -904,6 +1076,41 @@ describe('DirectConversationsService', () => {
       );
     });
 
+    it('preserves readByOtherParticipant in update response', async () => {
+      const msgCreatedAt = new Date('2024-01-01T10:00:00Z');
+      const otherLastReadAt = new Date('2024-01-01T11:00:00Z');
+      repository.findParticipant.mockResolvedValue({
+        id: 'p-current',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: otherLastReadAt },
+      ]);
+      repository.findMessageById.mockResolvedValue(
+        makeMessage({ createdAt: msgCreatedAt }),
+      );
+      repository.updateDirectMessageContent.mockResolvedValue(
+        makeMessage({
+          content: 'updated',
+          editedAt: new Date(),
+          createdAt: msgCreatedAt,
+        }),
+      );
+      repository.getDirectMessageReactions.mockResolvedValue([]);
+
+      const result = await service.updateMessage(
+        conversationId,
+        messageId,
+        userId,
+        'updated',
+      );
+      expect(result.readByOtherParticipant).toBe(true);
+    });
+
     it('does not broadcast direct:conversation:updated when editing a non-last message', async () => {
       repository.findParticipant.mockResolvedValue({
         id: 'p-current',
@@ -913,6 +1120,10 @@ describe('DirectConversationsService', () => {
         lastReadAt: new Date(),
       });
       repository.findMessageById.mockResolvedValue(makeMessage());
+      repository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: null },
+      ]);
       repository.updateDirectMessageContent.mockResolvedValue(
         makeMessage({ content: 'updated', editedAt: new Date() }),
       );
@@ -1678,8 +1889,8 @@ describe('DirectConversationsService', () => {
         makeMessage({ deletedAt: new Date() }),
       );
       repository.findParticipants.mockResolvedValue([
-        { userId },
-        { userId: otherUserId },
+        { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: null },
       ]);
 
       await service.deleteMessage(conversationId, messageId, userId);
@@ -1741,8 +1952,8 @@ describe('DirectConversationsService', () => {
         makeMessage({ deletedAt: new Date() }),
       );
       repository.findParticipants.mockResolvedValue([
-        { userId },
-        { userId: otherUserId },
+        { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: null },
       ]);
 
       await service.deleteMessage(conversationId, messageId, userId);

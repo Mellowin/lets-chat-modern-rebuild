@@ -1028,6 +1028,216 @@ describe("DirectConversationPage — layout and bubbles", () => {
   });
 });
 
+describe("DirectConversationPage — read receipts", () => {
+  it("shows Sent for own unread message", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "My message",
+        parentId: null,
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+      },
+    ]);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-read-receipt-dm1")).toHaveTextContent("Sent");
+    });
+  });
+
+  it("shows Seen for own read message", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "My message",
+        parentId: null,
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        parent: null,
+        reactions: [],
+        readByOtherParticipant: true,
+      },
+    ]);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-read-receipt-dm1")).toHaveTextContent("Seen");
+    });
+  });
+
+  it("does not show read receipt for other user's message", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "Other message",
+        parentId: null,
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+        parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+      },
+    ]);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-row-dm1")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("direct-read-receipt-dm1")).not.toBeInTheDocument();
+  });
+
+  it("updates own message to Seen on direct:conversation:read from other participant", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "My message",
+        parentId: null,
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+      },
+    ]);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-read-receipt-dm1")).toHaveTextContent("Sent");
+    });
+
+    socketHandlers["connected"]?.();
+    socketHandlers["direct:conversation:read"]?.({
+      conversationId: "dc1",
+      userId: "u3",
+      readAt: "2024-01-01T12:00:00Z",
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-read-receipt-dm1")).toHaveTextContent("Seen");
+    });
+  });
+
+  it("ignores direct:conversation:read from self", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "My message",
+        parentId: null,
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+      },
+    ]);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-read-receipt-dm1")).toHaveTextContent("Sent");
+    });
+
+    socketHandlers["connected"]?.();
+    socketHandlers["direct:conversation:read"]?.({
+      conversationId: "dc1",
+      userId: "u1",
+      readAt: "2024-01-01T12:00:00Z",
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-read-receipt-dm1")).toHaveTextContent("Sent");
+    });
+  });
+
+  it("ignores direct:conversation:read for another conversation", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "My message",
+        parentId: null,
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+      },
+    ]);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-read-receipt-dm1")).toHaveTextContent("Sent");
+    });
+
+    socketHandlers["connected"]?.();
+    socketHandlers["direct:conversation:read"]?.({
+      conversationId: "dc2",
+      userId: "u3",
+      readAt: "2024-01-01T12:00:00Z",
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-read-receipt-dm1")).toHaveTextContent("Sent");
+    });
+  });
+
+  it("new own message initially shows Sent", async () => {
+    mockMessages([]);
+    vi.mocked(sendDirectMessage).mockResolvedValueOnce({
+      id: "dm-new",
+      conversationId: "dc1",
+      content: "New msg",
+      parentId: null,
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      editedAt: null,
+      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      parent: null,
+      reactions: [],
+      readByOtherParticipant: false,
+    });
+
+    render(<DirectConversationPage />);
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-composer")).toBeInTheDocument();
+    });
+
+    const textarea = screen.getByPlaceholderText(/type a message/i);
+    await userEvent.type(textarea, "New msg");
+    const form = screen.getByTestId("direct-composer");
+    fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-read-receipt-dm-new")).toHaveTextContent("Sent");
+    });
+  });
+});
 
 describe("DirectConversationPage — reply action", () => {
   it("renders Reply action on direct messages", async () => {

@@ -419,4 +419,29 @@ export class WebsocketEventsService {
       );
     }
   }
+
+  broadcastDirectConversationRead(
+    conversationId: string,
+    payload: {
+      conversationId: string;
+      userId: string;
+      readAt: string;
+    },
+  ) {
+    try {
+      this.gateway.broadcastToRoom(
+        `direct-conversation:${conversationId}`,
+        'direct:conversation:read',
+        payload,
+      );
+    } catch (error) {
+      this.logger.error(
+        {
+          conversationId,
+          error: (error as Error).message,
+        },
+        'Failed to broadcast direct:conversation:read',
+      );
+    }
+  }
 }
