@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import ChannelDetailPage from "./page";
 import { getChannel, getChannelMembers, addChannelMember, removeChannelMember, leaveChannel, archiveChannel, type ChannelMember } from "@/lib/channels-api";
 import { createChannelInvite } from "@/lib/channel-invites-api";
-import { getMessages, createMessage, updateMessage, deleteMessage, Message } from "@/lib/messages-api";
+import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, Message } from "@/lib/messages-api";
 
 const socketHandlers: Record<string, (...args: unknown[]) => void> = {};
 const socketOnMock = vi.fn((event: string, handler: (...args: unknown[]) => void) => {
@@ -48,6 +48,8 @@ vi.mock("@/lib/messages-api", () => ({
   createMessage: vi.fn(),
   updateMessage: vi.fn(),
   deleteMessage: vi.fn(),
+  addMessageReaction: vi.fn(),
+  removeMessageReaction: vi.fn(),
 }));
 
 vi.mock("@/lib/socket-client", () => ({
@@ -2446,5 +2448,438 @@ describe("ChannelDetailPage — replies", () => {
     await userEvent.click(previews[previews.length - 1]);
     expect(scrollIntoViewMock).toHaveBeenCalled();
     scrollIntoViewMock.mockRestore();
+  });
+});
+
+
+describe("ChannelDetailPage — reactions", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.setItem("accessToken", "token");
+    vi.clearAllMocks();
+    socketOnMock.mockReset();
+    socketEmitMock.mockReset();
+    socketDisconnectMock.mockReset();
+    Object.keys(socketHandlers).forEach((k) => delete socketHandlers[k]);
+    vi.mocked(addMessageReaction).mockReset();
+    vi.mocked(removeMessageReaction).mockReset();
+    window.alert = vi.fn();
+  });
+
+  const messageWithNoReactions = {
+    id: "m1",
+    channelId: "ch1",
+    content: "Hello",
+    parentId: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    editedAt: null,
+    author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+    reactions: [],
+  };
+
+  const messageWithReaction = {
+    id: "m2",
+    channelId: "ch1",
+    content: "World",
+    parentId: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    editedAt: null,
+    author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+    reactions: [{ emoji: "👍", count: 2, reactedByMe: false }],
+  };
+
+  const ownMessageWithReaction = {
+    id: "m3",
+    channelId: "ch1",
+    content: "Own msg",
+    parentId: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    editedAt: null,
+    author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+    reactions: [{ emoji: "👍", count: 1, reactedByMe: true }],
+  };
+
+  it("hides reaction picker by default", async () => {
+    mockChannelAndMessages([messageWithNoReactions]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("channel-reaction-picker-m1")).not.toBeInTheDocument();
+  });
+
+  it("opens fixed message menu on trigger click", async () => {
+    mockChannelAndMessages([messageWithNoReactions]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
+    expect(screen.getByTestId("channel-message-menu-m1")).toBeInTheDocument();
+    expect(screen.getByTestId("channel-message-menu-m1")).toHaveClass("fixed");
+  });
+
+  it("clamps menu position near viewport bottom", async () => {
+    const originalInnerHeight = window.innerHeight;
+    Object.defineProperty(window, "innerHeight", {
+      writable: true,
+      configurable: true,
+      value: 300,
+    });
+    const originalGetBoundingClientRect = Element.prototype.getBoundingClientRect;
+    Element.prototype.getBoundingClientRect = vi.fn(
+      () =>
+        ({
+          top: 200,
+          left: 100,
+          right: 130,
+          bottom: 230,
+          width: 30,
+          height: 30,
+          x: 100,
+          y: 200,
+          toJSON: () => {},
+        }) as unknown as DOMRect,
+    );
+
+    mockChannelAndMessages([messageWithNoReactions]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
+
+    const menu = screen.getByTestId("channel-message-menu-m1");
+    expect(parseInt(menu.style.top, 10)).toBe(108);
+
+    Element.prototype.getBoundingClientRect = originalGetBoundingClientRect;
+    Object.defineProperty(window, "innerHeight", {
+      writable: true,
+      configurable: true,
+      value: originalInnerHeight,
+    });
+  });
+
+  it("opens message menu on right-click", async () => {
+    mockChannelAndMessages([messageWithNoReactions]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+    fireEvent.contextMenu(screen.getByTestId("message-bubble-m1"));
+    expect(screen.getByTestId("channel-message-menu-m1")).toBeInTheDocument();
+  });
+
+  it("opens reaction picker from menu React action", async () => {
+    mockChannelAndMessages([messageWithNoReactions]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
+    await userEvent.click(screen.getByTestId("channel-react-action-m1"));
+    expect(screen.getByTestId("channel-reaction-picker-m1")).toBeInTheDocument();
+    expect(screen.queryByTestId("channel-message-menu-m1")).not.toBeInTheDocument();
+  });
+
+  it("positions reaction picker fixed and within viewport", async () => {
+    mockChannelAndMessages([messageWithNoReactions]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
+    await userEvent.click(screen.getByTestId("channel-react-action-m1"));
+    const picker = screen.getByTestId("channel-reaction-picker-m1");
+    expect(picker).toHaveClass("fixed");
+    const left = parseInt(picker.style.left, 10);
+    const top = parseInt(picker.style.top, 10);
+    expect(left).toBeGreaterThanOrEqual(0);
+    expect(left).toBeLessThanOrEqual(window.innerWidth);
+    expect(top).toBeGreaterThanOrEqual(0);
+    expect(top).toBeLessThanOrEqual(window.innerHeight);
+  });
+
+  it("closes picker after selecting emoji", async () => {
+    vi.mocked(addMessageReaction).mockResolvedValueOnce([
+      { emoji: "👍", count: 1, reactedByMe: true },
+    ]);
+    mockChannelAndMessages([messageWithNoReactions]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
+    await userEvent.click(screen.getByTestId("channel-react-action-m1"));
+    expect(screen.getByTestId("channel-reaction-picker-m1")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByTestId("channel-reaction-option-m1-👍"));
+    await waitFor(() => {
+      expect(screen.queryByTestId("channel-reaction-picker-m1")).not.toBeInTheDocument();
+    });
+  });
+
+  it("closes menu and picker on scroll", async () => {
+    mockChannelAndMessages([messageWithNoReactions]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
+    expect(screen.getByTestId("channel-message-menu-m1")).toBeInTheDocument();
+
+    const scrollContainer = screen.getByText("Hello").closest(".overflow-y-auto");
+    if (scrollContainer) {
+      fireEvent.scroll(scrollContainer);
+    }
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("channel-message-menu-m1")).not.toBeInTheDocument();
+    });
+  });
+
+  it("closes menu and picker on outside click", async () => {
+    mockChannelAndMessages([messageWithNoReactions]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
+    expect(screen.getByTestId("channel-message-menu-m1")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("heading", { name: "general" }));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("channel-message-menu-m1")).not.toBeInTheDocument();
+    });
+  });
+
+  it("closes menu and picker on Escape key", async () => {
+    mockChannelAndMessages([messageWithNoReactions]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
+    expect(screen.getByTestId("channel-message-menu-m1")).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("channel-message-menu-m1")).not.toBeInTheDocument();
+    });
+  });
+
+  it("socket reaction:added from other user updates count without changing my reactedByMe", async () => {
+    mockChannelAndMessages([messageWithReaction]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("World")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("channel-reaction-chip-m2-👍")).toBeInTheDocument();
+
+    act(() => {
+      socketHandlers["reaction:added"]({
+        messageId: "m2",
+        channelId: "ch1",
+        emoji: "👍",
+        user: { id: "u3", username: "charlie" },
+        reactions: [{ emoji: "👍", count: 3 }],
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("3")).toBeInTheDocument();
+    });
+    const chip = screen.getByTestId("channel-reaction-chip-m2-👍");
+    expect(chip).not.toHaveClass("bg-emerald-50");
+  });
+
+  it("socket reaction:added from self sets reactedByMe true", async () => {
+    mockChannelAndMessages([messageWithNoReactions]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("channel-reactions-m1")).not.toBeInTheDocument();
+
+    act(() => {
+      socketHandlers["reaction:added"]({
+        messageId: "m1",
+        channelId: "ch1",
+        emoji: "❤️",
+        user: { id: "u1", username: "alice" },
+        reactions: [{ emoji: "❤️", count: 1, reactedByMe: true }],
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("channel-reaction-chip-m1-❤️")).toBeInTheDocument();
+    });
+    const chip = screen.getByTestId("channel-reaction-chip-m1-❤️");
+    expect(chip).toHaveClass("bg-emerald-50");
+  });
+
+  it("replacing own emoji removes old reaction chip and shows new one active", async () => {
+    mockChannelAndMessages([ownMessageWithReaction]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Own msg")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("channel-reaction-chip-m3-👍")).toBeInTheDocument();
+
+    act(() => {
+      socketHandlers["reaction:added"]({
+        messageId: "m3",
+        channelId: "ch1",
+        emoji: "🔥",
+        user: { id: "u1", username: "alice" },
+        reactions: [{ emoji: "🔥", count: 1, reactedByMe: true }],
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("channel-reaction-chip-m3-👍")).not.toBeInTheDocument();
+    });
+    expect(screen.getByTestId("channel-reaction-chip-m3-🔥")).toBeInTheDocument();
+    expect(screen.getByTestId("channel-reaction-chip-m3-🔥")).toHaveClass("bg-emerald-50");
+  });
+
+  it("reaction socket event does not duplicate messages", async () => {
+    mockChannelAndMessages([messageWithNoReactions, messageWithReaction]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+    expect(screen.getAllByTestId(/^message-row-/).length).toBe(2);
+
+    act(() => {
+      socketHandlers["reaction:added"]({
+        messageId: "m1",
+        channelId: "ch1",
+        emoji: "👍",
+        user: { id: "u2", username: "bob" },
+        reactions: [{ emoji: "👍", count: 1 }],
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("channel-reaction-chip-m1-👍")).toBeInTheDocument();
+    });
+    expect(screen.getAllByTestId(/^message-row-/).length).toBe(2);
+  });
+
+  it("send message still works with reactions present", async () => {
+    vi.mocked(createMessage).mockResolvedValueOnce({
+      id: "m4",
+      channelId: "ch1",
+      content: "New msg",
+      parentId: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      editedAt: null,
+      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      reactions: [],
+    });
+    mockChannelAndMessages([messageWithNoReactions]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Hello")).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText(/Type a message/i), "New msg");
+    await userEvent.click(screen.getByRole("button", { name: /Send/i }));
+
+    await waitFor(() => {
+      expect(createMessage).toHaveBeenCalledWith("token", "ws1", "ch1", { content: "New msg" });
+    });
+    expect(screen.getByText("New msg")).toBeInTheDocument();
+  });
+
+  it("reply still works with reactions present", async () => {
+    const parent = {
+      id: "m1",
+      channelId: "ch1",
+      content: "Parent",
+      parentId: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      editedAt: null,
+      author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+      reactions: [],
+    };
+    vi.mocked(createMessage).mockResolvedValueOnce({
+      id: "m4",
+      channelId: "ch1",
+      content: "Reply text",
+      parentId: "m1",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      editedAt: null,
+      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      reactions: [],
+    });
+    mockChannelAndMessages([parent]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Parent")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Reply/i }));
+    await userEvent.type(screen.getByPlaceholderText(/Type a message/i), "Reply text");
+    await userEvent.click(screen.getByRole("button", { name: /Send/i }));
+
+    await waitFor(() => {
+      expect(createMessage).toHaveBeenCalledWith("token", "ws1", "ch1", {
+        content: "Reply text",
+        parentId: "m1",
+      });
+    });
+  });
+
+  it("edit and delete still work with reactions present", async () => {
+    const ownMsg = {
+      id: "m1",
+      channelId: "ch1",
+      content: "Editable",
+      parentId: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      editedAt: null,
+      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      reactions: [{ emoji: "👍", count: 1, reactedByMe: true }],
+    };
+    vi.mocked(updateMessage).mockResolvedValueOnce({
+      ...ownMsg,
+      content: "Updated",
+      editedAt: "2024-01-02T00:00:00Z",
+    });
+    vi.mocked(deleteMessage).mockResolvedValueOnce(undefined);
+
+    mockChannelAndMessages([ownMsg]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("Editable")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Edit/i }));
+    const editTextarea = screen.getByDisplayValue("Editable");
+    await userEvent.clear(editTextarea);
+    await userEvent.type(editTextarea, "Updated");
+    await userEvent.click(screen.getByRole("button", { name: /Save/i }));
+    await waitFor(() => {
+      expect(updateMessage).toHaveBeenCalledWith("token", "ws1", "ch1", "m1", { content: "Updated" });
+    });
+    expect(screen.getByText("Updated")).toBeInTheDocument();
+
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    await userEvent.click(screen.getByRole("button", { name: /Delete/i }));
+    await waitFor(() => {
+      expect(deleteMessage).toHaveBeenCalledWith("token", "ws1", "ch1", "m1");
+    });
+    expect(screen.queryByText("Updated")).not.toBeInTheDocument();
   });
 });
