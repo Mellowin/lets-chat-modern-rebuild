@@ -33,6 +33,8 @@ type ConversationState =
   | { kind: "success"; data: DirectConversation | null }
   | { kind: "error"; message: string };
 
+type MenuPosition = { top: number; left: number };
+
 export default function DirectConversationPage() {
   const params = useParams();
   const conversationId =
@@ -51,7 +53,9 @@ export default function DirectConversationPage() {
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const [forwardMessage, setForwardMessage] = useState<DirectMessage | null>(null);
   const [messageMenuId, setMessageMenuId] = useState<string | null>(null);
+  const [messageMenuPosition, setMessageMenuPosition] = useState<MenuPosition | null>(null);
   const [reactionPickerMessageId, setReactionPickerMessageId] = useState<string | null>(null);
+  const [reactionPickerPosition, setReactionPickerPosition] = useState<MenuPosition | null>(null);
   const quickEmojis = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
   const [forwardConversations, setForwardConversations] = useState<DirectConversation[]>([]);
   const [forwardState, setForwardState] = useState<
@@ -70,19 +74,47 @@ export default function DirectConversationPage() {
     window.dispatchEvent(new CustomEvent("direct-conversations:changed"));
   }
 
-  function openMenu(msgId: string) {
-    setMessageMenuId(msgId);
-    setReactionPickerMessageId(null);
+  function getMenuPosition(rect: DOMRect): MenuPosition {
+    const menuWidth = 180;
+    const menuHeight = 180;
+    const gap = 8;
+    const padding = 12;
+
+    let left = rect.right + gap;
+    if (left + menuWidth > window.innerWidth - padding) {
+      left = rect.left - menuWidth - gap;
+    }
+    left = Math.max(padding, Math.min(left, window.innerWidth - menuWidth - padding));
+
+    let top = rect.top;
+    if (top + menuHeight > window.innerHeight - padding) {
+      top = window.innerHeight - menuHeight - padding;
+    }
+    top = Math.max(padding, top);
+
+    return { top, left };
   }
 
-  function openReactionPicker(msgId: string) {
-    setReactionPickerMessageId(msgId);
+  function openMenuForElement(messageId: string, element: HTMLElement) {
+    const rect = element.getBoundingClientRect();
+    setMessageMenuPosition(getMenuPosition(rect));
+    setReactionPickerPosition(null);
+    setReactionPickerMessageId(null);
+    setMessageMenuId(messageId);
+  }
+
+  function openReactionPickerAt(messageId: string, position: MenuPosition) {
+    setReactionPickerPosition(position);
+    setMessageMenuPosition(null);
     setMessageMenuId(null);
+    setReactionPickerMessageId(messageId);
   }
 
   function closeMenuAndPicker() {
     setMessageMenuId(null);
+    setMessageMenuPosition(null);
     setReactionPickerMessageId(null);
+    setReactionPickerPosition(null);
   }
 
   function handleReply(msg: DirectMessage) {
@@ -291,7 +323,9 @@ export default function DirectConversationPage() {
         return;
       }
       setMessageMenuId(null);
+      setMessageMenuPosition(null);
       setReactionPickerMessageId(null);
+      setReactionPickerPosition(null);
     }
     document.addEventListener("mousedown", handleDocumentClick);
     return () => document.removeEventListener("mousedown", handleDocumentClick);
@@ -301,7 +335,9 @@ export default function DirectConversationPage() {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
         setMessageMenuId(null);
+        setMessageMenuPosition(null);
         setReactionPickerMessageId(null);
+        setReactionPickerPosition(null);
       }
     }
     document.addEventListener("keydown", handleKeyDown);
@@ -570,7 +606,7 @@ export default function DirectConversationPage() {
         </header>
 
         <div className="mt-4 flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950">
-          <div ref={messagesScrollRef} data-testid="direct-messages-scroll" className="min-h-0 flex-1 overflow-y-auto bg-gradient-to-br from-[#e4efc4] via-[#c9e2bf] to-[#9cc7b2] px-4 py-3 dark:from-zinc-950 dark:via-emerald-950/40 dark:to-zinc-900">
+          <div ref={messagesScrollRef} data-testid="direct-messages-scroll" onScroll={() => { setMessageMenuId(null); setMessageMenuPosition(null); setReactionPickerMessageId(null); setReactionPickerPosition(null); }} className="min-h-0 flex-1 overflow-y-auto bg-gradient-to-br from-[#e4efc4] via-[#c9e2bf] to-[#9cc7b2] px-4 py-3 dark:from-zinc-950 dark:via-emerald-950/40 dark:to-zinc-900">
             <div className="flex w-full max-w-3xl flex-col">
               {messages.kind === "loading" && (
                 <div className="mt-4 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
@@ -641,7 +677,7 @@ export default function DirectConversationPage() {
                               </span>
                             )}
                             <button
-                              onClick={() => openMenu(msg.id)}
+                              onClick={(e) => openMenuForElement(msg.id, e.currentTarget)}
                               data-testid={`direct-message-menu-trigger-${msg.id}`}
                               className="ml-auto inline-flex h-5 w-5 items-center justify-center rounded text-xs text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
                               aria-label={t("direct.messageMenu")}
@@ -650,57 +686,13 @@ export default function DirectConversationPage() {
                             >
                               ⋯
                             </button>
-                            {messageMenuId === msg.id && (
-                              <div
-                                data-testid={`direct-message-menu-${msg.id}`}
-                                className="absolute right-0 top-full z-20 mt-1 w-44 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-1 shadow-lg"
-                                role="menu"
-                              >
-                                <button
-                                  onClick={() => handleReply(msg)}
-                                  data-testid={`direct-reply-action-${msg.id}`}
-                                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                                  role="menuitem"
-                                >
-                                  <span className="text-base">↩</span>
-                                  <span>{t("direct.reply")}</span>
-                                </button>
-                                <button
-                                  onClick={() => openReactionPicker(msg.id)}
-                                  data-testid={`direct-react-action-${msg.id}`}
-                                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                                  role="menuitem"
-                                >
-                                  <span className="text-base">😊</span>
-                                  <span>{t("direct.react")}</span>
-                                </button>
-                                <button
-                                  onClick={() => handleForward(msg)}
-                                  data-testid={`direct-forward-action-${msg.id}`}
-                                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                                  role="menuitem"
-                                >
-                                  <span className="text-base">↪</span>
-                                  <span>{t("direct.forward")}</span>
-                                </button>
-                                <button
-                                  onClick={() => handleCopyText(msg.content)}
-                                  data-testid={`direct-copy-text-action-${msg.id}`}
-                                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                                  role="menuitem"
-                                >
-                                  <span className="text-base">📋</span>
-                                  <span>{t("direct.copyText")}</span>
-                                </button>
-                              </div>
-                            )}
                           </div>
                           <div data-testid={`direct-message-bubble-wrap-${msg.id}`} className={isOwnMessage ? "ml-28 sm:ml-44" : ""}>
                             <div
                               data-testid={`direct-message-bubble-${msg.id}`}
                               onContextMenu={(e) => {
                                 e.preventDefault();
-                                openMenu(msg.id);
+                                openMenuForElement(msg.id, e.currentTarget);
                               }}
                               className={`mt-1 w-fit max-w-full rounded-2xl border px-3 py-2 shadow-sm ${
                                 isOwnMessage
@@ -765,27 +757,7 @@ export default function DirectConversationPage() {
                                 </div>
                               )}
                             </div>
-                            {reactionPickerMessageId === msg.id && (
-                              <div
-                                data-testid={`direct-reaction-picker-${msg.id}`}
-                                className="mt-1 flex flex-wrap gap-1 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-1.5 shadow-sm"
-                              >
-                                {quickEmojis.map((emoji) => (
-                                  <button
-                                    key={emoji}
-                                    onClick={() => {
-                                      handleReactionClick(msg, emoji);
-                                      closeMenuAndPicker();
-                                    }}
-                                    data-testid={`direct-reaction-option-${msg.id}-${emoji}`}
-                                    className="inline-flex h-7 w-7 items-center justify-center rounded-md text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                                    aria-label={`${t("direct.react")} ${emoji}`}
-                                  >
-                                    {emoji}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
+
                           </div>
                         </div>
                       </li>
@@ -866,6 +838,96 @@ export default function DirectConversationPage() {
           </form>
         </div>
       </main>
+
+      {messageMenuId && messageMenuPosition && (
+        <div
+          data-testid={`direct-message-menu-${messageMenuId}`}
+          style={{ top: messageMenuPosition.top, left: messageMenuPosition.left }}
+          className="fixed z-50 w-44 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-1 shadow-lg"
+          role="menu"
+        >
+          {(() => {
+            const activeMenuMessage =
+              messages.kind === "success"
+                ? messages.data.find((m) => m.id === messageMenuId) ?? null
+                : null;
+            if (!activeMenuMessage) return null;
+            return (
+              <>
+                <button
+                  onClick={() => handleReply(activeMenuMessage)}
+                  data-testid={`direct-reply-action-${activeMenuMessage.id}`}
+                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                  role="menuitem"
+                >
+                  <span className="text-base">↩</span>
+                  <span>{t("direct.reply")}</span>
+                </button>
+                <button
+                  onClick={() => {
+                    if (messageMenuPosition) {
+                      openReactionPickerAt(activeMenuMessage.id, messageMenuPosition);
+                    }
+                  }}
+                  data-testid={`direct-react-action-${activeMenuMessage.id}`}
+                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                  role="menuitem"
+                >
+                  <span className="text-base">😊</span>
+                  <span>{t("direct.react")}</span>
+                </button>
+                <button
+                  onClick={() => handleForward(activeMenuMessage)}
+                  data-testid={`direct-forward-action-${activeMenuMessage.id}`}
+                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                  role="menuitem"
+                >
+                  <span className="text-base">↪</span>
+                  <span>{t("direct.forward")}</span>
+                </button>
+                <button
+                  onClick={() => handleCopyText(activeMenuMessage.content)}
+                  data-testid={`direct-copy-text-action-${activeMenuMessage.id}`}
+                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                  role="menuitem"
+                >
+                  <span className="text-base">📋</span>
+                  <span>{t("direct.copyText")}</span>
+                </button>
+              </>
+            );
+          })()}
+        </div>
+      )}
+
+      {reactionPickerMessageId && reactionPickerPosition && (
+        <div
+          data-testid={`direct-reaction-picker-${reactionPickerMessageId}`}
+          style={{ top: reactionPickerPosition.top, left: reactionPickerPosition.left }}
+          className="fixed z-50 flex flex-wrap gap-1 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-1.5 shadow-sm"
+        >
+          {quickEmojis.map((emoji) => (
+            <button
+              key={emoji}
+              onClick={() => {
+                const msg =
+                  messages.kind === "success"
+                    ? messages.data.find((m) => m.id === reactionPickerMessageId)
+                    : undefined;
+                if (msg) {
+                  handleReactionClick(msg, emoji);
+                }
+                closeMenuAndPicker();
+              }}
+              data-testid={`direct-reaction-option-${reactionPickerMessageId}-${emoji}`}
+              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              aria-label={`${t("direct.react")} ${emoji}`}
+            >
+              {emoji}
+            </button>
+          ))}
+        </div>
+      )}
 
       {forwardMessage && (
         <div
