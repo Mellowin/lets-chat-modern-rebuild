@@ -70,7 +70,8 @@ export class WebsocketGateway
     event: 'presence:online' | 'presence:offline',
     user: { id: string; username?: string | null; displayName?: string | null },
   ) {
-    const participants = await this.directConversations.findParticipants(conversationId);
+    const participants =
+      await this.directConversations.findParticipants(conversationId);
     const other = participants.find((p) => p.userId !== userId);
     if (other) {
       this.server.to(`user:${other.userId}`).emit(event, {

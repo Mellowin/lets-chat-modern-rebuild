@@ -686,7 +686,7 @@ describe('WebsocketGateway', () => {
       ).toBe(false);
     });
 
-    it('should emit presence:offline on last socket disconnect', () => {
+    it('should emit presence:offline on last socket disconnect', async () => {
       const socket = createMockSocket({
         id: 'socket-f',
         data: { user: { id: userId, username: 'testuser' } },
@@ -701,7 +701,7 @@ describe('WebsocketGateway', () => {
         new Set([`channel:${channelId}`]),
       );
 
-      gateway.handleDisconnect(socket);
+      await gateway.handleDisconnect(socket);
 
       expect(gateway['presence']['userSockets'].has(userId)).toBe(false);
       expect(gateway.server.to).toHaveBeenCalledWith(`channel:${channelId}`);
@@ -713,7 +713,7 @@ describe('WebsocketGateway', () => {
       });
     });
 
-    it('should emit room offline on disconnect when no other socket in that room', () => {
+    it('should emit room offline on disconnect when no other socket in that room', async () => {
       const socket1 = createMockSocket({
         id: 'socket-g1',
         data: { user: { id: userId, username: 'testuser' } },
@@ -733,7 +733,7 @@ describe('WebsocketGateway', () => {
       gateway['presence']['socketRooms'].set('socket-g2', new Set([room2]));
       gateway['presence']['userRooms'].set(userId, new Set([room1, room2]));
 
-      gateway.handleDisconnect(socket1);
+      await gateway.handleDisconnect(socket1);
 
       expect(gateway['presence']['userSockets'].has(userId)).toBe(true);
       expect(gateway['presence']['userSockets'].get(userId)).toContain(
@@ -754,7 +754,7 @@ describe('WebsocketGateway', () => {
         true,
       );
 
-      gateway.handleDisconnect(socket2);
+      await gateway.handleDisconnect(socket2);
 
       expect(gateway['presence']['userSockets'].has(userId)).toBe(false);
       expect(gateway.server.to).toHaveBeenCalledWith(room2);
@@ -768,7 +768,7 @@ describe('WebsocketGateway', () => {
       expect(gateway['presence']['userRooms'].has(userId)).toBe(false);
     });
 
-    it('should not emit offline on disconnect when another socket still in same room', () => {
+    it('should not emit offline on disconnect when another socket still in same room', async () => {
       const socket1 = createMockSocket({
         id: 'socket-h1',
         data: { user: { id: userId, username: 'testuser' } },
@@ -787,7 +787,7 @@ describe('WebsocketGateway', () => {
       gateway['presence']['socketRooms'].set('socket-h2', new Set([room]));
       gateway['presence']['userRooms'].set(userId, new Set([room]));
 
-      gateway.handleDisconnect(socket1);
+      await gateway.handleDisconnect(socket1);
 
       expect(gateway['presence']['userSockets'].has(userId)).toBe(true);
       expect(gateway.server.to).not.toHaveBeenCalled();
@@ -795,7 +795,7 @@ describe('WebsocketGateway', () => {
         true,
       );
 
-      gateway.handleDisconnect(socket2);
+      await gateway.handleDisconnect(socket2);
 
       expect(gateway['presence']['userSockets'].has(userId)).toBe(false);
       expect(gateway.server.to).toHaveBeenCalledWith(room);
@@ -1039,7 +1039,7 @@ describe('WebsocketGateway', () => {
       expect(socket1.to).not.toHaveBeenCalled();
     });
 
-    it('should emit presence:offline on disconnect for direct room', () => {
+    it('should emit presence:offline on disconnect for direct room', async () => {
       const socket = createMockSocket({
         id: 'socket-f',
         data: {
@@ -1056,7 +1056,7 @@ describe('WebsocketGateway', () => {
         new Set([`direct-conversation:${conversationId}`]),
       );
 
-      gateway.handleDisconnect(socket);
+      await gateway.handleDisconnect(socket);
 
       expect(gateway['presence']['userSockets'].has(userId)).toBe(false);
       expect(gateway.server.to).toHaveBeenCalledWith(
