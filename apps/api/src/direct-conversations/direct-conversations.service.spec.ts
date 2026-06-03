@@ -842,6 +842,66 @@ describe('DirectConversationsService', () => {
         { emoji: '👍', count: 1, reactedByMe: true },
       ]);
     });
+
+    it('broadcasts direct:conversation:updated when editing the last message', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p-current',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue(makeMessage());
+      repository.updateDirectMessageContent.mockResolvedValue(
+        makeMessage({ content: 'updated', editedAt: new Date() }),
+      );
+      repository.getDirectMessageReactions.mockResolvedValue([]);
+      repository.findById.mockResolvedValue(
+        makeConversation({
+          messages: [makeMessage()],
+        }),
+      );
+      repository.findParticipants.mockResolvedValue([
+        { userId },
+        { userId: otherUserId },
+      ]);
+
+      await service.updateMessage(conversationId, messageId, userId, 'updated');
+
+      expect(
+        websocketEvents.broadcastDirectConversationUpdated,
+      ).toHaveBeenCalledWith(
+        conversationId,
+        expect.objectContaining({ id: messageId, content: 'updated' }),
+        [userId, otherUserId],
+      );
+    });
+
+    it('does not broadcast direct:conversation:updated when editing a non-last message', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p-current',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue(makeMessage());
+      repository.updateDirectMessageContent.mockResolvedValue(
+        makeMessage({ content: 'updated', editedAt: new Date() }),
+      );
+      repository.getDirectMessageReactions.mockResolvedValue([]);
+      repository.findById.mockResolvedValue(
+        makeConversation({
+          messages: [makeMessage({ id: 'other-message-id', content: 'newer' })],
+        }),
+      );
+
+      await service.updateMessage(conversationId, messageId, userId, 'updated');
+
+      expect(
+        websocketEvents.broadcastDirectConversationUpdated,
+      ).not.toHaveBeenCalled();
+    });
   });
 
   describe('addReaction', () => {
@@ -1571,6 +1631,105 @@ describe('DirectConversationsService', () => {
 
       await service.deleteMessage(conversationId, messageId, userId);
       expect(repository.softDeleteDirectMessage).toHaveBeenCalled();
+    });
+
+    it('broadcasts direct:conversation:updated when deleting the last message', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p-current',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue(makeMessage());
+      repository.findById.mockResolvedValue(
+        makeConversation({
+          messages: [makeMessage()],
+        }),
+      );
+      repository.softDeleteDirectMessage.mockResolvedValue(
+        makeMessage({ deletedAt: new Date() }),
+      );
+      repository.findParticipants.mockResolvedValue([
+        { userId },
+        { userId: otherUserId },
+      ]);
+
+      await service.deleteMessage(conversationId, messageId, userId);
+
+      const broadcastCalls = jest.mocked(
+        websocketEvents.broadcastDirectConversationUpdated,
+      ).mock.calls;
+      expect(broadcastCalls).toHaveLength(1);
+      expect(broadcastCalls[0][0]).toBe(conversationId);
+      expect(broadcastCalls[0][1]).toMatchObject({ conversationId });
+      expect(
+        (broadcastCalls[0][1] as { lastMessage?: unknown }).lastMessage,
+      ).toBeDefined();
+      expect(broadcastCalls[0][2]).toEqual([userId, otherUserId]);
+    });
+
+    it('does not broadcast direct:conversation:updated when deleting a non-last message', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p-current',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue(makeMessage());
+      repository.findById.mockResolvedValue(
+        makeConversation({
+          messages: [makeMessage({ id: 'other-message-id', content: 'newer' })],
+        }),
+      );
+      repository.softDeleteDirectMessage.mockResolvedValue(
+        makeMessage({ deletedAt: new Date() }),
+      );
+
+      await service.deleteMessage(conversationId, messageId, userId);
+
+      expect(
+        websocketEvents.broadcastDirectConversationUpdated,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('broadcasts direct:conversation:updated with lastMessage null when deleting the only message', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p-current',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue(makeMessage());
+      repository.findById
+        .mockResolvedValueOnce(
+          makeConversation({
+            messages: [makeMessage()],
+          }),
+        )
+        .mockResolvedValueOnce(makeConversation({ messages: [] }));
+      repository.softDeleteDirectMessage.mockResolvedValue(
+        makeMessage({ deletedAt: new Date() }),
+      );
+      repository.findParticipants.mockResolvedValue([
+        { userId },
+        { userId: otherUserId },
+      ]);
+
+      await service.deleteMessage(conversationId, messageId, userId);
+
+      expect(
+        websocketEvents.broadcastDirectConversationUpdated,
+      ).toHaveBeenCalledWith(
+        conversationId,
+        expect.objectContaining({
+          conversationId,
+          lastMessage: null,
+        }),
+        [userId, otherUserId],
+      );
     });
   });
 });

@@ -280,6 +280,18 @@ export class DirectConversationsService {
       response,
     );
 
+    const conversation =
+      await this.directConversations.findById(conversationId);
+    if (conversation?.messages[0]?.id === messageId) {
+      const participants =
+        await this.directConversations.findParticipants(conversationId);
+      this.websocketEvents.broadcastDirectConversationUpdated(
+        conversationId,
+        response,
+        participants.map((p) => p.userId),
+      );
+    }
+
     return response;
   }
 
@@ -309,12 +321,40 @@ export class DirectConversationsService {
       return { ok: true };
     }
 
+    const conversationBefore =
+      await this.directConversations.findById(conversationId);
+    const wasLastMessage = conversationBefore?.messages[0]?.id === messageId;
+
     await this.directConversations.softDeleteDirectMessage(messageId);
 
     this.websocketEvents.broadcastDirectMessageDeleted(conversationId, {
       conversationId,
       messageId,
     });
+
+    if (wasLastMessage) {
+      const conversationAfter =
+        await this.directConversations.findById(conversationId);
+      const lastMessage = conversationAfter?.messages[0] ?? null;
+      const participants =
+        await this.directConversations.findParticipants(conversationId);
+      this.websocketEvents.broadcastDirectConversationUpdated(
+        conversationId,
+        {
+          conversationId,
+          updatedAt: new Date(),
+          lastMessage: lastMessage
+            ? {
+                id: lastMessage.id,
+                content: lastMessage.content,
+                createdAt: lastMessage.createdAt,
+                authorId: lastMessage.authorId,
+              }
+            : null,
+        },
+        participants.map((p) => p.userId),
+      );
+    }
 
     return { ok: true };
   }

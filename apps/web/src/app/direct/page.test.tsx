@@ -553,4 +553,99 @@ describe("DirectMessagesPage — socket unread updates", () => {
       expect(listDirectConversations).toHaveBeenCalledTimes(2);
     });
   });
+
+  it("updates preview content on edit of last message without incrementing unread or moving to top", async () => {
+    mockAuth();
+    vi.mocked(listDirectConversations).mockResolvedValue([
+      mockConversation({ id: "dc2", updatedAt: "2024-01-02T00:00:00Z", unreadCount: 0, otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null }, lastMessage: { id: "dm2", content: "Later", createdAt: "2024-01-02T00:00:00Z", authorId: "u3" } }),
+      mockConversation({ id: "dc1", updatedAt: "2024-01-01T00:00:00Z", unreadCount: 1 }),
+    ]);
+
+    render(<DirectMessagesPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Bob")).toBeInTheDocument();
+    });
+
+    const handler = socketHandlers["direct:conversation:updated"];
+    handler({
+      id: "dm1",
+      conversationId: "dc1",
+      content: "Edited",
+      parentId: null,
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      editedAt: "2024-01-03T00:00:00Z",
+      author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+      parent: null,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Edited")).toBeInTheDocument();
+    });
+
+    // unread count should stay 1
+    expect(screen.getByText("1")).toBeInTheDocument();
+    expect(screen.queryByText("2")).not.toBeInTheDocument();
+
+    // order should not change (dc2 still first)
+    const links = screen.getAllByRole("link");
+    expect(links[0]).toHaveAttribute("href", "/direct/dc2");
+  });
+
+  it("updates preview to previous message on delete refresh payload without moving to top", async () => {
+    mockAuth();
+    vi.mocked(listDirectConversations).mockResolvedValue([
+      mockConversation({ id: "dc2", updatedAt: "2024-01-02T00:00:00Z", unreadCount: 0, otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null }, lastMessage: { id: "dm2", content: "Later", createdAt: "2024-01-02T00:00:00Z", authorId: "u3" } }),
+      mockConversation({ id: "dc1", updatedAt: "2024-01-01T00:00:00Z", unreadCount: 1 }),
+    ]);
+
+    render(<DirectMessagesPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hey")).toBeInTheDocument();
+    });
+
+    const handler = socketHandlers["direct:conversation:updated"];
+    handler({
+      conversationId: "dc1",
+      updatedAt: "2024-01-01T00:00:00Z",
+      lastMessage: { id: "dm0", content: "Previous", createdAt: "2024-01-01T00:00:00Z", authorId: "u2" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Previous")).toBeInTheDocument();
+    });
+
+    // unread count should stay 1
+    expect(screen.getByText("1")).toBeInTheDocument();
+
+    // order should not change (dc2 still first)
+    const links = screen.getAllByRole("link");
+    expect(links[0]).toHaveAttribute("href", "/direct/dc2");
+  });
+
+  it("shows no messages when delete refresh payload has lastMessage null", async () => {
+    mockAuth();
+    vi.mocked(listDirectConversations).mockResolvedValue([mockConversation({ unreadCount: 1 })]);
+
+    render(<DirectMessagesPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hey")).toBeInTheDocument();
+    });
+
+    const handler = socketHandlers["direct:conversation:updated"];
+    handler({
+      conversationId: "dc1",
+      updatedAt: "2024-01-01T00:00:00Z",
+      lastMessage: null,
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/No messages yet/i)).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText("Hey")).not.toBeInTheDocument();
+  });
 });

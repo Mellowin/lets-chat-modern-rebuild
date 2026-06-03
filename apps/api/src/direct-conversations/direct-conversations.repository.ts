@@ -42,6 +42,7 @@ export class DirectConversationsRepository {
           },
         },
         messages: {
+          where: { deletedAt: null },
           orderBy: { createdAt: 'desc' },
           take: 1,
           select: {
@@ -72,6 +73,7 @@ export class DirectConversationsRepository {
           },
         },
         messages: {
+          where: { deletedAt: null },
           orderBy: { createdAt: 'desc' },
           take: 1,
           select: {
@@ -107,6 +109,7 @@ export class DirectConversationsRepository {
           },
         },
         messages: {
+          where: { deletedAt: null },
           orderBy: { createdAt: 'desc' },
           take: 1,
           select: {
@@ -142,6 +145,7 @@ export class DirectConversationsRepository {
           },
         },
         messages: {
+          where: { deletedAt: null },
           orderBy: { createdAt: 'desc' },
           take: 1,
           select: {

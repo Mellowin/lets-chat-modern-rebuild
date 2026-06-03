@@ -58,23 +58,71 @@ export default function DirectMessagesPage() {
     const socket = createSocket(accessToken);
     socketRef.current = socket;
 
-    function handleDirectConversationUpdated(msg: DirectMessage) {
+    function handleDirectConversationUpdated(
+      update:
+        | DirectMessage
+        | {
+            conversationId: string;
+            updatedAt: string;
+            lastMessage: {
+              id: string;
+              content: string;
+              createdAt: string;
+              authorId: string;
+            } | null;
+          },
+    ) {
       let shouldNotify = false;
       let shouldReload = false;
 
       setConversations((prev) => {
         if (prev.kind !== "success") return prev;
-        const existingIndex = prev.data.findIndex((c) => c.id === msg.conversationId);
+
+        // Conversation-level refresh (e.g. last message deleted)
+        if ("lastMessage" in update) {
+          const existingIndex = prev.data.findIndex(
+            (c) => c.id === update.conversationId,
+          );
+          if (existingIndex === -1) {
+            shouldReload = true;
+            return prev;
+          }
+          const updated = [...prev.data];
+          updated[existingIndex] = {
+            ...updated[existingIndex],
+            lastMessage: update.lastMessage,
+          };
+          shouldNotify = true;
+          return { kind: "success", data: updated };
+        }
+
+        const msg = update;
+        const existingIndex = prev.data.findIndex(
+          (c) => c.id === msg.conversationId,
+        );
         if (existingIndex === -1) {
           shouldReload = true;
           return prev;
         }
         const updated = [...prev.data];
         const conv = updated[existingIndex];
+
+        // Edit of current last message — update in place, no unread change
         if (conv.lastMessage && conv.lastMessage.id === msg.id) {
-          // dedupe same message
-          return prev;
+          updated[existingIndex] = {
+            ...conv,
+            lastMessage: {
+              id: msg.id,
+              content: msg.content,
+              createdAt: msg.createdAt,
+              authorId: msg.author.id,
+            },
+          };
+          shouldNotify = true;
+          return { kind: "success", data: updated };
         }
+
+        // New message — move to top and increment unread if from other user
         const isOwnMessage = msg.author.id === user?.id;
         updated[existingIndex] = {
           ...conv,
@@ -85,9 +133,10 @@ export default function DirectMessagesPage() {
             createdAt: msg.createdAt,
             authorId: msg.author.id,
           },
-          unreadCount: isOwnMessage ? conv.unreadCount : conv.unreadCount + 1,
+          unreadCount: isOwnMessage
+            ? conv.unreadCount
+            : conv.unreadCount + 1,
         };
-        // move to top
         const [moved] = updated.splice(existingIndex, 1);
         updated.unshift(moved);
         shouldNotify = true;
