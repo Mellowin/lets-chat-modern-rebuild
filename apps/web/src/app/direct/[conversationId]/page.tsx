@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useLocale } from "@/lib/locale";
 import { getAvatarUrl } from "@/lib/avatar-url";
@@ -39,6 +39,7 @@ export default function DirectConversationPage() {
     typeof params.conversationId === "string" ? params.conversationId : "";
   const { isLoading: authLoading, isAuthenticated, user, accessToken } = useAuth();
   const { t } = useLocale();
+  const router = useRouter();
   const [messages, setMessages] = useState<MessagesState>({ kind: "idle" });
   const [conversation, setConversation] = useState<ConversationState>({ kind: "idle" });
   const [content, setContent] = useState("");
@@ -483,11 +484,13 @@ export default function DirectConversationPage() {
       setForwardState({ kind: "idle" });
       setForwardMessage(null);
       notifyDirectConversationsChanged();
-      if (targetConversationId === conversationId) {
-        // If forwarded to current conversation, reload messages to show it
-        const refreshed = await listDirectMessages(accessToken, conversationId);
-        setMessages({ kind: "success", data: refreshed });
+      if (targetConversationId !== conversationId) {
+        router.push(`/direct/${targetConversationId}`);
+        return;
       }
+      // If forwarded to current conversation, reload messages to show it
+      const refreshed = await listDirectMessages(accessToken, conversationId);
+      setMessages({ kind: "success", data: refreshed });
     } catch (err) {
       const message = err instanceof Error ? err.message : t("direct.failedForwardMessage");
       setForwardState({ kind: "error", message });
