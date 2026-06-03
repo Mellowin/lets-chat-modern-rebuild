@@ -206,6 +206,25 @@ describe('WebsocketGateway', () => {
       expect(socket.disconnect).toHaveBeenCalledWith(true);
     });
 
+    it('should reject expired token', async () => {
+      const socket = createMockSocket({
+        handshake: {
+          auth: { token: 'expired' },
+        } as unknown as Socket['handshake'],
+      });
+
+      tokenService.verifyAccessToken.mockRejectedValue(
+        new Error('jwt expired'),
+      );
+
+      await gateway.handleConnection(socket);
+
+      expect(socket.emit).toHaveBeenCalledWith('auth:expired', {
+        message: 'Invalid or expired access token',
+      });
+      expect(socket.disconnect).toHaveBeenCalledWith(true);
+    });
+
     it('should reject when user not found', async () => {
       const socket = createMockSocket({
         handshake: {
