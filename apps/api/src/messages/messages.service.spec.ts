@@ -134,6 +134,15 @@ describe('MessagesService', () => {
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
+    it('throws NotFoundException for archived channel', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue(null);
+
+      await expect(
+        service.create(workspaceId, channelId, { content: 'hello' }, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
     it('creates message for PUBLIC channel member', async () => {
       const message = {
         id: messageId,
@@ -198,6 +207,15 @@ describe('MessagesService', () => {
   describe('list', () => {
     it('throws NotFoundException for non-workspace member', async () => {
       workspacesRepository.findMemberRole.mockResolvedValue(null);
+
+      await expect(
+        service.list(workspaceId, channelId, userId, {}),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('throws NotFoundException for archived channel', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue(null);
 
       await expect(
         service.list(workspaceId, channelId, userId, {}),
@@ -328,6 +346,21 @@ describe('MessagesService', () => {
           userId,
         ),
       ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('throws NotFoundException for archived channel', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue(null);
+
+      await expect(
+        service.update(
+          workspaceId,
+          channelId,
+          messageId,
+          { content: 'edited' },
+          userId,
+        ),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('allows author to edit within 15 minutes', async () => {
@@ -469,6 +502,40 @@ describe('MessagesService', () => {
       await expect(
         service.remove(workspaceId, channelId, messageId, userId),
       ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('allows author to delete own message', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      messagesRepository.findById.mockResolvedValue({
+        id: messageId,
+        channelId,
+        authorId: userId,
+        deletedAt: null,
+      } as FoundMessage);
+      messagesRepository.softDeleteMessage.mockResolvedValue({
+        id: messageId,
+        channelId,
+        deletedAt: new Date(),
+      } as DeletedMessage);
+
+      await expect(
+        service.remove(workspaceId, channelId, messageId, userId),
+      ).resolves.toBeUndefined();
+    });
+
+    it('throws NotFoundException for archived channel', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue(null);
+
+      await expect(
+        service.remove(workspaceId, channelId, messageId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('allows ADMIN to delete another user message', async () => {
