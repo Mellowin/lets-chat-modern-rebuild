@@ -236,22 +236,22 @@ describe('DirectConversationsService', () => {
     it('reversed participant order resolves to same conversation', async () => {
       usersRepository.findById.mockImplementation((id: string) => {
         if (id === userId) {
-          return {
+          return Promise.resolve({
             id: userId,
             username: 'alice',
             displayName: 'Alice',
             avatarUrl: null,
-          } as Awaited<ReturnType<UsersRepository['findById']>>;
+          } as Awaited<ReturnType<UsersRepository['findById']>>);
         }
         if (id === otherUserId) {
-          return {
+          return Promise.resolve({
             id: otherUserId,
             username: 'bob',
             displayName: 'Bob',
             avatarUrl: null,
-          } as Awaited<ReturnType<UsersRepository['findById']>>;
+          } as Awaited<ReturnType<UsersRepository['findById']>>);
         }
-        return null;
+        return Promise.resolve(null);
       });
       repository.findByKey.mockResolvedValue(makeConversation());
       repository.countUnreadMessages.mockResolvedValue(0);
