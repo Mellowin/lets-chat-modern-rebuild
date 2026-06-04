@@ -557,6 +557,42 @@ describe('WebsocketGateway', () => {
         message: 'Not authenticated',
       });
     });
+
+    it('should reject when room not joined', async () => {
+      const socket = createMockSocket({
+        data: { user: { id: userId, username: 'testuser' } },
+      });
+
+      await gateway.handleTypingStop(socket, { workspaceId, channelId });
+
+      expect(socket.emit).toHaveBeenCalledWith('typing:error', {
+        message: 'Channel room not joined',
+        channelId,
+      });
+    });
+
+    it('should leave room and emit error when channel access is revoked', async () => {
+      const socket = createMockSocket({
+        data: { user: { id: userId, username: 'testuser' } },
+      });
+      socket.rooms.add(`channel:${channelId}`);
+
+      channelsService.findById.mockRejectedValue(
+        new NotFoundException('Channel not found'),
+      );
+
+      await gateway.handleTypingStop(socket, { workspaceId, channelId });
+
+      expect(socket.emit).toHaveBeenCalledWith('typing:error', {
+        message: 'Channel access revoked',
+        channelId,
+      });
+      expect(socket.leave).toHaveBeenCalledWith(`channel:${channelId}`);
+      expect(socket.to(`channel:${channelId}`).emit).not.toHaveBeenCalledWith(
+        'typing:stopped',
+        expect.anything(),
+      );
+    });
   });
 
   describe('presence', () => {
@@ -1363,6 +1399,41 @@ describe('WebsocketGateway', () => {
         conversationId,
         user: { id: userId, username: 'testuser', displayName: null },
         isTyping: false,
+      });
+    });
+
+    it('should reject when not authenticated', async () => {
+      const socket = createMockSocket();
+
+      await gateway.handleDirectTypingStop(socket, { conversationId });
+
+      expect(socket.emit).toHaveBeenCalledWith('direct:typing:error', {
+        message: 'Not authenticated',
+      });
+    });
+
+    it('should reject invalid conversationId', async () => {
+      const socket = createMockSocket({
+        data: { user: { id: userId, username: 'testuser', displayName: null } },
+      });
+
+      await gateway.handleDirectTypingStop(socket, { conversationId: 'bad' });
+
+      expect(socket.emit).toHaveBeenCalledWith('direct:typing:error', {
+        message: 'Invalid UUID',
+      });
+    });
+
+    it('should reject when room not joined', async () => {
+      const socket = createMockSocket({
+        data: { user: { id: userId, username: 'testuser', displayName: null } },
+      });
+
+      await gateway.handleDirectTypingStop(socket, { conversationId });
+
+      expect(socket.emit).toHaveBeenCalledWith('direct:typing:error', {
+        message: 'Direct conversation room not joined',
+        conversationId,
       });
     });
 
