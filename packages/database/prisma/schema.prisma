@@ -54,6 +54,12 @@ model User {
   updatedAt     DateTime  @updatedAt
   deletedAt     DateTime?
 
+  // Email verification
+  emailVerifiedAt            DateTime?
+  emailVerificationTokenHash String?
+  emailVerificationExpiresAt DateTime?
+  emailVerificationSentAt    DateTime?
+
   // Relations
   ownedWorkspaces       Workspace[]
   workspaceMemberships  WorkspaceMember[]

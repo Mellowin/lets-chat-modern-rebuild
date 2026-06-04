@@ -1416,6 +1416,10 @@ describe('DirectConversationsService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         deletedAt: null,
+        emailVerifiedAt: null,
+        emailVerificationTokenHash: null,
+        emailVerificationExpiresAt: null,
+        emailVerificationSentAt: null,
       });
 
       const result = await service.addReaction(
@@ -1543,6 +1547,10 @@ describe('DirectConversationsService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         deletedAt: null,
+        emailVerifiedAt: null,
+        emailVerificationTokenHash: null,
+        emailVerificationExpiresAt: null,
+        emailVerificationSentAt: null,
       });
 
       const result = await service.addReaction(
@@ -1600,6 +1608,10 @@ describe('DirectConversationsService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         deletedAt: null,
+        emailVerifiedAt: null,
+        emailVerificationTokenHash: null,
+        emailVerificationExpiresAt: null,
+        emailVerificationSentAt: null,
       });
 
       const result = await service.addReaction(
@@ -1665,6 +1677,10 @@ describe('DirectConversationsService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         deletedAt: null,
+        emailVerifiedAt: null,
+        emailVerificationTokenHash: null,
+        emailVerificationExpiresAt: null,
+        emailVerificationSentAt: null,
       });
 
       const result = await service.addReaction(
@@ -1728,6 +1744,10 @@ describe('DirectConversationsService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         deletedAt: null,
+        emailVerifiedAt: null,
+        emailVerificationTokenHash: null,
+        emailVerificationExpiresAt: null,
+        emailVerificationSentAt: null,
       });
 
       const result = await service.addReaction(
@@ -1790,6 +1810,10 @@ describe('DirectConversationsService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         deletedAt: null,
+        emailVerifiedAt: null,
+        emailVerificationTokenHash: null,
+        emailVerificationExpiresAt: null,
+        emailVerificationSentAt: null,
       });
 
       await service.addReaction(
@@ -1855,6 +1879,10 @@ describe('DirectConversationsService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         deletedAt: null,
+        emailVerifiedAt: null,
+        emailVerificationTokenHash: null,
+        emailVerificationExpiresAt: null,
+        emailVerificationSentAt: null,
       });
 
       await service.addReaction(
@@ -1956,6 +1984,10 @@ describe('DirectConversationsService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         deletedAt: null,
+        emailVerifiedAt: null,
+        emailVerificationTokenHash: null,
+        emailVerificationExpiresAt: null,
+        emailVerificationSentAt: null,
       });
 
       await service.removeReaction(conversationId, messageId, '👍', userId);
@@ -2022,6 +2054,10 @@ describe('DirectConversationsService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         deletedAt: null,
+        emailVerifiedAt: null,
+        emailVerificationTokenHash: null,
+        emailVerificationExpiresAt: null,
+        emailVerificationSentAt: null,
       });
 
       await service.removeReaction(conversationId, messageId, '👍', userId);

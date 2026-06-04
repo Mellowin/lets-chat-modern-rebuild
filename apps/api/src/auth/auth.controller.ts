@@ -24,6 +24,7 @@ import {
   ApiBadRequestResponse,
   ApiUnauthorizedResponse,
   ApiTooManyRequestsResponse,
+  ApiNotFoundResponse,
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthService } from './auth.service';
@@ -33,6 +34,8 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { LogoutDto } from './dto/logout.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
+import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { UpdateDisplayNameDto } from './dto/update-display-name.dto';
 import { UpdateAvatarDto } from './dto/update-avatar.dto';
 import { UpdateInterfaceLanguageDto } from './dto/update-interface-language.dto';
@@ -89,6 +92,27 @@ export class AuthController {
   @ApiBadRequestResponse({ description: 'Validation failed' })
   async logout(@Body() dto: LogoutDto) {
     return this.auth.logout(dto.refreshToken);
+  }
+
+  @Post('verify-email')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Verify email address' })
+  @ApiBody({ type: VerifyEmailDto })
+  @ApiOkResponse({ description: 'Email verified successfully' })
+  @ApiNotFoundResponse({ description: 'Invalid or expired token' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  async verifyEmail(@Body() dto: VerifyEmailDto) {
+    return this.auth.verifyEmail(dto.token);
+  }
+
+  @Post('resend-verification')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Resend verification email' })
+  @ApiBody({ type: ResendVerificationDto })
+  @ApiOkResponse({ description: 'Request processed' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  async resendVerification(@Body() dto: ResendVerificationDto) {
+    return this.auth.resendVerification(dto.email);
   }
 
   @Get('me')

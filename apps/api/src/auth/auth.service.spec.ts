@@ -1,4 +1,11 @@
 import { Test } from '@nestjs/testing';
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { Prisma } from '@lets-chat/database';
 import { AuthService, AuthUserResponse } from './auth.service';
 
 import { UsersRepository } from '../users/users.repository';
@@ -6,6 +13,7 @@ import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
 import { RefreshTokensRepository } from './refresh-tokens.repository';
 import { ConfigService } from '@nestjs/config';
+import { MailService } from '../mail/mail.service';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -54,6 +62,13 @@ describe('AuthService', () => {
           provide: ConfigService,
           useValue: {
             getOrThrow: jest.fn().mockReturnValue('7d'),
+            get: jest.fn(),
+          },
+        },
+        {
+          provide: MailService,
+          useValue: {
+            sendVerificationEmail: jest.fn(),
           },
         },
       ],
@@ -76,6 +91,10 @@ describe('AuthService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
       deletedAt: null,
+      emailVerifiedAt: null,
+      emailVerificationTokenHash: null,
+      emailVerificationExpiresAt: null,
+      emailVerificationSentAt: null,
     };
 
     usersRepository.updateDisplayName.mockResolvedValue(user);
@@ -102,6 +121,10 @@ describe('AuthService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
       deletedAt: null,
+      emailVerifiedAt: null,
+      emailVerificationTokenHash: null,
+      emailVerificationExpiresAt: null,
+      emailVerificationSentAt: null,
     };
 
     const servicePrivate = service as unknown as {
@@ -127,6 +150,10 @@ describe('AuthService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
       deletedAt: null,
+      emailVerifiedAt: null,
+      emailVerificationTokenHash: null,
+      emailVerificationExpiresAt: null,
+      emailVerificationSentAt: null,
     };
 
     const servicePrivate = service as unknown as {
@@ -152,6 +179,10 @@ describe('AuthService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
       deletedAt: null,
+      emailVerifiedAt: null,
+      emailVerificationTokenHash: null,
+      emailVerificationExpiresAt: null,
+      emailVerificationSentAt: null,
     };
 
     usersRepository.updateInterfaceLanguage.mockResolvedValue(user);
@@ -178,6 +209,10 @@ describe('AuthService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
       deletedAt: null,
+      emailVerifiedAt: null,
+      emailVerificationTokenHash: null,
+      emailVerificationExpiresAt: null,
+      emailVerificationSentAt: null,
     };
 
     usersRepository.updateAvatar.mockResolvedValue(user);
@@ -208,6 +243,10 @@ describe('AuthService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
       deletedAt: null,
+      emailVerifiedAt: null,
+      emailVerificationTokenHash: null,
+      emailVerificationExpiresAt: null,
+      emailVerificationSentAt: null,
     };
 
     usersRepository.updateAvatar.mockResolvedValue(user);
@@ -218,5 +257,341 @@ describe('AuthService', () => {
     );
 
     expect(result).not.toHaveProperty('passwordHash');
+  });
+});
+
+describe('AuthService — email verification', () => {
+  let service: AuthService;
+  let usersRepository: jest.Mocked<UsersRepository>;
+  let passwordService: jest.Mocked<PasswordService>;
+  let tokenService: jest.Mocked<TokenService>;
+  let refreshTokensRepository: jest.Mocked<RefreshTokensRepository>;
+  let mailService: jest.Mocked<MailService>;
+
+  const makeUser = (overrides: Partial<Record<string, unknown>> = {}) => ({
+    id: 'user-id',
+    email: 'u@test.com',
+    username: 'user',
+    displayName: null,
+    avatarUrl: null,
+    avatarUpdatedAt: null,
+    interfaceLanguage: 'en',
+    passwordHash: 'hash',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    deletedAt: null,
+    emailVerifiedAt: null,
+    emailVerificationTokenHash: null,
+    emailVerificationExpiresAt: null,
+    emailVerificationSentAt: null,
+    ...overrides,
+  });
+
+  beforeEach(async () => {
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        AuthService,
+        {
+          provide: UsersRepository,
+          useValue: {
+            findById: jest.fn(),
+            findByEmail: jest.fn(),
+            findByUsername: jest.fn(),
+            createUser: jest.fn(),
+            updateDisplayName: jest.fn(),
+            updateAvatar: jest.fn(),
+            updateInterfaceLanguage: jest.fn(),
+            updateEmailVerificationToken: jest.fn(),
+            findByEmailVerificationTokenHash: jest.fn(),
+            markEmailVerified: jest.fn(),
+          },
+        },
+        {
+          provide: PasswordService,
+          useValue: {
+            hashPassword: jest.fn(),
+            verifyPassword: jest.fn(),
+          },
+        },
+        {
+          provide: TokenService,
+          useValue: {
+            signAccessToken: jest.fn(),
+            signRefreshToken: jest.fn(),
+            verifyRefreshToken: jest.fn(),
+          },
+        },
+        {
+          provide: RefreshTokensRepository,
+          useValue: {
+            createToken: jest.fn(),
+            consumeActiveToken: jest.fn(),
+            revokeToken: jest.fn(),
+          },
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            getOrThrow: jest.fn().mockReturnValue('7d'),
+            get: jest.fn(),
+          },
+        },
+        {
+          provide: MailService,
+          useValue: {
+            sendVerificationEmail: jest.fn(),
+          },
+        },
+      ],
+    }).compile();
+
+    service = moduleRef.get(AuthService);
+    usersRepository = moduleRef.get(UsersRepository);
+    passwordService = moduleRef.get(PasswordService);
+    tokenService = moduleRef.get(TokenService);
+    refreshTokensRepository = moduleRef.get(RefreshTokensRepository);
+    mailService = moduleRef.get(MailService);
+  });
+
+  describe('register', () => {
+    it('creates unverified user, sends email, and returns requiresEmailVerification', async () => {
+      usersRepository.findByEmail.mockResolvedValue(null);
+      usersRepository.findByUsername.mockResolvedValue(null);
+      passwordService.hashPassword.mockResolvedValue('hashed');
+      usersRepository.createUser.mockResolvedValue(makeUser());
+      usersRepository.updateEmailVerificationToken.mockResolvedValue(
+        makeUser(),
+      );
+      mailService.sendVerificationEmail.mockResolvedValue(undefined);
+
+      const result = await service.register({
+        email: 'new@test.com',
+        username: 'newuser',
+        password: 'password123',
+      });
+
+      expect(result).toEqual({
+        requiresEmailVerification: true,
+        email: 'u@test.com',
+      });
+      expect(usersRepository.createUser).toHaveBeenCalledWith({
+        email: 'new@test.com',
+        username: 'newuser',
+        passwordHash: 'hashed',
+      });
+      expect(usersRepository.updateEmailVerificationToken).toHaveBeenCalledWith(
+        'user-id',
+        expect.any(String),
+        expect.any(Date),
+        expect.any(Date),
+      );
+      expect(mailService.sendVerificationEmail).toHaveBeenCalledWith({
+        to: 'u@test.com',
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        token: expect.any(String),
+      });
+    });
+
+    it('throws ConflictException when email already exists', async () => {
+      usersRepository.findByEmail.mockResolvedValue(makeUser());
+
+      await expect(
+        service.register({
+          email: 'u@test.com',
+          username: 'newuser',
+          password: 'password123',
+        }),
+      ).rejects.toThrow(ConflictException);
+
+      expect(usersRepository.createUser).not.toHaveBeenCalled();
+    });
+
+    it('throws ConflictException when username already exists', async () => {
+      usersRepository.findByEmail.mockResolvedValue(null);
+      usersRepository.findByUsername.mockResolvedValue(makeUser());
+
+      await expect(
+        service.register({
+          email: 'new@test.com',
+          username: 'user',
+          password: 'password123',
+        }),
+      ).rejects.toThrow(ConflictException);
+
+      expect(usersRepository.createUser).not.toHaveBeenCalled();
+    });
+
+    it('throws ConflictException on Prisma P2002 race condition', async () => {
+      usersRepository.findByEmail.mockResolvedValue(null);
+      usersRepository.findByUsername.mockResolvedValue(null);
+      passwordService.hashPassword.mockResolvedValue('hashed');
+
+      const prismaError = new Prisma.PrismaClientKnownRequestError('P2002', {
+        code: 'P2002',
+        clientVersion: '5.22.0',
+      });
+      usersRepository.createUser.mockRejectedValue(prismaError);
+
+      await expect(
+        service.register({
+          email: 'new@test.com',
+          username: 'newuser',
+          password: 'password123',
+        }),
+      ).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('login', () => {
+    it('returns tokens for verified user', async () => {
+      const user = makeUser({ emailVerifiedAt: new Date() });
+      usersRepository.findByEmail.mockResolvedValue(user);
+      passwordService.verifyPassword.mockResolvedValue(true);
+      tokenService.signAccessToken.mockResolvedValue('access-token');
+      tokenService.signRefreshToken.mockResolvedValue('refresh-token');
+      refreshTokensRepository.createToken.mockResolvedValue({
+        count: 1,
+      } as unknown as never);
+
+      const result = await service.login({
+        email: 'u@test.com',
+        password: 'password123',
+      });
+
+      expect(result.accessToken).toBe('access-token');
+      expect(result.refreshToken).toBe('refresh-token');
+      expect(result.user.id).toBe('user-id');
+    });
+
+    it('throws UnauthorizedException for invalid credentials (user not found)', async () => {
+      usersRepository.findByEmail.mockResolvedValue(null);
+
+      await expect(
+        service.login({ email: 'u@test.com', password: 'wrong' }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('throws UnauthorizedException for invalid credentials (wrong password)', async () => {
+      usersRepository.findByEmail.mockResolvedValue(
+        makeUser({ emailVerifiedAt: new Date() }),
+      );
+      passwordService.verifyPassword.mockResolvedValue(false);
+
+      await expect(
+        service.login({ email: 'u@test.com', password: 'wrong' }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('throws ForbiddenException when email is not verified', async () => {
+      usersRepository.findByEmail.mockResolvedValue(makeUser());
+      passwordService.verifyPassword.mockResolvedValue(true);
+
+      await expect(
+        service.login({ email: 'u@test.com', password: 'password123' }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('verifyEmail', () => {
+    it('marks user as verified when token is valid and not expired', async () => {
+      const user = makeUser({
+        emailVerificationTokenHash: 'hash',
+        emailVerificationExpiresAt: new Date(Date.now() + 3600_000),
+      });
+      usersRepository.findByEmailVerificationTokenHash.mockResolvedValue(user);
+      usersRepository.markEmailVerified.mockResolvedValue(
+        makeUser({ emailVerifiedAt: new Date() }),
+      );
+
+      const result = await service.verifyEmail('raw-token');
+
+      expect(result).toEqual({ success: true });
+      expect(usersRepository.markEmailVerified).toHaveBeenCalledWith('user-id');
+    });
+
+    it('throws NotFoundException when token is not found', async () => {
+      usersRepository.findByEmailVerificationTokenHash.mockResolvedValue(null);
+
+      await expect(service.verifyEmail('bad-token')).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(usersRepository.markEmailVerified).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException when token is expired', async () => {
+      const user = makeUser({
+        emailVerificationTokenHash: 'hash',
+        emailVerificationExpiresAt: new Date(Date.now() - 3600_000),
+      });
+      usersRepository.findByEmailVerificationTokenHash.mockResolvedValue(user);
+
+      await expect(service.verifyEmail('raw-token')).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(usersRepository.markEmailVerified).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('resendVerification', () => {
+    const genericMessage =
+      'If the email exists and is not verified, a verification email has been sent.';
+
+    it('sends new verification email when user exists and is unverified', async () => {
+      const user = makeUser();
+      usersRepository.findByEmail.mockResolvedValue(user);
+      usersRepository.updateEmailVerificationToken.mockResolvedValue(user);
+      mailService.sendVerificationEmail.mockResolvedValue(undefined);
+
+      const result = await service.resendVerification('u@test.com');
+
+      expect(result.message).toBe(genericMessage);
+      expect(mailService.sendVerificationEmail).toHaveBeenCalled();
+    });
+
+    it('returns generic message when user not found', async () => {
+      usersRepository.findByEmail.mockResolvedValue(null);
+
+      const result = await service.resendVerification('missing@test.com');
+
+      expect(result.message).toBe(genericMessage);
+      expect(mailService.sendVerificationEmail).not.toHaveBeenCalled();
+    });
+
+    it('returns generic message when user is already verified', async () => {
+      usersRepository.findByEmail.mockResolvedValue(
+        makeUser({ emailVerifiedAt: new Date() }),
+      );
+
+      const result = await service.resendVerification('u@test.com');
+
+      expect(result.message).toBe(genericMessage);
+      expect(mailService.sendVerificationEmail).not.toHaveBeenCalled();
+    });
+
+    it('returns generic message when cooldown is active', async () => {
+      const user = makeUser({
+        emailVerificationSentAt: new Date(Date.now() - 30_000),
+      });
+      usersRepository.findByEmail.mockResolvedValue(user);
+
+      const result = await service.resendVerification('u@test.com');
+
+      expect(result.message).toBe(genericMessage);
+      expect(mailService.sendVerificationEmail).not.toHaveBeenCalled();
+    });
+
+    it('sends email when cooldown has passed', async () => {
+      const user = makeUser({
+        emailVerificationSentAt: new Date(Date.now() - 120_000),
+      });
+      usersRepository.findByEmail.mockResolvedValue(user);
+      usersRepository.updateEmailVerificationToken.mockResolvedValue(user);
+      mailService.sendVerificationEmail.mockResolvedValue(undefined);
+
+      const result = await service.resendVerification('u@test.com');
+
+      expect(result.message).toBe(genericMessage);
+      expect(mailService.sendVerificationEmail).toHaveBeenCalled();
+    });
   });
 });

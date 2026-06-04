@@ -32,6 +32,8 @@ describe('AuthController', () => {
             login: jest.fn(),
             refresh: jest.fn(),
             logout: jest.fn(),
+            verifyEmail: jest.fn(),
+            resendVerification: jest.fn(),
             updateMe: jest.fn(),
             updateAvatar: jest.fn(),
             updateInterfaceLanguage: jest.fn(),
@@ -259,6 +261,45 @@ describe('AuthController', () => {
       ).rejects.toThrow('Avatar can be changed once every 7 days');
 
       expect(authService.updateAvatar).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('POST /auth/verify-email', () => {
+    it('returns success when token is valid', async () => {
+      authService.verifyEmail.mockResolvedValue({ success: true });
+
+      const result = await controller.verifyEmail({ token: 'valid-token' });
+
+      expect(authService.verifyEmail).toHaveBeenCalledWith('valid-token');
+      expect(result).toEqual({ success: true });
+    });
+
+    it('propagates NotFoundException for invalid token', async () => {
+      authService.verifyEmail.mockRejectedValue(new Error('Invalid token'));
+
+      await expect(
+        controller.verifyEmail({ token: 'bad-token' }),
+      ).rejects.toThrow('Invalid token');
+    });
+  });
+
+  describe('POST /auth/resend-verification', () => {
+    it('returns generic message for any email', async () => {
+      authService.resendVerification.mockResolvedValue({
+        message:
+          'If the email exists and is not verified, a verification email has been sent.',
+      });
+
+      const result = await controller.resendVerification({
+        email: 'test@example.com',
+      });
+
+      expect(authService.resendVerification).toHaveBeenCalledWith(
+        'test@example.com',
+      );
+      expect(result.message).toBe(
+        'If the email exists and is not verified, a verification email has been sent.',
+      );
     });
   });
 });

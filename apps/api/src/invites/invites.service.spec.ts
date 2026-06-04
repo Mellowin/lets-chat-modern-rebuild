@@ -121,6 +121,10 @@ describe('InvitesService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
       deletedAt: null,
+      emailVerifiedAt: null,
+      emailVerificationTokenHash: null,
+      emailVerificationExpiresAt: null,
+      emailVerificationSentAt: null,
       ...overrides,
     };
   }

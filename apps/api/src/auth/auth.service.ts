@@ -1,17 +1,20 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma, User } from '@lets-chat/database';
-import { createHash, randomUUID } from 'crypto';
+import { createHash, randomBytes, randomUUID } from 'crypto';
 import ms from 'ms';
 import { UsersRepository } from '../users/users.repository';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
 import { RefreshTokensRepository } from './refresh-tokens.repository';
 import { JwtPayload } from './jwt-payload.type';
+import { MailService } from '../mail/mail.service';
 
 type SafeUser = Omit<User, 'passwordHash'>;
 
@@ -43,6 +46,11 @@ export interface AuthResult {
   refreshToken: string;
 }
 
+export interface RegisterPendingResult {
+  requiresEmailVerification: true;
+  email: string;
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -51,9 +59,10 @@ export class AuthService {
     private readonly token: TokenService,
     private readonly refreshTokens: RefreshTokensRepository,
     private readonly config: ConfigService,
+    private readonly mail: MailService,
   ) {}
 
-  async register(input: RegisterInput): Promise<AuthResult> {
+  async register(input: RegisterInput): Promise<RegisterPendingResult> {
     const existingEmail = await this.users.findByEmail(input.email);
     if (existingEmail) {
       throw new ConflictException('Email already in use');
@@ -83,21 +92,23 @@ export class AuthService {
       throw error;
     }
 
-    const authUser = this.toAuthUserResponse(user);
-    const payload: JwtPayload = {
-      sub: user.id,
-      email: user.email,
-      jti: randomUUID(),
-    };
+    const rawToken = this.generateVerificationToken();
+    const tokenHash = this.hashVerificationToken(rawToken);
+    const expiresAt = this.getVerificationExpiryDate();
 
-    const [accessToken, refreshToken] = await Promise.all([
-      this.token.signAccessToken(payload),
-      this.token.signRefreshToken(payload),
-    ]);
+    await this.users.updateEmailVerificationToken(
+      user.id,
+      tokenHash,
+      expiresAt,
+      new Date(),
+    );
 
-    await this.persistRefreshToken(user.id, refreshToken);
+    await this.mail.sendVerificationEmail({
+      to: user.email,
+      token: rawToken,
+    });
 
-    return { user: authUser, accessToken, refreshToken };
+    return { requiresEmailVerification: true, email: user.email };
   }
 
   async login(input: LoginInput): Promise<AuthResult> {
@@ -105,6 +116,11 @@ export class AuthService {
       input.email,
       input.password,
     );
+
+    if (!user.emailVerifiedAt) {
+      throw new ForbiddenException('Email not verified');
+    }
+
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
@@ -165,6 +181,65 @@ export class AuthService {
       // ignore errors for already revoked or missing tokens
     }
     return { success: true };
+  }
+
+  async verifyEmail(token: string): Promise<{ success: boolean }> {
+    const tokenHash = this.hashVerificationToken(token);
+    const user = await this.users.findByEmailVerificationTokenHash(tokenHash);
+
+    if (!user) {
+      throw new NotFoundException('Invalid or expired verification token');
+    }
+
+    if (
+      user.emailVerificationExpiresAt &&
+      user.emailVerificationExpiresAt < new Date()
+    ) {
+      throw new NotFoundException('Invalid or expired verification token');
+    }
+
+    await this.users.markEmailVerified(user.id);
+    return { success: true };
+  }
+
+  async resendVerification(email: string): Promise<{ message: string }> {
+    const genericMessage =
+      'If the email exists and is not verified, a verification email has been sent.';
+
+    const user = await this.users.findByEmail(email);
+    if (!user) {
+      return { message: genericMessage };
+    }
+
+    if (user.emailVerifiedAt) {
+      return { message: genericMessage };
+    }
+
+    const cooldownMs = 60_000;
+    if (
+      user.emailVerificationSentAt &&
+      Date.now() - user.emailVerificationSentAt.getTime() < cooldownMs
+    ) {
+      return { message: genericMessage };
+    }
+
+    const rawToken = this.generateVerificationToken();
+    const tokenHash = this.hashVerificationToken(rawToken);
+    const expiresAt = this.getVerificationExpiryDate();
+
+    await this.users.updateEmailVerificationToken(
+      user.id,
+      tokenHash,
+      expiresAt,
+      new Date(),
+    );
+
+    await this.mail.sendVerificationEmail({
+      to: user.email,
+      token: rawToken,
+    });
+
+    return { message: genericMessage };
   }
 
   private async validateUserCredentials(
@@ -247,6 +322,19 @@ export class AuthService {
       throw new Error(`Invalid JWT_REFRESH_EXPIRES_IN: ${expiresIn}`);
     }
     return new Date(Date.now() + msValue);
+  }
+
+  private generateVerificationToken(): string {
+    return randomBytes(32).toString('hex');
+  }
+
+  private hashVerificationToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
+  }
+
+  private getVerificationExpiryDate(): Date {
+    // 24 hours
+    return new Date(Date.now() + 24 * 60 * 60 * 1000);
   }
 
   private async persistRefreshToken(
