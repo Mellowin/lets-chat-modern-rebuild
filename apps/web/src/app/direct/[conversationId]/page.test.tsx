@@ -1,27 +1,14 @@
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import DirectConversationPage from "./page";
 import { listDirectMessages, sendDirectMessage, markDirectConversationRead, listDirectConversations, updateDirectMessage, deleteDirectMessage } from "@/lib/direct-conversations-api";
 import type { DirectMessage } from "@/lib/direct-conversations-api";
+import { createSocketMock } from "@/test/socket-mock";
 
-const socketHandlers: Record<string, (...args: unknown[]) => void> = {};
-const socketOffHandlers: Record<string, ((...args: unknown[]) => void)[]> = {};
-const socketOnMock = vi.fn((event: string, handler: (...args: unknown[]) => void) => {
-  socketHandlers[event] = handler;
-  if (!socketOffHandlers[event]) socketOffHandlers[event] = [];
-  socketOffHandlers[event].push(handler);
-});
-const socketOffMock = vi.fn((event: string, handler: (...args: unknown[]) => void) => {
-  if (socketOffHandlers[event]) {
-    socketOffHandlers[event] = socketOffHandlers[event].filter((h) => h !== handler);
-  }
-  if (socketHandlers[event] === handler) {
-    delete socketHandlers[event];
-  }
-});
+const { socketHandlers, socketOnMock, socketOffMock, socketDisconnectMock, clearSocketHandlers } =
+  createSocketMock();
 const socketEmitMock = vi.fn();
-const socketDisconnectMock = vi.fn();
 
 let mockSocketConnected = false;
 
@@ -72,8 +59,7 @@ beforeEach(() => {
   localStorage.clear();
   sessionStorage.setItem("accessToken", "token");
   vi.clearAllMocks();
-  Object.keys(socketHandlers).forEach((k) => delete socketHandlers[k]);
-  Object.keys(socketOffHandlers).forEach((k) => delete socketOffHandlers[k]);
+  clearSocketHandlers();
   mockSocketConnected = false;
   routerPushMock.mockClear();
   vi.mocked(deleteDirectMessage).mockReset();
@@ -588,6 +574,7 @@ describe("DirectConversationPage — socket", () => {
   });
 
   it("ignores duplicate incoming message by id", async () => {
+    vi.mocked(markDirectConversationRead).mockImplementation(() => new Promise(() => {}));
     mockMessages([
       {
         id: "dm1",
@@ -627,6 +614,7 @@ describe("DirectConversationPage — socket", () => {
     });
 
     expect(screen.getAllByText("Original").length).toBe(1);
+    vi.mocked(markDirectConversationRead).mockResolvedValue({ ok: true });
   });
 
   it("ignores socket message for another conversation", async () => {
@@ -1895,7 +1883,9 @@ describe("DirectConversationPage — quote preview", () => {
       expect(row.className).toContain("bg-yellow-100/70");
     });
 
-    vi.advanceTimersByTime(2000);
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
 
     await waitFor(() => {
       const row = screen.getByTestId("direct-message-row-dm1");
@@ -6079,7 +6069,9 @@ describe("DirectConversationPage — B100 typing indicator", () => {
       expect(screen.getByTestId("direct-typing-indicator")).toBeInTheDocument();
     });
 
-    vi.advanceTimersByTime(3000);
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
 
     await waitFor(() => {
       expect(screen.queryByTestId("direct-typing-indicator")).not.toBeInTheDocument();

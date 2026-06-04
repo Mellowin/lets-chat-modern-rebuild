@@ -331,6 +331,9 @@ describe('WebsocketGateway', () => {
     });
 
     it('should emit generic error on unexpected failure', async () => {
+      const loggerSpy = jest
+        .spyOn((gateway as any).logger, 'error')
+        .mockImplementation(() => {});
       const socket = createMockSocket({
         data: { user: { id: userId } },
       });
@@ -342,6 +345,7 @@ describe('WebsocketGateway', () => {
       expect(socket.emit).toHaveBeenCalledWith('channel:error', {
         message: 'Failed to join channel',
       });
+      loggerSpy.mockRestore();
     });
   });
 

@@ -8,23 +8,10 @@ import { getWorkspaces } from "@/lib/workspaces-api";
 import { getChannels } from "@/lib/channels-api";
 import { listDirectConversations } from "@/lib/direct-conversations-api";
 import { createWorkspace, createChannel } from "@/test/factories";
+import { createSocketMock } from "@/test/socket-mock";
 
-const socketHandlers: Record<string, (...args: unknown[]) => void> = {};
-const socketOffHandlers: Record<string, ((...args: unknown[]) => void)[]> = {};
-const socketOnMock = vi.fn((event: string, handler: (...args: unknown[]) => void) => {
-  socketHandlers[event] = handler;
-  if (!socketOffHandlers[event]) socketOffHandlers[event] = [];
-  socketOffHandlers[event].push(handler);
-});
-const socketOffMock = vi.fn((event: string, handler: (...args: unknown[]) => void) => {
-  if (socketOffHandlers[event]) {
-    socketOffHandlers[event] = socketOffHandlers[event].filter((h) => h !== handler);
-  }
-  if (socketHandlers[event] === handler) {
-    delete socketHandlers[event];
-  }
-});
-const socketDisconnectMock = vi.fn();
+const { socketHandlers, socketOnMock, socketOffMock, socketDisconnectMock, clearSocketHandlers } =
+  createSocketMock();
 
 function makeMockSocket() {
   return {
@@ -122,8 +109,7 @@ function setupDefaultMocks(pathname = "/dashboard") {
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
-  Object.keys(socketHandlers).forEach((k) => delete socketHandlers[k]);
-  Object.keys(socketOffHandlers).forEach((k) => delete socketOffHandlers[k]);
+  clearSocketHandlers();
 });
 
 describe("Sidebar — structure", () => {

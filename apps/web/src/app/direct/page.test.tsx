@@ -1,27 +1,14 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import DirectMessagesPage from "./page";
 import { useAuth } from "@/lib/auth-context";
 import { listDirectConversations, createDirectConversation, type DirectConversation } from "@/lib/direct-conversations-api";
+import { createSocketMock } from "@/test/socket-mock";
 
-const socketHandlers: Record<string, (...args: unknown[]) => void> = {};
-const socketOffHandlers: Record<string, ((...args: unknown[]) => void)[]> = {};
-const socketOnMock = vi.fn((event: string, handler: (...args: unknown[]) => void) => {
-  socketHandlers[event] = handler;
-  if (!socketOffHandlers[event]) socketOffHandlers[event] = [];
-  socketOffHandlers[event].push(handler);
-});
-const socketOffMock = vi.fn((event: string, handler: (...args: unknown[]) => void) => {
-  if (socketOffHandlers[event]) {
-    socketOffHandlers[event] = socketOffHandlers[event].filter((h) => h !== handler);
-  }
-  if (socketHandlers[event] === handler) {
-    delete socketHandlers[event];
-  }
-});
+const { socketHandlers, socketOnMock, socketOffMock, socketDisconnectMock, clearSocketHandlers } =
+  createSocketMock();
 const socketEmitMock = vi.fn();
-const socketDisconnectMock = vi.fn();
 
 function makeMockSocket() {
   return {
@@ -111,8 +98,7 @@ describe("DirectMessagesPage — list conversations", () => {
     vi.clearAllMocks();
     localStorage.clear();
     vi.mocked(listDirectConversations).mockResolvedValue([]);
-    Object.keys(socketHandlers).forEach((k) => delete socketHandlers[k]);
-    Object.keys(socketOffHandlers).forEach((k) => delete socketOffHandlers[k]);
+    clearSocketHandlers();
   });
 
   it("shows loading state", async () => {
@@ -283,8 +269,7 @@ describe("DirectMessagesPage — socket unread updates", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
-    Object.keys(socketHandlers).forEach((k) => delete socketHandlers[k]);
-    Object.keys(socketOffHandlers).forEach((k) => delete socketOffHandlers[k]);
+    clearSocketHandlers();
   });
 
   it("increments unreadCount for message from other user", async () => {
@@ -473,7 +458,7 @@ describe("DirectMessagesPage — socket unread updates", () => {
     });
 
     // Flush deferred side effects (setTimeout 0)
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
 
     await waitFor(() => {
       expect(dispatchSpy).toHaveBeenCalledWith(
@@ -513,7 +498,7 @@ describe("DirectMessagesPage — socket unread updates", () => {
     });
 
     // Flush deferred side effects (setTimeout 0)
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
 
     const reactWarning = consoleErrorSpy.mock.calls.find(
       (call) =>
@@ -550,7 +535,7 @@ describe("DirectMessagesPage — socket unread updates", () => {
     });
 
     // Flush deferred side effects (setTimeout 0)
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await act(() => new Promise((resolve) => setTimeout(resolve, 0)));
 
     await waitFor(() => {
       expect(listDirectConversations).toHaveBeenCalledTimes(2);

@@ -47,6 +47,10 @@ export default function DirectConversationPage() {
   const router = useRouter();
   const [messages, setMessages] = useState<MessagesState>({ kind: "idle" });
   const [conversation, setConversation] = useState<ConversationState>({ kind: "idle" });
+  const conversationRef = useRef<ConversationState>(conversation);
+  useEffect(() => {
+    conversationRef.current = conversation;
+  }, [conversation]);
   const [content, setContent] = useState("");
   const [sendState, setSendState] = useState<
     { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string }
@@ -570,6 +574,12 @@ export default function DirectConversationPage() {
       status: string;
     }) {
       if (payload.user.id === user?.id) return;
+      const conv = conversationRef.current;
+      if (
+        conv.kind === "success" &&
+        conv.data.otherParticipant.id !== payload.user.id
+      )
+        return;
       setPresenceStatus("online");
     }
 
@@ -578,6 +588,12 @@ export default function DirectConversationPage() {
       status: string;
     }) {
       if (payload.user.id === user?.id) return;
+      const conv = conversationRef.current;
+      if (
+        conv.kind === "success" &&
+        conv.data.otherParticipant.id !== payload.user.id
+      )
+        return;
       setPresenceStatus("offline");
     }
 
