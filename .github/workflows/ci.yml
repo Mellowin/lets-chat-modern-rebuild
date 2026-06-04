@@ -48,6 +48,9 @@ jobs:
       - name: Test API
         run: pnpm --filter api test
 
+      - name: Typecheck Web
+        run: pnpm --filter web typecheck
+
       - name: Test Web
         run: pnpm --filter web test
 
