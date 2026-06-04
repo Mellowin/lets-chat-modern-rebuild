@@ -250,24 +250,24 @@ export default function ChannelDetailPage() {
     const socket = createSocket(accessToken);
     socketRef.current = socket;
 
-    socket.on("connect", () => {
+    function handleConnect() {
       setSocketStatus("connected");
-    });
+    }
 
-    socket.on("disconnect", () => {
+    function handleDisconnect() {
       setSocketStatus("disconnected");
-    });
+    }
 
-    socket.on("connected", () => {
+    function handleServerConnected() {
       setSocketStatus("connected");
       socket.emit("channel:join", { workspaceId, channelId });
-    });
+    }
 
-    socket.on("channel:joined", () => {
+    function handleChannelJoined() {
       setSocketStatus("joined");
-    });
+    }
 
-    socket.on("channel:error", (data: { message?: string }) => {
+    function handleChannelError(data: { message?: string }) {
       const msg = (data?.message ?? "").toLowerCase();
       const isAccessLoss =
         msg.includes("channel not found") ||
@@ -284,19 +284,19 @@ export default function ChannelDetailPage() {
         setSocketStatus("error");
         console.error("Channel error:", data?.message);
       }
-    });
+    }
 
-    socket.on("auth:error", () => {
+    function handleAuthError() {
       setSocketStatus("error");
       socket.disconnect();
-    });
+    }
 
-    socket.on("auth:expired", () => {
+    function handleAuthExpired() {
       setSocketStatus("error");
       socket.disconnect();
-    });
+    }
 
-    socket.on("message:created", (msg: Message) => {
+    function handleMessageCreated(msg: Message) {
       if (msg.channelId !== channelId) return;
       if (msg.author.id === user?.id) {
         appendMessage(msg);
@@ -308,19 +308,19 @@ export default function ChannelDetailPage() {
       if (wasNearBottom) {
         requestAnimationFrame(() => scrollMessagesToBottom("smooth"));
       }
-    });
+    }
 
-    socket.on("message:updated", (msg: Message) => {
+    function handleMessageUpdated(msg: Message) {
       if (msg.channelId !== channelId) return;
       updateMessageInState(msg);
-    });
+    }
 
-    socket.on("message:deleted", (payload: { id: string; channelId: string; deletedAt: string }) => {
+    function handleMessageDeleted(payload: { id: string; channelId: string; deletedAt: string }) {
       if (payload.channelId !== channelId) return;
       removeMessageFromState(payload.id);
-    });
+    }
 
-    socket.on("typing:started", (payload: { channelId: string; user: { id: string; username: string } }) => {
+    function handleTypingStarted(payload: { channelId: string; user: { id: string; username: string } }) {
       if (payload.channelId !== channelId) return;
       if (payload.user.id === user?.id) return;
       setTypingUsers((prev) => {
@@ -338,9 +338,9 @@ export default function ChannelDetailPage() {
         next[payload.user.id] = { username: payload.user.username, timeout };
         return next;
       });
-    });
+    }
 
-    socket.on("typing:stopped", (payload: { channelId: string; user: { id: string; username: string } }) => {
+    function handleTypingStopped(payload: { channelId: string; user: { id: string; username: string } }) {
       if (payload.channelId !== channelId) return;
       setTypingUsers((prev) => {
         const next = { ...prev };
@@ -350,29 +350,44 @@ export default function ChannelDetailPage() {
         delete next[payload.user.id];
         return next;
       });
-    });
+    }
 
-    socket.on("reaction:added", (payload: {
+    function handleReactionAdded(payload: {
       messageId: string;
       channelId: string;
       emoji: string;
       user: { id: string; username: string };
       reactions: Array<{ emoji: string; count: number; reactedByMe?: boolean }>;
-    }) => {
+    }) {
       if (payload.channelId !== channelId) return;
       updateMessageReactionsFromEvent(payload.messageId, payload.reactions, payload.user.id);
-    });
+    }
 
-    socket.on("reaction:removed", (payload: {
+    function handleReactionRemoved(payload: {
       messageId: string;
       channelId: string;
       emoji: string;
       user: { id: string; username: string };
       reactions: Array<{ emoji: string; count: number; reactedByMe?: boolean }>;
-    }) => {
+    }) {
       if (payload.channelId !== channelId) return;
       updateMessageReactionsFromEvent(payload.messageId, payload.reactions, payload.user.id);
-    });
+    }
+
+    socket.on("connect", handleConnect);
+    socket.on("disconnect", handleDisconnect);
+    socket.on("connected", handleServerConnected);
+    socket.on("channel:joined", handleChannelJoined);
+    socket.on("channel:error", handleChannelError);
+    socket.on("auth:error", handleAuthError);
+    socket.on("auth:expired", handleAuthExpired);
+    socket.on("message:created", handleMessageCreated);
+    socket.on("message:updated", handleMessageUpdated);
+    socket.on("message:deleted", handleMessageDeleted);
+    socket.on("typing:started", handleTypingStarted);
+    socket.on("typing:stopped", handleTypingStopped);
+    socket.on("reaction:added", handleReactionAdded);
+    socket.on("reaction:removed", handleReactionRemoved);
 
     return () => {
       if (typingTimeoutRef.current) {
@@ -383,6 +398,20 @@ export default function ChannelDetailPage() {
         if (u.timeout) window.clearTimeout(u.timeout);
       });
       setTypingUsers({});
+      socket.off("connect", handleConnect);
+      socket.off("disconnect", handleDisconnect);
+      socket.off("connected", handleServerConnected);
+      socket.off("channel:joined", handleChannelJoined);
+      socket.off("channel:error", handleChannelError);
+      socket.off("auth:error", handleAuthError);
+      socket.off("auth:expired", handleAuthExpired);
+      socket.off("message:created", handleMessageCreated);
+      socket.off("message:updated", handleMessageUpdated);
+      socket.off("message:deleted", handleMessageDeleted);
+      socket.off("typing:started", handleTypingStarted);
+      socket.off("typing:stopped", handleTypingStopped);
+      socket.off("reaction:added", handleReactionAdded);
+      socket.off("reaction:removed", handleReactionRemoved);
       socket.emit("channel:leave", { channelId });
       socket.disconnect();
       socketRef.current = null;
