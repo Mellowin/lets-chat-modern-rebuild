@@ -80,6 +80,7 @@ describe('WebsocketGateway', () => {
           useValue: {
             findParticipant: jest.fn(),
             findParticipants: jest.fn().mockResolvedValue([]),
+            listForUser: jest.fn().mockResolvedValue([]),
           },
         },
         PresenceService,
@@ -826,6 +827,134 @@ describe('WebsocketGateway', () => {
         },
       );
       expect(gateway['presence']['userRooms'].has(userId)).toBe(false);
+    });
+
+    describe('handleConnection presence broadcast', () => {
+      it('should broadcast presence:online to direct conversation partners on connect', async () => {
+        const otherUserId = '55555555-5555-5555-5555-555555555555';
+        const socket = createMockSocket({
+          handshake: {
+            auth: { token: 'valid-token' },
+          } as unknown as Socket['handshake'],
+        });
+
+        tokenService.verifyAccessToken.mockResolvedValue({
+          sub: userId,
+          email: 'test@test.com',
+          jti: 'jti-1',
+        });
+        usersRepository.findById.mockResolvedValue({
+          id: userId,
+          email: 'test@test.com',
+          username: 'testuser',
+          displayName: null,
+        } as User);
+
+        directConversations.listForUser.mockResolvedValue([
+          { id: conversationId } as any,
+        ]);
+        directConversations.findParticipants.mockResolvedValue([
+          { userId, lastReadAt: null },
+          { userId: otherUserId, lastReadAt: null },
+        ]);
+
+        await gateway.handleConnection(socket);
+
+        expect(gateway.server.to).toHaveBeenCalledWith(`user:${otherUserId}`);
+        expect(
+          gateway.server.to(`user:${otherUserId}`).emit,
+        ).toHaveBeenCalledWith('presence:online', {
+          user: { id: userId, username: 'testuser', displayName: null },
+          status: 'online',
+        });
+      });
+
+      it('should not broadcast presence:online when user has no direct conversations', async () => {
+        const socket = createMockSocket({
+          handshake: {
+            auth: { token: 'valid-token' },
+          } as unknown as Socket['handshake'],
+        });
+
+        tokenService.verifyAccessToken.mockResolvedValue({
+          sub: userId,
+          email: 'test@test.com',
+          jti: 'jti-1',
+        });
+        usersRepository.findById.mockResolvedValue({
+          id: userId,
+          email: 'test@test.com',
+          username: 'testuser',
+          displayName: null,
+        } as User);
+
+        directConversations.listForUser.mockResolvedValue([]);
+
+        await gateway.handleConnection(socket);
+
+        expect(directConversations.findParticipants).not.toHaveBeenCalled();
+        expect(gateway.server.to).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('handleDisconnect presence broadcast', () => {
+      it('should broadcast presence:offline to direct conversation partners on last disconnect', async () => {
+        const otherUserId = '55555555-5555-5555-5555-555555555555';
+        const socket = createMockSocket({
+          id: 'socket-last',
+          data: { user: { id: userId, username: 'testuser' } },
+        });
+        gateway['presence']['userSockets'].set(
+          userId,
+          new Set(['socket-last']),
+        );
+        gateway['presence']['socketRooms'].set('socket-last', new Set());
+        gateway['presence']['userRooms'].set(userId, new Set());
+
+        directConversations.listForUser.mockResolvedValue([
+          { id: conversationId } as any,
+        ]);
+        directConversations.findParticipants.mockResolvedValue([
+          { userId, lastReadAt: null },
+          { userId: otherUserId, lastReadAt: null },
+        ]);
+
+        await gateway.handleDisconnect(socket);
+
+        expect(gateway.server.to).toHaveBeenCalledWith(`user:${otherUserId}`);
+        expect(
+          gateway.server.to(`user:${otherUserId}`).emit,
+        ).toHaveBeenCalledWith('presence:offline', {
+          user: { id: userId, username: 'testuser' },
+          status: 'offline',
+        });
+      });
+
+      it('should not broadcast presence:offline when other sockets still connected', async () => {
+        const socket1 = createMockSocket({
+          id: 'socket-mt1',
+          data: { user: { id: userId, username: 'testuser' } },
+        });
+        gateway['presence']['userSockets'].set(
+          userId,
+          new Set(['socket-mt1', 'socket-mt2']),
+        );
+        gateway['presence']['socketRooms'].set('socket-mt1', new Set());
+        gateway['presence']['socketRooms'].set('socket-mt2', new Set());
+        gateway['presence']['userRooms'].set(userId, new Set());
+
+        directConversations.listForUser.mockResolvedValue([
+          { id: conversationId } as any,
+        ]);
+        directConversations.findParticipants.mockResolvedValue([
+          { userId, lastReadAt: null },
+          { userId: '55555555-5555-5555-5555-555555555555', lastReadAt: null },
+        ]);
+
+        await gateway.handleDisconnect(socket1);
+
+        expect(gateway.server.to).not.toHaveBeenCalled();
+      });
     });
   });
 

@@ -163,6 +163,33 @@ export class WebsocketGateway
 
       await socket.join(`user:${user.id}`);
 
+      try {
+        const conversations = await this.directConversations.listForUser(
+          user.id,
+        );
+        for (const conversation of conversations) {
+          await this.broadcastPresenceToOtherParticipant(
+            conversation.id,
+            user.id,
+            'presence:online',
+            {
+              id: user.id,
+              username: user.username,
+              displayName: user.displayName,
+            },
+          );
+        }
+      } catch (broadcastError) {
+        this.logger.warn(
+          {
+            socketId,
+            userId: user.id,
+            error: (broadcastError as Error).message,
+          },
+          'Failed to broadcast presence on connection',
+        );
+      }
+
       this.logger.log({ socketId, userId: user.id }, 'Socket connected');
       socket.emit('connected', { userId: user.id });
     } catch (error) {
@@ -213,6 +240,27 @@ export class WebsocketGateway
 
       if (!this.presence.isUserTracked(userId)) {
         this.presence.clearUserRooms(userId);
+        try {
+          const conversations =
+            await this.directConversations.listForUser(userId);
+          for (const conversation of conversations) {
+            await this.broadcastPresenceToOtherParticipant(
+              conversation.id,
+              userId,
+              'presence:offline',
+              {
+                id: userId,
+                username: this.getSocketUser(socket)?.username,
+                displayName: this.getSocketUser(socket)?.displayName,
+              },
+            );
+          }
+        } catch (broadcastError) {
+          this.logger.warn(
+            { socketId, userId, error: (broadcastError as Error).message },
+            'Failed to broadcast presence on disconnect',
+          );
+        }
       }
     }
 
