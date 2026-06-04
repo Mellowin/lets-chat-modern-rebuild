@@ -285,7 +285,9 @@ export type TranslationKey =
   | "direct.failedDeleteMessage"
   | "direct.typing"
   | "direct.typingFallback"
-  | "direct.unreadMessages";
+  | "direct.unreadMessages"
+  | "sidebar.moveUp"
+  | "sidebar.moveDown";
 
 const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string) => string)>> = {
   en: {
@@ -520,6 +522,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "direct.typing": "{arg0} is typing…",
     "direct.typingFallback": "Someone is typing…",
     "direct.unreadMessages": "Unread messages",
+    "sidebar.moveUp": "Move up",
+    "sidebar.moveDown": "Move down",
     "workspace.confirmArchiveChannelPrefix": "Archive channel",
     "workspace.confirmArchiveChannelBody": "This will hide the channel from the workspace. Only the channel owner can do this.",
     "workspace.confirmRestoreChannelPrefix": "Restore channel",
@@ -790,6 +794,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "direct.typing": "{arg0} друкує…",
     "direct.typingFallback": "Хтось друкує…",
     "direct.unreadMessages": "Непрочитані повідомлення",
+    "sidebar.moveUp": "Перемістити вгору",
+    "sidebar.moveDown": "Перемістити вниз",
     "workspace.confirmArchiveChannelPrefix": "Архівувати канал",
     "workspace.confirmArchiveChannelBody": "Це приховає канал з робочого простору. Це може зробити лише власник каналу.",
     "workspace.confirmRestoreChannelPrefix": "Відновити канал",
@@ -1060,6 +1066,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "direct.typing": "{arg0} печатает…",
     "direct.typingFallback": "Кто-то печатает…",
     "direct.unreadMessages": "Непрочитанные сообщения",
+    "sidebar.moveUp": "Переместить вверх",
+    "sidebar.moveDown": "Переместить вниз",
     "workspace.confirmArchiveChannelPrefix": "Архивировать канал",
     "workspace.confirmArchiveChannelBody": "Это скроет канал из рабочего пространства. Это может сделать только владелец канала.",
     "workspace.confirmRestoreChannelPrefix": "Восстановить канал",

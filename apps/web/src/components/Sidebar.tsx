@@ -8,6 +8,7 @@ import { getWorkspaces, type Workspace } from "@/lib/workspaces-api";
 import { getChannels, type Channel } from "@/lib/channels-api";
 import { listDirectConversations, type DirectConversation } from "@/lib/direct-conversations-api";
 import { createSocket } from "@/lib/socket-client";
+import { getLocale, translate } from "@/lib/locale";
 
 type WorkspacesState =
   | { kind: "idle" }
@@ -27,9 +28,19 @@ type DirectConversationsState =
   | { kind: "success"; data: DirectConversation[] }
   | { kind: "error" };
 
+type SectionOrder = "direct-first" | "workspaces-first";
+
+function getStoredSectionOrder(): SectionOrder {
+  if (typeof window === "undefined") return "direct-first";
+  const raw = localStorage.getItem("sidebar:section-order");
+  if (raw === "workspaces-first") return "workspaces-first";
+  return "direct-first";
+}
+
 export default function Sidebar() {
   const { accessToken, isAuthenticated, isLoading: authLoading } = useAuth();
   const pathname = usePathname();
+
 
   const [workspaces, setWorkspaces] = useState<WorkspacesState>({ kind: "idle" });
   const [workspaceChannels, setWorkspaceChannels] = useState<Record<string, WorkspaceChannelsState>>({});
@@ -42,6 +53,7 @@ export default function Sidebar() {
     typeof window !== "undefined" ? localStorage.getItem("sidebar:workspaces:expanded") !== "false" : true
   );
   const [expandedWorkspaces, setExpandedWorkspaces] = useState<Set<string>>(new Set());
+  const [sectionOrder, setSectionOrder] = useState<SectionOrder>(() => getStoredSectionOrder());
 
   const activeWorkspaceId = pathname?.startsWith("/workspaces/")
     ? pathname.split("/")[2]
@@ -212,6 +224,14 @@ export default function Sidebar() {
     }
   }
 
+  function toggleSectionOrder() {
+    setSectionOrder((prev) => {
+      const next = prev === "direct-first" ? "workspaces-first" : "direct-first";
+      localStorage.setItem("sidebar:section-order", next);
+      return next;
+    });
+  }
+
   if (authLoading || !isAuthenticated) {
     return (
       <aside className="w-60 shrink-0 border-r border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 hidden sm:flex flex-col p-3">
@@ -226,186 +246,238 @@ export default function Sidebar() {
       ? directConversations.data.reduce((sum, c) => sum + c.unreadCount, 0)
       : 0;
 
-  return (
-    <aside className="w-60 shrink-0 border-r border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 hidden sm:flex flex-col p-3 overflow-y-auto">
-      {/* DIRECT */}
-      <div data-testid="sidebar-direct-section">
-        <button
-          onClick={toggleDirect}
-          data-testid="sidebar-direct-toggle"
-          className="flex w-full items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-zinc-400 uppercase tracking-wider hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
-        >
-          <span className={`transition-transform ${directExpanded ? "rotate-90" : ""}`}>▸</span>
-          <span>Direct</span>
-        </button>
-        {directExpanded && (
-          <div className="mt-1">
-            <ul className="space-y-0.5">
-              <li>
-                <Link
-                  href="/direct"
-                  data-testid="sidebar-direct-link"
-                  className={`flex items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors ${
-                    pathname?.startsWith("/direct")
-                      ? "bg-zinc-200 dark:bg-zinc-800 font-medium text-zinc-900 dark:text-zinc-100"
-                      : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
-                  }`}
-                >
-                  <span className="truncate block">Direct messages</span>
-                  {directUnreadTotal > 0 && (
-                    <span data-testid="sidebar-direct-unread-badge" className="inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-zinc-900 px-1 text-[9px] font-bold text-white dark:bg-zinc-100 dark:text-zinc-900">
-                      {directUnreadTotal > 99 ? "99+" : directUnreadTotal}
-                    </span>
-                  )}
-                </Link>
-              </li>
-            </ul>
-            {directConversations.kind === "success" && directConversations.data.length > 0 && (
-              <ul className="mt-1 space-y-0.5">
-                {directConversations.data.map((conv) => {
-                  const isActive = conv.id === activeDirectConversationId;
-                  const name = conv.otherParticipant?.displayName || conv.otherParticipant?.username || "Unknown";
-                  return (
-                    <li key={conv.id}>
-                      <Link
-                        href={`/direct/${conv.id}`}
-                        data-testid={`sidebar-direct-conversation-link-${conv.id}`}
-                        className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
-                          isActive
-                            ? "bg-zinc-200 dark:bg-zinc-800 font-medium text-zinc-900 dark:text-zinc-100"
-                            : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
-                        }`}
-                      >
-                        <span
-                          className={`h-2 w-2 shrink-0 rounded-full ${
-                            conv.isOnline ? "bg-emerald-500" : "bg-zinc-300 dark:bg-zinc-600"
-                          }`}
-                        />
-                        <span className="truncate flex-1">{name}</span>
-                        {conv.unreadCount > 0 && (
-                          <span className="inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-zinc-900 px-1 text-[9px] font-bold text-white dark:bg-zinc-100 dark:text-zinc-900">
-                            {conv.unreadCount > 99 ? "99+" : conv.unreadCount}
-                          </span>
-                        )}
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-        )}
-      </div>
+  const directSectionHeader = (
+    <div className="flex items-center gap-1">
+      <button
+        onClick={toggleDirect}
+        data-testid="sidebar-direct-toggle"
+        className="flex flex-1 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-zinc-400 uppercase tracking-wider hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
+      >
+        <span className={`transition-transform ${directExpanded ? "rotate-90" : ""}`}>▸</span>
+        <span>Direct</span>
+      </button>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          toggleSectionOrder();
+        }}
+        data-testid="sidebar-direct-move"
+        aria-label={translate(getLocale(), sectionOrder === "direct-first" ? "sidebar.moveDown" : "sidebar.moveUp")}
+        className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-[10px] text-zinc-400 hover:bg-zinc-200/60 hover:text-zinc-700 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-200"
+      >
+        {sectionOrder === "direct-first" ? "↓" : "↑"}
+      </button>
+    </div>
+  );
 
-      {/* WORKSPACES */}
-      <div className="mt-4" data-testid="sidebar-workspaces-section">
-        <button
-          onClick={toggleWorkspaces}
-          className="flex w-full items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-zinc-400 uppercase tracking-wider hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
-        >
-          <span className={`transition-transform ${workspacesExpanded ? "rotate-90" : ""}`}>▸</span>
-          <span>Workspaces</span>
-        </button>
-        {workspacesExpanded && (
-          <div className="mt-1">
-            {workspaces.kind === "loading" && (
-              <div className="flex items-center gap-2 px-2 text-sm text-zinc-500 dark:text-zinc-400">
-                <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
-                Loading…
-              </div>
-            )}
-            {workspaces.kind === "error" && (
-              <div className="px-2 text-sm text-red-600 dark:text-red-400">Failed to load workspaces</div>
-            )}
-            {workspaces.kind === "success" && workspaces.data.length === 0 && (
-              <div className="px-2 text-sm text-zinc-500 dark:text-zinc-400">No workspaces yet</div>
-            )}
-            {workspaces.kind === "success" && workspaces.data.length > 0 && (
-              <ul className="space-y-0.5">
-                {workspaces.data.map((ws) => {
-                  const isExpanded = expandedWorkspaces.has(ws.id);
-                  const isActive = ws.id === activeWorkspaceId;
-                  return (
-                    <li key={ws.id}>
-                      <button
-                        onClick={() => toggleWorkspace(ws.id)}
-                        data-testid={`sidebar-workspace-toggle-${ws.id}`}
-                        className={`flex w-full items-center gap-1 rounded-md px-2 py-1.5 text-sm transition-colors ${
-                          isActive
-                            ? "bg-zinc-200 dark:bg-zinc-800 font-medium text-zinc-900 dark:text-zinc-100"
-                            : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
+  const workspacesSectionHeader = (
+    <div className="flex items-center gap-1">
+      <button
+        onClick={toggleWorkspaces}
+        className="flex flex-1 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-zinc-400 uppercase tracking-wider hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
+      >
+        <span className={`transition-transform ${workspacesExpanded ? "rotate-90" : ""}`}>▸</span>
+        <span>Workspaces</span>
+      </button>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          toggleSectionOrder();
+        }}
+        data-testid="sidebar-workspaces-move"
+        aria-label={translate(getLocale(), sectionOrder === "workspaces-first" ? "sidebar.moveDown" : "sidebar.moveUp")}
+        className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-[10px] text-zinc-400 hover:bg-zinc-200/60 hover:text-zinc-700 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-200"
+      >
+        {sectionOrder === "workspaces-first" ? "↓" : "↑"}
+      </button>
+    </div>
+  );
+
+  const directSection = (
+    <div data-testid="sidebar-direct-section">
+      {directSectionHeader}
+      {directExpanded && (
+        <div className="mt-1">
+          <ul className="space-y-0.5">
+            <li>
+              <Link
+                href="/direct"
+                data-testid="sidebar-direct-link"
+                className={`flex items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors ${
+                  pathname?.startsWith("/direct")
+                    ? "bg-zinc-200 dark:bg-zinc-800 font-medium text-zinc-900 dark:text-zinc-100"
+                    : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
+                }`}
+              >
+                <span className="truncate block">Direct messages</span>
+                {directUnreadTotal > 0 && (
+                  <span data-testid="sidebar-direct-unread-badge" className="inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-zinc-900 px-1 text-[9px] font-bold text-white dark:bg-zinc-100 dark:text-zinc-900">
+                    {directUnreadTotal > 99 ? "99+" : directUnreadTotal}
+                  </span>
+                )}
+              </Link>
+            </li>
+          </ul>
+          {directConversations.kind === "success" && directConversations.data.length > 0 && (
+            <ul className="mt-1 space-y-0.5">
+              {directConversations.data.map((conv) => {
+                const isActive = conv.id === activeDirectConversationId;
+                const name = conv.otherParticipant?.displayName || conv.otherParticipant?.username || "Unknown";
+                return (
+                  <li key={conv.id}>
+                    <Link
+                      href={`/direct/${conv.id}`}
+                      data-testid={`sidebar-direct-conversation-link-${conv.id}`}
+                      className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
+                        isActive
+                          ? "bg-zinc-200 dark:bg-zinc-800 font-medium text-zinc-900 dark:text-zinc-100"
+                          : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
+                      }`}
+                    >
+                      <span
+                        className={`h-2 w-2 shrink-0 rounded-full ${
+                          conv.isOnline ? "bg-emerald-500" : "bg-zinc-300 dark:bg-zinc-600"
                         }`}
-                      >
-                        <span className={`transition-transform ${isExpanded ? "rotate-90" : ""}`}>▸</span>
-                        <span className="truncate flex-1 text-left">{ws.name}</span>
-                      </button>
-                      {isExpanded && (
-                        <div className="ml-4 mt-0.5 space-y-0.5" data-testid={`sidebar-workspace-channels-${ws.id}`}>
-                          <Link
-                            href={`/workspaces/${ws.id}`}
-                            className={`block rounded-md px-2 py-1 text-sm transition-colors ${
-                              pathname === `/workspaces/${ws.id}`
-                                ? "bg-zinc-200 dark:bg-zinc-800 font-medium text-zinc-900 dark:text-zinc-100"
-                                : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
-                            }`}
-                          >
-                            <span className="truncate block">Overview</span>
-                          </Link>
-                          {workspaceChannels[ws.id]?.kind === "loading" && (
-                            <div className="flex items-center gap-2 px-2 text-xs text-zinc-500 dark:text-zinc-400">
-                              <span className="inline-block h-2 w-2 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
-                              Loading…
-                            </div>
-                          )}
-                          {workspaceChannels[ws.id]?.kind === "error" && (
-                            <div className="px-2 text-xs text-red-600 dark:text-red-400">Failed to load channels</div>
-                          )}
-                          {(() => {
-                            const chState = workspaceChannels[ws.id];
-                            if (chState?.kind !== "success") return null;
-                            if (chState.data.length === 0) {
-                              return <div className="px-2 text-xs text-zinc-500 dark:text-zinc-400">No channels yet</div>;
-                            }
-                            return (
-                              <ul className="space-y-0.5">
-                                {chState.data.map((ch) => {
-                                const isChActive = ch.id === activeChannelId;
-                                return (
-                                  <li key={ch.id}>
-                                    <Link
-                                      href={`/workspaces/${ws.id}/channels/${ch.id}`}
-                                      data-testid={`sidebar-channel-link-${ch.id}`}
-                                      className={`flex items-center justify-between rounded-md px-2 py-1 text-sm transition-colors ${
-                                        isChActive
-                                          ? "bg-zinc-200 dark:bg-zinc-800 font-medium text-zinc-900 dark:text-zinc-100"
-                                          : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
+                      />
+                      <span className="truncate flex-1">{name}</span>
+                      {conv.unreadCount > 0 && (
+                        <span className="inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-zinc-900 px-1 text-[9px] font-bold text-white dark:bg-zinc-100 dark:text-zinc-900">
+                          {conv.unreadCount > 99 ? "99+" : conv.unreadCount}
+                        </span>
+                      )}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
+  const workspacesSection = (
+    <div data-testid="sidebar-workspaces-section">
+      {workspacesSectionHeader}
+      {workspacesExpanded && (
+        <div className="mt-1">
+          {workspaces.kind === "loading" && (
+            <div className="flex items-center gap-2 px-2 text-sm text-zinc-500 dark:text-zinc-400">
+              <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
+              Loading…
+            </div>
+          )}
+          {workspaces.kind === "error" && (
+            <div className="px-2 text-sm text-red-600 dark:text-red-400">Failed to load workspaces</div>
+          )}
+          {workspaces.kind === "success" && workspaces.data.length === 0 && (
+            <div className="px-2 text-sm text-zinc-500 dark:text-zinc-400">No workspaces yet</div>
+          )}
+          {workspaces.kind === "success" && workspaces.data.length > 0 && (
+            <ul className="space-y-0.5">
+              {workspaces.data.map((ws) => {
+                const isExpanded = expandedWorkspaces.has(ws.id);
+                const isActive = ws.id === activeWorkspaceId;
+                return (
+                  <li key={ws.id}>
+                    <button
+                      onClick={() => toggleWorkspace(ws.id)}
+                      data-testid={`sidebar-workspace-toggle-${ws.id}`}
+                      className={`flex w-full items-center gap-1 rounded-md px-2 py-1.5 text-sm transition-colors ${
+                        isActive
+                          ? "bg-zinc-200 dark:bg-zinc-800 font-medium text-zinc-900 dark:text-zinc-100"
+                          : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
+                      }`}
+                    >
+                      <span className={`transition-transform ${isExpanded ? "rotate-90" : ""}`}>▸</span>
+                      <span className="truncate flex-1 text-left">{ws.name}</span>
+                    </button>
+                    {isExpanded && (
+                      <div className="ml-4 mt-0.5 space-y-0.5" data-testid={`sidebar-workspace-channels-${ws.id}`}>
+                        <Link
+                          href={`/workspaces/${ws.id}`}
+                          className={`block rounded-md px-2 py-1 text-sm transition-colors ${
+                            pathname === `/workspaces/${ws.id}`
+                              ? "bg-zinc-200 dark:bg-zinc-800 font-medium text-zinc-900 dark:text-zinc-100"
+                              : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
+                          }`}
+                        >
+                          <span className="truncate block">Overview</span>
+                        </Link>
+                        {workspaceChannels[ws.id]?.kind === "loading" && (
+                          <div className="flex items-center gap-2 px-2 text-xs text-zinc-500 dark:text-zinc-400">
+                            <span className="inline-block h-2 w-2 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
+                            Loading…
+                          </div>
+                        )}
+                        {workspaceChannels[ws.id]?.kind === "error" && (
+                          <div className="px-2 text-xs text-red-600 dark:text-red-400">Failed to load channels</div>
+                        )}
+                        {(() => {
+                          const chState = workspaceChannels[ws.id];
+                          if (chState?.kind !== "success") return null;
+                          if (chState.data.length === 0) {
+                            return <div className="px-2 text-xs text-zinc-500 dark:text-zinc-400">No channels yet</div>;
+                          }
+                          return (
+                            <ul className="space-y-0.5">
+                              {chState.data.map((ch) => {
+                              const isChActive = ch.id === activeChannelId;
+                              return (
+                                <li key={ch.id}>
+                                  <Link
+                                    href={`/workspaces/${ws.id}/channels/${ch.id}`}
+                                    data-testid={`sidebar-channel-link-${ch.id}`}
+                                    className={`flex items-center justify-between rounded-md px-2 py-1 text-sm transition-colors ${
+                                      isChActive
+                                        ? "bg-zinc-200 dark:bg-zinc-800 font-medium text-zinc-900 dark:text-zinc-100"
+                                        : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
+                                    }`}
+                                  >
+                                    <span className="truncate"># {ch.name}</span>
+                                    <span
+                                      className={`shrink-0 ml-1.5 inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide ${
+                                        ch.type === "PUBLIC"
+                                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400"
+                                          : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
                                       }`}
                                     >
-                                      <span className="truncate"># {ch.name}</span>
-                                      <span
-                                        className={`shrink-0 ml-1.5 inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide ${
-                                          ch.type === "PUBLIC"
-                                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400"
-                                            : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
-                                        }`}
-                                      >
-                                        {ch.type === "PUBLIC" ? "Pub" : "Prv"}
-                                      </span>
-                                    </Link>
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                          );
-                        })()}
-                        </div>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
+                                      {ch.type === "PUBLIC" ? "Pub" : "Prv"}
+                                    </span>
+                                  </Link>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        );
+                      })()}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <aside className="w-60 shrink-0 border-r border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 hidden sm:flex flex-col p-3 overflow-y-auto">
+      <div className="space-y-4">
+        {sectionOrder === "direct-first" ? (
+          <>
+            {directSection}
+            {workspacesSection}
+          </>
+        ) : (
+          <>
+            {workspacesSection}
+            {directSection}
+          </>
         )}
       </div>
     </aside>

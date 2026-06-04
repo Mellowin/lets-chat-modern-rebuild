@@ -418,3 +418,189 @@ describe("Sidebar — socket cleanup", () => {
     expect(socketDisconnectMock).toHaveBeenCalled();
   });
 });
+
+describe("Sidebar — section order", () => {
+  it("default order is Direct before Workspaces", async () => {
+    setupDefaultMocks();
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText("Testing place")).toBeInTheDocument();
+    });
+    const directSection = screen.getByTestId("sidebar-direct-section");
+    const workspacesSection = screen.getByTestId("sidebar-workspaces-section");
+    expect(directSection.compareDocumentPosition(workspacesSection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByTestId("sidebar-direct-move")).toHaveAttribute("aria-label", "Move down");
+    expect(screen.getByTestId("sidebar-workspaces-move")).toHaveAttribute("aria-label", "Move up");
+  });
+
+  it("clicking Direct move button puts Workspaces before Direct", async () => {
+    setupDefaultMocks();
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText("Testing place")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByTestId("sidebar-direct-move"));
+    const directSection = screen.getByTestId("sidebar-direct-section");
+    const workspacesSection = screen.getByTestId("sidebar-workspaces-section");
+    expect(workspacesSection.compareDocumentPosition(directSection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("clicking Workspaces move button puts Direct before Workspaces", async () => {
+    setupDefaultMocks();
+    localStorage.setItem("sidebar:section-order", "workspaces-first");
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText("Testing place")).toBeInTheDocument();
+    });
+    const directSection = screen.getByTestId("sidebar-direct-section");
+    const workspacesSection = screen.getByTestId("sidebar-workspaces-section");
+    expect(workspacesSection.compareDocumentPosition(directSection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await userEvent.click(screen.getByTestId("sidebar-workspaces-move"));
+    await waitFor(() => {
+      const directAfter = screen.getByTestId("sidebar-direct-section");
+      const workspacesAfter = screen.getByTestId("sidebar-workspaces-section");
+      expect(directAfter.compareDocumentPosition(workspacesAfter) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+  });
+
+  it("persists section order after rerender via localStorage", async () => {
+    setupDefaultMocks();
+    const { unmount } = render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText("Testing place")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByTestId("sidebar-direct-move"));
+    unmount();
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText("Testing place")).toBeInTheDocument();
+    });
+    const directSection = screen.getByTestId("sidebar-direct-section");
+    const workspacesSection = screen.getByTestId("sidebar-workspaces-section");
+    expect(workspacesSection.compareDocumentPosition(directSection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(localStorage.getItem("sidebar:section-order")).toBe("workspaces-first");
+  });
+
+  it("falls back to Direct first when localStorage value is invalid", async () => {
+    localStorage.setItem("sidebar:section-order", "invalid");
+    setupDefaultMocks();
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText("Testing place")).toBeInTheDocument();
+    });
+    const directSection = screen.getByTestId("sidebar-direct-section");
+    const workspacesSection = screen.getByTestId("sidebar-workspaces-section");
+    expect(directSection.compareDocumentPosition(workspacesSection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("moving sections does not collapse Direct", async () => {
+    setupDefaultMocks();
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText("Direct messages")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByTestId("sidebar-direct-move"));
+    expect(screen.getByText("Direct messages")).toBeInTheDocument();
+    await userEvent.click(screen.getByTestId("sidebar-workspaces-move"));
+    expect(screen.getByText("Direct messages")).toBeInTheDocument();
+  });
+
+  it("moving sections does not collapse expanded workspace", async () => {
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText(/Boboski/)).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("sidebar-workspace-channels-ws1")).toBeInTheDocument();
+    await userEvent.click(screen.getByTestId("sidebar-direct-move"));
+    expect(screen.getByTestId("sidebar-workspace-channels-ws1")).toBeInTheDocument();
+    await userEvent.click(screen.getByTestId("sidebar-workspaces-move"));
+    expect(screen.getByTestId("sidebar-workspace-channels-ws1")).toBeInTheDocument();
+  });
+
+  it("active direct conversation highlight remains after reorder", async () => {
+    setupDefaultMocks("/direct/dc1");
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-direct-conversation-link-dc1")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("sidebar-direct-conversation-link-dc1")).toHaveClass("bg-zinc-200");
+    await userEvent.click(screen.getByTestId("sidebar-direct-move"));
+    expect(screen.getByTestId("sidebar-direct-conversation-link-dc1")).toHaveClass("bg-zinc-200");
+  });
+
+  it("active workspace and channel highlight remains after reorder", async () => {
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-channel-link-ch1")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("sidebar-workspace-toggle-ws1")).toHaveClass("bg-zinc-200");
+    expect(screen.getByTestId("sidebar-channel-link-ch1")).toHaveClass("bg-zinc-200");
+    await userEvent.click(screen.getByTestId("sidebar-direct-move"));
+    expect(screen.getByTestId("sidebar-workspace-toggle-ws1")).toHaveClass("bg-zinc-200");
+    expect(screen.getByTestId("sidebar-channel-link-ch1")).toHaveClass("bg-zinc-200");
+  });
+
+  it("channels remain nested under workspace after reorder", async () => {
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText(/Boboski/)).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByTestId("sidebar-direct-move"));
+    const wsChannels = screen.getByTestId("sidebar-workspace-channels-ws1");
+    expect(wsChannels).toBeInTheDocument();
+    expect(wsChannels.textContent).toContain("Boboski");
+  });
+
+  it("no detached global Channels section appears after reorder", async () => {
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText(/Boboski/)).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByTestId("sidebar-direct-move"));
+    const sectionHeaders = screen.queryAllByText(/Channels/i);
+    expect(sectionHeaders.length).toBe(0);
+  });
+
+  it("reorder button click does not trigger section collapse", async () => {
+    setupDefaultMocks();
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText("Direct messages")).toBeInTheDocument();
+      expect(screen.getByText("Testing place")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByTestId("sidebar-direct-move"));
+    expect(screen.getByText("Direct messages")).toBeInTheDocument();
+    expect(screen.getByText("Testing place")).toBeInTheDocument();
+  });
+
+  it("Direct collapse toggle still works after reorder", async () => {
+    setupDefaultMocks();
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText("Direct messages")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByTestId("sidebar-direct-move"));
+    await userEvent.click(screen.getByTestId("sidebar-direct-toggle"));
+    expect(screen.queryByText("Direct messages")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByTestId("sidebar-direct-toggle"));
+    expect(screen.getByText("Direct messages")).toBeInTheDocument();
+  });
+
+  it("Workspace collapse toggle still works after reorder", async () => {
+    setupDefaultMocks();
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText("Testing place")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByTestId("sidebar-direct-move"));
+    const workspacesToggle = screen.getByText("Workspaces").closest("button");
+    await userEvent.click(workspacesToggle!);
+    expect(screen.queryByText("Testing place")).not.toBeInTheDocument();
+    await userEvent.click(workspacesToggle!);
+    expect(screen.getByText("Testing place")).toBeInTheDocument();
+  });
+});
