@@ -74,6 +74,8 @@ describe('WorkspacesService', () => {
             findByIdIncludingArchived: jest.fn(),
             restoreWorkspace: jest.fn(),
             listArchivedOwnedByUser: jest.fn(),
+            findBySlug: jest.fn(),
+            createWorkspaceWithOwner: jest.fn(),
           },
         },
         {
@@ -122,6 +124,87 @@ describe('WorkspacesService', () => {
   const expectAuditNotCalled = () => {
     expect(auditService.record).not.toHaveBeenCalled();
   };
+
+  describe('create', () => {
+    it('throws BadRequestException when slug is too short', async () => {
+      await expect(
+        service.create({ name: 'ab', slug: 'ab' }, userId),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('throws BadRequestException when auto-generated slug is too short', async () => {
+      await expect(
+        service.create({ name: '!!' }, userId),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('throws ConflictException when slug already exists', async () => {
+      workspacesRepository.findBySlug.mockResolvedValue({
+        id: 'existing-workspace-id',
+        slug: 'my-workspace',
+      } as ActiveWorkspace);
+
+      await expect(
+        service.create({ name: 'My Workspace', slug: 'my-workspace' }, userId),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('throws ConflictException on Prisma P2002 race condition', async () => {
+      workspacesRepository.findBySlug.mockResolvedValue(null);
+      const prismaError = new Prisma.PrismaClientKnownRequestError(
+        'Unique constraint failed',
+        { code: 'P2002', clientVersion: '5.22.0' },
+      );
+      workspacesRepository.createWorkspaceWithOwner.mockRejectedValue(
+        prismaError,
+      );
+
+      await expect(
+        service.create({ name: 'My Workspace', slug: 'my-workspace' }, userId),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('creates workspace with custom slug', async () => {
+      const created = {
+        id: workspaceId,
+        name: 'My Workspace',
+        slug: 'my-workspace',
+      } as ActiveWorkspace;
+      workspacesRepository.findBySlug.mockResolvedValue(null);
+      workspacesRepository.createWorkspaceWithOwner.mockResolvedValue(created);
+
+      const result = await service.create(
+        { name: 'My Workspace', slug: 'my-workspace' },
+        userId,
+      );
+      expect(result).toBe(created);
+      expect(
+        workspacesRepository.createWorkspaceWithOwner,
+      ).toHaveBeenCalledWith(
+        { name: 'My Workspace', slug: 'my-workspace', ownerId: userId },
+        userId,
+      );
+    });
+
+    it('creates workspace with auto-generated slug from name', async () => {
+      const created = {
+        id: workspaceId,
+        name: 'My Workspace',
+        slug: 'my-workspace',
+      } as ActiveWorkspace;
+      workspacesRepository.findBySlug.mockResolvedValue(null);
+      workspacesRepository.createWorkspaceWithOwner.mockResolvedValue(created);
+
+      const result = await service.create({ name: 'My Workspace' }, userId);
+      expect(result).toBe(created);
+      expect(
+        workspacesRepository.createWorkspaceWithOwner,
+      ).toHaveBeenCalledWith(
+        { name: 'My Workspace', slug: 'my-workspace', ownerId: userId },
+        userId,
+      );
+    });
+  });
 
   describe('addMember', () => {
     const targetUserId = '44444444-4444-4444-4444-444444444444';

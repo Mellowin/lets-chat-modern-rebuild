@@ -79,6 +79,8 @@ describe('ChannelsService', () => {
             archiveChannel: jest.fn(),
             restoreChannel: jest.fn(),
             softDeleteChannelMember: jest.fn(),
+            findBySlug: jest.fn(),
+            createChannel: jest.fn(),
           },
         },
         {
@@ -108,6 +110,94 @@ describe('ChannelsService', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe('create', () => {
+    it('throws NotFoundException for non-workspace member', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue(null);
+
+      await expect(
+        service.create(
+          workspaceId,
+          { name: 'general', type: 'PUBLIC' },
+          userId,
+        ),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('throws BadRequestException when slugified name is too short', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+
+      await expect(
+        service.create(workspaceId, { name: '!!', type: 'PUBLIC' }, userId),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('throws ConflictException when slug already exists', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findBySlug.mockResolvedValue({
+        id: 'existing-channel-id',
+        workspaceId,
+        slug: 'general',
+      } as ActiveChannel);
+
+      await expect(
+        service.create(
+          workspaceId,
+          { name: 'general', type: 'PUBLIC' },
+          userId,
+        ),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('throws ConflictException on Prisma P2002 race condition', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findBySlug.mockResolvedValue(null);
+      const prismaError = new Prisma.PrismaClientKnownRequestError(
+        'Unique constraint failed',
+        { code: 'P2002', clientVersion: '5.22.0' },
+      );
+      channelsRepository.createChannel.mockRejectedValue(prismaError);
+
+      await expect(
+        service.create(
+          workspaceId,
+          { name: 'general', type: 'PUBLIC' },
+          userId,
+        ),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('creates channel for workspace member', async () => {
+      const created = {
+        id: channelId,
+        workspaceId,
+        name: 'general',
+        slug: 'general',
+        type: 'PUBLIC',
+      } as ActiveChannel;
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findBySlug.mockResolvedValue(null);
+      channelsRepository.createChannel.mockResolvedValue(created);
+
+      const result = await service.create(
+        workspaceId,
+        { name: 'general', type: 'PUBLIC' },
+        userId,
+      );
+      expect(result).toBe(created);
+      expect(channelsRepository.createChannel).toHaveBeenCalledWith(
+        {
+          workspaceId,
+          name: 'general',
+          slug: 'general',
+          description: undefined,
+          type: 'PUBLIC',
+          createdById: userId,
+        },
+        userId,
+      );
+    });
   });
 
   describe('findById', () => {
