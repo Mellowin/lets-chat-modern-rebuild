@@ -1,7 +1,11 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import userEvent from "@testing-library/user-event";
 import Sidebar from "./Sidebar";
 import { useAuth } from "@/lib/auth-context";
+import { usePathname } from "next/navigation";
+import { getWorkspaces } from "@/lib/workspaces-api";
+import { getChannels } from "@/lib/channels-api";
 import { listDirectConversations } from "@/lib/direct-conversations-api";
 
 const socketHandlers: Record<string, (...args: unknown[]) => void> = {};
@@ -30,7 +34,7 @@ function makeMockSocket() {
 }
 
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/dashboard",
+  usePathname: vi.fn(() => "/dashboard"),
 }));
 
 vi.mock("@/lib/auth-context", () => ({
@@ -38,11 +42,11 @@ vi.mock("@/lib/auth-context", () => ({
 }));
 
 vi.mock("@/lib/workspaces-api", () => ({
-  getWorkspaces: vi.fn().mockResolvedValue([]),
+  getWorkspaces: vi.fn(),
 }));
 
 vi.mock("@/lib/channels-api", () => ({
-  getChannels: vi.fn().mockResolvedValue([]),
+  getChannels: vi.fn(),
 }));
 
 vi.mock("@/lib/direct-conversations-api", () => ({
@@ -67,6 +71,53 @@ function mockAuth(userOverrides?: Partial<ReturnType<typeof useAuth>>) {
   } as ReturnType<typeof useAuth>);
 }
 
+const workspacesData = [
+  { id: "ws1", name: "Testing place", slug: "testing" },
+  { id: "ws2", name: "Another workspace", slug: "another" },
+];
+
+const channelsWs1 = [
+  { id: "ch1", name: "Boboski", workspaceId: "ws1", type: "PUBLIC" as const },
+  { id: "ch2", name: "ПОПА", workspaceId: "ws1", type: "PRIVATE" as const },
+];
+
+const channelsWs2 = [
+  { id: "ch3", name: "general", workspaceId: "ws2", type: "PUBLIC" as const },
+];
+
+const directConversationsData = [
+  {
+    id: "dc1",
+    createdAt: "2024-01-01T00:00:00Z",
+    updatedAt: "2024-01-01T00:00:00Z",
+    otherParticipant: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+    lastMessage: { id: "dm1", content: "Hey", createdAt: "2024-01-01T00:00:00Z", authorId: "u2" },
+    unreadCount: 3,
+    isOnline: true,
+  },
+  {
+    id: "dc2",
+    createdAt: "2024-01-01T00:00:00Z",
+    updatedAt: "2024-01-01T00:00:00Z",
+    otherParticipant: { id: "u3", username: "charlie", displayName: null, avatarUrl: null },
+    lastMessage: null,
+    unreadCount: 0,
+    isOnline: false,
+  },
+];
+
+function setupDefaultMocks(pathname = "/dashboard") {
+  mockAuth();
+  vi.mocked(usePathname).mockReturnValue(pathname);
+  vi.mocked(getWorkspaces).mockResolvedValue(workspacesData);
+  vi.mocked(getChannels).mockImplementation(async (_token, wsId) => {
+    if (wsId === "ws1") return channelsWs1;
+    if (wsId === "ws2") return channelsWs2;
+    return [];
+  });
+  vi.mocked(listDirectConversations).mockResolvedValue(directConversationsData);
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
@@ -74,123 +125,296 @@ beforeEach(() => {
   Object.keys(socketOffHandlers).forEach((k) => delete socketOffHandlers[k]);
 });
 
-describe("Sidebar — direct unread badge", () => {
-  it("shows total unread badge from direct conversations", async () => {
-    mockAuth();
-    vi.mocked(listDirectConversations).mockResolvedValue([
-      {
-        id: "dc1",
-        createdAt: "2024-01-01T00:00:00Z",
-        updatedAt: "2024-01-01T00:00:00Z",
-        otherParticipant: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
-        lastMessage: { id: "dm1", content: "Hey", createdAt: "2024-01-01T00:00:00Z", authorId: "u2" },
-        unreadCount: 3,
-      },
-      {
-        id: "dc2",
-        createdAt: "2024-01-01T00:00:00Z",
-        updatedAt: "2024-01-01T00:00:00Z",
-        otherParticipant: { id: "u3", username: "charlie", displayName: null, avatarUrl: null },
-        lastMessage: { id: "dm2", content: "Hi", createdAt: "2024-01-01T00:00:00Z", authorId: "u3" },
-        unreadCount: 2,
-      },
-    ]);
-
+describe("Sidebar — structure", () => {
+  it("renders Direct section above Workspaces", async () => {
+    setupDefaultMocks();
     render(<Sidebar />);
-
     await waitFor(() => {
-      expect(screen.getByText("5")).toBeInTheDocument();
+      expect(screen.getByText("Testing place")).toBeInTheDocument();
+    });
+    const directSection = screen.getByTestId("sidebar-direct-section");
+    const workspacesSection = screen.getByTestId("sidebar-workspaces-section");
+    expect(directSection.compareDocumentPosition(workspacesSection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("does not render a detached global Channels section", async () => {
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText(/Boboski/)).toBeInTheDocument();
+    });
+    const sectionHeaders = screen.queryAllByText(/Channels/i);
+    // "Channels" should only appear as nested inside workspace, not as top-level section header
+    // In the new design there is no top-level "Channels" text at all
+    expect(sectionHeaders.length).toBe(0);
+  });
+});
+
+describe("Sidebar — Direct section", () => {
+  it("shows Direct link inside Direct section", async () => {
+    setupDefaultMocks();
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-direct-link")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("sidebar-direct-link")).toHaveAttribute("href", "/direct");
+  });
+
+  it("shows direct conversations under Direct section", async () => {
+    setupDefaultMocks();
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-direct-conversation-link-dc1")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Bob")).toBeInTheDocument();
+    expect(screen.getByTestId("sidebar-direct-conversation-link-dc2")).toHaveAttribute("href", "/direct/dc2");
+  });
+
+  it("highlights active direct conversation", async () => {
+    setupDefaultMocks("/direct/dc1");
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-direct-conversation-link-dc1")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("sidebar-direct-conversation-link-dc1")).toHaveClass("bg-zinc-200");
+  });
+
+  it("shows total unread badge on Direct messages link", async () => {
+    setupDefaultMocks();
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-direct-unread-badge")).toBeInTheDocument();
     });
   });
 
-  it("reloads conversations on direct:conversation:updated socket event", async () => {
-    mockAuth();
+  it("does not show 0 badge when unread is 0", async () => {
+    setupDefaultMocks();
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText("Direct messages")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("0")).not.toBeInTheDocument();
+  });
+
+  it("collapses and expands Direct section", async () => {
+    setupDefaultMocks();
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText("Direct messages")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByTestId("sidebar-direct-toggle"));
+    expect(screen.queryByText("Direct messages")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByTestId("sidebar-direct-toggle"));
+    expect(screen.getByText("Direct messages")).toBeInTheDocument();
+  });
+
+  it("persists Direct collapsed state via localStorage", async () => {
+    setupDefaultMocks();
+    const { unmount } = render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText("Direct messages")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByTestId("sidebar-direct-toggle"));
+    unmount();
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText("Workspaces")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Direct messages")).not.toBeInTheDocument();
+  });
+});
+
+describe("Sidebar — Workspaces section", () => {
+  it("lists workspaces", async () => {
+    setupDefaultMocks();
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText("Testing place")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Another workspace")).toBeInTheDocument();
+  });
+
+  it("expands active workspace by default and shows its channels", async () => {
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText(/Boboski/)).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("sidebar-workspace-channels-ws1")).toBeInTheDocument();
+    expect(screen.getByText(/ПОПА/)).toBeInTheDocument();
+  });
+
+  it("highlights active channel", async () => {
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-channel-link-ch1")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("sidebar-channel-link-ch1")).toHaveClass("bg-zinc-200");
+  });
+
+  it("nests channels under their workspace", async () => {
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText(/Boboski/)).toBeInTheDocument();
+    });
+    const wsChannels = screen.getByTestId("sidebar-workspace-channels-ws1");
+    expect(wsChannels).toBeInTheDocument();
+    expect(wsChannels.textContent).toContain("Boboski");
+    expect(wsChannels.textContent).toContain("ПОПА");
+  });
+
+  it("toggles workspace channels on click", async () => {
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText(/Boboski/)).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByTestId("sidebar-workspace-toggle-ws1"));
+    expect(screen.queryByTestId("sidebar-workspace-channels-ws1")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByTestId("sidebar-workspace-toggle-ws1"));
+    expect(screen.getByTestId("sidebar-workspace-channels-ws1")).toBeInTheDocument();
+  });
+
+  it("workspace overview link is reachable", async () => {
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText("Overview")).toBeInTheDocument();
+    });
+    const overviewLink = screen.getByText("Overview").closest("a");
+    expect(overviewLink).toHaveAttribute("href", "/workspaces/ws1");
+  });
+
+  it("channel links have correct href", async () => {
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-channel-link-ch1")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("sidebar-channel-link-ch1")).toHaveAttribute("href", "/workspaces/ws1/channels/ch1");
+    expect(screen.getByTestId("sidebar-channel-link-ch2")).toHaveAttribute("href", "/workspaces/ws1/channels/ch2");
+  });
+
+  it("loads channels on demand when expanding non-active workspace", async () => {
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText(/Boboski/)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/general/)).not.toBeInTheDocument();
+    await userEvent.click(screen.getByTestId("sidebar-workspace-toggle-ws2"));
+    await waitFor(() => {
+      expect(screen.getByText(/general/)).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("sidebar-channel-link-ch3")).toHaveAttribute("href", "/workspaces/ws2/channels/ch3");
+  });
+
+  it("persists workspace expanded state via localStorage", async () => {
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    const { unmount } = render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText(/Boboski/)).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByTestId("sidebar-workspace-toggle-ws2"));
+    await waitFor(() => {
+      expect(screen.getByText(/general/)).toBeInTheDocument();
+    });
+    unmount();
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText("Testing place")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("sidebar-workspace-channels-ws2")).toBeInTheDocument();
+  });
+
+  it("collapses Workspaces section", async () => {
+    setupDefaultMocks();
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText("Testing place")).toBeInTheDocument();
+    });
+    const workspacesToggle = screen.getByText("Workspaces").closest("button");
+    await userEvent.click(workspacesToggle!);
+    expect(screen.queryByText("Testing place")).not.toBeInTheDocument();
+  });
+});
+
+describe("Sidebar — events and refresh", () => {
+  it("reloads active workspace channels on channels:changed event", async () => {
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText(/Boboski/)).toBeInTheDocument();
+    });
+    vi.mocked(getChannels).mockClear();
+    fireEvent(window, new CustomEvent("channels:changed"));
+    await waitFor(() => {
+      expect(getChannels).toHaveBeenCalledWith("token", "ws1");
+    });
+  });
+
+  it("reloads direct conversations on direct:conversation:updated socket event", async () => {
+    setupDefaultMocks();
     vi.mocked(listDirectConversations)
+      .mockResolvedValueOnce(directConversationsData)
       .mockResolvedValueOnce([
         {
-          id: "dc1",
-          createdAt: "2024-01-01T00:00:00Z",
-          updatedAt: "2024-01-01T00:00:00Z",
-          otherParticipant: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
-          lastMessage: { id: "dm1", content: "Hey", createdAt: "2024-01-01T00:00:00Z", authorId: "u2" },
-          unreadCount: 1,
+          ...directConversationsData[0],
+          unreadCount: 5,
         },
-      ])
-      .mockResolvedValueOnce([
-        {
-          id: "dc1",
-          createdAt: "2024-01-01T00:00:00Z",
-          updatedAt: "2024-01-02T00:00:00Z",
-          otherParticipant: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
-          lastMessage: { id: "dm2", content: "New msg", createdAt: "2024-01-02T00:00:00Z", authorId: "u2" },
-          unreadCount: 2,
-        },
+        directConversationsData[1],
       ]);
 
     render(<Sidebar />);
-
     await waitFor(() => {
-      expect(screen.getByText("1")).toBeInTheDocument();
+      expect(screen.getByTestId("sidebar-direct-unread-badge")).toBeInTheDocument();
     });
 
     const handler = socketHandlers["direct:conversation:updated"];
-    handler({
-      id: "dm2",
-      conversationId: "dc1",
-      content: "New msg",
-      parentId: null,
-      createdAt: "2024-01-02T00:00:00Z",
-      updatedAt: "2024-01-02T00:00:00Z",
-      editedAt: null,
-      author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
-      parent: null,
-    });
+    handler({ id: "dm2", conversationId: "dc1", content: "New", parentId: null, createdAt: "2024-01-02T00:00:00Z", updatedAt: "2024-01-02T00:00:00Z", editedAt: null, author: { id: "u2", username: "bob", displayName: null, avatarUrl: null }, parent: null });
 
     await waitFor(() => {
       expect(listDirectConversations).toHaveBeenCalledTimes(2);
     });
-
-    expect(screen.getByText("2")).toBeInTheDocument();
+    expect(screen.getByTestId("sidebar-direct-unread-badge")).toHaveTextContent("5");
   });
 
-  it("cleans up socket listener on unmount", async () => {
-    mockAuth();
-    vi.mocked(listDirectConversations).mockResolvedValue([]);
-
-    const { unmount } = render(<Sidebar />);
-
-    await waitFor(() => {
-      expect(screen.getByText("Direct messages")).toBeInTheDocument();
-    });
-
-    unmount();
-
-    expect(socketOffMock).toHaveBeenCalledWith(
-      "direct:conversation:updated",
-      expect.any(Function),
-    );
-    expect(socketDisconnectMock).toHaveBeenCalled();
-  });
-
-  it("does not show badge when total unread is 0", async () => {
-    mockAuth();
-    vi.mocked(listDirectConversations).mockResolvedValue([
-      {
-        id: "dc1",
-        createdAt: "2024-01-01T00:00:00Z",
-        updatedAt: "2024-01-01T00:00:00Z",
-        otherParticipant: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
-        lastMessage: null,
-        unreadCount: 0,
-      },
-    ]);
-
+  it("reloads workspaces on workspaces:changed event", async () => {
+    setupDefaultMocks();
     render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText("Testing place")).toBeInTheDocument();
+    });
+    vi.mocked(getWorkspaces).mockClear();
+    fireEvent(window, new CustomEvent("workspaces:changed"));
+    await waitFor(() => {
+      expect(getWorkspaces).toHaveBeenCalledTimes(1);
+    });
+  });
 
+  it("direct conversations do not render under Workspaces", async () => {
+    setupDefaultMocks();
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText("Bob")).toBeInTheDocument();
+    });
+    const workspacesSection = screen.getByTestId("sidebar-workspaces-section");
+    expect(workspacesSection.textContent).not.toContain("Bob");
+  });
+});
+
+describe("Sidebar — socket cleanup", () => {
+  it("cleans up socket listener on unmount", async () => {
+    setupDefaultMocks();
+    vi.mocked(listDirectConversations).mockResolvedValue([]);
+    const { unmount } = render(<Sidebar />);
     await waitFor(() => {
       expect(screen.getByText("Direct messages")).toBeInTheDocument();
     });
-
-    expect(screen.queryByText("0")).not.toBeInTheDocument();
+    unmount();
+    expect(socketOffMock).toHaveBeenCalledWith("direct:conversation:updated", expect.any(Function));
+    expect(socketDisconnectMock).toHaveBeenCalled();
   });
 });
