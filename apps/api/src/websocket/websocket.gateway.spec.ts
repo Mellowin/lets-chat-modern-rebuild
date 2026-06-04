@@ -332,6 +332,7 @@ describe('WebsocketGateway', () => {
 
     it('should emit generic error on unexpected failure', async () => {
       const loggerSpy = jest
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         .spyOn((gateway as any).logger, 'error')
         .mockImplementation(() => {});
       const socket = createMockSocket({

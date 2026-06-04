@@ -1,4 +1,5 @@
 import { act } from "@testing-library/react";
+import { flushSync } from "react-dom";
 import { vi } from "vitest";
 
 export interface SocketMock {
@@ -17,7 +18,7 @@ export function createSocketMock(): SocketMock {
     get(target, prop: string) {
       const val = target[prop];
       if (typeof val === "function") {
-        return (...args: unknown[]) => act(() => val(...args));
+        return (...args: unknown[]) => act(() => flushSync(() => val(...args)));
       }
       return val;
     },

@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import Sidebar from "./Sidebar";
@@ -497,7 +497,7 @@ describe("Sidebar — presence updates", () => {
     expect(dot2).toHaveClass("bg-zinc-300");
     const handler = socketHandlers["presence:online"];
     handler({ user: { id: "u99", username: "stranger" }, status: "online" });
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await act(() => Promise.resolve());
     expect(dot1).toHaveClass("bg-emerald-500");
     expect(dot2).toHaveClass("bg-zinc-300");
   });

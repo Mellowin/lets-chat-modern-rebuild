@@ -577,7 +577,9 @@ export default function DirectConversationPage() {
       const conv = conversationRef.current;
       if (
         conv.kind === "success" &&
-        conv.data.otherParticipant.id !== payload.user.id
+        (conv.data === null ||
+          conv.data.otherParticipant === null ||
+          conv.data.otherParticipant.id !== payload.user.id)
       )
         return;
       setPresenceStatus("online");
@@ -591,7 +593,9 @@ export default function DirectConversationPage() {
       const conv = conversationRef.current;
       if (
         conv.kind === "success" &&
-        conv.data.otherParticipant.id !== payload.user.id
+        (conv.data === null ||
+          conv.data.otherParticipant === null ||
+          conv.data.otherParticipant.id !== payload.user.id)
       )
         return;
       setPresenceStatus("offline");
