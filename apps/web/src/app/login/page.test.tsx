@@ -31,6 +31,7 @@ describe("LoginPage", () => {
 
     expect(screen.getByRole("heading", { name: /Sign in/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/Email/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("you@example.com")).toBeInTheDocument();
     expect(screen.getByLabelText(/Password/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Sign in/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Create one/i })).toHaveAttribute("href", "/register");
@@ -42,6 +43,7 @@ describe("LoginPage", () => {
 
     expect(screen.getByRole("heading", { name: "Увійти" })).toBeInTheDocument();
     expect(screen.getByText(/Раді бачити вас знову/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("korystuvach@pryklad.ua")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Увійти" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Створити" })).toHaveAttribute("href", "/register");
   });
@@ -52,6 +54,7 @@ describe("LoginPage", () => {
 
     expect(screen.getByRole("heading", { name: "Войти" })).toBeInTheDocument();
     expect(screen.getByText("Рады видеть вас снова. Введите свои данные.")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("polzovatel@primer.ru")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Войти" })).toBeInTheDocument();
   });
 

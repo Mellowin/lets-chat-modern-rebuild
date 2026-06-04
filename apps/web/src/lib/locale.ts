@@ -86,7 +86,9 @@ export type TranslationKey =
   | "auth.loginTitle"
   | "auth.loginSubtitle"
   | "auth.email"
+  | "auth.emailPlaceholder"
   | "auth.password"
+  | "auth.usernamePlaceholder"
   | "auth.signingIn"
   | "auth.emailPasswordRequired"
   | "auth.loginFailed"
@@ -374,7 +376,9 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "auth.loginTitle": "Sign in",
     "auth.loginSubtitle": "Welcome back. Enter your credentials.",
     "auth.email": "Email",
+    "auth.emailPlaceholder": "you@example.com",
     "auth.password": "Password",
+    "auth.usernamePlaceholder": "john_doe",
     "auth.signingIn": "Signing in…",
     "auth.emailPasswordRequired": "Email and password are required",
     "auth.loginFailed": "Login failed",
@@ -661,7 +665,9 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "auth.loginTitle": "Увійти",
     "auth.loginSubtitle": "Раді бачити вас знову. Введіть свої дані.",
     "auth.email": "Email",
+    "auth.emailPlaceholder": "korystuvach@pryklad.ua",
     "auth.password": "Пароль",
+    "auth.usernamePlaceholder": "ivan_petrenko",
     "auth.signingIn": "Входимо…",
     "auth.emailPasswordRequired": "Email і пароль обовʼязкові",
     "auth.loginFailed": "Не вдалося увійти",
@@ -948,7 +954,9 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "auth.loginTitle": "Войти",
     "auth.loginSubtitle": "Рады видеть вас снова. Введите свои данные.",
     "auth.email": "Email",
+    "auth.emailPlaceholder": "polzovatel@primer.ru",
     "auth.password": "Пароль",
+    "auth.usernamePlaceholder": "ivan_ivanov",
     "auth.signingIn": "Входим…",
     "auth.emailPasswordRequired": "Email и пароль обязательны",
     "auth.loginFailed": "Не удалось войти",

@@ -30,7 +30,9 @@ describe("RegisterPage", () => {
 
     expect(screen.getByRole("heading", { name: /Create account/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/Email/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("you@example.com")).toBeInTheDocument();
     expect(screen.getByLabelText(/Username/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("john_doe")).toBeInTheDocument();
     expect(screen.getByLabelText(/Password/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Create account/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Sign in/i })).toHaveAttribute("href", "/login");
@@ -42,8 +44,18 @@ describe("RegisterPage", () => {
 
     expect(screen.getByRole("heading", { name: "Створити акаунт" })).toBeInTheDocument();
     expect(screen.getByLabelText(/Імʼя користувача/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("korystuvach@pryklad.ua")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("ivan_petrenko")).toBeInTheDocument();
     expect(screen.getByText(/Мінімум 8 символів/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Увійти" })).toHaveAttribute("href", "/login");
+  });
+
+  it("shows Russian register placeholders when locale is ru", () => {
+    localStorage.setItem("lets-chat:locale", "ru");
+    render(<RegisterPage />);
+
+    expect(screen.getByPlaceholderText("polzovatel@primer.ru")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("ivan_ivanov")).toBeInTheDocument();
   });
 
   it("shows Russian validation error for empty submit", async () => {

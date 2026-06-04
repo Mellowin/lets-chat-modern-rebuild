@@ -70,7 +70,7 @@ export default function RegisterPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="mt-1 block w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
-              placeholder="you@example.com"
+              placeholder={t("auth.emailPlaceholder")}
             />
           </div>
 
@@ -88,7 +88,7 @@ export default function RegisterPage() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="mt-1 block w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
-              placeholder="john_doe"
+              placeholder={t("auth.usernamePlaceholder")}
             />
             <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
               {t("auth.usernameHint")}
