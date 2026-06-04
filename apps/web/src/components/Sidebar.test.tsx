@@ -310,10 +310,8 @@ describe("Sidebar — Workspaces section", () => {
     });
     unmount();
     render(<Sidebar />);
-    await waitFor(() => {
-      expect(screen.getByText("Testing place")).toBeInTheDocument();
-    });
-    expect(screen.getByTestId("sidebar-workspace-channels-ws2")).toBeInTheDocument();
+    await screen.findByText("Testing place");
+    await screen.findByTestId("sidebar-workspace-channels-ws2");
   });
 
   it("collapses Workspaces section", async () => {
