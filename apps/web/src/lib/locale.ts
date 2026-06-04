@@ -22,6 +22,7 @@ export type TranslationKey =
   | "header.logout"
   | "header.signIn"
   | "header.createAccount"
+  | "header.loading"
   | "profile.title"
   | "profile.back"
   | "profile.accountInfo"
@@ -309,6 +310,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "header.logout": "Logout",
     "header.signIn": "Sign in",
     "header.createAccount": "Create account",
+    "header.loading": "Loading…",
     "profile.title": "Profile",
     "profile.back": "← Back to dashboard",
     "profile.accountInfo": "Account information",
@@ -595,6 +597,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "header.logout": "Вийти",
     "header.signIn": "Увійти",
     "header.createAccount": "Створити акаунт",
+    "header.loading": "Завантаження…",
     "profile.title": "Профіль",
     "profile.back": "← Назад до панелі",
     "profile.accountInfo": "Інформація акаунта",
@@ -881,6 +884,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "header.logout": "Выйти",
     "header.signIn": "Войти",
     "header.createAccount": "Создать аккаунт",
+    "header.loading": "Загрузка…",
     "profile.title": "Профиль",
     "profile.back": "← Назад к панели",
     "profile.accountInfo": "Информация аккаунта",

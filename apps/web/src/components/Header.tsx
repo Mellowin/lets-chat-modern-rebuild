@@ -19,7 +19,7 @@ export default function Header() {
 
       <div className="flex items-center gap-3">
         {isLoading ? (
-          <span className="text-xs text-zinc-400">Loading…</span>
+          <span className="text-xs text-zinc-400">{t("header.loading")}</span>
         ) : isAuthenticated && user ? (
           <>
             <div className="flex items-center gap-2">
