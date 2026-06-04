@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { getWorkspaces } from "@/lib/workspaces-api";
 import { getChannels } from "@/lib/channels-api";
 import { listDirectConversations } from "@/lib/direct-conversations-api";
+import { createWorkspace, createChannel } from "@/test/factories";
 
 const socketHandlers: Record<string, (...args: unknown[]) => void> = {};
 const socketOffHandlers: Record<string, ((...args: unknown[]) => void)[]> = {};
@@ -59,7 +60,7 @@ vi.mock("@/lib/socket-client", () => ({
 
 function mockAuth(userOverrides?: Partial<ReturnType<typeof useAuth>>) {
   vi.mocked(useAuth).mockReturnValue({
-    user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, createdAt: "2024-01-01T00:00:00Z" },
+    user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en" as const, createdAt: "2024-01-01T00:00:00Z" },
     accessToken: "token",
     refreshToken: "rt",
     isLoading: false,
@@ -72,17 +73,17 @@ function mockAuth(userOverrides?: Partial<ReturnType<typeof useAuth>>) {
 }
 
 const workspacesData = [
-  { id: "ws1", name: "Testing place", slug: "testing" },
-  { id: "ws2", name: "Another workspace", slug: "another" },
+  createWorkspace({ id: "ws1", name: "Testing place", slug: "testing" }),
+  createWorkspace({ id: "ws2", name: "Another workspace", slug: "another" }),
 ];
 
 const channelsWs1 = [
-  { id: "ch1", name: "Boboski", workspaceId: "ws1", type: "PUBLIC" as const },
-  { id: "ch2", name: "ПОПА", workspaceId: "ws1", type: "PRIVATE" as const },
+  createChannel({ id: "ch1", name: "Boboski", workspaceId: "ws1", type: "PUBLIC" as const }),
+  createChannel({ id: "ch2", name: "ПОПА", workspaceId: "ws1", type: "PRIVATE" as const }),
 ];
 
 const channelsWs2 = [
-  { id: "ch3", name: "general", workspaceId: "ws2", type: "PUBLIC" as const },
+  createChannel({ id: "ch3", name: "general", workspaceId: "ws2", type: "PUBLIC" as const }),
 ];
 
 const directConversationsData = [

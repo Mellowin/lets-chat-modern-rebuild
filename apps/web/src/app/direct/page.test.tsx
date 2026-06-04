@@ -175,6 +175,8 @@ describe("DirectMessagesPage — start conversation", () => {
       updatedAt: "2024-01-01T00:00:00Z",
       otherParticipant: { id: "u3", username: "charlie", displayName: null, avatarUrl: null },
       lastMessage: null,
+      unreadCount: 0,
+      isOnline: false,
     });
 
     render(<DirectMessagesPage />);

@@ -78,7 +78,7 @@ describe("ProfilePage — authenticated", () => {
 
   it("renders account information", async () => {
     mockAuth({
-      user: { id: "u1", email: "a@b.com", username: "alice", displayName: "Alice", avatarUrl: null, avatarUpdatedAt: null, createdAt: "2024-01-01T00:00:00Z" },
+      user: { id: "u1", email: "a@b.com", username: "alice", displayName: "Alice", avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z" },
     });
 
     render(<ProfilePage />);
@@ -93,7 +93,7 @@ describe("ProfilePage — authenticated", () => {
 
   it("shows dash when displayName is null", async () => {
     mockAuth({
-      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, createdAt: "2024-01-01T00:00:00Z" },
+      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z" },
     });
 
     render(<ProfilePage />);
@@ -107,7 +107,7 @@ describe("ProfilePage — authenticated", () => {
 
   it("shows avatar fallback when avatarUrl is null", async () => {
     mockAuth({
-      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, createdAt: "2024-01-01T00:00:00Z" },
+      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z" },
     });
 
     render(<ProfilePage />);
@@ -121,7 +121,7 @@ describe("ProfilePage — authenticated", () => {
 
   it("shows existing avatar when avatarUrl exists", async () => {
     mockAuth({
-      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: "/uploads/avatars/u1/test.png", avatarUpdatedAt: "2024-01-01T00:00:00Z", createdAt: "2024-01-01T00:00:00Z" },
+      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: "/uploads/avatars/u1/test.png", avatarUpdatedAt: "2024-01-01T00:00:00Z", interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z" },
     });
 
     render(<ProfilePage />);
@@ -136,7 +136,7 @@ describe("ProfilePage — authenticated", () => {
   it("shows Ukrainian avatar alt text", async () => {
     localStorage.setItem("lets-chat:locale", "uk");
     mockAuth({
-      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: "/uploads/avatars/u1/test.png", avatarUpdatedAt: "2024-01-01T00:00:00Z", createdAt: "2024-01-01T00:00:00Z" },
+      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: "/uploads/avatars/u1/test.png", avatarUpdatedAt: "2024-01-01T00:00:00Z", interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z" },
     });
 
     render(<ProfilePage />);
@@ -222,7 +222,7 @@ describe("ProfilePage — authenticated", () => {
       displayName: null,
       avatarUrl: "/uploads/avatars/u1/test.png",
       avatarUpdatedAt: "2024-01-01T00:00:00Z",
-      createdAt: "2024-01-01T00:00:00Z",
+      interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z",
     });
 
     render(<ProfilePage />);
@@ -253,7 +253,7 @@ describe("ProfilePage — authenticated", () => {
       displayName: "Alice",
       avatarUrl: null,
       avatarUpdatedAt: null,
-      createdAt: "2024-01-01T00:00:00Z",
+      interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z",
     });
 
     render(<ProfilePage />);

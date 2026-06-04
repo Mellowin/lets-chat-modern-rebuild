@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import { getWorkspaces, archiveWorkspace, listArchivedWorkspaces, restoreWorkspace } from "@/lib/workspaces-api";
 import { getPendingInvites, acceptInvite, declineInvite } from "@/lib/invites-api";
 import { getPendingChannelInvites, acceptChannelInvite, declineChannelInvite } from "@/lib/channel-invites-api";
+import { createAuthUser } from "@/test/factories";
 
 const routerPushMock = vi.fn();
 
@@ -39,7 +40,7 @@ vi.mock("@/lib/channel-invites-api", () => ({
 
 function mockAuth(userOverrides?: Partial<ReturnType<typeof useAuth>>) {
   vi.mocked(useAuth).mockReturnValue({
-    user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, createdAt: "2024-01-01T00:00:00Z" },
+    user: createAuthUser(),
     accessToken: "token",
     refreshToken: "rt",
     isLoading: false,
@@ -153,7 +154,7 @@ describe("DashboardPage — user identity", () => {
 
   it("shows displayName instead of username when displayName exists", async () => {
     mockAuth({
-      user: { id: "u1", email: "a@b.com", username: "alice", displayName: "Alice", avatarUrl: null, avatarUpdatedAt: null, createdAt: "2024-01-01T00:00:00Z" },
+      user: createAuthUser({ displayName: "Alice" }),
     });
     render(<DashboardPage />);
 
@@ -164,7 +165,7 @@ describe("DashboardPage — user identity", () => {
 
   it("falls back to username when displayName is null", async () => {
     mockAuth({
-      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, createdAt: "2024-01-01T00:00:00Z" },
+      user: createAuthUser(),
     });
     render(<DashboardPage />);
 
@@ -175,7 +176,7 @@ describe("DashboardPage — user identity", () => {
 
   it("shows avatar image when avatarUrl exists", async () => {
     mockAuth({
-      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: "/uploads/avatars/u1/test.png", avatarUpdatedAt: null, createdAt: "2024-01-01T00:00:00Z" },
+      user: createAuthUser({ avatarUrl: "/uploads/avatars/u1/test.png" }),
     });
     const { container } = render(<DashboardPage />);
 
@@ -186,7 +187,7 @@ describe("DashboardPage — user identity", () => {
 
   it("shows fallback initials when avatarUrl is null", async () => {
     mockAuth({
-      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, createdAt: "2024-01-01T00:00:00Z" },
+      user: createAuthUser(),
     });
     render(<DashboardPage />);
 
@@ -197,7 +198,7 @@ describe("DashboardPage — user identity", () => {
 
   it("does not render spoken language chips", async () => {
     mockAuth({
-      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, createdAt: "2024-01-01T00:00:00Z" },
+      user: createAuthUser(),
     });
     render(<DashboardPage />);
 
@@ -292,7 +293,7 @@ describe("DashboardPage — interface language", () => {
 
   it("shows Ukrainian archive confirm dialog", async () => {
     localStorage.setItem("lets-chat:locale", "uk");
-    mockAuth({ user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, languages: [], createdAt: "2024-01-01T00:00:00Z" } });
+    mockAuth({ user: createAuthUser() });
     vi.mocked(getWorkspaces).mockResolvedValue([
       { id: "ws1", name: "Test Workspace", slug: "test", description: null, ownerId: "u1", createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", deletedAt: null },
     ]);
@@ -423,7 +424,7 @@ describe("DashboardPage — workspace list", () => {
   });
 
   it("shows Archive button for owned workspace", async () => {
-    mockAuth({ user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, languages: [], createdAt: "2024-01-01T00:00:00Z" } });
+    mockAuth({ user: createAuthUser() });
     vi.mocked(getWorkspaces).mockResolvedValue([
       { id: "ws1", name: "Owned", slug: "owned", description: null, ownerId: "u1", createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", deletedAt: null },
     ]);
@@ -437,7 +438,7 @@ describe("DashboardPage — workspace list", () => {
   });
 
   it("hides Archive button for workspace where user is not owner", async () => {
-    mockAuth({ user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, languages: [], createdAt: "2024-01-01T00:00:00Z" } });
+    mockAuth({ user: createAuthUser() });
     vi.mocked(getWorkspaces).mockResolvedValue([
       { id: "ws1", name: "Member Of", slug: "member-of", description: null, ownerId: "u2", createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", deletedAt: null },
     ]);
@@ -451,7 +452,7 @@ describe("DashboardPage — workspace list", () => {
   });
 
   it("archives owned workspace on confirm", async () => {
-    mockAuth({ user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, languages: [], createdAt: "2024-01-01T00:00:00Z" } });
+    mockAuth({ user: createAuthUser() });
     vi.mocked(getWorkspaces).mockResolvedValue([
       { id: "ws1", name: "Owned", slug: "owned", description: null, ownerId: "u1", createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", deletedAt: null },
     ]);

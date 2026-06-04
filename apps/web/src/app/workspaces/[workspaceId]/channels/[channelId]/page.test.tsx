@@ -183,6 +183,7 @@ describe("ChannelDetailPage — composer", () => {
         updatedAt: "2024-01-01T00:00:00Z",
         editedAt: null,
         author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        reactions: [],
       },
     ]);
     render(<ChannelDetailPage />);
@@ -301,6 +302,7 @@ describe("ChannelDetailPage — composer", () => {
       updatedAt: "2024-01-01T00:00:00Z",
       editedAt: null,
       author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      reactions: [],
     };
     vi.mocked(createMessage).mockResolvedValueOnce(newMsg);
 
@@ -350,6 +352,7 @@ describe("ChannelDetailPage — composer", () => {
       updatedAt: "2024-01-01T00:00:00Z",
       editedAt: null,
       author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      reactions: [],
     });
 
     await waitFor(() => {
@@ -421,6 +424,7 @@ describe("ChannelDetailPage — composer", () => {
       updatedAt: "2024-01-01T00:00:00Z",
       editedAt: null,
       author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      reactions: [],
     };
     vi.mocked(createMessage).mockResolvedValueOnce(newMsg);
 
@@ -472,6 +476,7 @@ describe("ChannelDetailPage — composer focus", () => {
       updatedAt: "2024-01-01T00:00:00Z",
       editedAt: null,
       author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      reactions: [],
     };
     vi.mocked(createMessage).mockResolvedValueOnce(newMsg);
 
@@ -509,6 +514,7 @@ describe("ChannelDetailPage — message author identity", () => {
         updatedAt: new Date().toISOString(),
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob Smith", avatarUrl: null },
+        reactions: [],
       },
     ]);
     render(<ChannelDetailPage />);
@@ -529,6 +535,7 @@ describe("ChannelDetailPage — message author identity", () => {
         updatedAt: new Date().toISOString(),
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+        reactions: [],
       },
     ]);
     render(<ChannelDetailPage />);
@@ -550,6 +557,7 @@ describe("ChannelDetailPage — message author identity", () => {
         updatedAt: new Date().toISOString(),
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: "/uploads/avatars/u2/test.png" },
+        reactions: [],
       },
     ]);
     render(<ChannelDetailPage />);
@@ -570,6 +578,7 @@ describe("ChannelDetailPage — message author identity", () => {
         updatedAt: new Date().toISOString(),
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        reactions: [],
       },
     ]);
     render(<ChannelDetailPage />);
@@ -590,6 +599,7 @@ describe("ChannelDetailPage — message author identity", () => {
         updatedAt: new Date().toISOString(),
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+        reactions: [],
       },
     ]);
     render(<ChannelDetailPage />);
@@ -610,6 +620,7 @@ describe("ChannelDetailPage — message author identity", () => {
         updatedAt: new Date().toISOString(),
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        reactions: [],
       },
     ]);
     render(<ChannelDetailPage />);
@@ -630,6 +641,7 @@ describe("ChannelDetailPage — message author identity", () => {
         updatedAt: new Date().toISOString(),
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        reactions: [],
       },
     ]);
     render(<ChannelDetailPage />);
@@ -663,6 +675,7 @@ describe("ChannelDetailPage — edit/delete", () => {
     updatedAt: new Date().toISOString(),
     editedAt: null,
     author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+    reactions: [],
   };
 
   const otherMessage = {
@@ -674,6 +687,7 @@ describe("ChannelDetailPage — edit/delete", () => {
     updatedAt: new Date().toISOString(),
     editedAt: null,
     author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+    reactions: [],
   };
 
   it("shows Edit and Delete actions in menu for own message", async () => {
@@ -854,6 +868,7 @@ describe("ChannelDetailPage — message action locale", () => {
     updatedAt: new Date().toISOString(),
     editedAt: null,
     author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+    reactions: [],
   };
 
   it("shows Ukrainian Edit and Delete buttons", async () => {
@@ -1013,6 +1028,7 @@ describe("ChannelDetailPage — WebSocket live events", () => {
     updatedAt: new Date().toISOString(),
     editedAt: null,
     author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+    reactions: [],
   };
 
   it("updates message on message:updated", async () => {
@@ -1322,7 +1338,7 @@ describe("ChannelDetailPage — members", () => {
     localStorage.setItem("lets-chat:locale", "uk");
     mockChannelAndMessages([], [ownerMember]);
     const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
-    vi.mocked(archiveChannel).mockResolvedValueOnce(undefined);
+    vi.mocked(archiveChannel).mockResolvedValueOnce({ success: true });
 
     render(<ChannelDetailPage />);
 
@@ -1927,6 +1943,7 @@ describe("ChannelDetailPage — socket access-loss handling", () => {
     updatedAt: new Date().toISOString(),
     editedAt: null,
     author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+    reactions: [],
   };
 
   it("channel:error 'Channel not found' dispatches channels:changed, disconnects, and redirects", async () => {
@@ -2090,6 +2107,7 @@ describe("ChannelDetailPage — message alignment", () => {
     updatedAt: new Date().toISOString(),
     editedAt: null,
     author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+    reactions: [],
   };
 
   const otherMessage = {
@@ -2101,6 +2119,7 @@ describe("ChannelDetailPage — message alignment", () => {
     updatedAt: new Date().toISOString(),
     editedAt: null,
     author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+    reactions: [],
   };
 
   it("renders own messages left-aligned", async () => {
@@ -2166,6 +2185,7 @@ describe("ChannelDetailPage — message alignment", () => {
       updatedAt: new Date().toISOString(),
       editedAt: null,
       author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+      reactions: [],
     };
     const ownReply = {
       id: "m3",
@@ -2176,6 +2196,7 @@ describe("ChannelDetailPage — message alignment", () => {
       updatedAt: new Date().toISOString(),
       editedAt: null,
       author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      reactions: [],
     };
     mockChannelAndMessages([parent, ownReply]);
     render(<ChannelDetailPage />);
@@ -2198,6 +2219,7 @@ describe("ChannelDetailPage — message alignment", () => {
       updatedAt: new Date().toISOString(),
       editedAt: null,
       author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+      reactions: [],
     };
     const ownReply = {
       id: "m3",
@@ -2208,6 +2230,7 @@ describe("ChannelDetailPage — message alignment", () => {
       updatedAt: new Date().toISOString(),
       editedAt: null,
       author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      reactions: [],
     };
     mockChannelAndMessages([parent, ownReply]);
     render(<ChannelDetailPage />);
@@ -2314,6 +2337,7 @@ describe("ChannelDetailPage — replies", () => {
     updatedAt: new Date().toISOString(),
     editedAt: null,
     author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+    reactions: [],
   };
 
   const replyMessage = {
@@ -2325,6 +2349,7 @@ describe("ChannelDetailPage — replies", () => {
     updatedAt: new Date().toISOString(),
     editedAt: null,
     author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+    reactions: [],
   };
 
   const ownStandaloneMessage = {
@@ -2336,6 +2361,7 @@ describe("ChannelDetailPage — replies", () => {
     updatedAt: new Date().toISOString(),
     editedAt: null,
     author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+    reactions: [],
   };
 
   it("does not show inline Reply button on regular messages", async () => {
@@ -2408,6 +2434,7 @@ describe("ChannelDetailPage — replies", () => {
       updatedAt: new Date().toISOString(),
       editedAt: null,
       author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      reactions: [],
     });
 
     render(<ChannelDetailPage />);
@@ -2914,6 +2941,7 @@ describe("ChannelDetailPage — forward", () => {
     updatedAt: new Date().toISOString(),
     editedAt: null,
     author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+    reactions: [],
   };
 
   it("shows Forward action in message menu", async () => {

@@ -94,7 +94,7 @@ describe("RegisterPage", () => {
 
   it("calls register and redirects on success", async () => {
     const mockResult = {
-      user: { id: "u2", email: "new@example.com", username: "bob", displayName: null, avatarUrl: null, avatarUpdatedAt: null, createdAt: "2024-01-01T00:00:00Z" },
+      user: { id: "u2", email: "new@example.com", username: "bob", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en" as const, createdAt: "2024-01-01T00:00:00Z" },
       accessToken: "at2",
       refreshToken: "rt2",
     };
@@ -121,7 +121,7 @@ describe("RegisterPage", () => {
 
   it("calls register with Cyrillic username and redirects on success", async () => {
     const mockResult = {
-      user: { id: "u3", email: "cyr@example.com", username: "Валера", displayName: null, avatarUrl: null, avatarUpdatedAt: null, createdAt: "2024-01-01T00:00:00Z" },
+      user: { id: "u3", email: "cyr@example.com", username: "Валера", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en" as const, createdAt: "2024-01-01T00:00:00Z" },
       accessToken: "at3",
       refreshToken: "rt3",
     };

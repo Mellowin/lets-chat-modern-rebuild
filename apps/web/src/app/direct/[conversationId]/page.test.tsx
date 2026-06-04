@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import DirectConversationPage from "./page";
 import { listDirectMessages, sendDirectMessage, markDirectConversationRead, listDirectConversations, updateDirectMessage, deleteDirectMessage } from "@/lib/direct-conversations-api";
+import type { DirectMessage } from "@/lib/direct-conversations-api";
 
 const socketHandlers: Record<string, (...args: unknown[]) => void> = {};
 const socketOffHandlers: Record<string, ((...args: unknown[]) => void)[]> = {};
@@ -90,7 +91,7 @@ beforeEach(() => {
 });
 
 function mockMessages(messagesData: unknown[] = []) {
-  vi.mocked(listDirectMessages).mockResolvedValueOnce(messagesData as ReturnType<typeof listDirectMessages>);
+  vi.mocked(listDirectMessages).mockResolvedValueOnce(messagesData as DirectMessage[]);
 }
 
 describe("DirectConversationPage — locale", () => {
@@ -178,6 +179,9 @@ describe("DirectConversationPage — composer", () => {
       editedAt: null,
       author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
       parent: null,
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     };
     vi.mocked(sendDirectMessage).mockResolvedValueOnce(newMsg);
 
@@ -228,6 +232,9 @@ describe("DirectConversationPage — composer", () => {
       editedAt: null,
       author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
       parent: null,
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     });
 
     await waitFor(() => {
@@ -266,6 +273,9 @@ describe("DirectConversationPage — composer", () => {
       editedAt: null,
       author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
       parent: null,
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     };
     vi.mocked(sendDirectMessage).mockResolvedValueOnce(newMsg);
 
@@ -309,6 +319,9 @@ describe("DirectConversationPage — composer focus", () => {
       editedAt: null,
       author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
       parent: null,
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     };
     vi.mocked(sendDirectMessage).mockResolvedValueOnce(newMsg);
 
@@ -341,6 +354,9 @@ describe("DirectConversationPage — message author identity", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob Smith", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -362,6 +378,9 @@ describe("DirectConversationPage — message author identity", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -383,6 +402,9 @@ describe("DirectConversationPage — message author identity", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: "/uploads/avatars/u2/test.png" },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -404,6 +426,9 @@ describe("DirectConversationPage — message author identity", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -427,6 +452,9 @@ describe("DirectConversationPage — loads messages", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
       {
         id: "dm2",
@@ -438,6 +466,9 @@ describe("DirectConversationPage — loads messages", () => {
         editedAt: null,
         author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -546,6 +577,9 @@ describe("DirectConversationPage — socket", () => {
       editedAt: null,
       author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
       parent: null,
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     });
 
     await waitFor(() => {
@@ -565,6 +599,9 @@ describe("DirectConversationPage — socket", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -584,6 +621,9 @@ describe("DirectConversationPage — socket", () => {
       editedAt: null,
       author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
       parent: null,
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     });
 
     expect(screen.getAllByText("Original").length).toBe(1);
@@ -608,6 +648,9 @@ describe("DirectConversationPage — socket", () => {
       editedAt: null,
       author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
       parent: null,
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     });
 
     expect(screen.queryByText("Other conv")).not.toBeInTheDocument();
@@ -625,6 +668,9 @@ describe("DirectConversationPage — socket", () => {
       editedAt: null,
       author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
       parent: null,
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     };
     vi.mocked(sendDirectMessage).mockResolvedValueOnce(newMsg);
 
@@ -834,6 +880,9 @@ describe("DirectConversationPage — mark as read", () => {
       editedAt: null,
       author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
       parent: null,
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     });
 
     await waitFor(() => {
@@ -862,6 +911,9 @@ describe("DirectConversationPage — mark as read", () => {
       editedAt: null,
       author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
       parent: null,
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     });
 
     await waitFor(() => {
@@ -891,6 +943,9 @@ describe("DirectConversationPage — layout and bubbles", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
 
@@ -916,6 +971,9 @@ describe("DirectConversationPage — layout and bubbles", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
 
@@ -938,6 +996,9 @@ describe("DirectConversationPage — layout and bubbles", () => {
         editedAt: null,
         author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
 
@@ -964,6 +1025,9 @@ describe("DirectConversationPage — layout and bubbles", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
 
@@ -990,6 +1054,9 @@ describe("DirectConversationPage — layout and bubbles", () => {
         editedAt: null,
         author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
 
@@ -1043,6 +1110,7 @@ describe("DirectConversationPage — read receipts", () => {
         parent: null,
         reactions: [],
         readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
 
@@ -1067,6 +1135,7 @@ describe("DirectConversationPage — read receipts", () => {
         parent: null,
         reactions: [],
         readByOtherParticipant: true,
+        isUnreadForMe: false,
       },
     ]);
 
@@ -1091,6 +1160,7 @@ describe("DirectConversationPage — read receipts", () => {
         parent: null,
         reactions: [],
         readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
 
@@ -1116,6 +1186,7 @@ describe("DirectConversationPage — read receipts", () => {
         parent: null,
         reactions: [],
         readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
 
@@ -1151,6 +1222,7 @@ describe("DirectConversationPage — read receipts", () => {
         parent: null,
         reactions: [],
         readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
 
@@ -1186,6 +1258,7 @@ describe("DirectConversationPage — read receipts", () => {
         parent: null,
         reactions: [],
         readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
 
@@ -1221,6 +1294,7 @@ describe("DirectConversationPage — read receipts", () => {
       parent: null,
       reactions: [],
       readByOtherParticipant: false,
+      isUnreadForMe: false,
     });
 
     render(<DirectConversationPage />);
@@ -1252,6 +1326,9 @@ describe("DirectConversationPage — reply action", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -1286,6 +1363,9 @@ describe("DirectConversationPage — reply action", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -1325,6 +1405,9 @@ describe("DirectConversationPage — reply action", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -1367,6 +1450,9 @@ describe("DirectConversationPage — reply action", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -1413,6 +1499,9 @@ describe("DirectConversationPage — send with parentId", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     const newMsg = {
@@ -1429,6 +1518,9 @@ describe("DirectConversationPage — send with parentId", () => {
         content: "Original",
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
       },
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     };
     vi.mocked(sendDirectMessage).mockResolvedValueOnce(newMsg);
 
@@ -1475,6 +1567,9 @@ describe("DirectConversationPage — send with parentId", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     const newMsg = {
@@ -1491,6 +1586,9 @@ describe("DirectConversationPage — send with parentId", () => {
         content: "Original",
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
       },
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     };
     vi.mocked(sendDirectMessage).mockResolvedValueOnce(newMsg);
 
@@ -1541,6 +1639,9 @@ describe("DirectConversationPage — send with parentId", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     vi.mocked(sendDirectMessage).mockRejectedValueOnce(new Error("Network"));
@@ -1592,6 +1693,9 @@ describe("DirectConversationPage — quote preview", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
       {
         id: "dm2",
@@ -1607,6 +1711,9 @@ describe("DirectConversationPage — quote preview", () => {
           content: "Original message",
           author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         },
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -1630,6 +1737,9 @@ describe("DirectConversationPage — quote preview", () => {
         editedAt: null,
         author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -1655,6 +1765,9 @@ describe("DirectConversationPage — quote preview", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
       {
         id: "dm2",
@@ -1666,6 +1779,9 @@ describe("DirectConversationPage — quote preview", () => {
         editedAt: null,
         author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -1697,6 +1813,9 @@ describe("DirectConversationPage — quote preview", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
       {
         id: "dm2",
@@ -1708,6 +1827,9 @@ describe("DirectConversationPage — quote preview", () => {
         editedAt: null,
         author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -1739,6 +1861,9 @@ describe("DirectConversationPage — quote preview", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
       {
         id: "dm2",
@@ -1750,6 +1875,9 @@ describe("DirectConversationPage — quote preview", () => {
         editedAt: null,
         author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -1791,6 +1919,9 @@ describe("DirectConversationPage — reply realtime", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -1814,6 +1945,9 @@ describe("DirectConversationPage — reply realtime", () => {
         content: "Original",
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
       },
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     });
 
     await waitFor(() => {
@@ -1835,6 +1969,9 @@ describe("DirectConversationPage — reply realtime", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -1858,6 +1995,9 @@ describe("DirectConversationPage — reply realtime", () => {
         content: "Original",
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
       },
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     };
     handler(replyMsg);
     handler(replyMsg);
@@ -1883,6 +2023,9 @@ describe("DirectConversationPage — forward action", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -1917,6 +2060,9 @@ describe("DirectConversationPage — forward action", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -1956,6 +2102,9 @@ describe("DirectConversationPage — forward action", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -1998,6 +2147,9 @@ describe("DirectConversationPage — forward action", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -2044,6 +2196,9 @@ describe("DirectConversationPage — forward target list", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     vi.mocked(listDirectConversations).mockResolvedValueOnce([
@@ -2054,6 +2209,7 @@ describe("DirectConversationPage — forward target list", () => {
         otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null },
         lastMessage: null,
         unreadCount: 0,
+        isOnline: false,
       },
       {
         id: "dc2",
@@ -2062,6 +2218,7 @@ describe("DirectConversationPage — forward target list", () => {
         otherParticipant: { id: "u4", username: "dave", displayName: "Dave", avatarUrl: null },
         lastMessage: null,
         unreadCount: 0,
+        isOnline: false,
       },
     ]);
 
@@ -2103,6 +2260,9 @@ describe("DirectConversationPage — forward target list", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     vi.mocked(listDirectConversations).mockResolvedValueOnce([
@@ -2113,6 +2273,7 @@ describe("DirectConversationPage — forward target list", () => {
         otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null },
         lastMessage: null,
         unreadCount: 0,
+        isOnline: false,
       },
       {
         id: "dc2",
@@ -2121,6 +2282,7 @@ describe("DirectConversationPage — forward target list", () => {
         otherParticipant: { id: "u4", username: "dave", displayName: "Dave", avatarUrl: null },
         lastMessage: null,
         unreadCount: 0,
+        isOnline: false,
       },
     ]);
 
@@ -2162,6 +2324,9 @@ describe("DirectConversationPage — forward target list", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     vi.mocked(listDirectConversations).mockResolvedValueOnce([
@@ -2172,6 +2337,7 @@ describe("DirectConversationPage — forward target list", () => {
         otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null },
         lastMessage: null,
         unreadCount: 0,
+        isOnline: false,
       },
     ]);
 
@@ -2215,6 +2381,9 @@ describe("DirectConversationPage — send forward", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     vi.mocked(listDirectConversations).mockResolvedValueOnce([
@@ -2225,6 +2394,7 @@ describe("DirectConversationPage — send forward", () => {
         otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null },
         lastMessage: null,
         unreadCount: 0,
+        isOnline: false,
       },
       {
         id: "dc2",
@@ -2233,6 +2403,7 @@ describe("DirectConversationPage — send forward", () => {
         otherParticipant: { id: "u4", username: "dave", displayName: "Dave", avatarUrl: null },
         lastMessage: null,
         unreadCount: 0,
+        isOnline: false,
       },
     ]);
     vi.mocked(sendDirectMessage).mockResolvedValueOnce({
@@ -2245,6 +2416,9 @@ describe("DirectConversationPage — send forward", () => {
       editedAt: null,
       author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
       parent: null,
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     });
 
     render(<DirectConversationPage />);
@@ -2289,6 +2463,9 @@ describe("DirectConversationPage — send forward", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     vi.mocked(listDirectConversations).mockResolvedValueOnce([
@@ -2299,6 +2476,7 @@ describe("DirectConversationPage — send forward", () => {
         otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null },
         lastMessage: null,
         unreadCount: 0,
+        isOnline: false,
       },
       {
         id: "dc2",
@@ -2307,6 +2485,7 @@ describe("DirectConversationPage — send forward", () => {
         otherParticipant: { id: "u4", username: "dave", displayName: "Dave", avatarUrl: null },
         lastMessage: null,
         unreadCount: 0,
+        isOnline: false,
       },
     ]);
     vi.mocked(sendDirectMessage).mockResolvedValueOnce({
@@ -2319,6 +2498,9 @@ describe("DirectConversationPage — send forward", () => {
       editedAt: null,
       author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
       parent: null,
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     });
 
     render(<DirectConversationPage />);
@@ -2363,6 +2545,9 @@ describe("DirectConversationPage — send forward", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     vi.mocked(listDirectConversations).mockResolvedValueOnce([
@@ -2373,6 +2558,7 @@ describe("DirectConversationPage — send forward", () => {
         otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null },
         lastMessage: null,
         unreadCount: 0,
+        isOnline: false,
       },
       {
         id: "dc2",
@@ -2381,6 +2567,7 @@ describe("DirectConversationPage — send forward", () => {
         otherParticipant: { id: "u4", username: "dave", displayName: "Dave", avatarUrl: null },
         lastMessage: null,
         unreadCount: 0,
+        isOnline: false,
       },
     ]);
     vi.mocked(sendDirectMessage).mockResolvedValueOnce({
@@ -2393,6 +2580,9 @@ describe("DirectConversationPage — send forward", () => {
       editedAt: null,
       author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
       parent: null,
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     });
 
     render(<DirectConversationPage />);
@@ -2441,6 +2631,9 @@ describe("DirectConversationPage — send forward", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     vi.mocked(listDirectConversations).mockResolvedValueOnce([
@@ -2451,6 +2644,7 @@ describe("DirectConversationPage — send forward", () => {
         otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null },
         lastMessage: null,
         unreadCount: 0,
+        isOnline: false,
       },
       {
         id: "dc2",
@@ -2459,6 +2653,7 @@ describe("DirectConversationPage — send forward", () => {
         otherParticipant: { id: "u4", username: "dave", displayName: "Dave", avatarUrl: null },
         lastMessage: null,
         unreadCount: 0,
+        isOnline: false,
       },
     ]);
     vi.mocked(sendDirectMessage).mockRejectedValueOnce(new Error("Network error"));
@@ -2507,6 +2702,9 @@ describe("DirectConversationPage — send forward", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     vi.mocked(listDirectConversations).mockResolvedValueOnce([
@@ -2517,6 +2715,7 @@ describe("DirectConversationPage — send forward", () => {
         otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null },
         lastMessage: null,
         unreadCount: 0,
+        isOnline: false,
       },
       {
         id: "dc2",
@@ -2525,6 +2724,7 @@ describe("DirectConversationPage — send forward", () => {
         otherParticipant: { id: "u4", username: "dave", displayName: "Dave", avatarUrl: null },
         lastMessage: null,
         unreadCount: 0,
+        isOnline: false,
       },
     ]);
     vi.mocked(sendDirectMessage).mockResolvedValueOnce({
@@ -2537,6 +2737,9 @@ describe("DirectConversationPage — send forward", () => {
       editedAt: null,
       author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
       parent: null,
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     });
     const dispatchSpy = vi.spyOn(window, "dispatchEvent");
 
@@ -2592,6 +2795,9 @@ describe("DirectConversationPage — forward regression", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -2631,6 +2837,9 @@ describe("DirectConversationPage — forward regression", () => {
       editedAt: null,
       author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
       parent: null,
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     };
     vi.mocked(sendDirectMessage).mockResolvedValueOnce(newMsg);
 
@@ -2669,6 +2878,9 @@ describe("DirectConversationPage — forward regression", () => {
       editedAt: null,
       author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
       parent: null,
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     });
 
     await waitFor(() => {
@@ -2692,6 +2904,8 @@ describe("DirectConversationPage — reactions", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -2728,6 +2942,8 @@ describe("DirectConversationPage — reactions", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [{ emoji: "👍", count: 2, reactedByMe: false }],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -2751,6 +2967,8 @@ describe("DirectConversationPage — reactions", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [{ emoji: "👍", count: 1, reactedByMe: true }],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -2777,6 +2995,8 @@ describe("DirectConversationPage — reaction socket", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -2813,6 +3033,8 @@ describe("DirectConversationPage — reaction socket", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [{ emoji: "👍", count: 1, reactedByMe: false }],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -2848,6 +3070,8 @@ describe("DirectConversationPage — reaction socket", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -2887,6 +3111,8 @@ describe("DirectConversationPage — reaction regression", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -2927,6 +3153,8 @@ describe("DirectConversationPage — reaction regression", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -2970,6 +3198,8 @@ describe("DirectConversationPage — B89b reactedByMe viewer safety", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -3008,6 +3238,8 @@ describe("DirectConversationPage — B89b reactedByMe viewer safety", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -3044,6 +3276,8 @@ describe("DirectConversationPage — B89b reactedByMe viewer safety", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [{ emoji: "👍", count: 1, reactedByMe: true }],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -3081,6 +3315,8 @@ describe("DirectConversationPage — B89b reactedByMe viewer safety", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [{ emoji: "👍", count: 2, reactedByMe: true }],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -3118,6 +3354,8 @@ describe("DirectConversationPage — B89b reactedByMe viewer safety", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [{ emoji: "👍", count: 1, reactedByMe: true }],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -3153,6 +3391,8 @@ describe("DirectConversationPage — B89b reactedByMe viewer safety", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [{ emoji: "👍", count: 1, reactedByMe: false }],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -3188,6 +3428,8 @@ describe("DirectConversationPage — B89b reactedByMe viewer safety", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     const { reactToDirectMessage: reactMock } = await import("@/lib/direct-conversations-api");
@@ -3234,6 +3476,8 @@ describe("DirectConversationPage — B89b reactedByMe viewer safety", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [{ emoji: "👍", count: 1, reactedByMe: true }],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     const { removeDirectMessageReaction: removeMock } = await import("@/lib/direct-conversations-api");
@@ -3268,6 +3512,8 @@ describe("DirectConversationPage — B90 menu UI", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -3293,6 +3539,8 @@ describe("DirectConversationPage — B90 menu UI", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -3317,6 +3565,8 @@ describe("DirectConversationPage — B90 menu UI", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [{ emoji: "👍", count: 2, reactedByMe: false }],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -3339,6 +3589,8 @@ describe("DirectConversationPage — B90 menu UI", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
       {
         id: "dm2",
@@ -3351,6 +3603,8 @@ describe("DirectConversationPage — B90 menu UI", () => {
         author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -3374,6 +3628,8 @@ describe("DirectConversationPage — B90 menu UI", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -3402,6 +3658,8 @@ describe("DirectConversationPage — B90 menu UI", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -3435,6 +3693,8 @@ describe("DirectConversationPage — B90 menu UI", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -3469,6 +3729,8 @@ describe("DirectConversationPage — B90 menu UI", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -3503,6 +3765,8 @@ describe("DirectConversationPage — B90 menu UI", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -3538,6 +3802,8 @@ describe("DirectConversationPage — B90 menu UI", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -3573,6 +3839,8 @@ describe("DirectConversationPage — B90 menu UI", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     const { reactToDirectMessage: reactMock } = await import("@/lib/direct-conversations-api");
@@ -3617,6 +3885,8 @@ describe("DirectConversationPage — B90 menu UI", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -3659,6 +3929,8 @@ describe("DirectConversationPage — B90 menu UI", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -3695,6 +3967,9 @@ describe("DirectConversationPage — B90 regression", () => {
       editedAt: null,
       author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
       parent: null,
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     };
     vi.mocked(sendDirectMessage).mockResolvedValueOnce(newMsg);
 
@@ -3726,6 +4001,8 @@ describe("DirectConversationPage — B90 regression", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     const newMsg = {
@@ -3742,6 +4019,9 @@ describe("DirectConversationPage — B90 regression", () => {
         content: "Original",
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
       },
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     };
     vi.mocked(sendDirectMessage).mockResolvedValueOnce(newMsg);
 
@@ -3784,6 +4064,8 @@ describe("DirectConversationPage — B90 regression", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     vi.mocked(listDirectConversations).mockResolvedValueOnce([
@@ -3794,6 +4076,7 @@ describe("DirectConversationPage — B90 regression", () => {
         otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null },
         lastMessage: null,
         unreadCount: 0,
+        isOnline: false,
       },
       {
         id: "dc2",
@@ -3802,6 +4085,7 @@ describe("DirectConversationPage — B90 regression", () => {
         otherParticipant: { id: "u4", username: "dave", displayName: "Dave", avatarUrl: null },
         lastMessage: null,
         unreadCount: 0,
+        isOnline: false,
       },
     ]);
     vi.mocked(sendDirectMessage).mockResolvedValueOnce({
@@ -3814,6 +4098,9 @@ describe("DirectConversationPage — B90 regression", () => {
       editedAt: null,
       author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
       parent: null,
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     });
 
     render(<DirectConversationPage />);
@@ -3854,6 +4141,8 @@ describe("DirectConversationPage — B90 regression", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [{ emoji: "👍", count: 1, reactedByMe: true }],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     const { removeDirectMessageReaction: removeMock } = await import("@/lib/direct-conversations-api");
@@ -3888,6 +4177,8 @@ describe("DirectConversationPage — B91 one reaction per user", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [{ emoji: "👍", count: 1, reactedByMe: true }],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     const { reactToDirectMessage: reactMock } = await import("@/lib/direct-conversations-api");
@@ -3935,6 +4226,8 @@ describe("DirectConversationPage — B91 one reaction per user", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [{ emoji: "👍", count: 1, reactedByMe: true }],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     const { reactToDirectMessage: reactMock } = await import("@/lib/direct-conversations-api");
@@ -3983,6 +4276,8 @@ describe("DirectConversationPage — B91 one reaction per user", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [{ emoji: "👍", count: 1, reactedByMe: true }],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     const { removeDirectMessageReaction: removeMock } = await import("@/lib/direct-conversations-api");
@@ -4014,6 +4309,8 @@ describe("DirectConversationPage — B91 one reaction per user", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [{ emoji: "👍", count: 1, reactedByMe: true }],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -4053,6 +4350,8 @@ describe("DirectConversationPage — B91 one reaction per user", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [{ emoji: "👍", count: 2, reactedByMe: true }],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -4100,6 +4399,8 @@ describe("DirectConversationPage — B91 regression", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -4126,6 +4427,8 @@ describe("DirectConversationPage — B91 regression", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -4160,6 +4463,8 @@ describe("DirectConversationPage — B91 regression", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -4193,6 +4498,9 @@ describe("DirectConversationPage — B91 regression", () => {
       editedAt: null,
       author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
       parent: null,
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     };
     vi.mocked(sendDirectMessage).mockResolvedValueOnce(newMsg);
 
@@ -4235,6 +4543,9 @@ describe("DirectConversationPage — B92 navigate after forward", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     vi.mocked(listDirectConversations).mockResolvedValueOnce([
@@ -4245,6 +4556,7 @@ describe("DirectConversationPage — B92 navigate after forward", () => {
         otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null },
         lastMessage: null,
         unreadCount: 0,
+        isOnline: false,
       },
       {
         id: "dc2",
@@ -4253,6 +4565,7 @@ describe("DirectConversationPage — B92 navigate after forward", () => {
         otherParticipant: { id: "u4", username: "dave", displayName: "Dave", avatarUrl: null },
         lastMessage: null,
         unreadCount: 0,
+        isOnline: false,
       },
     ]);
     vi.mocked(sendDirectMessage).mockResolvedValueOnce({
@@ -4265,6 +4578,9 @@ describe("DirectConversationPage — B92 navigate after forward", () => {
       editedAt: null,
       author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
       parent: null,
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     });
 
     render(<DirectConversationPage />);
@@ -4307,6 +4623,9 @@ describe("DirectConversationPage — B92 navigate after forward", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     vi.mocked(listDirectConversations).mockResolvedValueOnce([
@@ -4317,6 +4636,7 @@ describe("DirectConversationPage — B92 navigate after forward", () => {
         otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null },
         lastMessage: null,
         unreadCount: 0,
+        isOnline: false,
       },
       {
         id: "dc2",
@@ -4325,6 +4645,7 @@ describe("DirectConversationPage — B92 navigate after forward", () => {
         otherParticipant: { id: "u4", username: "dave", displayName: "Dave", avatarUrl: null },
         lastMessage: null,
         unreadCount: 0,
+        isOnline: false,
       },
     ]);
     vi.mocked(sendDirectMessage).mockResolvedValueOnce({
@@ -4337,6 +4658,9 @@ describe("DirectConversationPage — B92 navigate after forward", () => {
       editedAt: null,
       author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
       parent: null,
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     });
 
     render(<DirectConversationPage />);
@@ -4377,6 +4701,9 @@ describe("DirectConversationPage — B92 navigate after forward", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     vi.mocked(listDirectConversations).mockResolvedValueOnce([
@@ -4387,6 +4714,7 @@ describe("DirectConversationPage — B92 navigate after forward", () => {
         otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null },
         lastMessage: null,
         unreadCount: 0,
+        isOnline: false,
       },
       {
         id: "dc2",
@@ -4395,6 +4723,7 @@ describe("DirectConversationPage — B92 navigate after forward", () => {
         otherParticipant: { id: "u4", username: "dave", displayName: "Dave", avatarUrl: null },
         lastMessage: null,
         unreadCount: 0,
+        isOnline: false,
       },
     ]);
     vi.mocked(sendDirectMessage).mockRejectedValueOnce(new Error("Network error"));
@@ -4441,6 +4770,8 @@ describe("DirectConversationPage — B92 regression", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -4474,6 +4805,9 @@ describe("DirectConversationPage — B92 regression", () => {
       editedAt: null,
       author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
       parent: null,
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     };
     vi.mocked(sendDirectMessage).mockResolvedValueOnce(newMsg);
 
@@ -4505,6 +4839,8 @@ describe("DirectConversationPage — B92 regression", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -4539,6 +4875,8 @@ describe("DirectConversationPage — B92 regression", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [{ emoji: "👍", count: 1, reactedByMe: true }],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     const { removeDirectMessageReaction: removeMock } = await import("@/lib/direct-conversations-api");
@@ -4595,6 +4933,9 @@ describe("DirectConversationPage — B93 menu positioning", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -4626,6 +4967,9 @@ describe("DirectConversationPage — B93 menu positioning", () => {
           editedAt: null,
           author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
           parent: null,
+          reactions: [],
+          readByOtherParticipant: false,
+          isUnreadForMe: false,
         },
       ]);
       render(<DirectConversationPage />);
@@ -4658,6 +5002,9 @@ describe("DirectConversationPage — B93 menu positioning", () => {
           editedAt: null,
           author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
           parent: null,
+          reactions: [],
+          readByOtherParticipant: false,
+          isUnreadForMe: false,
         },
       ]);
       render(<DirectConversationPage />);
@@ -4689,6 +5036,9 @@ describe("DirectConversationPage — B93 menu positioning", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -4720,6 +5070,8 @@ describe("DirectConversationPage — B93 menu positioning", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -4757,6 +5109,8 @@ describe("DirectConversationPage — B93 menu positioning", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     const { reactToDirectMessage: reactMock } = await import("@/lib/direct-conversations-api");
@@ -4799,6 +5153,9 @@ describe("DirectConversationPage — B93 menu positioning", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -4832,6 +5189,9 @@ describe("DirectConversationPage — B93 menu positioning", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -4865,6 +5225,9 @@ describe("DirectConversationPage — B93 menu positioning", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -4900,6 +5263,9 @@ describe("DirectConversationPage — B93 regression", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -4933,6 +5299,9 @@ describe("DirectConversationPage — B93 regression", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     vi.mocked(listDirectConversations).mockResolvedValueOnce([
@@ -4943,6 +5312,7 @@ describe("DirectConversationPage — B93 regression", () => {
         otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null },
         lastMessage: null,
         unreadCount: 0,
+        isOnline: false,
       },
       {
         id: "dc2",
@@ -4951,6 +5321,7 @@ describe("DirectConversationPage — B93 regression", () => {
         otherParticipant: { id: "u4", username: "dave", displayName: "Dave", avatarUrl: null },
         lastMessage: null,
         unreadCount: 0,
+        isOnline: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -4991,6 +5362,9 @@ describe("DirectConversationPage — B93 regression", () => {
         editedAt: null,
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -5024,6 +5398,9 @@ describe("DirectConversationPage — B93 regression", () => {
       editedAt: null,
       author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
       parent: null,
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     };
     vi.mocked(sendDirectMessage).mockResolvedValueOnce(newMsg);
 
@@ -5055,6 +5432,8 @@ describe("DirectConversationPage — B93 regression", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [{ emoji: "👍", count: 1, reactedByMe: true }],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     const { removeDirectMessageReaction: removeMock } = await import("@/lib/direct-conversations-api");
@@ -5089,6 +5468,8 @@ describe("DirectConversationPage — B97 edit", () => {
         author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -5118,6 +5499,8 @@ describe("DirectConversationPage — B97 edit", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -5148,6 +5531,8 @@ describe("DirectConversationPage — B97 edit", () => {
         author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -5190,6 +5575,8 @@ describe("DirectConversationPage — B97 edit", () => {
         author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -5233,6 +5620,8 @@ describe("DirectConversationPage — B97 edit", () => {
         author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
 
@@ -5247,6 +5636,8 @@ describe("DirectConversationPage — B97 edit", () => {
       author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
       parent: null,
       reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     };
     vi.mocked(updateDirectMessage).mockResolvedValueOnce(updatedMsg);
 
@@ -5299,6 +5690,8 @@ describe("DirectConversationPage — B97 edit", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -5319,6 +5712,8 @@ describe("DirectConversationPage — B97 edit", () => {
       author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
       parent: null,
       reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     });
 
     await waitFor(() => {
@@ -5340,6 +5735,8 @@ describe("DirectConversationPage — B97 edit", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -5360,6 +5757,8 @@ describe("DirectConversationPage — B97 edit", () => {
       author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
       parent: null,
       reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     });
 
     expect(screen.getByText("Original")).toBeInTheDocument();
@@ -5378,6 +5777,8 @@ describe("DirectConversationPage — B97 edit", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -5403,6 +5804,9 @@ describe("DirectConversationPage — B97 regression", () => {
       editedAt: null,
       author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
       parent: null,
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     };
     vi.mocked(sendDirectMessage).mockResolvedValueOnce(newMsg);
 
@@ -5434,6 +5838,8 @@ describe("DirectConversationPage — B97 regression", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -5468,6 +5874,8 @@ describe("DirectConversationPage — B97 regression", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     vi.mocked(listDirectConversations).mockResolvedValueOnce([
@@ -5478,6 +5886,7 @@ describe("DirectConversationPage — B97 regression", () => {
         otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null },
         lastMessage: null,
         unreadCount: 0,
+        isOnline: false,
       },
       {
         id: "dc2",
@@ -5486,6 +5895,7 @@ describe("DirectConversationPage — B97 regression", () => {
         otherParticipant: { id: "u4", username: "dave", displayName: "Dave", avatarUrl: null },
         lastMessage: null,
         unreadCount: 0,
+        isOnline: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -5520,6 +5930,8 @@ describe("DirectConversationPage — B97 regression", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [{ emoji: "👍", count: 1, reactedByMe: true }],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     const { removeDirectMessageReaction: removeMock } = await import("@/lib/direct-conversations-api");
@@ -5727,6 +6139,9 @@ describe("DirectConversationPage — B100 typing indicator", () => {
       editedAt: null,
       author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
       parent: null,
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     };
     vi.mocked(sendDirectMessage).mockResolvedValueOnce(newMsg);
 
@@ -5773,6 +6188,9 @@ describe("DirectConversationPage — B100 typing indicator", () => {
       editedAt: null,
       author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
       parent: null,
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     };
     vi.mocked(sendDirectMessage).mockResolvedValueOnce(newMsg);
 
@@ -5804,6 +6222,8 @@ describe("DirectConversationPage — B100 typing indicator", () => {
         author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     const { updateDirectMessage: updateMock } = await import("@/lib/direct-conversations-api");
@@ -5818,6 +6238,8 @@ describe("DirectConversationPage — B100 typing indicator", () => {
       author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
       parent: null,
       reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     });
 
     render(<DirectConversationPage />);
@@ -5856,6 +6278,8 @@ describe("DirectConversationPage — B100 typing indicator", () => {
         author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     vi.mocked(deleteDirectMessage).mockResolvedValueOnce({ ok: true });
@@ -5894,6 +6318,8 @@ describe("DirectConversationPage — B100 typing indicator", () => {
         author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     const { reactToDirectMessage: reactMock } = await import("@/lib/direct-conversations-api");
@@ -5936,6 +6362,8 @@ describe("DirectConversationPage — B98 delete", () => {
         author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -5965,6 +6393,8 @@ describe("DirectConversationPage — B98 delete", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -5995,6 +6425,8 @@ describe("DirectConversationPage — B98 delete", () => {
         author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     vi.stubGlobal("confirm", vi.fn(() => false));
@@ -6032,6 +6464,8 @@ describe("DirectConversationPage — B98 delete", () => {
         author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     vi.mocked(deleteDirectMessage).mockResolvedValueOnce({ ok: true });
@@ -6075,6 +6509,8 @@ describe("DirectConversationPage — B98 delete", () => {
         author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     vi.mocked(deleteDirectMessage).mockRejectedValueOnce(new Error("Network error"));
@@ -6114,6 +6550,8 @@ describe("DirectConversationPage — B98 delete", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -6143,6 +6581,8 @@ describe("DirectConversationPage — B98 delete", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -6173,6 +6613,8 @@ describe("DirectConversationPage — B98 delete", () => {
         author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     vi.mocked(deleteDirectMessage).mockResolvedValueOnce({ ok: true });
@@ -6224,6 +6666,8 @@ describe("DirectConversationPage — B98 delete", () => {
         author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     vi.mocked(deleteDirectMessage).mockResolvedValueOnce({ ok: true });
@@ -6275,6 +6719,8 @@ describe("DirectConversationPage — B98 delete", () => {
         author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     vi.mocked(listDirectConversations).mockResolvedValueOnce([
@@ -6285,6 +6731,7 @@ describe("DirectConversationPage — B98 delete", () => {
         otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null },
         lastMessage: null,
         unreadCount: 0,
+        isOnline: false,
       },
       {
         id: "dc2",
@@ -6293,6 +6740,7 @@ describe("DirectConversationPage — B98 delete", () => {
         otherParticipant: { id: "u4", username: "dave", displayName: "Dave", avatarUrl: null },
         lastMessage: null,
         unreadCount: 0,
+        isOnline: false,
       },
     ]);
     vi.mocked(deleteDirectMessage).mockResolvedValueOnce({ ok: true });
@@ -6344,6 +6792,8 @@ describe("DirectConversationPage — B98 delete", () => {
         author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
       {
         id: "dm2",
@@ -6356,6 +6806,8 @@ describe("DirectConversationPage — B98 delete", () => {
         author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
         parent: { id: "dm1", content: "Parent", author: { id: "u1", username: "alice", displayName: null, avatarUrl: null } },
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     vi.mocked(deleteDirectMessage).mockResolvedValueOnce({ ok: true });
@@ -6400,6 +6852,9 @@ describe("DirectConversationPage — B98 regression", () => {
       editedAt: null,
       author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
       parent: null,
+      reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     };
     vi.mocked(sendDirectMessage).mockResolvedValueOnce(newMsg);
 
@@ -6431,6 +6886,8 @@ describe("DirectConversationPage — B98 regression", () => {
         author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     const { updateDirectMessage: updateMock } = await import("@/lib/direct-conversations-api");
@@ -6445,6 +6902,8 @@ describe("DirectConversationPage — B98 regression", () => {
       author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
       parent: null,
       reactions: [],
+      readByOtherParticipant: false,
+      isUnreadForMe: false,
     });
 
     render(<DirectConversationPage />);
@@ -6488,6 +6947,8 @@ describe("DirectConversationPage — B98 regression", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -6522,6 +6983,8 @@ describe("DirectConversationPage — B98 regression", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     vi.mocked(listDirectConversations).mockResolvedValueOnce([
@@ -6532,6 +6995,7 @@ describe("DirectConversationPage — B98 regression", () => {
         otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null },
         lastMessage: null,
         unreadCount: 0,
+        isOnline: false,
       },
       {
         id: "dc2",
@@ -6540,6 +7004,7 @@ describe("DirectConversationPage — B98 regression", () => {
         otherParticipant: { id: "u4", username: "dave", displayName: "Dave", avatarUrl: null },
         lastMessage: null,
         unreadCount: 0,
+        isOnline: false,
       },
     ]);
     render(<DirectConversationPage />);
@@ -6574,6 +7039,8 @@ describe("DirectConversationPage — B98 regression", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [{ emoji: "👍", count: 1, reactedByMe: true }],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     const { removeDirectMessageReaction: removeMock } = await import("@/lib/direct-conversations-api");
@@ -6612,6 +7079,8 @@ describe("DirectConversationPage — B98 regression", () => {
         author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
         parent: null,
         reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
       },
     ]);
     render(<DirectConversationPage />);

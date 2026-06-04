@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import LoginPage from "./page";
 import { login } from "@/lib/auth-api";
+import { createAuthUser } from "@/test/factories";
 
 const pushMock = vi.fn();
 const loginSuccessMock = vi.fn();
@@ -84,7 +85,7 @@ describe("LoginPage", () => {
 
     await act(async () => {
       resolveLogin!({
-        user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, createdAt: "2024-01-01T00:00:00Z" },
+        user: createAuthUser(),
         accessToken: "at",
         refreshToken: "rt",
       });
@@ -107,7 +108,7 @@ describe("LoginPage", () => {
 
   it("calls login and redirects on success", async () => {
     const mockResult = {
-      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, createdAt: "2024-01-01T00:00:00Z" },
+      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en" as const, createdAt: "2024-01-01T00:00:00Z" },
       accessToken: "at",
       refreshToken: "rt",
     };
@@ -159,7 +160,7 @@ describe("LoginPage", () => {
 
     await act(async () => {
       resolveLogin!({
-        user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, createdAt: "2024-01-01T00:00:00Z" },
+        user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en" as const, createdAt: "2024-01-01T00:00:00Z" },
         accessToken: "at",
         refreshToken: "rt",
       });
