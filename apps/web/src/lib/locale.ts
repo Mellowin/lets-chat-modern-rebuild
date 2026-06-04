@@ -287,7 +287,19 @@ export type TranslationKey =
   | "direct.typingFallback"
   | "direct.unreadMessages"
   | "sidebar.moveUp"
-  | "sidebar.moveDown";
+  | "sidebar.moveDown"
+  | "sidebar.direct"
+  | "sidebar.directMessages"
+  | "sidebar.workspaces"
+  | "sidebar.overview"
+  | "sidebar.loading"
+  | "sidebar.failedToLoadWorkspaces"
+  | "sidebar.noWorkspacesYet"
+  | "sidebar.failedToLoadChannels"
+  | "sidebar.noChannelsYet"
+  | "sidebar.unknownUser"
+  | "sidebar.publicShort"
+  | "sidebar.privateShort";
 
 const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string) => string)>> = {
   en: {
@@ -524,6 +536,18 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "direct.unreadMessages": "Unread messages",
     "sidebar.moveUp": "Move up",
     "sidebar.moveDown": "Move down",
+    "sidebar.direct": "Direct",
+    "sidebar.directMessages": "Direct messages",
+    "sidebar.workspaces": "Workspaces",
+    "sidebar.overview": "Overview",
+    "sidebar.loading": "Loading…",
+    "sidebar.failedToLoadWorkspaces": "Failed to load workspaces",
+    "sidebar.noWorkspacesYet": "No workspaces yet",
+    "sidebar.failedToLoadChannels": "Failed to load channels",
+    "sidebar.noChannelsYet": "No channels yet",
+    "sidebar.unknownUser": "Unknown",
+    "sidebar.publicShort": "Pub",
+    "sidebar.privateShort": "Prv",
     "workspace.confirmArchiveChannelPrefix": "Archive channel",
     "workspace.confirmArchiveChannelBody": "This will hide the channel from the workspace. Only the channel owner can do this.",
     "workspace.confirmRestoreChannelPrefix": "Restore channel",
@@ -796,6 +820,18 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "direct.unreadMessages": "Непрочитані повідомлення",
     "sidebar.moveUp": "Перемістити вгору",
     "sidebar.moveDown": "Перемістити вниз",
+    "sidebar.direct": "Особисті",
+    "sidebar.directMessages": "Особисті повідомлення",
+    "sidebar.workspaces": "Робочі простори",
+    "sidebar.overview": "Огляд",
+    "sidebar.loading": "Завантаження…",
+    "sidebar.failedToLoadWorkspaces": "Не вдалося завантажити робочі простори",
+    "sidebar.noWorkspacesYet": "Робочих просторів ще немає",
+    "sidebar.failedToLoadChannels": "Не вдалося завантажити канали",
+    "sidebar.noChannelsYet": "Каналів ще немає",
+    "sidebar.unknownUser": "Невідомо",
+    "sidebar.publicShort": "Публ.",
+    "sidebar.privateShort": "Прив.",
     "workspace.confirmArchiveChannelPrefix": "Архівувати канал",
     "workspace.confirmArchiveChannelBody": "Це приховає канал з робочого простору. Це може зробити лише власник каналу.",
     "workspace.confirmRestoreChannelPrefix": "Відновити канал",
@@ -1068,6 +1104,18 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "direct.unreadMessages": "Непрочитанные сообщения",
     "sidebar.moveUp": "Переместить вверх",
     "sidebar.moveDown": "Переместить вниз",
+    "sidebar.direct": "Личные",
+    "sidebar.directMessages": "Личные сообщения",
+    "sidebar.workspaces": "Рабочие пространства",
+    "sidebar.overview": "Обзор",
+    "sidebar.loading": "Загрузка…",
+    "sidebar.failedToLoadWorkspaces": "Не удалось загрузить рабочие пространства",
+    "sidebar.noWorkspacesYet": "Рабочих пространств ещё нет",
+    "sidebar.failedToLoadChannels": "Не удалось загрузить каналы",
+    "sidebar.noChannelsYet": "Каналов ещё нет",
+    "sidebar.unknownUser": "Неизвестно",
+    "sidebar.publicShort": "Публ.",
+    "sidebar.privateShort": "Прив.",
     "workspace.confirmArchiveChannelPrefix": "Архивировать канал",
     "workspace.confirmArchiveChannelBody": "Это скроет канал из рабочего пространства. Это может сделать только владелец канала.",
     "workspace.confirmRestoreChannelPrefix": "Восстановить канал",

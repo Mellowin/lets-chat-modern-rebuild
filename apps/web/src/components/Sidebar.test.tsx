@@ -702,3 +702,134 @@ describe("Sidebar — section order", () => {
     expect(screen.getByText("Testing place")).toBeInTheDocument();
   });
 });
+
+
+describe("Sidebar — localization", () => {
+  it("renders en labels when locale is en", async () => {
+    localStorage.setItem("lets-chat:locale", "en");
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText("Overview")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Direct")).toBeInTheDocument();
+    expect(screen.getByText("Direct messages")).toBeInTheDocument();
+    expect(screen.getByText("Workspaces")).toBeInTheDocument();
+  });
+
+  it("renders ru labels when locale is ru", async () => {
+    localStorage.setItem("lets-chat:locale", "ru");
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText("Обзор")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Личные")).toBeInTheDocument();
+    expect(screen.getByText("Личные сообщения")).toBeInTheDocument();
+    expect(screen.getByText("Рабочие пространства")).toBeInTheDocument();
+  });
+
+  it("renders uk labels when locale is uk", async () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText("Огляд")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Особисті")).toBeInTheDocument();
+    expect(screen.getByText("Особисті повідомлення")).toBeInTheDocument();
+    expect(screen.getByText("Робочі простори")).toBeInTheDocument();
+  });
+
+  it("shows localized unknown user fallback", async () => {
+    localStorage.setItem("lets-chat:locale", "ru");
+    setupDefaultMocks();
+    vi.mocked(listDirectConversations).mockResolvedValue([
+      {
+        id: "dc3",
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        otherParticipant: null,
+        lastMessage: null,
+        unreadCount: 0,
+        isOnline: false,
+      },
+    ]);
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText("Неизвестно")).toBeInTheDocument();
+    });
+  });
+
+  it("shows localized loading text for workspaces", async () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    setupDefaultMocks();
+    vi.mocked(getWorkspaces).mockImplementation(() => new Promise(() => {}));
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText("Завантаження…")).toBeInTheDocument();
+    });
+  });
+
+  it("shows localized error text for workspaces", async () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    setupDefaultMocks();
+    vi.mocked(getWorkspaces).mockRejectedValue(new Error("fail"));
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText("Не вдалося завантажити робочі простори")).toBeInTheDocument();
+    });
+  });
+
+  it("shows localized empty text for workspaces", async () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    setupDefaultMocks();
+    vi.mocked(getWorkspaces).mockResolvedValue([]);
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText("Робочих просторів ще немає")).toBeInTheDocument();
+    });
+  });
+
+  it("shows localized loading text for channels", async () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    vi.mocked(getChannels).mockImplementation(() => new Promise(() => {}));
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText("Testing place")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Завантаження…")).toBeInTheDocument();
+  });
+
+  it("shows localized error text for channels", async () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    vi.mocked(getChannels).mockRejectedValue(new Error("fail"));
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText("Не вдалося завантажити канали")).toBeInTheDocument();
+    });
+  });
+
+  it("shows localized empty text for channels", async () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    vi.mocked(getChannels).mockResolvedValue([]);
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText("Каналів ще немає")).toBeInTheDocument();
+    });
+  });
+
+  it("shows localized public/private badges in ru", async () => {
+    localStorage.setItem("lets-chat:locale", "ru");
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText(/Boboski/)).toBeInTheDocument();
+    });
+    expect(screen.getByText("Публ.")).toBeInTheDocument();
+    expect(screen.getByText("Прив.")).toBeInTheDocument();
+  });
+});

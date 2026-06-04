@@ -284,7 +284,7 @@ export default function Sidebar() {
         className="flex flex-1 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-zinc-400 uppercase tracking-wider hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
       >
         <span className={`transition-transform ${directExpanded ? "rotate-90" : ""}`}>▸</span>
-        <span>Direct</span>
+        <span>{translate(getLocale(), "sidebar.direct")}</span>
       </button>
       <button
         type="button"
@@ -308,7 +308,7 @@ export default function Sidebar() {
         className="flex flex-1 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-zinc-400 uppercase tracking-wider hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
       >
         <span className={`transition-transform ${workspacesExpanded ? "rotate-90" : ""}`}>▸</span>
-        <span>Workspaces</span>
+        <span>{translate(getLocale(), "sidebar.workspaces")}</span>
       </button>
       <button
         type="button"
@@ -341,7 +341,7 @@ export default function Sidebar() {
                     : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
                 }`}
               >
-                <span className="truncate block">Direct messages</span>
+                <span className="truncate block">{translate(getLocale(), "sidebar.directMessages")}</span>
                 {directUnreadTotal > 0 && (
                   <span data-testid="sidebar-direct-unread-badge" className="inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-zinc-900 px-1 text-[9px] font-bold text-white dark:bg-zinc-100 dark:text-zinc-900">
                     {directUnreadTotal > 99 ? "99+" : directUnreadTotal}
@@ -354,7 +354,7 @@ export default function Sidebar() {
             <ul className="mt-1 space-y-0.5">
               {directConversations.data.map((conv) => {
                 const isActive = conv.id === activeDirectConversationId;
-                const name = conv.otherParticipant?.displayName || conv.otherParticipant?.username || "Unknown";
+                const name = conv.otherParticipant?.displayName || conv.otherParticipant?.username || translate(getLocale(), "sidebar.unknownUser");
                 return (
                   <li key={conv.id}>
                     <Link
@@ -397,14 +397,14 @@ export default function Sidebar() {
           {workspaces.kind === "loading" && (
             <div className="flex items-center gap-2 px-2 text-sm text-zinc-500 dark:text-zinc-400">
               <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
-              Loading…
+              {translate(getLocale(), "sidebar.loading")}
             </div>
           )}
           {workspaces.kind === "error" && (
-            <div className="px-2 text-sm text-red-600 dark:text-red-400">Failed to load workspaces</div>
+            <div className="px-2 text-sm text-red-600 dark:text-red-400">{translate(getLocale(), "sidebar.failedToLoadWorkspaces")}</div>
           )}
           {workspaces.kind === "success" && workspaces.data.length === 0 && (
-            <div className="px-2 text-sm text-zinc-500 dark:text-zinc-400">No workspaces yet</div>
+            <div className="px-2 text-sm text-zinc-500 dark:text-zinc-400">{translate(getLocale(), "sidebar.noWorkspacesYet")}</div>
           )}
           {workspaces.kind === "success" && workspaces.data.length > 0 && (
             <ul className="space-y-0.5">
@@ -435,22 +435,22 @@ export default function Sidebar() {
                               : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
                           }`}
                         >
-                          <span className="truncate block">Overview</span>
+                          <span className="truncate block">{translate(getLocale(), "sidebar.overview")}</span>
                         </Link>
                         {workspaceChannels[ws.id]?.kind === "loading" && (
                           <div className="flex items-center gap-2 px-2 text-xs text-zinc-500 dark:text-zinc-400">
                             <span className="inline-block h-2 w-2 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
-                            Loading…
+                            {translate(getLocale(), "sidebar.loading")}
                           </div>
                         )}
                         {workspaceChannels[ws.id]?.kind === "error" && (
-                          <div className="px-2 text-xs text-red-600 dark:text-red-400">Failed to load channels</div>
+                          <div className="px-2 text-xs text-red-600 dark:text-red-400">{translate(getLocale(), "sidebar.failedToLoadChannels")}</div>
                         )}
                         {(() => {
                           const chState = workspaceChannels[ws.id];
                           if (chState?.kind !== "success") return null;
                           if (chState.data.length === 0) {
-                            return <div className="px-2 text-xs text-zinc-500 dark:text-zinc-400">No channels yet</div>;
+                            return <div className="px-2 text-xs text-zinc-500 dark:text-zinc-400">{translate(getLocale(), "sidebar.noChannelsYet")}</div>;
                           }
                           return (
                             <ul className="space-y-0.5">
@@ -475,7 +475,7 @@ export default function Sidebar() {
                                           : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
                                       }`}
                                     >
-                                      {ch.type === "PUBLIC" ? "Pub" : "Prv"}
+                                      {ch.type === "PUBLIC" ? translate(getLocale(), "sidebar.publicShort") : translate(getLocale(), "sidebar.privateShort")}
                                     </span>
                                   </Link>
                                 </li>
