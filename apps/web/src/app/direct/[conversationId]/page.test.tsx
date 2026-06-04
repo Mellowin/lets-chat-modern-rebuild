@@ -5731,9 +5731,7 @@ describe("DirectConversationPage — B97 edit", () => {
     ]);
     render(<DirectConversationPage />);
 
-    await waitFor(() => {
-      expect(socketOnMock).toHaveBeenCalledWith("direct:message:updated", expect.any(Function));
-    });
+    await screen.findByText("Original");
 
     const handler = socketHandlers["direct:message:updated"];
     handler({
@@ -5752,6 +5750,7 @@ describe("DirectConversationPage — B97 edit", () => {
     });
 
     expect(screen.getByText("Original")).toBeInTheDocument();
+    expect(screen.queryByText("Updated via socket")).not.toBeInTheDocument();
   });
 
   it("edited marker appears when message has editedAt", async () => {
