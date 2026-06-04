@@ -299,7 +299,9 @@ export type TranslationKey =
   | "sidebar.noChannelsYet"
   | "sidebar.unknownUser"
   | "sidebar.publicShort"
-  | "sidebar.privateShort";
+  | "sidebar.privateShort"
+  | "sidebar.workspace"
+  | "sidebar.signInToSeeWorkspaces";
 
 const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string) => string)>> = {
   en: {
@@ -548,6 +550,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "sidebar.unknownUser": "Unknown",
     "sidebar.publicShort": "Pub",
     "sidebar.privateShort": "Prv",
+    "sidebar.workspace": "Workspace",
+    "sidebar.signInToSeeWorkspaces": "Sign in to see your workspaces",
     "workspace.confirmArchiveChannelPrefix": "Archive channel",
     "workspace.confirmArchiveChannelBody": "This will hide the channel from the workspace. Only the channel owner can do this.",
     "workspace.confirmRestoreChannelPrefix": "Restore channel",
@@ -832,6 +836,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "sidebar.unknownUser": "Невідомо",
     "sidebar.publicShort": "Публ.",
     "sidebar.privateShort": "Прив.",
+    "sidebar.workspace": "Робочий простір",
+    "sidebar.signInToSeeWorkspaces": "Увійдіть, щоб бачити свої робочі простори",
     "workspace.confirmArchiveChannelPrefix": "Архівувати канал",
     "workspace.confirmArchiveChannelBody": "Це приховає канал з робочого простору. Це може зробити лише власник каналу.",
     "workspace.confirmRestoreChannelPrefix": "Відновити канал",
@@ -1116,6 +1122,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "sidebar.unknownUser": "Неизвестно",
     "sidebar.publicShort": "Публ.",
     "sidebar.privateShort": "Прив.",
+    "sidebar.workspace": "Рабочее пространство",
+    "sidebar.signInToSeeWorkspaces": "Войдите, чтобы видеть свои рабочие пространства",
     "workspace.confirmArchiveChannelPrefix": "Архивировать канал",
     "workspace.confirmArchiveChannelBody": "Это скроет канал из рабочего пространства. Это может сделать только владелец канала.",
     "workspace.confirmRestoreChannelPrefix": "Восстановить канал",

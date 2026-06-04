@@ -833,3 +833,30 @@ describe("Sidebar — localization", () => {
     expect(screen.getByText("Прив.")).toBeInTheDocument();
   });
 });
+
+
+describe("Sidebar — unauthenticated localization", () => {
+  it("shows localized unauth fallback in en", async () => {
+    localStorage.setItem("lets-chat:locale", "en");
+    mockAuth({ isAuthenticated: false, isLoading: false, accessToken: null, user: null });
+    render(<Sidebar />);
+    expect(screen.getByText("Workspace")).toBeInTheDocument();
+    expect(screen.getByText("Sign in to see your workspaces")).toBeInTheDocument();
+  });
+
+  it("shows localized unauth fallback in ru", async () => {
+    localStorage.setItem("lets-chat:locale", "ru");
+    mockAuth({ isAuthenticated: false, isLoading: false, accessToken: null, user: null });
+    render(<Sidebar />);
+    expect(screen.getByText("Рабочее пространство")).toBeInTheDocument();
+    expect(screen.getByText("Войдите, чтобы видеть свои рабочие пространства")).toBeInTheDocument();
+  });
+
+  it("shows localized unauth fallback in uk", async () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    mockAuth({ isAuthenticated: false, isLoading: false, accessToken: null, user: null });
+    render(<Sidebar />);
+    expect(screen.getByText("Робочий простір")).toBeInTheDocument();
+    expect(screen.getByText("Увійдіть, щоб бачити свої робочі простори")).toBeInTheDocument();
+  });
+});

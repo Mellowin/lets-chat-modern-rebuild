@@ -265,8 +265,8 @@ export default function Sidebar() {
   if (authLoading || !isAuthenticated) {
     return (
       <aside className="w-60 shrink-0 border-r border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 hidden sm:flex flex-col p-3">
-        <div className="text-xs font-medium text-zinc-400 uppercase tracking-wider px-2 py-1">Workspace</div>
-        <div className="mt-2 px-2 text-sm text-zinc-400 dark:text-zinc-500">Sign in to see your workspaces</div>
+        <div className="text-xs font-medium text-zinc-400 uppercase tracking-wider px-2 py-1">{translate(getLocale(), "sidebar.workspace")}</div>
+        <div className="mt-2 px-2 text-sm text-zinc-400 dark:text-zinc-500">{translate(getLocale(), "sidebar.signInToSeeWorkspaces")}</div>
       </aside>
     );
   }
