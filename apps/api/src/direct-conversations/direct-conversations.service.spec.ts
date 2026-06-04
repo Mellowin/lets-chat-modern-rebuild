@@ -233,6 +233,56 @@ describe('DirectConversationsService', () => {
       expect(repository.createConversation).not.toHaveBeenCalled();
     });
 
+    it('reversed participant order resolves to same conversation', async () => {
+      usersRepository.findById.mockImplementation((id: string) => {
+        if (id === userId) {
+          return {
+            id: userId,
+            username: 'alice',
+            displayName: 'Alice',
+            avatarUrl: null,
+          } as Awaited<ReturnType<UsersRepository['findById']>>;
+        }
+        if (id === otherUserId) {
+          return {
+            id: otherUserId,
+            username: 'bob',
+            displayName: 'Bob',
+            avatarUrl: null,
+          } as Awaited<ReturnType<UsersRepository['findById']>>;
+        }
+        return null;
+      });
+      repository.findByKey.mockResolvedValue(makeConversation());
+      repository.countUnreadMessages.mockResolvedValue(0);
+
+      const result = await service.create({ userId: userId }, otherUserId);
+      expect(result.id).toBe(conversationId);
+      expect(repository.createConversation).not.toHaveBeenCalled();
+    });
+
+    it('handles P2002 race by returning existing conversation', async () => {
+      usersRepository.findById.mockResolvedValue({
+        id: otherUserId,
+        username: 'bob',
+        displayName: 'Bob',
+        avatarUrl: null,
+      } as Awaited<ReturnType<UsersRepository['findById']>>);
+      repository.findByKey
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(makeConversation());
+      const raceError = new Error('Unique constraint failed') as Error & {
+        code: string;
+      };
+      raceError.code = 'P2002';
+      repository.createConversation.mockRejectedValue(raceError);
+      repository.countUnreadMessages.mockResolvedValue(0);
+
+      const result = await service.create({ userId: otherUserId }, userId);
+      expect(result.id).toBe(conversationId);
+      expect(repository.createConversation).toHaveBeenCalled();
+    });
+
     it('finds user by usernameOrEmail when userId is not provided', async () => {
       usersRepository.findByUsername.mockResolvedValue({
         id: otherUserId,
@@ -1303,6 +1353,24 @@ describe('DirectConversationsService', () => {
         websocketEvents.broadcastDirectConversationUpdated,
       ).not.toHaveBeenCalled();
     });
+
+    it('rejects editing a deleted message', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p-current',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue(
+        makeMessage({ deletedAt: new Date() }),
+      );
+
+      await expect(
+        service.updateMessage(conversationId, messageId, userId, 'updated'),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(repository.updateDirectMessageContent).not.toHaveBeenCalled();
+    });
   });
 
   describe('addReaction', () => {
@@ -1363,6 +1431,70 @@ describe('DirectConversationsService', () => {
         emoji: '👍',
       });
       expect(websocketEvents.broadcastDirectReactionAdded).toHaveBeenCalled();
+    });
+
+    it('rejects reaction on deleted message', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue({
+        id: messageId,
+        conversationId,
+        authorId: otherUserId,
+        parentId: null,
+        content: 'hello',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        editedAt: null,
+        deletedAt: new Date(),
+      });
+
+      await expect(
+        service.addReaction(conversationId, messageId, { emoji: '👍' }, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(repository.createDirectReaction).not.toHaveBeenCalled();
+    });
+
+    it('handles P2002 race by returning current reactions', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue({
+        id: messageId,
+        conversationId,
+        authorId: otherUserId,
+        parentId: null,
+        content: 'hello',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        editedAt: null,
+        deletedAt: null,
+      });
+      repository.findDirectReaction.mockResolvedValue(null);
+      const raceError = new Error('Unique constraint failed') as Error & {
+        code: string;
+      };
+      raceError.code = 'P2002';
+      repository.createDirectReaction.mockRejectedValue(raceError);
+      repository.getDirectMessageReactions.mockResolvedValue([
+        { emoji: '👍', count: 1, reactedByMe: true },
+      ]);
+
+      const result = await service.addReaction(
+        conversationId,
+        messageId,
+        { emoji: '👍' },
+        userId,
+      );
+      expect(result).toEqual([{ emoji: '👍', count: 1, reactedByMe: true }]);
     });
 
     it('toggles off same emoji when user already reacted with it', async () => {
@@ -1829,6 +1961,32 @@ describe('DirectConversationsService', () => {
       await service.removeReaction(conversationId, messageId, '👍', userId);
       expect(repository.deleteDirectReaction).toHaveBeenCalledWith('r1');
       expect(websocketEvents.broadcastDirectReactionRemoved).toHaveBeenCalled();
+    });
+
+    it('rejects removing reaction on deleted message', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue({
+        id: messageId,
+        conversationId,
+        authorId: otherUserId,
+        parentId: null,
+        content: 'hello',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        editedAt: null,
+        deletedAt: new Date(),
+      });
+
+      await expect(
+        service.removeReaction(conversationId, messageId, '👍', userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(repository.deleteDirectReaction).not.toHaveBeenCalled();
     });
 
     it('succeeds idempotently when reaction does not exist', async () => {

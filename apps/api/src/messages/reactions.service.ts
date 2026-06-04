@@ -58,21 +58,31 @@ export class ReactionsService {
       await this.reactions.softDeleteMany(userReactions.map((r) => r.id));
     }
 
-    const created = await this.reactions.create({
-      messageId,
-      userId,
-      emoji: dto.emoji,
-    });
+    try {
+      const created = await this.reactions.create({
+        messageId,
+        userId,
+        emoji: dto.emoji,
+      });
 
-    const summary = await this.reactions.listWithCounts(messageId, userId);
-    await this.broadcastReactionAdded(
-      channelId,
-      messageId,
-      created.emoji,
-      userId,
-      summary,
-    );
-    return summary;
+      const summary = await this.reactions.listWithCounts(messageId, userId);
+      await this.broadcastReactionAdded(
+        channelId,
+        messageId,
+        created.emoji,
+        userId,
+        summary,
+      );
+      return summary;
+    } catch (error) {
+      if (error instanceof Error && 'code' in error && error.code === 'P2002') {
+        // Race: another request created the same reaction concurrently.
+        // Return current state.
+        const summary = await this.reactions.listWithCounts(messageId, userId);
+        return summary;
+      }
+      throw error;
+    }
   }
 
   async removeReaction(

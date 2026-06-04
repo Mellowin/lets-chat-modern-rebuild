@@ -338,6 +338,29 @@ describe('ReactionsService', () => {
         reactedByMe: false,
       });
     });
+
+    it('handles P2002 race by returning current reactions', async () => {
+      mockChannelAccess();
+      mockMessage();
+      reactionsRepository.findActiveByUser.mockResolvedValue([]);
+      const raceError = new Error('Unique constraint failed') as Error & {
+        code: string;
+      };
+      raceError.code = 'P2002';
+      reactionsRepository.create.mockRejectedValue(raceError);
+      reactionsRepository.listWithCounts.mockResolvedValue([
+        { emoji: '👍', count: 1, reactedByMe: true },
+      ]);
+
+      const result = await service.addReaction(
+        workspaceId,
+        channelId,
+        messageId,
+        { emoji: '👍' },
+        userId,
+      );
+      expect(result).toEqual([{ emoji: '👍', count: 1, reactedByMe: true }]);
+    });
   });
 
   describe('removeReaction', () => {

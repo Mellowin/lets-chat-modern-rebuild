@@ -151,12 +151,22 @@ export class DirectConversationsService {
       return this.toConversationResponse(existing, currentUserId);
     }
 
-    const created = await this.directConversations.createConversation({
-      key,
-      participantIds: [currentUserId, targetUser.id],
-    });
+    try {
+      const created = await this.directConversations.createConversation({
+        key,
+        participantIds: [currentUserId, targetUser.id],
+      });
 
-    return this.toConversationResponse(created, currentUserId);
+      return this.toConversationResponse(created, currentUserId);
+    } catch (error) {
+      if (error instanceof Error && 'code' in error && error.code === 'P2002') {
+        const raceExisting = await this.directConversations.findByKey(key);
+        if (raceExisting) {
+          return this.toConversationResponse(raceExisting, currentUserId);
+        }
+      }
+      throw error;
+    }
   }
 
   async list(currentUserId: string) {
@@ -295,6 +305,10 @@ export class DirectConversationsService {
 
     const message = await this.directConversations.findMessageById(messageId);
     if (!message || message.conversationId !== conversationId) {
+      throw new NotFoundException('Message not found');
+    }
+
+    if (message.deletedAt !== null) {
       throw new NotFoundException('Message not found');
     }
 
@@ -461,6 +475,10 @@ export class DirectConversationsService {
       throw new NotFoundException('Message not found');
     }
 
+    if (message.deletedAt !== null) {
+      throw new NotFoundException('Message not found');
+    }
+
     const existingSameEmoji = await this.directConversations.findDirectReaction(
       messageId,
       userId,
@@ -498,11 +516,20 @@ export class DirectConversationsService {
       userId,
     );
 
-    await this.directConversations.createDirectReaction({
-      messageId,
-      userId,
-      emoji: dto.emoji,
-    });
+    try {
+      await this.directConversations.createDirectReaction({
+        messageId,
+        userId,
+        emoji: dto.emoji,
+      });
+    } catch (error) {
+      if (error instanceof Error && 'code' in error && error.code === 'P2002') {
+        // Race: another request created the same reaction concurrently.
+        // Return current state.
+      } else {
+        throw error;
+      }
+    }
 
     const reactions = await this.directConversations.getDirectMessageReactions(
       messageId,
@@ -539,6 +566,10 @@ export class DirectConversationsService {
 
     const message = await this.directConversations.findMessageById(messageId);
     if (!message || message.conversationId !== conversationId) {
+      throw new NotFoundException('Message not found');
+    }
+
+    if (message.deletedAt !== null) {
       throw new NotFoundException('Message not found');
     }
 
