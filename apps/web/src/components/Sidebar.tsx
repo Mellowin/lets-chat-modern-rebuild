@@ -116,11 +116,41 @@ export default function Sidebar() {
     function handleDirectConversationUpdated() {
       load(token);
     }
+    function handlePresenceOnline(payload: {
+      user: { id: string; username: string; displayName?: string | null };
+      status: string;
+    }) {
+      setDirectConversations((prev) => {
+        if (prev.kind !== "success") return prev;
+        const idx = prev.data.findIndex((c) => c.otherParticipant?.id === payload.user.id);
+        if (idx === -1) return prev;
+        const updated = [...prev.data];
+        updated[idx] = { ...updated[idx], isOnline: true };
+        return { kind: "success", data: updated };
+      });
+    }
+    function handlePresenceOffline(payload: {
+      user: { id: string; username: string; displayName?: string | null };
+      status: string;
+    }) {
+      setDirectConversations((prev) => {
+        if (prev.kind !== "success") return prev;
+        const idx = prev.data.findIndex((c) => c.otherParticipant?.id === payload.user.id);
+        if (idx === -1) return prev;
+        const updated = [...prev.data];
+        updated[idx] = { ...updated[idx], isOnline: false };
+        return { kind: "success", data: updated };
+      });
+    }
     socket.on("direct:conversation:updated", handleDirectConversationUpdated);
+    socket.on("presence:online", handlePresenceOnline);
+    socket.on("presence:offline", handlePresenceOffline);
     return () => {
       cancelled = true;
       window.removeEventListener("direct-conversations:changed", handleDirectConversationsChanged);
       socket.off("direct:conversation:updated", handleDirectConversationUpdated);
+      socket.off("presence:online", handlePresenceOnline);
+      socket.off("presence:offline", handlePresenceOffline);
       socket.disconnect();
     };
   }, [isAuthenticated, accessToken]);
@@ -337,6 +367,7 @@ export default function Sidebar() {
                       }`}
                     >
                       <span
+                        data-testid={`sidebar-direct-presence-dot-${conv.id}`}
                         className={`h-2 w-2 shrink-0 rounded-full ${
                           conv.isOnline ? "bg-emerald-500" : "bg-zinc-300 dark:bg-zinc-600"
                         }`}

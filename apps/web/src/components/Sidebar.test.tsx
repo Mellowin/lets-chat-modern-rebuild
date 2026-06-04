@@ -416,7 +416,104 @@ describe("Sidebar — socket cleanup", () => {
     });
     unmount();
     expect(socketOffMock).toHaveBeenCalledWith("direct:conversation:updated", expect.any(Function));
+    expect(socketOffMock).toHaveBeenCalledWith("presence:online", expect.any(Function));
+    expect(socketOffMock).toHaveBeenCalledWith("presence:offline", expect.any(Function));
     expect(socketDisconnectMock).toHaveBeenCalled();
+  });
+});
+
+describe("Sidebar — presence updates", () => {
+  it("updates online dot when presence:online is received", async () => {
+    setupDefaultMocks();
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-direct-conversation-link-dc2")).toBeInTheDocument();
+    });
+    const dot = screen.getByTestId("sidebar-direct-presence-dot-dc2");
+    expect(dot).toHaveClass("bg-zinc-300");
+    const handler = socketHandlers["presence:online"];
+    handler({ user: { id: "u3", username: "charlie" }, status: "online" });
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-direct-presence-dot-dc2")).toHaveClass("bg-emerald-500");
+    });
+  });
+
+  it("updates offline dot when presence:offline is received", async () => {
+    setupDefaultMocks();
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-direct-conversation-link-dc1")).toBeInTheDocument();
+    });
+    const dot = screen.getByTestId("sidebar-direct-presence-dot-dc1");
+    expect(dot).toHaveClass("bg-emerald-500");
+    const handler = socketHandlers["presence:offline"];
+    handler({ user: { id: "u2", username: "bob" }, status: "offline" });
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-direct-presence-dot-dc1")).toHaveClass("bg-zinc-300");
+    });
+  });
+
+  it("presence update does not change unreadCount", async () => {
+    setupDefaultMocks();
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-direct-unread-badge")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("sidebar-direct-unread-badge")).toHaveTextContent("3");
+    const handler = socketHandlers["presence:online"];
+    handler({ user: { id: "u3", username: "charlie" }, status: "online" });
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-direct-presence-dot-dc2")).toHaveClass("bg-emerald-500");
+    });
+    expect(screen.getByTestId("sidebar-direct-unread-badge")).toHaveTextContent("3");
+  });
+
+  it("presence update does not reorder direct conversations", async () => {
+    setupDefaultMocks();
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-direct-conversation-link-dc1")).toBeInTheDocument();
+    });
+    const before = screen.getAllByTestId(/sidebar-direct-conversation-link-dc\d/).map((el) => el.getAttribute("data-testid"));
+    const handler = socketHandlers["presence:offline"];
+    handler({ user: { id: "u2", username: "bob" }, status: "offline" });
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-direct-presence-dot-dc1")).toHaveClass("bg-zinc-300");
+    });
+    const after = screen.getAllByTestId(/sidebar-direct-conversation-link-dc\d/).map((el) => el.getAttribute("data-testid"));
+    expect(after).toEqual(before);
+  });
+
+  it("presence update does not remove active direct conversation highlight", async () => {
+    setupDefaultMocks("/direct/dc1");
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-direct-conversation-link-dc1")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("sidebar-direct-conversation-link-dc1")).toHaveClass("bg-zinc-200");
+    const handler = socketHandlers["presence:online"];
+    handler({ user: { id: "u3", username: "charlie" }, status: "online" });
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-direct-presence-dot-dc2")).toHaveClass("bg-emerald-500");
+    });
+    expect(screen.getByTestId("sidebar-direct-conversation-link-dc1")).toHaveClass("bg-zinc-200");
+  });
+
+  it("presence event for unrelated user does not change existing conversations", async () => {
+    setupDefaultMocks();
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-direct-conversation-link-dc1")).toBeInTheDocument();
+    });
+    const dot1 = screen.getByTestId("sidebar-direct-presence-dot-dc1");
+    const dot2 = screen.getByTestId("sidebar-direct-presence-dot-dc2");
+    expect(dot1).toHaveClass("bg-emerald-500");
+    expect(dot2).toHaveClass("bg-zinc-300");
+    const handler = socketHandlers["presence:online"];
+    handler({ user: { id: "u99", username: "stranger" }, status: "online" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(dot1).toHaveClass("bg-emerald-500");
+    expect(dot2).toHaveClass("bg-zinc-300");
   });
 });
 
