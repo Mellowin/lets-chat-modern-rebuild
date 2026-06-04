@@ -16,7 +16,6 @@ describe('ReactionsService', () => {
   let websocketEvents: jest.Mocked<WebsocketEventsService>;
 
   const userId = '11111111-1111-1111-1111-111111111111';
-  const otherUserId = '22222222-2222-2222-2222-222222222222';
   const workspaceId = '33333333-3333-3333-3333-333333333333';
   const channelId = '44444444-4444-4444-4444-444444444444';
   const messageId = '55555555-5555-5555-5555-555555555555';
@@ -83,7 +82,9 @@ describe('ReactionsService', () => {
     } as Awaited<ReturnType<ChannelsService['findById']>>);
   }
 
-  function mockMessage(overrides: { channelId?: string; deletedAt?: Date | null } = {}) {
+  function mockMessage(
+    overrides: { channelId?: string; deletedAt?: Date | null } = {},
+  ) {
     messagesRepository.findById.mockResolvedValue({
       id: messageId,
       channelId: overrides.channelId ?? channelId,
@@ -98,7 +99,13 @@ describe('ReactionsService', () => {
       );
 
       await expect(
-        service.addReaction(workspaceId, channelId, messageId, { emoji: '👍' }, userId),
+        service.addReaction(
+          workspaceId,
+          channelId,
+          messageId,
+          { emoji: '👍' },
+          userId,
+        ),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
@@ -108,7 +115,13 @@ describe('ReactionsService', () => {
       );
 
       await expect(
-        service.addReaction(workspaceId, channelId, messageId, { emoji: '👍' }, userId),
+        service.addReaction(
+          workspaceId,
+          channelId,
+          messageId,
+          { emoji: '👍' },
+          userId,
+        ),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
@@ -117,7 +130,13 @@ describe('ReactionsService', () => {
       mockMessage({ channelId: '99999999-9999-9999-9999-999999999999' });
 
       await expect(
-        service.addReaction(workspaceId, channelId, messageId, { emoji: '👍' }, userId),
+        service.addReaction(
+          workspaceId,
+          channelId,
+          messageId,
+          { emoji: '👍' },
+          userId,
+        ),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
@@ -126,7 +145,13 @@ describe('ReactionsService', () => {
       mockMessage({ deletedAt: new Date() });
 
       await expect(
-        service.addReaction(workspaceId, channelId, messageId, { emoji: '👍' }, userId),
+        service.addReaction(
+          workspaceId,
+          channelId,
+          messageId,
+          { emoji: '👍' },
+          userId,
+        ),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
@@ -201,7 +226,9 @@ describe('ReactionsService', () => {
       reactionsRepository.findActiveByUser.mockResolvedValue([
         { id: 'r1', messageId, userId, emoji: '❤️', deletedAt: null },
       ]);
-      reactionsRepository.deleteDirectReactionsForUser = jest.fn().mockResolvedValue({ count: 1 });
+      reactionsRepository.deleteDirectReactionsForUser = jest
+        .fn()
+        .mockResolvedValue({ count: 1 });
       reactionsRepository.create.mockResolvedValue({
         id: 'r2',
         messageId,
@@ -294,7 +321,11 @@ describe('ReactionsService', () => {
         userId,
       );
 
-      expect(result).toContainEqual({ emoji: '❤️', count: 1, reactedByMe: false });
+      expect(result).toContainEqual({
+        emoji: '❤️',
+        count: 1,
+        reactedByMe: false,
+      });
     });
   });
 
@@ -390,7 +421,13 @@ describe('ReactionsService', () => {
       ).rejects.toBeInstanceOf(BadRequestException);
 
       await expect(
-        service.removeReaction(workspaceId, channelId, messageId, 'x'.repeat(33), userId),
+        service.removeReaction(
+          workspaceId,
+          channelId,
+          messageId,
+          'x'.repeat(33),
+          userId,
+        ),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
@@ -398,9 +435,15 @@ describe('ReactionsService', () => {
       mockChannelAccess();
       mockMessage();
       reactionsRepository.findActive.mockImplementation(
-        async (_msgId: string, uId: string, _emoji: string) => {
+        (_msgId: string, uId: string) => {
           if (uId === userId) {
-            return { id: 'r1', messageId, userId, emoji: '👍', deletedAt: null };
+            return {
+              id: 'r1',
+              messageId,
+              userId,
+              emoji: '👍',
+              deletedAt: null,
+            };
           }
           return null;
         },
@@ -415,7 +458,13 @@ describe('ReactionsService', () => {
         username: 'alice',
       } as Awaited<ReturnType<UsersRepository['findById']>>);
 
-      await service.removeReaction(workspaceId, channelId, messageId, '👍', userId);
+      await service.removeReaction(
+        workspaceId,
+        channelId,
+        messageId,
+        '👍',
+        userId,
+      );
 
       expect(reactionsRepository.findActive).toHaveBeenCalledWith(
         messageId,
