@@ -92,6 +92,30 @@ describe('ReactionsService', () => {
     } as Awaited<ReturnType<MessagesRepository['findById']>>);
   }
 
+  function mockReaction(
+    overrides: Partial<{
+      id: string;
+      messageId: string;
+      userId: string;
+      emoji: string;
+      createdAt: Date;
+      updatedAt: Date;
+      deletedAt: Date | null;
+    }> = {},
+  ) {
+    const now = new Date('2026-01-01T00:00:00.000Z');
+    return {
+      id: 'reaction-id',
+      messageId,
+      userId,
+      emoji: '👍',
+      createdAt: now,
+      updatedAt: now,
+      deletedAt: null,
+      ...overrides,
+    };
+  }
+
   describe('addReaction', () => {
     it('throws NotFoundException for non-workspace member', async () => {
       channelsService.findById.mockRejectedValue(
@@ -159,12 +183,9 @@ describe('ReactionsService', () => {
       mockChannelAccess();
       mockMessage();
       reactionsRepository.findActiveByUser.mockResolvedValue([]);
-      reactionsRepository.create.mockResolvedValue({
-        id: 'r1',
-        messageId,
-        userId,
-        emoji: '👍',
-      });
+      reactionsRepository.create.mockResolvedValue(
+        mockReaction({ id: 'r1', emoji: '👍' }),
+      );
       reactionsRepository.listWithCounts.mockResolvedValue([
         { emoji: '👍', count: 1, reactedByMe: true },
       ]);
@@ -194,12 +215,14 @@ describe('ReactionsService', () => {
       mockChannelAccess();
       mockMessage();
       reactionsRepository.findActiveByUser.mockResolvedValue([
-        { id: 'r1', messageId, userId, emoji: '👍', deletedAt: null },
+        mockReaction({ id: 'r1', emoji: '👍' }),
       ]);
-      reactionsRepository.softDelete.mockResolvedValue({
-        id: 'r1',
-        deletedAt: new Date(),
-      });
+      reactionsRepository.softDelete.mockResolvedValue(
+        mockReaction({
+          id: 'r1',
+          deletedAt: new Date('2026-01-01T00:00:00.000Z'),
+        }),
+      );
       reactionsRepository.listWithCounts.mockResolvedValue([]);
       usersRepository.findById.mockResolvedValue({
         id: userId,
@@ -224,17 +247,11 @@ describe('ReactionsService', () => {
       mockChannelAccess();
       mockMessage();
       reactionsRepository.findActiveByUser.mockResolvedValue([
-        { id: 'r1', messageId, userId, emoji: '❤️', deletedAt: null },
+        mockReaction({ id: 'r1', emoji: '❤️' }),
       ]);
-      reactionsRepository.deleteDirectReactionsForUser = jest
-        .fn()
-        .mockResolvedValue({ count: 1 });
-      reactionsRepository.create.mockResolvedValue({
-        id: 'r2',
-        messageId,
-        userId,
-        emoji: '👍',
-      });
+      reactionsRepository.create.mockResolvedValue(
+        mockReaction({ id: 'r2', emoji: '👍' }),
+      );
       reactionsRepository.listWithCounts.mockResolvedValue([
         { emoji: '👍', count: 1, reactedByMe: true },
       ]);
@@ -265,14 +282,11 @@ describe('ReactionsService', () => {
       mockChannelAccess();
       mockMessage();
       reactionsRepository.findActiveByUser.mockResolvedValue([
-        { id: 'r1', messageId, userId, emoji: '❤️', deletedAt: null },
+        mockReaction({ id: 'r1', emoji: '❤️' }),
       ]);
-      reactionsRepository.create.mockResolvedValue({
-        id: 'r2',
-        messageId,
-        userId,
-        emoji: '👍',
-      });
+      reactionsRepository.create.mockResolvedValue(
+        mockReaction({ id: 'r2', emoji: '👍' }),
+      );
       reactionsRepository.listWithCounts.mockResolvedValue([
         { emoji: '👍', count: 1, reactedByMe: true },
       ]);
@@ -296,14 +310,11 @@ describe('ReactionsService', () => {
       mockChannelAccess();
       mockMessage();
       reactionsRepository.findActiveByUser.mockResolvedValue([
-        { id: 'r1', messageId, userId, emoji: '❤️', deletedAt: null },
+        mockReaction({ id: 'r1', emoji: '❤️' }),
       ]);
-      reactionsRepository.create.mockResolvedValue({
-        id: 'r2',
-        messageId,
-        userId,
-        emoji: '👍',
-      });
+      reactionsRepository.create.mockResolvedValue(
+        mockReaction({ id: 'r2', emoji: '👍' }),
+      );
       reactionsRepository.listWithCounts.mockResolvedValue([
         { emoji: '👍', count: 1, reactedByMe: true },
         { emoji: '❤️', count: 1, reactedByMe: false },
@@ -371,17 +382,15 @@ describe('ReactionsService', () => {
     it('removes existing reaction', async () => {
       mockChannelAccess();
       mockMessage();
-      reactionsRepository.findActive.mockResolvedValue({
-        id: 'r1',
-        messageId,
-        userId,
-        emoji: '👍',
-        deletedAt: null,
-      });
-      reactionsRepository.softDelete.mockResolvedValue({
-        id: 'r1',
-        deletedAt: new Date(),
-      });
+      reactionsRepository.findActive.mockResolvedValue(
+        mockReaction({ id: 'r1', emoji: '👍' }),
+      );
+      reactionsRepository.softDelete.mockResolvedValue(
+        mockReaction({
+          id: 'r1',
+          deletedAt: new Date('2026-01-01T00:00:00.000Z'),
+        }),
+      );
       reactionsRepository.listWithCounts.mockResolvedValue([]);
       usersRepository.findById.mockResolvedValue({
         id: userId,
@@ -437,21 +446,17 @@ describe('ReactionsService', () => {
       reactionsRepository.findActive.mockImplementation(
         (_msgId: string, uId: string) => {
           if (uId === userId) {
-            return {
-              id: 'r1',
-              messageId,
-              userId,
-              emoji: '👍',
-              deletedAt: null,
-            };
+            return Promise.resolve(mockReaction({ id: 'r1', emoji: '👍' }));
           }
-          return null;
+          return Promise.resolve(null);
         },
       );
-      reactionsRepository.softDelete.mockResolvedValue({
-        id: 'r1',
-        deletedAt: new Date(),
-      });
+      reactionsRepository.softDelete.mockResolvedValue(
+        mockReaction({
+          id: 'r1',
+          deletedAt: new Date('2026-01-01T00:00:00.000Z'),
+        }),
+      );
       reactionsRepository.listWithCounts.mockResolvedValue([]);
       usersRepository.findById.mockResolvedValue({
         id: userId,
