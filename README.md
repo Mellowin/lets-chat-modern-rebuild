@@ -32,6 +32,11 @@ Screenshots and demo video coming soon.
 - 💬 **Channels** — public and private with authorization guards
 - 💬 **Messages** — CRUD, soft delete, 15-minute edit window
 - ⚡ **Real-Time** — Socket.io rooms, message broadcasts, typing indicators, presence
+- 💬 **Direct Messages** — 1-to-1 conversations with participant-only access
+- ⚡ **Reactions** — emoji reactions with toggle/replace (one per user)
+- 🔁 **Replies & Forwarding** — thread replies and message forwarding between channels
+- 👁️ **Read Receipts** — message read tracking per user
+- 🔤 **Localization** — English, Ukrainian, Russian
 - 🔒 **WebSocket Security** — typing revalidates channel access; revoked access triggers auto-leave
 - 📋 **Audit Log** — immutable trail for member/invite/ownership actions
 - 📨 **Invites** — token-based invites with SHA-256 hash and email match
@@ -43,8 +48,12 @@ Screenshots and demo video coming soon.
 - 🔐 **Auth Flow** — login, register, logout with sessionStorage isolation
 - 🏢 **Workspaces** — list, create, detail views
 - 💬 **Channels** — list, create, real-time message view
-- ✏️ **Messages** — send (Enter), edit within 15 min, soft delete
-- ⚡ **Live Updates** — message created/updated/deleted via WebSocket
+- ✏️ **Messages** — send (Enter), edit within 15 min, soft delete, reply, forward
+- ⚡ **Live Updates** — message created/updated/deleted/reaction changes via WebSocket
+- 💬 **Direct Messages** — 1-to-1 chat with real-time delivery
+- 🌍 **Localization** — switch between EN / UK / RU
+- ⌨️ **Typing Indicators** — live typing status in channels and DMs
+- 👁️ **Read Receipts** — message seen status
 - 🌐 **Cyrillic Support** — usernames and workspace names with auto-transliteration
 
 ---
@@ -54,6 +63,7 @@ Screenshots and demo video coming soon.
 - **Private channels** return `404` for non-members — no information leakage
 - **Message edit** restricted to author and 15-minute window
 - **Message delete** restricted to author, admins, and owners
+- **Direct messages** accessible only to conversation participants
 - **Channel update/archive** enforced by role (OWNER/ADMIN only)
 - **WebSocket typing** revalidates membership on every event; revoked access forces room leave and presence cleanup
 
@@ -63,8 +73,9 @@ Screenshots and demo video coming soon.
 
 | Suite | Count | Status |
 |-------|-------|--------|
-| API Unit Tests | 193 (10 suites) | ✅ passing |
-| Web Unit Tests | 64 (8 files) | ✅ passing |
+| API Unit Tests | 536 (24 suites) | ✅ passing |
+| Web Unit Tests | 504 (18 files) | ✅ passing |
+| Web Page Tests | 188 (2 files) | ✅ passing |
 | E2E Security Smoke Tests | 7 (2 suites) | ✅ passing locally |
 
 - **CI:** GitHub Actions green for unit tests, builds, and lint
@@ -105,31 +116,37 @@ secure-collab-platform/
 pnpm install
 ```
 
-### 2. Start infrastructure
+### 2. Configure environment
+
+```bash
+cp .env.example .env
+```
+
+### 3. Start infrastructure
 
 ```bash
 docker compose up -d
 ```
 
-### 3. Run database migrations
+### 4. Run database migrations
 
 ```bash
 pnpm --filter @lets-chat/database migrate
 ```
 
-### 4. Generate Prisma Client
+### 5. Generate Prisma Client
 
 ```bash
 pnpm --filter @lets-chat/database generate
 ```
 
-### 5. Start API (development)
+### 6. Start API (development)
 
 ```bash
 pnpm --filter api start:dev
 ```
 
-### 6. Start Web (development)
+### 7. Start Web (development)
 
 ```bash
 pnpm --filter web dev
@@ -167,13 +184,19 @@ pnpm --filter api test:e2e
 # Web unit tests
 pnpm --filter web test
 
-# Web lint
+# Web page-level tests
+pnpm --filter web test:pages
+
+# Lint
+pnpm --filter api lint
 pnpm --filter web lint
 
-# Type check API
-pnpm --filter api build
+# Type check
+pnpm --filter api typecheck
+pnpm --filter web typecheck
 
-# Type check Web
+# Build
+pnpm --filter api build
 pnpm --filter web build
 ```
 
@@ -185,7 +208,6 @@ pnpm --filter web build
 
 - **E2E tests are local-only** — CI workflow lacks a PostgreSQL service
 - **No broad E2E coverage** beyond private-channel authorization smoke tests
-- **No message threading / replies** — flat message list only
 - **No frontend file upload integration** — storage backend exists, UI does not
 - **No message search UI** — search backend exists, UI does not
 - **Presence is in-memory** — no Redis Socket.io adapter yet
