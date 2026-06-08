@@ -8,7 +8,7 @@ import { getWorkspaces, type Workspace } from "@/lib/workspaces-api";
 import { getChannels, type Channel } from "@/lib/channels-api";
 import { listDirectConversations, type DirectConversation } from "@/lib/direct-conversations-api";
 import { createSocket } from "@/lib/socket-client";
-import { getLocale, translate } from "@/lib/locale";
+import { useLocale } from "@/lib/locale";
 
 type WorkspacesState =
   | { kind: "idle" }
@@ -40,6 +40,7 @@ function getStoredSectionOrder(): SectionOrder {
 export default function Sidebar() {
   const { accessToken, isAuthenticated, isLoading: authLoading } = useAuth();
   const pathname = usePathname();
+  const { t } = useLocale();
 
 
   const [workspaces, setWorkspaces] = useState<WorkspacesState>({ kind: "idle" });
@@ -265,8 +266,8 @@ export default function Sidebar() {
   if (authLoading || !isAuthenticated) {
     return (
       <aside className="w-60 shrink-0 border-r border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 hidden sm:flex flex-col p-3">
-        <div className="text-xs font-medium text-zinc-400 uppercase tracking-wider px-2 py-1">{translate(getLocale(), "sidebar.workspace")}</div>
-        <div className="mt-2 px-2 text-sm text-zinc-400 dark:text-zinc-500">{translate(getLocale(), "sidebar.signInToSeeWorkspaces")}</div>
+        <div className="text-xs font-medium text-zinc-400 uppercase tracking-wider px-2 py-1">{t("sidebar.workspace")}</div>
+        <div className="mt-2 px-2 text-sm text-zinc-400 dark:text-zinc-500">{t("sidebar.signInToSeeWorkspaces")}</div>
       </aside>
     );
   }
@@ -284,7 +285,7 @@ export default function Sidebar() {
         className="flex flex-1 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-zinc-400 uppercase tracking-wider hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
       >
         <span className={`transition-transform ${directExpanded ? "rotate-90" : ""}`}>▸</span>
-        <span>{translate(getLocale(), "sidebar.direct")}</span>
+        <span>{t("sidebar.direct")}</span>
       </button>
       <button
         type="button"
@@ -293,7 +294,7 @@ export default function Sidebar() {
           toggleSectionOrder();
         }}
         data-testid="sidebar-direct-move"
-        aria-label={translate(getLocale(), sectionOrder === "direct-first" ? "sidebar.moveDown" : "sidebar.moveUp")}
+        aria-label={t(sectionOrder === "direct-first" ? "sidebar.moveDown" : "sidebar.moveUp")}
         className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-[10px] text-zinc-400 hover:bg-zinc-200/60 hover:text-zinc-700 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-200"
       >
         {sectionOrder === "direct-first" ? "↓" : "↑"}
@@ -308,7 +309,7 @@ export default function Sidebar() {
         className="flex flex-1 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-zinc-400 uppercase tracking-wider hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
       >
         <span className={`transition-transform ${workspacesExpanded ? "rotate-90" : ""}`}>▸</span>
-        <span>{translate(getLocale(), "sidebar.workspaces")}</span>
+        <span>{t("sidebar.workspaces")}</span>
       </button>
       <button
         type="button"
@@ -317,7 +318,7 @@ export default function Sidebar() {
           toggleSectionOrder();
         }}
         data-testid="sidebar-workspaces-move"
-        aria-label={translate(getLocale(), sectionOrder === "workspaces-first" ? "sidebar.moveDown" : "sidebar.moveUp")}
+        aria-label={t(sectionOrder === "workspaces-first" ? "sidebar.moveDown" : "sidebar.moveUp")}
         className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-[10px] text-zinc-400 hover:bg-zinc-200/60 hover:text-zinc-700 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-200"
       >
         {sectionOrder === "workspaces-first" ? "↓" : "↑"}
@@ -341,7 +342,7 @@ export default function Sidebar() {
                     : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
                 }`}
               >
-                <span className="truncate block">{translate(getLocale(), "sidebar.directMessages")}</span>
+                <span className="truncate block">{t("sidebar.directMessages")}</span>
                 {directUnreadTotal > 0 && (
                   <span data-testid="sidebar-direct-unread-badge" className="inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-zinc-900 px-1 text-[9px] font-bold text-white dark:bg-zinc-100 dark:text-zinc-900">
                     {directUnreadTotal > 99 ? "99+" : directUnreadTotal}
@@ -354,7 +355,7 @@ export default function Sidebar() {
             <ul className="mt-1 space-y-0.5">
               {directConversations.data.map((conv) => {
                 const isActive = conv.id === activeDirectConversationId;
-                const name = conv.otherParticipant?.displayName || conv.otherParticipant?.username || translate(getLocale(), "sidebar.unknownUser");
+                const name = conv.otherParticipant?.displayName || conv.otherParticipant?.username || t("sidebar.unknownUser");
                 return (
                   <li key={conv.id}>
                     <Link
@@ -397,14 +398,14 @@ export default function Sidebar() {
           {workspaces.kind === "loading" && (
             <div className="flex items-center gap-2 px-2 text-sm text-zinc-500 dark:text-zinc-400">
               <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
-              {translate(getLocale(), "sidebar.loading")}
+              {t("sidebar.loading")}
             </div>
           )}
           {workspaces.kind === "error" && (
-            <div className="px-2 text-sm text-red-600 dark:text-red-400">{translate(getLocale(), "sidebar.failedToLoadWorkspaces")}</div>
+            <div className="px-2 text-sm text-red-600 dark:text-red-400">{t("sidebar.failedToLoadWorkspaces")}</div>
           )}
           {workspaces.kind === "success" && workspaces.data.length === 0 && (
-            <div className="px-2 text-sm text-zinc-500 dark:text-zinc-400">{translate(getLocale(), "sidebar.noWorkspacesYet")}</div>
+            <div className="px-2 text-sm text-zinc-500 dark:text-zinc-400">{t("sidebar.noWorkspacesYet")}</div>
           )}
           {workspaces.kind === "success" && workspaces.data.length > 0 && (
             <ul className="space-y-0.5">
@@ -435,22 +436,22 @@ export default function Sidebar() {
                               : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
                           }`}
                         >
-                          <span className="truncate block">{translate(getLocale(), "sidebar.overview")}</span>
+                          <span className="truncate block">{t("sidebar.overview")}</span>
                         </Link>
                         {workspaceChannels[ws.id]?.kind === "loading" && (
                           <div className="flex items-center gap-2 px-2 text-xs text-zinc-500 dark:text-zinc-400">
                             <span className="inline-block h-2 w-2 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
-                            {translate(getLocale(), "sidebar.loading")}
+                            {t("sidebar.loading")}
                           </div>
                         )}
                         {workspaceChannels[ws.id]?.kind === "error" && (
-                          <div className="px-2 text-xs text-red-600 dark:text-red-400">{translate(getLocale(), "sidebar.failedToLoadChannels")}</div>
+                          <div className="px-2 text-xs text-red-600 dark:text-red-400">{t("sidebar.failedToLoadChannels")}</div>
                         )}
                         {(() => {
                           const chState = workspaceChannels[ws.id];
                           if (chState?.kind !== "success") return null;
                           if (chState.data.length === 0) {
-                            return <div className="px-2 text-xs text-zinc-500 dark:text-zinc-400">{translate(getLocale(), "sidebar.noChannelsYet")}</div>;
+                            return <div className="px-2 text-xs text-zinc-500 dark:text-zinc-400">{t("sidebar.noChannelsYet")}</div>;
                           }
                           return (
                             <ul className="space-y-0.5">
@@ -475,7 +476,7 @@ export default function Sidebar() {
                                           : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
                                       }`}
                                     >
-                                      {ch.type === "PUBLIC" ? translate(getLocale(), "sidebar.publicShort") : translate(getLocale(), "sidebar.privateShort")}
+                                      {ch.type === "PUBLIC" ? t("sidebar.publicShort") : t("sidebar.privateShort")}
                                     </span>
                                   </Link>
                                 </li>
