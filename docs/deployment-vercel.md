@@ -150,6 +150,53 @@ If `CORS_ORIGIN` is not set, the API falls back to `http://localhost:3000` for l
 
 ---
 
+## Post-deploy smoke check
+
+After both backend and frontend are deployed, run the smoke script to verify the deployment:
+
+```bash
+WEB_URL=https://your-app.vercel.app \
+API_URL=https://your-api.example.com/api/v1 \
+node scripts/smoke-deploy.mjs
+```
+
+**PowerShell:**
+```powershell
+$env:WEB_URL="https://your-app.vercel.app"
+$env:API_URL="https://your-api.example.com/api/v1"
+node scripts/smoke-deploy.mjs
+```
+
+### Required values
+
+- `WEB_URL` — full Vercel production URL (e.g. `https://your-app.vercel.app`)
+- `API_URL` — must include `/api/v1` (e.g. `https://your-api.example.com/api/v1`)
+
+### What the script checks
+
+1. Frontend returns `200 OK` with HTML
+2. Backend `/health` returns `status: ok`
+3. `POST /auth/forgot-password` returns generic success (no email enumeration)
+4. `POST /auth/resend-verification` returns generic success
+
+### What success means
+
+- Frontend is reachable and serving HTML
+- Backend is reachable, healthy, and responding to CORS requests from the smoke script
+- Auth endpoints are functional
+
+### Common failures and causes
+
+| Failure | Likely Cause |
+|---------|-------------|
+| `WEB_URL returns 200 OK with HTML: fetch failed` | Frontend not deployed or wrong URL |
+| `API health returns status ok: fetch failed` | Backend not deployed or wrong URL |
+| `API health returns status ok: status 403/404` | Wrong `API_URL` path (missing `/api/v1`) |
+| `POST /auth/forgot-password returns generic success: fetch failed` | CORS blocked — `CORS_ORIGIN` on backend does not include Vercel domain |
+| `API health: body.status = degraded` | Database connection failing — migrations not applied or wrong `DATABASE_URL` |
+
+---
+
 ## No `vercel.json` required
 
 This project does **not** need a `vercel.json` file. Vercel auto-detects Next.js from `apps/web/package.json`. The only extra configuration is the **Build Command** in the Vercel dashboard to compile the workspace dependency `@lets-chat/shared` before building the Next.js app.
