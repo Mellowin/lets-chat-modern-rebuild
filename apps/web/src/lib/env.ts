@@ -1,14 +1,14 @@
-function requireEnv(name: string, fallback: string): string {
-  const value = process.env[name];
-  if (value) return value;
-  if (process.env.NODE_ENV === "production") {
-    throw new Error(`${name} is required in production`);
-  }
-  return fallback;
-}
+const API_BASE = process.env.NEXT_PUBLIC_API_URL;
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL;
 
 export function getApiBase(): string {
-  return requireEnv("NEXT_PUBLIC_API_URL", "http://localhost:3001/api/v1");
+  if (API_BASE) {
+    return API_BASE.replace(/\/$/, "");
+  }
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("NEXT_PUBLIC_API_URL is required in production");
+  }
+  return "http://localhost:3001/api/v1";
 }
 
 export function getApiOrigin(): string {
@@ -16,5 +16,11 @@ export function getApiOrigin(): string {
 }
 
 export function getWsUrl(): string {
-  return requireEnv("NEXT_PUBLIC_WS_URL", "http://localhost:3001");
+  if (WS_URL) {
+    return WS_URL.replace(/\/$/, "");
+  }
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("NEXT_PUBLIC_WS_URL is required in production");
+  }
+  return "http://localhost:3001";
 }
