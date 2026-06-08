@@ -119,6 +119,29 @@ export type TranslationKey =
   | "auth.emailNotVerified"
   | "auth.signInAfterVerification"
   | "auth.backToSignIn"
+  | "auth.loading"
+  | "auth.passwordsDoNotMatch"
+  | "auth.passwordMinLength"
+  | "auth.confirmPassword"
+  | "auth.forgotPassword"
+  | "auth.forgotPasswordTitle"
+  | "auth.forgotPasswordSubtitle"
+  | "auth.sendResetLink"
+  | "auth.resetLinkSent"
+  | "auth.resetPasswordTitle"
+  | "auth.newPassword"
+  | "auth.passwordResetSuccess"
+  | "auth.passwordResetFailed"
+  | "auth.changeEmailTitle"
+  | "auth.changeEmailSubtitle"
+  | "auth.currentEmail"
+  | "auth.newEmail"
+  | "auth.emailChangeRequested"
+  | "auth.confirmEmailChangeTitle"
+  | "auth.emailChanged"
+  | "auth.emailChangeFailed"
+  | "auth.backToProfile"
+  | "auth.requestChange"
   | "workspace.backToDashboard"
   | "workspace.loading"
   | "workspace.createChannel"
@@ -422,6 +445,29 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "auth.emailNotVerified": "Please verify your email before signing in.",
     "auth.signInAfterVerification": "You can now sign in with your verified email.",
     "auth.backToSignIn": "Back to sign in",
+    "auth.loading": "Loading…",
+    "auth.passwordsDoNotMatch": "Passwords do not match",
+    "auth.passwordMinLength": "Password must be at least 8 characters",
+    "auth.confirmPassword": "Confirm password",
+    "auth.forgotPassword": "Forgot password?",
+    "auth.forgotPasswordTitle": "Reset password",
+    "auth.forgotPasswordSubtitle": "Enter your email and we'll send you a reset link.",
+    "auth.sendResetLink": "Send reset link",
+    "auth.resetLinkSent": "If the email exists, a reset link has been sent.",
+    "auth.resetPasswordTitle": "Set new password",
+    "auth.newPassword": "New password",
+    "auth.passwordResetSuccess": "Password reset successfully",
+    "auth.passwordResetFailed": "Password reset failed",
+    "auth.changeEmailTitle": "Change email",
+    "auth.changeEmailSubtitle": "Enter your new email address.",
+    "auth.currentEmail": "Current email",
+    "auth.newEmail": "New email",
+    "auth.emailChangeRequested": "Check your new email to confirm the change.",
+    "auth.confirmEmailChangeTitle": "Confirm email change",
+    "auth.emailChanged": "Email changed successfully",
+    "auth.emailChangeFailed": "Email change failed",
+    "auth.backToProfile": "Back to profile",
+    "auth.requestChange": "Request change",
     "workspace.backToDashboard": "← Back to dashboard",
     "workspace.loading": "Loading workspace…",
     "workspace.createChannel": "Create channel",
@@ -724,6 +770,29 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "auth.emailNotVerified": "Будь ласка, підтвердьте email перед входом.",
     "auth.signInAfterVerification": "Тепер ви можете увійти з підтвердженим email.",
     "auth.backToSignIn": "Назад до входу",
+    "auth.loading": "Завантаження…",
+    "auth.passwordsDoNotMatch": "Паролі не збігаються",
+    "auth.passwordMinLength": "Пароль має містити щонайменше 8 символів",
+    "auth.confirmPassword": "Підтвердіть пароль",
+    "auth.forgotPassword": "Забули пароль?",
+    "auth.forgotPasswordTitle": "Скидання пароля",
+    "auth.forgotPasswordSubtitle": "Введіть email і ми надішлемо посилання для скидання.",
+    "auth.sendResetLink": "Надіслати посилання",
+    "auth.resetLinkSent": "Якщо email існує, посилання для скидання надіслано.",
+    "auth.resetPasswordTitle": "Новий пароль",
+    "auth.newPassword": "Новий пароль",
+    "auth.passwordResetSuccess": "Пароль успішно скинуто",
+    "auth.passwordResetFailed": "Не вдалося скинути пароль",
+    "auth.changeEmailTitle": "Змінити email",
+    "auth.changeEmailSubtitle": "Введіть нову адресу email.",
+    "auth.currentEmail": "Поточний email",
+    "auth.newEmail": "Новий email",
+    "auth.emailChangeRequested": "Перевірте нову пошту для підтвердження.",
+    "auth.confirmEmailChangeTitle": "Підтвердження зміни email",
+    "auth.emailChanged": "Email успішно змінено",
+    "auth.emailChangeFailed": "Не вдалося змінити email",
+    "auth.backToProfile": "Назад до профілю",
+    "auth.requestChange": "Запитати зміну",
     "workspace.backToDashboard": "← Назад до панелі",
     "workspace.loading": "Завантажуємо робочий простір…",
     "workspace.createChannel": "Створити канал",
@@ -1026,6 +1095,29 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "auth.emailNotVerified": "Пожалуйста, подтвердите email перед входом.",
     "auth.signInAfterVerification": "Теперь вы можете войти с подтверждённым email.",
     "auth.backToSignIn": "Назад ко входу",
+    "auth.loading": "Загрузка…",
+    "auth.passwordsDoNotMatch": "Пароли не совпадают",
+    "auth.passwordMinLength": "Пароль должен содержать минимум 8 символов",
+    "auth.confirmPassword": "Подтвердите пароль",
+    "auth.forgotPassword": "Забыли пароль?",
+    "auth.forgotPasswordTitle": "Сброс пароля",
+    "auth.forgotPasswordSubtitle": "Введите email и мы отправим ссылку для сброса.",
+    "auth.sendResetLink": "Отправить ссылку",
+    "auth.resetLinkSent": "Если email существует, ссылка для сброса отправлена.",
+    "auth.resetPasswordTitle": "Новый пароль",
+    "auth.newPassword": "Новый пароль",
+    "auth.passwordResetSuccess": "Пароль успешно сброшен",
+    "auth.passwordResetFailed": "Не удалось сбросить пароль",
+    "auth.changeEmailTitle": "Изменить email",
+    "auth.changeEmailSubtitle": "Введите новый адрес email.",
+    "auth.currentEmail": "Текущий email",
+    "auth.newEmail": "Новый email",
+    "auth.emailChangeRequested": "Проверьте новую почту для подтверждения.",
+    "auth.confirmEmailChangeTitle": "Подтверждение изменения email",
+    "auth.emailChanged": "Email успешно изменён",
+    "auth.emailChangeFailed": "Не удалось изменить email",
+    "auth.backToProfile": "Назад к профилю",
+    "auth.requestChange": "Запросить изменение",
     "workspace.backToDashboard": "← Назад к панели",
     "workspace.loading": "Загружаем рабочее пространство…",
     "workspace.createChannel": "Создать канал",

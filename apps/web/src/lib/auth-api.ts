@@ -177,6 +177,83 @@ export async function resendVerification(input: ResendVerificationInput): Promis
   return res.json() as Promise<{ message: string }>;
 }
 
+export interface ForgotPasswordInput {
+  email: string;
+}
+
+export async function forgotPassword(input: ForgotPasswordInput): Promise<{ message: string }> {
+  const res = await fetch(`${API_BASE}/auth/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(input),
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Request failed: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<{ message: string }>;
+}
+
+export interface ResetPasswordInput {
+  token: string;
+  password: string;
+}
+
+export async function resetPassword(input: ResetPasswordInput): Promise<{ success: boolean }> {
+  const res = await fetch(`${API_BASE}/auth/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(input),
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Reset failed: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<{ success: boolean }>;
+}
+
+export interface RequestEmailChangeInput {
+  newEmail: string;
+}
+
+export async function requestEmailChange(accessToken: string, input: RequestEmailChangeInput): Promise<{ message: string }> {
+  const res = await fetch(`${API_BASE}/auth/change-email/request`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Request failed: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<{ message: string }>;
+}
+
+export interface ConfirmEmailChangeInput {
+  token: string;
+}
+
+export async function confirmEmailChange(input: ConfirmEmailChangeInput): Promise<{ success: boolean }> {
+  const res = await fetch(`${API_BASE}/auth/change-email/confirm`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(input),
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Confirmation failed: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<{ success: boolean }>;
+}
+
 export async function updateInterfaceLanguage(accessToken: string, interfaceLanguage: "en" | "uk" | "ru"): Promise<AuthUser> {
   const res = await fetch(`${API_BASE}/auth/me/interface-language`, {
     method: "PATCH",

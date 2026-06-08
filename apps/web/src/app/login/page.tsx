@@ -106,6 +106,15 @@ export default function LoginPage() {
           >
             {formState.kind === "loading" ? t("auth.signingIn") : t("auth.signIn")}
           </button>
+
+          <div className="flex justify-end">
+            <Link
+              href="/forgot-password"
+              className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 underline underline-offset-2 transition-colors"
+            >
+              {t("auth.forgotPassword")}
+            </Link>
+          </div>
         </form>
 
         {formState.kind === "unverified" && (

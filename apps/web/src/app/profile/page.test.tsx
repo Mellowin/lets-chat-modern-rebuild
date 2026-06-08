@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import ProfilePage from "./page";
 import { useAuth } from "@/lib/auth-context";
-import { updateDisplayName, uploadAvatar, updateInterfaceLanguage } from "@/lib/auth-api";
+import { updateDisplayName, uploadAvatar, updateInterfaceLanguage, requestEmailChange } from "@/lib/auth-api";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -17,6 +17,7 @@ vi.mock("@/lib/auth-api", () => ({
   updateDisplayName: vi.fn(),
   uploadAvatar: vi.fn(),
   updateInterfaceLanguage: vi.fn(),
+  requestEmailChange: vi.fn(),
 }));
 
 function mockAuth(userOverrides?: Partial<ReturnType<typeof useAuth>>) {
@@ -87,7 +88,7 @@ describe("ProfilePage — authenticated", () => {
       expect(screen.getByText(/Account information/i)).toBeInTheDocument();
     });
 
-    expect(screen.getByText("a@b.com")).toBeInTheDocument();
+    expect(screen.getAllByText("a@b.com")).toHaveLength(2);
     expect(screen.getByText("Alice")).toBeInTheDocument();
   });
 
@@ -590,6 +591,74 @@ describe("ProfilePage — authenticated", () => {
 
       expect(localStorage.getItem("lets-chat:locale")).toBe("en");
       expect(screen.getByText(/Selected: English/i)).toBeInTheDocument();
+    });
+  });
+
+  describe("email change", () => {
+    it("renders email change section with current email", async () => {
+      mockAuth({
+        user: { id: "u1", email: "old@example.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z" },
+      });
+
+      render(<ProfilePage />);
+
+      await waitFor(() => {
+        expect(screen.getByRole("heading", { name: /Change email/i })).toBeInTheDocument();
+      });
+
+      expect(screen.getAllByText("old@example.com")).toHaveLength(2);
+      expect(screen.getByPlaceholderText(/you@example.com/i)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Request change/i })).toBeInTheDocument();
+    });
+
+    it("submits new email and shows success", async () => {
+      mockAuth();
+      vi.mocked(requestEmailChange).mockResolvedValueOnce({ message: "Check your new email to confirm the change." });
+
+      render(<ProfilePage />);
+
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText(/you@example.com/i)).toBeInTheDocument();
+      });
+
+      await userEvent.type(screen.getByPlaceholderText(/you@example.com/i), "new@example.com");
+      await userEvent.click(screen.getByRole("button", { name: /Request change/i }));
+
+      await waitFor(() => {
+        expect(requestEmailChange).toHaveBeenCalledWith("token", { newEmail: "new@example.com" });
+      });
+
+      expect(await screen.findByText(/Check your new email to confirm the change/i)).toBeInTheDocument();
+    });
+
+    it("shows error on email change failure", async () => {
+      mockAuth();
+      vi.mocked(requestEmailChange).mockRejectedValueOnce(new Error("Email already in use"));
+
+      render(<ProfilePage />);
+
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText(/you@example.com/i)).toBeInTheDocument();
+      });
+
+      await userEvent.type(screen.getByPlaceholderText(/you@example.com/i), "taken@example.com");
+      await userEvent.click(screen.getByRole("button", { name: /Request change/i }));
+
+      expect(await screen.findByText(/Email already in use/i)).toBeInTheDocument();
+    });
+
+    it("shows Ukrainian email change labels", async () => {
+      localStorage.setItem("lets-chat:locale", "uk");
+      mockAuth();
+
+      render(<ProfilePage />);
+
+      await waitFor(() => {
+        expect(screen.getByRole("heading", { name: "Змінити email" })).toBeInTheDocument();
+      });
+
+      expect(screen.getByText(/Поточний email/i)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/korystuvach@pryklad.ua/i)).toBeInTheDocument();
     });
   });
 });

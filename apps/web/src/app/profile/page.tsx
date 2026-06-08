@@ -4,7 +4,7 @@ import { useLayoutEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { updateDisplayName, uploadAvatar, updateInterfaceLanguage } from "@/lib/auth-api";
+import { updateDisplayName, uploadAvatar, updateInterfaceLanguage, requestEmailChange } from "@/lib/auth-api";
 import { useLocale, type Locale, localeLabel } from "@/lib/locale";
 import { getAvatarUrl } from "@/lib/avatar-url";
 
@@ -31,6 +31,9 @@ export default function ProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [localeFormState, setLocaleFormState] = useState<FormState>({ kind: "idle" });
+
+  const [newEmailInput, setNewEmailInput] = useState("");
+  const [emailChangeState, setEmailChangeState] = useState<FormState>({ kind: "idle" });
 
   useLayoutEffect(() => {
     if (user?.displayName) {
@@ -159,6 +162,62 @@ export default function ProfilePage() {
           <span className="text-zinc-500 dark:text-zinc-400">{t("profile.displayName")}</span>
           <span className="min-w-0 font-medium break-words">{user?.displayName ?? "—"}</span>
         </div>
+      </div>
+
+      <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
+        <h2 className="text-sm font-semibold">{t("auth.changeEmailTitle")}</h2>
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-[12rem_1fr] gap-x-4 gap-y-2 text-sm">
+          <span className="text-zinc-500 dark:text-zinc-400">{t("auth.currentEmail")}</span>
+          <span className="min-w-0 font-medium break-words">{user?.email}</span>
+        </div>
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!accessToken || !newEmailInput.trim()) return;
+            setEmailChangeState({ kind: "loading" });
+            try {
+              await requestEmailChange(accessToken, { newEmail: newEmailInput.trim() });
+              setEmailChangeState({ kind: "success" });
+              setNewEmailInput("");
+            } catch (err) {
+              const message = err instanceof Error ? err.message : t("auth.emailChangeFailed");
+              setEmailChangeState({ kind: "error", message });
+            }
+          }}
+          className="mt-3 flex flex-col sm:flex-row items-start gap-3"
+        >
+          <input
+            type="email"
+            placeholder={t("auth.emailPlaceholder")}
+            value={newEmailInput}
+            onChange={(e) => setNewEmailInput(e.target.value)}
+            disabled={emailChangeState.kind === "loading"}
+            className="flex-1 w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100 disabled:opacity-60"
+          />
+          <button
+            type="submit"
+            disabled={emailChangeState.kind === "loading"}
+            className="inline-flex w-full sm:w-auto items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors sm:shrink-0"
+          >
+            {emailChangeState.kind === "loading" ? t("profile.saving") : t("auth.requestChange")}
+          </button>
+        </form>
+        {emailChangeState.kind === "success" && (
+          <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
+            <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              {t("auth.emailChangeRequested")}
+            </div>
+          </div>
+        )}
+        {emailChangeState.kind === "error" && (
+          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-2.5 text-sm dark:border-red-900 dark:bg-red-950/30">
+            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+              <span className="h-2 w-2 rounded-full bg-red-500" />
+              {emailChangeState.message}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
