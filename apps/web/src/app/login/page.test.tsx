@@ -2,7 +2,7 @@ import { render, screen, waitFor, fireEvent, act } from "@testing-library/react"
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import LoginPage from "./page";
-import { login } from "@/lib/auth-api";
+import { login, resendVerification } from "@/lib/auth-api";
 import { createAuthUser } from "@/test/factories";
 
 const pushMock = vi.fn();
@@ -14,6 +14,7 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/lib/auth-api", () => ({
   login: vi.fn(),
+  resendVerification: vi.fn(),
 }));
 
 vi.mock("@/lib/auth-context", () => ({
@@ -143,6 +144,44 @@ describe("LoginPage", () => {
     expect(await screen.findByText(/Invalid credentials/i)).toBeInTheDocument();
     expect(loginSuccessMock).not.toHaveBeenCalled();
     expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it("shows unverified email message with resend option", async () => {
+    vi.mocked(login).mockRejectedValueOnce(new Error("Email not verified"));
+
+    render(<LoginPage />);
+
+    await userEvent.type(screen.getByLabelText(/Email/i), "a@b.com");
+    await userEvent.type(screen.getByLabelText(/Password/i), "secret");
+    await userEvent.click(screen.getByRole("button", { name: /Sign in/i }));
+
+    expect(await screen.findByText(/Please verify your email before signing in/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Resend verification email/i })).toBeInTheDocument();
+    expect(loginSuccessMock).not.toHaveBeenCalled();
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it("resends verification email from unverified state and shows generic success", async () => {
+    vi.mocked(login).mockRejectedValueOnce(new Error("Email not verified"));
+    vi.mocked(resendVerification).mockResolvedValueOnce({
+      message: "If the email exists and is not verified, a verification email has been sent.",
+    });
+
+    render(<LoginPage />);
+
+    await userEvent.type(screen.getByLabelText(/Email/i), "a@b.com");
+    await userEvent.type(screen.getByLabelText(/Password/i), "secret");
+    await userEvent.click(screen.getByRole("button", { name: /Sign in/i }));
+
+    expect(await screen.findByText(/Please verify your email before signing in/i)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /Resend verification email/i }));
+
+    await waitFor(() => {
+      expect(resendVerification).toHaveBeenCalledWith({ email: "a@b.com" });
+    });
+
+    expect(await screen.findByText(/If the email exists and is not verified/i)).toBeInTheDocument();
   });
 
   it("shows loading state while submitting", async () => {

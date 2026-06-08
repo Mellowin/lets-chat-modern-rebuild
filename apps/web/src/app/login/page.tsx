@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { login, type AuthResult } from "@/lib/auth-api";
+import { login, resendVerification, type AuthResult } from "@/lib/auth-api";
 import { useAuth } from "@/lib/auth-context";
 import { useLocale } from "@/lib/locale";
 
@@ -11,7 +11,10 @@ type FormState =
   | { kind: "idle" }
   | { kind: "loading" }
   | { kind: "success"; data: AuthResult }
-  | { kind: "error"; message: string };
+  | { kind: "error"; message: string }
+  | { kind: "unverified"; email: string }
+  | { kind: "resend-loading"; email: string }
+  | { kind: "resend-success"; message: string };
 
 export default function LoginPage() {
   const router = useRouter();
@@ -33,6 +36,22 @@ export default function LoginPage() {
       loginSuccess(data);
       setFormState({ kind: "success", data });
       router.push("/dashboard");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t("auth.loginFailed");
+      if (message.toLowerCase().includes("email not verified") || message.toLowerCase().includes("not verified")) {
+        setFormState({ kind: "unverified", email: email.trim() });
+      } else {
+        setFormState({ kind: "error", message });
+      }
+    }
+  }
+
+  async function handleResend() {
+    if (formState.kind !== "unverified") return;
+    setFormState({ kind: "resend-loading", email: formState.email });
+    try {
+      const data = await resendVerification({ email: formState.email });
+      setFormState({ kind: "resend-success", message: data.message });
     } catch (err) {
       const message = err instanceof Error ? err.message : t("auth.loginFailed");
       setFormState({ kind: "error", message });
@@ -82,12 +101,39 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            disabled={formState.kind === "loading"}
+            disabled={formState.kind === "loading" || formState.kind === "resend-loading"}
             className="inline-flex w-full items-center justify-center rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
           >
             {formState.kind === "loading" ? t("auth.signingIn") : t("auth.signIn")}
           </button>
         </form>
+
+        {formState.kind === "unverified" && (
+          <div className="mt-4 space-y-3">
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm dark:border-amber-900 dark:bg-amber-950/30">
+              <div className="flex items-center gap-2 font-medium text-amber-800 dark:text-amber-400">
+                <span className="h-2 w-2 rounded-full bg-amber-500" />
+                {t("auth.emailNotVerified")}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleResend}
+              className="inline-flex w-full items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-4 py-2.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            >
+              {t("auth.resendVerification")}
+            </button>
+          </div>
+        )}
+
+        {formState.kind === "resend-success" && (
+          <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
+            <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              {formState.message}
+            </div>
+          </div>
+        )}
 
         {formState.kind === "success" && (
           <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">

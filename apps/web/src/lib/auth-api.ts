@@ -28,6 +28,19 @@ export interface RegisterInput {
   password: string;
 }
 
+export interface RegisterPendingResult {
+  requiresEmailVerification: true;
+  email: string;
+}
+
+export interface VerifyEmailInput {
+  token: string;
+}
+
+export interface ResendVerificationInput {
+  email: string;
+}
+
 async function parseErrorMessage(res: Response, fallback: string): Promise<string> {
   let message = fallback;
   try {
@@ -54,7 +67,7 @@ export async function login(input: LoginInput): Promise<AuthResult> {
   return res.json() as Promise<AuthResult>;
 }
 
-export async function register(input: RegisterInput): Promise<AuthResult> {
+export async function register(input: RegisterInput): Promise<RegisterPendingResult> {
   const res = await fetch(`${API_BASE}/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -65,7 +78,7 @@ export async function register(input: RegisterInput): Promise<AuthResult> {
     throw new Error(await parseErrorMessage(res, `Registration failed: ${res.status} ${res.statusText}`));
   }
 
-  return res.json() as Promise<AuthResult>;
+  return res.json() as Promise<RegisterPendingResult>;
 }
 
 export async function getMe(accessToken: string): Promise<AuthUser> {
@@ -134,6 +147,34 @@ export async function uploadAvatar(accessToken: string, file: File): Promise<Aut
   }
 
   return res.json() as Promise<AuthUser>;
+}
+
+export async function verifyEmail(input: VerifyEmailInput): Promise<{ success: boolean }> {
+  const res = await fetch(`${API_BASE}/auth/verify-email`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(input),
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Email verification failed: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<{ success: boolean }>;
+}
+
+export async function resendVerification(input: ResendVerificationInput): Promise<{ message: string }> {
+  const res = await fetch(`${API_BASE}/auth/resend-verification`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(input),
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Resend failed: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<{ message: string }>;
 }
 
 export async function updateInterfaceLanguage(accessToken: string, interfaceLanguage: "en" | "uk" | "ru"): Promise<AuthUser> {

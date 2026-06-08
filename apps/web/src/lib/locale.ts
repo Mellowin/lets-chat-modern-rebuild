@@ -106,6 +106,19 @@ export type TranslationKey =
   | "auth.registrationFailed"
   | "auth.accountCreatedFor"
   | "auth.alreadyHaveAccount"
+  | "auth.checkYourEmail"
+  | "auth.verificationEmailSent"
+  | "auth.verifyEmailTitle"
+  | "auth.verifyingEmail"
+  | "auth.emailVerified"
+  | "auth.emailVerificationFailed"
+  | "auth.emailVerificationMissingToken"
+  | "auth.resendVerification"
+  | "auth.resendingVerification"
+  | "auth.resendVerificationSuccess"
+  | "auth.emailNotVerified"
+  | "auth.signInAfterVerification"
+  | "auth.backToSignIn"
   | "workspace.backToDashboard"
   | "workspace.loading"
   | "workspace.createChannel"
@@ -396,6 +409,19 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "auth.registrationFailed": "Registration failed",
     "auth.accountCreatedFor": "Account created for",
     "auth.alreadyHaveAccount": "Already have an account?",
+    "auth.checkYourEmail": "Check your email to verify your account",
+    "auth.verificationEmailSent": "A verification email has been sent to",
+    "auth.verifyEmailTitle": "Verify email",
+    "auth.verifyingEmail": "Verifying email…",
+    "auth.emailVerified": "Email verified successfully",
+    "auth.emailVerificationFailed": "Verification failed. The link may have expired.",
+    "auth.emailVerificationMissingToken": "Invalid or missing verification link.",
+    "auth.resendVerification": "Resend verification email",
+    "auth.resendingVerification": "Sending…",
+    "auth.resendVerificationSuccess": "If the email exists and is not verified, a verification email has been sent.",
+    "auth.emailNotVerified": "Please verify your email before signing in.",
+    "auth.signInAfterVerification": "You can now sign in with your verified email.",
+    "auth.backToSignIn": "Back to sign in",
     "workspace.backToDashboard": "← Back to dashboard",
     "workspace.loading": "Loading workspace…",
     "workspace.createChannel": "Create channel",
@@ -685,6 +711,19 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "auth.registrationFailed": "Не вдалося зареєструватися",
     "auth.accountCreatedFor": "Акаунт створено для",
     "auth.alreadyHaveAccount": "Вже маєте акаунт?",
+    "auth.checkYourEmail": "Перевірте пошту, щоб підтвердити акаунт",
+    "auth.verificationEmailSent": "Лист із підтвердженням надіслано на",
+    "auth.verifyEmailTitle": "Підтвердження email",
+    "auth.verifyingEmail": "Підтверджуємо email…",
+    "auth.emailVerified": "Email успішно підтверджено",
+    "auth.emailVerificationFailed": "Підтвердження не вдалося. Посилання могло застаріти.",
+    "auth.emailVerificationMissingToken": "Недійсне або відсутнє посилання для підтвердження.",
+    "auth.resendVerification": "Надіслати лист повторно",
+    "auth.resendingVerification": "Надсилаємо…",
+    "auth.resendVerificationSuccess": "Якщо email існує та не підтверджений, лист надіслано.",
+    "auth.emailNotVerified": "Будь ласка, підтвердьте email перед входом.",
+    "auth.signInAfterVerification": "Тепер ви можете увійти з підтвердженим email.",
+    "auth.backToSignIn": "Назад до входу",
     "workspace.backToDashboard": "← Назад до панелі",
     "workspace.loading": "Завантажуємо робочий простір…",
     "workspace.createChannel": "Створити канал",
@@ -974,6 +1013,19 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "auth.registrationFailed": "Не удалось зарегистрироваться",
     "auth.accountCreatedFor": "Аккаунт создан для",
     "auth.alreadyHaveAccount": "Уже есть аккаунт?",
+    "auth.checkYourEmail": "Проверьте почту, чтобы подтвердить аккаунт",
+    "auth.verificationEmailSent": "Письмо с подтверждением отправлено на",
+    "auth.verifyEmailTitle": "Подтверждение email",
+    "auth.verifyingEmail": "Подтверждаем email…",
+    "auth.emailVerified": "Email успешно подтверждён",
+    "auth.emailVerificationFailed": "Подтверждение не удалось. Ссылка могла устареть.",
+    "auth.emailVerificationMissingToken": "Недействительная или отсутствующая ссылка для подтверждения.",
+    "auth.resendVerification": "Отправить письмо повторно",
+    "auth.resendingVerification": "Отправляем…",
+    "auth.resendVerificationSuccess": "Если email существует и не подтверждён, письмо отправлено.",
+    "auth.emailNotVerified": "Пожалуйста, подтвердите email перед входом.",
+    "auth.signInAfterVerification": "Теперь вы можете войти с подтверждённым email.",
+    "auth.backToSignIn": "Назад ко входу",
     "workspace.backToDashboard": "← Назад к панели",
     "workspace.loading": "Загружаем рабочее пространство…",
     "workspace.createChannel": "Создать канал",
