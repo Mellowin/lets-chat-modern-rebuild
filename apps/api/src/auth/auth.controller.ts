@@ -36,6 +36,10 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { LogoutDto } from './dto/logout.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { ResendVerificationDto } from './dto/resend-verification.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { RequestEmailChangeDto } from './dto/request-email-change.dto';
+import { ConfirmEmailChangeDto } from './dto/confirm-email-change.dto';
 import { UpdateDisplayNameDto } from './dto/update-display-name.dto';
 import { UpdateAvatarDto } from './dto/update-avatar.dto';
 import { UpdateInterfaceLanguageDto } from './dto/update-interface-language.dto';
@@ -113,6 +117,56 @@ export class AuthController {
   @ApiBadRequestResponse({ description: 'Validation failed' })
   async resendVerification(@Body() dto: ResendVerificationDto) {
     return this.auth.resendVerification(dto.email);
+  }
+
+  @Post('forgot-password')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Request password reset' })
+  @ApiBody({ type: ForgotPasswordDto })
+  @ApiOkResponse({ description: 'Request processed' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.auth.forgotPassword(dto.email);
+  }
+
+  @Post('reset-password')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Reset password' })
+  @ApiBody({ type: ResetPasswordDto })
+  @ApiOkResponse({ description: 'Password reset successfully' })
+  @ApiNotFoundResponse({ description: 'Invalid or expired token' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.auth.resetPassword(dto.token, dto.password);
+  }
+
+  @Post('change-email/request')
+  @UseGuards(JwtAccessGuard)
+  @HttpCode(200)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Request email change' })
+  @ApiBody({ type: RequestEmailChangeDto })
+  @ApiOkResponse({ description: 'Email change requested' })
+  @ApiConflictResponse({ description: 'Email already in use' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async requestEmailChange(
+    @CurrentUser() user: AuthUserResponse,
+    @Body() dto: RequestEmailChangeDto,
+  ) {
+    return this.auth.requestEmailChange(user.id, dto.newEmail);
+  }
+
+  @Post('change-email/confirm')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Confirm email change' })
+  @ApiBody({ type: ConfirmEmailChangeDto })
+  @ApiOkResponse({ description: 'Email changed successfully' })
+  @ApiNotFoundResponse({ description: 'Invalid or expired token' })
+  @ApiConflictResponse({ description: 'Email already in use' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  async confirmEmailChange(@Body() dto: ConfirmEmailChangeDto) {
+    return this.auth.confirmEmailChange(dto.token);
   }
 
   @Get('me')

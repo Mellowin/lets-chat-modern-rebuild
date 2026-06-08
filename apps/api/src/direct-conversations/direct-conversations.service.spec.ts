@@ -1420,6 +1420,13 @@ describe('DirectConversationsService', () => {
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
         emailVerificationSentAt: null,
+        passwordResetTokenHash: null,
+        passwordResetExpiresAt: null,
+        passwordResetSentAt: null,
+        pendingEmail: null,
+        emailChangeTokenHash: null,
+        emailChangeExpiresAt: null,
+        emailChangeSentAt: null,
       });
 
       const result = await service.addReaction(
@@ -1551,6 +1558,13 @@ describe('DirectConversationsService', () => {
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
         emailVerificationSentAt: null,
+        passwordResetTokenHash: null,
+        passwordResetExpiresAt: null,
+        passwordResetSentAt: null,
+        pendingEmail: null,
+        emailChangeTokenHash: null,
+        emailChangeExpiresAt: null,
+        emailChangeSentAt: null,
       });
 
       const result = await service.addReaction(
@@ -1612,6 +1626,13 @@ describe('DirectConversationsService', () => {
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
         emailVerificationSentAt: null,
+        passwordResetTokenHash: null,
+        passwordResetExpiresAt: null,
+        passwordResetSentAt: null,
+        pendingEmail: null,
+        emailChangeTokenHash: null,
+        emailChangeExpiresAt: null,
+        emailChangeSentAt: null,
       });
 
       const result = await service.addReaction(
@@ -1681,6 +1702,13 @@ describe('DirectConversationsService', () => {
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
         emailVerificationSentAt: null,
+        passwordResetTokenHash: null,
+        passwordResetExpiresAt: null,
+        passwordResetSentAt: null,
+        pendingEmail: null,
+        emailChangeTokenHash: null,
+        emailChangeExpiresAt: null,
+        emailChangeSentAt: null,
       });
 
       const result = await service.addReaction(
@@ -1748,6 +1776,13 @@ describe('DirectConversationsService', () => {
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
         emailVerificationSentAt: null,
+        passwordResetTokenHash: null,
+        passwordResetExpiresAt: null,
+        passwordResetSentAt: null,
+        pendingEmail: null,
+        emailChangeTokenHash: null,
+        emailChangeExpiresAt: null,
+        emailChangeSentAt: null,
       });
 
       const result = await service.addReaction(
@@ -1814,6 +1849,13 @@ describe('DirectConversationsService', () => {
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
         emailVerificationSentAt: null,
+        passwordResetTokenHash: null,
+        passwordResetExpiresAt: null,
+        passwordResetSentAt: null,
+        pendingEmail: null,
+        emailChangeTokenHash: null,
+        emailChangeExpiresAt: null,
+        emailChangeSentAt: null,
       });
 
       await service.addReaction(
@@ -1883,6 +1925,13 @@ describe('DirectConversationsService', () => {
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
         emailVerificationSentAt: null,
+        passwordResetTokenHash: null,
+        passwordResetExpiresAt: null,
+        passwordResetSentAt: null,
+        pendingEmail: null,
+        emailChangeTokenHash: null,
+        emailChangeExpiresAt: null,
+        emailChangeSentAt: null,
       });
 
       await service.addReaction(
@@ -1988,6 +2037,13 @@ describe('DirectConversationsService', () => {
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
         emailVerificationSentAt: null,
+        passwordResetTokenHash: null,
+        passwordResetExpiresAt: null,
+        passwordResetSentAt: null,
+        pendingEmail: null,
+        emailChangeTokenHash: null,
+        emailChangeExpiresAt: null,
+        emailChangeSentAt: null,
       });
 
       await service.removeReaction(conversationId, messageId, '👍', userId);
@@ -2058,6 +2114,13 @@ describe('DirectConversationsService', () => {
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
         emailVerificationSentAt: null,
+        passwordResetTokenHash: null,
+        passwordResetExpiresAt: null,
+        passwordResetSentAt: null,
+        pendingEmail: null,
+        emailChangeTokenHash: null,
+        emailChangeExpiresAt: null,
+        emailChangeSentAt: null,
       });
 
       await service.removeReaction(conversationId, messageId, '👍', userId);

@@ -60,6 +60,17 @@ model User {
   emailVerificationExpiresAt DateTime?
   emailVerificationSentAt    DateTime?
 
+  // Password reset
+  passwordResetTokenHash String?
+  passwordResetExpiresAt DateTime?
+  passwordResetSentAt    DateTime?
+
+  // Email change
+  pendingEmail           String?
+  emailChangeTokenHash   String?
+  emailChangeExpiresAt   DateTime?
+  emailChangeSentAt      DateTime?
+
   // Relations
   ownedWorkspaces       Workspace[]
   workspaceMemberships  WorkspaceMember[]
@@ -83,6 +94,8 @@ model User {
 
   @@index([email])
   @@index([username])
+  @@index([passwordResetTokenHash])
+  @@index([emailChangeTokenHash])
 }
 
 model Workspace {

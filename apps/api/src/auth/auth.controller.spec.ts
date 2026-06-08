@@ -34,6 +34,10 @@ describe('AuthController', () => {
             logout: jest.fn(),
             verifyEmail: jest.fn(),
             resendVerification: jest.fn(),
+            forgotPassword: jest.fn(),
+            resetPassword: jest.fn(),
+            requestEmailChange: jest.fn(),
+            confirmEmailChange: jest.fn(),
             updateMe: jest.fn(),
             updateAvatar: jest.fn(),
             updateInterfaceLanguage: jest.fn(),
@@ -300,6 +304,82 @@ describe('AuthController', () => {
       expect(result.message).toBe(
         'If the email exists and is not verified, a verification email has been sent.',
       );
+    });
+  });
+
+  describe('POST /auth/forgot-password', () => {
+    it('returns generic message', async () => {
+      authService.forgotPassword.mockResolvedValue({
+        message: 'If the email exists, a reset link has been sent.',
+      });
+
+      const result = await controller.forgotPassword({
+        email: 'test@example.com',
+      });
+
+      expect(authService.forgotPassword).toHaveBeenCalledWith(
+        'test@example.com',
+      );
+      expect(result.message).toBe(
+        'If the email exists, a reset link has been sent.',
+      );
+    });
+  });
+
+  describe('POST /auth/reset-password', () => {
+    it('returns success for valid token', async () => {
+      authService.resetPassword.mockResolvedValue({ success: true });
+
+      const result = await controller.resetPassword({
+        token: 'valid-token',
+        password: 'newpass123',
+      });
+
+      expect(authService.resetPassword).toHaveBeenCalledWith(
+        'valid-token',
+        'newpass123',
+      );
+      expect(result).toEqual({ success: true });
+    });
+  });
+
+  describe('POST /auth/change-email/request', () => {
+    it('returns success message', async () => {
+      authService.requestEmailChange.mockResolvedValue({
+        message: 'Check your new email to confirm the change.',
+      });
+
+      const result = await controller.requestEmailChange(
+        {
+          id: 'user-id',
+          email: 'u@test.com',
+          username: 'user',
+        } as AuthUserResponse,
+        { newEmail: 'new@example.com' },
+      );
+
+      expect(authService.requestEmailChange).toHaveBeenCalledWith(
+        'user-id',
+        'new@example.com',
+      );
+      expect(result.message).toBe(
+        'Check your new email to confirm the change.',
+      );
+    });
+  });
+
+  describe('POST /auth/change-email/confirm', () => {
+    it('returns success for valid token', async () => {
+      authService.confirmEmailChange.mockResolvedValue({ success: true });
+
+      const result = await controller.confirmEmailChange({
+        token: 'valid-token',
+      });
+
+      expect(authService.confirmEmailChange).toHaveBeenCalledWith(
+        'valid-token',
+      );
+      expect(result).toEqual({ success: true });
     });
   });
 });

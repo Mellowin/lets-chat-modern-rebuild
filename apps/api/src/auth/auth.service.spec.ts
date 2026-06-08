@@ -69,6 +69,8 @@ describe('AuthService', () => {
           provide: MailService,
           useValue: {
             sendVerificationEmail: jest.fn(),
+            sendPasswordResetEmail: jest.fn(),
+            sendEmailChangeConfirmationEmail: jest.fn(),
           },
         },
       ],
@@ -95,6 +97,13 @@ describe('AuthService', () => {
       emailVerificationTokenHash: null,
       emailVerificationExpiresAt: null,
       emailVerificationSentAt: null,
+      passwordResetTokenHash: null,
+      passwordResetExpiresAt: null,
+      passwordResetSentAt: null,
+      pendingEmail: null,
+      emailChangeTokenHash: null,
+      emailChangeExpiresAt: null,
+      emailChangeSentAt: null,
     };
 
     usersRepository.updateDisplayName.mockResolvedValue(user);
@@ -125,6 +134,13 @@ describe('AuthService', () => {
       emailVerificationTokenHash: null,
       emailVerificationExpiresAt: null,
       emailVerificationSentAt: null,
+      passwordResetTokenHash: null,
+      passwordResetExpiresAt: null,
+      passwordResetSentAt: null,
+      pendingEmail: null,
+      emailChangeTokenHash: null,
+      emailChangeExpiresAt: null,
+      emailChangeSentAt: null,
     };
 
     const servicePrivate = service as unknown as {
@@ -154,6 +170,13 @@ describe('AuthService', () => {
       emailVerificationTokenHash: null,
       emailVerificationExpiresAt: null,
       emailVerificationSentAt: null,
+      passwordResetTokenHash: null,
+      passwordResetExpiresAt: null,
+      passwordResetSentAt: null,
+      pendingEmail: null,
+      emailChangeTokenHash: null,
+      emailChangeExpiresAt: null,
+      emailChangeSentAt: null,
     };
 
     const servicePrivate = service as unknown as {
@@ -183,6 +206,13 @@ describe('AuthService', () => {
       emailVerificationTokenHash: null,
       emailVerificationExpiresAt: null,
       emailVerificationSentAt: null,
+      passwordResetTokenHash: null,
+      passwordResetExpiresAt: null,
+      passwordResetSentAt: null,
+      pendingEmail: null,
+      emailChangeTokenHash: null,
+      emailChangeExpiresAt: null,
+      emailChangeSentAt: null,
     };
 
     usersRepository.updateInterfaceLanguage.mockResolvedValue(user);
@@ -213,6 +243,13 @@ describe('AuthService', () => {
       emailVerificationTokenHash: null,
       emailVerificationExpiresAt: null,
       emailVerificationSentAt: null,
+      passwordResetTokenHash: null,
+      passwordResetExpiresAt: null,
+      passwordResetSentAt: null,
+      pendingEmail: null,
+      emailChangeTokenHash: null,
+      emailChangeExpiresAt: null,
+      emailChangeSentAt: null,
     };
 
     usersRepository.updateAvatar.mockResolvedValue(user);
@@ -247,6 +284,13 @@ describe('AuthService', () => {
       emailVerificationTokenHash: null,
       emailVerificationExpiresAt: null,
       emailVerificationSentAt: null,
+      passwordResetTokenHash: null,
+      passwordResetExpiresAt: null,
+      passwordResetSentAt: null,
+      pendingEmail: null,
+      emailChangeTokenHash: null,
+      emailChangeExpiresAt: null,
+      emailChangeSentAt: null,
     };
 
     usersRepository.updateAvatar.mockResolvedValue(user);
@@ -284,6 +328,13 @@ describe('AuthService — email verification', () => {
     emailVerificationTokenHash: null,
     emailVerificationExpiresAt: null,
     emailVerificationSentAt: null,
+    passwordResetTokenHash: null,
+    passwordResetExpiresAt: null,
+    passwordResetSentAt: null,
+    pendingEmail: null,
+    emailChangeTokenHash: null,
+    emailChangeExpiresAt: null,
+    emailChangeSentAt: null,
     ...overrides,
   });
 
@@ -304,6 +355,14 @@ describe('AuthService — email verification', () => {
             updateEmailVerificationToken: jest.fn(),
             findByEmailVerificationTokenHash: jest.fn(),
             markEmailVerified: jest.fn(),
+            findByPasswordResetTokenHash: jest.fn(),
+            updatePasswordResetToken: jest.fn(),
+            clearPasswordResetToken: jest.fn(),
+            updatePassword: jest.fn(),
+            findByEmailChangeTokenHash: jest.fn(),
+            updateEmailChangeToken: jest.fn(),
+            clearEmailChangeToken: jest.fn(),
+            updateEmail: jest.fn(),
           },
         },
         {
@@ -592,6 +651,309 @@ describe('AuthService — email verification', () => {
 
       expect(result.message).toBe(genericMessage);
       expect(mailService.sendVerificationEmail).toHaveBeenCalled();
+    });
+  });
+});
+
+describe('AuthService — password reset', () => {
+  let service: AuthService;
+  let usersRepository: jest.Mocked<UsersRepository>;
+  let passwordService: jest.Mocked<PasswordService>;
+  let mailService: jest.Mocked<MailService>;
+
+  const makeUser = (overrides: Partial<Record<string, unknown>> = {}) => ({
+    id: 'user-id',
+    email: 'u@test.com',
+    username: 'user',
+    displayName: null,
+    avatarUrl: null,
+    avatarUpdatedAt: null,
+    interfaceLanguage: 'en',
+    passwordHash: 'hash',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    deletedAt: null,
+    emailVerifiedAt: null,
+    emailVerificationTokenHash: null,
+    emailVerificationExpiresAt: null,
+    emailVerificationSentAt: null,
+    passwordResetTokenHash: null,
+    passwordResetExpiresAt: null,
+    passwordResetSentAt: null,
+    pendingEmail: null,
+    emailChangeTokenHash: null,
+    emailChangeExpiresAt: null,
+    emailChangeSentAt: null,
+    ...overrides,
+  });
+
+  beforeEach(async () => {
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        AuthService,
+        {
+          provide: UsersRepository,
+          useValue: {
+            findById: jest.fn(),
+            findByEmail: jest.fn(),
+            findByUsername: jest.fn(),
+            createUser: jest.fn(),
+            updateDisplayName: jest.fn(),
+            updateAvatar: jest.fn(),
+            updateInterfaceLanguage: jest.fn(),
+            updateEmailVerificationToken: jest.fn(),
+            findByEmailVerificationTokenHash: jest.fn(),
+            markEmailVerified: jest.fn(),
+            findByPasswordResetTokenHash: jest.fn(),
+            updatePasswordResetToken: jest.fn(),
+            clearPasswordResetToken: jest.fn(),
+            updatePassword: jest.fn(),
+            findByEmailChangeTokenHash: jest.fn(),
+            updateEmailChangeToken: jest.fn(),
+            clearEmailChangeToken: jest.fn(),
+            updateEmail: jest.fn(),
+          },
+        },
+        {
+          provide: PasswordService,
+          useValue: {
+            hashPassword: jest.fn(),
+            verifyPassword: jest.fn(),
+          },
+        },
+        {
+          provide: TokenService,
+          useValue: {
+            signAccessToken: jest.fn(),
+            signRefreshToken: jest.fn(),
+            verifyRefreshToken: jest.fn(),
+          },
+        },
+        {
+          provide: RefreshTokensRepository,
+          useValue: {
+            createToken: jest.fn(),
+            consumeActiveToken: jest.fn(),
+            revokeToken: jest.fn(),
+          },
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            getOrThrow: jest.fn().mockReturnValue('7d'),
+            get: jest.fn(),
+          },
+        },
+        {
+          provide: MailService,
+          useValue: {
+            sendVerificationEmail: jest.fn(),
+            sendPasswordResetEmail: jest.fn(),
+            sendEmailChangeConfirmationEmail: jest.fn(),
+          },
+        },
+      ],
+    }).compile();
+
+    service = moduleRef.get(AuthService);
+    usersRepository = moduleRef.get(UsersRepository);
+    passwordService = moduleRef.get(PasswordService);
+    mailService = moduleRef.get(MailService);
+  });
+
+  describe('forgotPassword', () => {
+    const genericMessage = 'If the email exists, a reset link has been sent.';
+
+    it('returns generic message and sends reset email for existing user', async () => {
+      usersRepository.findByEmail.mockResolvedValue(makeUser());
+      usersRepository.updatePasswordResetToken.mockResolvedValue(makeUser());
+      mailService.sendPasswordResetEmail.mockResolvedValue(undefined);
+
+      const result = await service.forgotPassword('u@test.com');
+
+      expect(result.message).toBe(genericMessage);
+      expect(usersRepository.updatePasswordResetToken).toHaveBeenCalledWith(
+        'user-id',
+        expect.any(String),
+        expect.any(Date),
+        expect.any(Date),
+      );
+      expect(mailService.sendPasswordResetEmail).toHaveBeenCalledWith({
+        to: 'u@test.com',
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        token: expect.any(String),
+      });
+    });
+
+    it('returns generic message when user not found without sending email', async () => {
+      usersRepository.findByEmail.mockResolvedValue(null);
+
+      const result = await service.forgotPassword('missing@test.com');
+
+      expect(result.message).toBe(genericMessage);
+      expect(mailService.sendPasswordResetEmail).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('resetPassword', () => {
+    it('updates password and clears token for valid token', async () => {
+      const user = makeUser({
+        passwordResetTokenHash: 'hash',
+        passwordResetExpiresAt: new Date(Date.now() + 3600_000),
+      });
+      usersRepository.findByPasswordResetTokenHash.mockResolvedValue(user);
+      passwordService.hashPassword.mockResolvedValue('new-hash');
+      usersRepository.updatePassword.mockResolvedValue(makeUser());
+      usersRepository.clearPasswordResetToken.mockResolvedValue(makeUser());
+
+      const result = await service.resetPassword('raw-token', 'newpass123');
+
+      expect(result).toEqual({ success: true });
+      expect(passwordService.hashPassword).toHaveBeenCalledWith('newpass123');
+      expect(usersRepository.updatePassword).toHaveBeenCalledWith(
+        'user-id',
+        'new-hash',
+      );
+      expect(usersRepository.clearPasswordResetToken).toHaveBeenCalledWith(
+        'user-id',
+      );
+    });
+
+    it('throws NotFoundException for invalid token', async () => {
+      usersRepository.findByPasswordResetTokenHash.mockResolvedValue(null);
+
+      await expect(
+        service.resetPassword('bad-token', 'newpass'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws NotFoundException for expired token', async () => {
+      const user = makeUser({
+        passwordResetTokenHash: 'hash',
+        passwordResetExpiresAt: new Date(Date.now() - 3600_000),
+      });
+      usersRepository.findByPasswordResetTokenHash.mockResolvedValue(user);
+
+      await expect(
+        service.resetPassword('raw-token', 'newpass'),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('requestEmailChange', () => {
+    it('stores pending email and sends confirmation for valid new email', async () => {
+      usersRepository.findByEmail.mockResolvedValue(null);
+      usersRepository.updateEmailChangeToken.mockResolvedValue(makeUser());
+      mailService.sendEmailChangeConfirmationEmail.mockResolvedValue(undefined);
+
+      const result = await service.requestEmailChange(
+        'user-id',
+        'new@example.com',
+      );
+
+      expect(result.message).toBe(
+        'Check your new email to confirm the change.',
+      );
+      expect(usersRepository.updateEmailChangeToken).toHaveBeenCalledWith(
+        'user-id',
+        'new@example.com',
+        expect.any(String),
+        expect.any(Date),
+        expect.any(Date),
+      );
+      expect(mailService.sendEmailChangeConfirmationEmail).toHaveBeenCalledWith(
+        {
+          to: 'new@example.com',
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          token: expect.any(String),
+        },
+      );
+    });
+
+    it('throws ConflictException when new email is already used by another user', async () => {
+      usersRepository.findByEmail.mockResolvedValue(
+        makeUser({ id: 'other-id' }),
+      );
+
+      await expect(
+        service.requestEmailChange('user-id', 'u@test.com'),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('allows same email for same user', async () => {
+      usersRepository.findByEmail.mockResolvedValue(makeUser());
+      usersRepository.updateEmailChangeToken.mockResolvedValue(makeUser());
+      mailService.sendEmailChangeConfirmationEmail.mockResolvedValue(undefined);
+
+      const result = await service.requestEmailChange('user-id', 'u@test.com');
+
+      expect(result.message).toBe(
+        'Check your new email to confirm the change.',
+      );
+    });
+  });
+
+  describe('confirmEmailChange', () => {
+    it('updates email and clears token for valid token', async () => {
+      const user = makeUser({
+        pendingEmail: 'new@example.com',
+        emailChangeTokenHash: 'hash',
+        emailChangeExpiresAt: new Date(Date.now() + 3600_000),
+      });
+      usersRepository.findByEmailChangeTokenHash.mockResolvedValue(user);
+      usersRepository.findByEmail.mockResolvedValue(null);
+      usersRepository.updateEmail.mockResolvedValue(
+        makeUser({ email: 'new@example.com' }),
+      );
+      usersRepository.clearEmailChangeToken.mockResolvedValue(makeUser());
+
+      const result = await service.confirmEmailChange('raw-token');
+
+      expect(result).toEqual({ success: true });
+      expect(usersRepository.updateEmail).toHaveBeenCalledWith(
+        'user-id',
+        'new@example.com',
+      );
+      expect(usersRepository.clearEmailChangeToken).toHaveBeenCalledWith(
+        'user-id',
+      );
+    });
+
+    it('throws NotFoundException for invalid token', async () => {
+      usersRepository.findByEmailChangeTokenHash.mockResolvedValue(null);
+
+      await expect(service.confirmEmailChange('bad-token')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('throws NotFoundException for expired token', async () => {
+      const user = makeUser({
+        pendingEmail: 'new@example.com',
+        emailChangeTokenHash: 'hash',
+        emailChangeExpiresAt: new Date(Date.now() - 3600_000),
+      });
+      usersRepository.findByEmailChangeTokenHash.mockResolvedValue(user);
+
+      await expect(service.confirmEmailChange('raw-token')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('throws ConflictException when pending email was taken by another user', async () => {
+      const user = makeUser({
+        pendingEmail: 'new@example.com',
+        emailChangeTokenHash: 'hash',
+        emailChangeExpiresAt: new Date(Date.now() + 3600_000),
+      });
+      usersRepository.findByEmailChangeTokenHash.mockResolvedValue(user);
+      usersRepository.findByEmail.mockResolvedValue(
+        makeUser({ id: 'other-id' }),
+      );
+
+      await expect(service.confirmEmailChange('raw-token')).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 });

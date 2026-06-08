@@ -295,6 +295,116 @@ export class AuthService {
     return this.toAuthUserResponse(user);
   }
 
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    const genericMessage = 'If the email exists, a reset link has been sent.';
+
+    const user = await this.users.findByEmail(email);
+    if (!user) {
+      return { message: genericMessage };
+    }
+
+    const rawToken = this.generateResetToken();
+    const tokenHash = this.hashResetToken(rawToken);
+    const expiresAt = this.getPasswordResetExpiryDate();
+
+    await this.users.updatePasswordResetToken(
+      user.id,
+      tokenHash,
+      expiresAt,
+      new Date(),
+    );
+
+    await this.mail.sendPasswordResetEmail({
+      to: user.email,
+      token: rawToken,
+    });
+
+    return { message: genericMessage };
+  }
+
+  async resetPassword(
+    token: string,
+    password: string,
+  ): Promise<{ success: boolean }> {
+    const tokenHash = this.hashResetToken(token);
+    const user = await this.users.findByPasswordResetTokenHash(tokenHash);
+
+    if (!user) {
+      throw new NotFoundException('Invalid or expired reset token');
+    }
+
+    if (
+      user.passwordResetExpiresAt &&
+      user.passwordResetExpiresAt < new Date()
+    ) {
+      throw new NotFoundException('Invalid or expired reset token');
+    }
+
+    const passwordHash = await this.password.hashPassword(password);
+    await this.users.updatePassword(user.id, passwordHash);
+    await this.users.clearPasswordResetToken(user.id);
+
+    return { success: true };
+  }
+
+  async requestEmailChange(
+    userId: string,
+    newEmail: string,
+  ): Promise<{ message: string }> {
+    const normalizedEmail = newEmail.trim().toLowerCase();
+
+    const existingUser = await this.users.findByEmail(normalizedEmail);
+    if (existingUser && existingUser.id !== userId) {
+      throw new ConflictException('Email already in use');
+    }
+
+    const rawToken = this.generateResetToken();
+    const tokenHash = this.hashResetToken(rawToken);
+    const expiresAt = this.getEmailChangeExpiryDate();
+
+    await this.users.updateEmailChangeToken(
+      userId,
+      normalizedEmail,
+      tokenHash,
+      expiresAt,
+      new Date(),
+    );
+
+    await this.mail.sendEmailChangeConfirmationEmail({
+      to: normalizedEmail,
+      token: rawToken,
+    });
+
+    return { message: 'Check your new email to confirm the change.' };
+  }
+
+  async confirmEmailChange(token: string): Promise<{ success: boolean }> {
+    const tokenHash = this.hashResetToken(token);
+    const user = await this.users.findByEmailChangeTokenHash(tokenHash);
+
+    if (!user) {
+      throw new NotFoundException('Invalid or expired email change token');
+    }
+
+    if (user.emailChangeExpiresAt && user.emailChangeExpiresAt < new Date()) {
+      throw new NotFoundException('Invalid or expired email change token');
+    }
+
+    if (!user.pendingEmail) {
+      throw new NotFoundException('Invalid or expired email change token');
+    }
+
+    const existingUser = await this.users.findByEmail(user.pendingEmail);
+    if (existingUser && existingUser.id !== user.id) {
+      throw new ConflictException('Email already in use');
+    }
+
+    await this.users.updateEmail(user.id, user.pendingEmail);
+    await this.users.clearEmailChangeToken(user.id);
+
+    return { success: true };
+  }
+
   private toAuthUserResponse(user: User | SafeUser): AuthUserResponse {
     return {
       id: user.id,
@@ -333,6 +443,24 @@ export class AuthService {
   }
 
   private getVerificationExpiryDate(): Date {
+    // 24 hours
+    return new Date(Date.now() + 24 * 60 * 60 * 1000);
+  }
+
+  private generateResetToken(): string {
+    return randomBytes(32).toString('hex');
+  }
+
+  private hashResetToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
+  }
+
+  private getPasswordResetExpiryDate(): Date {
+    // 60 minutes
+    return new Date(Date.now() + 60 * 60 * 1000);
+  }
+
+  private getEmailChangeExpiryDate(): Date {
     // 24 hours
     return new Date(Date.now() + 24 * 60 * 60 * 1000);
   }

@@ -110,4 +110,87 @@ export class UsersRepository {
       },
     });
   }
+
+  async findByPasswordResetTokenHash(tokenHash: string) {
+    return this.prisma.user.findFirst({
+      where: { passwordResetTokenHash: tokenHash },
+    });
+  }
+
+  async updatePasswordResetToken(
+    userId: string,
+    tokenHash: string | null,
+    expiresAt: Date | null,
+    sentAt: Date | null,
+  ) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        passwordResetTokenHash: tokenHash,
+        passwordResetExpiresAt: expiresAt,
+        passwordResetSentAt: sentAt,
+      },
+    });
+  }
+
+  async clearPasswordResetToken(userId: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        passwordResetTokenHash: null,
+        passwordResetExpiresAt: null,
+        passwordResetSentAt: null,
+      },
+    });
+  }
+
+  async updatePassword(userId: string, passwordHash: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+  }
+
+  async findByEmailChangeTokenHash(tokenHash: string) {
+    return this.prisma.user.findFirst({
+      where: { emailChangeTokenHash: tokenHash },
+    });
+  }
+
+  async updateEmailChangeToken(
+    userId: string,
+    pendingEmail: string | null,
+    tokenHash: string | null,
+    expiresAt: Date | null,
+    sentAt: Date | null,
+  ) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        pendingEmail,
+        emailChangeTokenHash: tokenHash,
+        emailChangeExpiresAt: expiresAt,
+        emailChangeSentAt: sentAt,
+      },
+    });
+  }
+
+  async clearEmailChangeToken(userId: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        pendingEmail: null,
+        emailChangeTokenHash: null,
+        emailChangeExpiresAt: null,
+        emailChangeSentAt: null,
+      },
+    });
+  }
+
+  async updateEmail(userId: string, email: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { email: this.normalizeEmail(email), emailVerifiedAt: new Date() },
+    });
+  }
 }

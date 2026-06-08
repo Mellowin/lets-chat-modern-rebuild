@@ -161,6 +161,13 @@ describe('ChannelInvitesService', () => {
       emailVerificationTokenHash: null,
       emailVerificationExpiresAt: null,
       emailVerificationSentAt: null,
+      passwordResetTokenHash: null,
+      passwordResetExpiresAt: null,
+      passwordResetSentAt: null,
+      pendingEmail: null,
+      emailChangeTokenHash: null,
+      emailChangeExpiresAt: null,
+      emailChangeSentAt: null,
       ...overrides,
     };
   }

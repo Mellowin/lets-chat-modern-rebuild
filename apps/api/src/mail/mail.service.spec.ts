@@ -181,3 +181,189 @@ describe('MailService', () => {
     });
   });
 });
+
+describe('MailService — password reset', () => {
+  let service: MailService;
+  let configService: jest.Mocked<ConfigService>;
+
+  beforeEach(async () => {
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        MailService,
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn(),
+            getOrThrow: jest.fn(),
+          },
+        },
+      ],
+    }).compile();
+
+    service = moduleRef.get(MailService);
+    configService = moduleRef.get(ConfigService);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('logs password reset link via console provider', async () => {
+    configService.get.mockImplementation((key: string) => {
+      if (key === 'MAIL_PROVIDER') return 'console';
+      return undefined;
+    });
+    configService.getOrThrow.mockReturnValue('http://localhost:3000');
+
+    const loggerSpy = jest
+      .spyOn(Logger.prototype, 'log')
+      .mockImplementation(() => {});
+
+    await service.sendPasswordResetEmail({
+      to: 'user@example.com',
+      token: 'reset123',
+    });
+
+    expect(loggerSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        '[DEV MAIL] Password reset email to user@example.com',
+      ),
+    );
+    expect(loggerSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'http://localhost:3000/reset-password?token=reset123',
+      ),
+    );
+  });
+
+  it('calls Resend API for password reset', async () => {
+    configService.get.mockImplementation((key: string) => {
+      if (key === 'MAIL_PROVIDER') return 'resend';
+      if (key === 'RESEND_API_KEY') return 're_123';
+      if (key === 'MAIL_FROM') return 'noreply@example.com';
+      return undefined;
+    });
+    configService.getOrThrow.mockReturnValue('http://localhost:3000');
+
+    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+    } as Response);
+
+    await service.sendPasswordResetEmail({
+      to: 'user@example.com',
+      token: 'reset123',
+    });
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'https://api.resend.com/emails',
+      expect.objectContaining({
+        method: 'POST',
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        body: expect.stringContaining('Reset your password'),
+      }),
+    );
+
+    const body = JSON.parse(
+      fetchSpy.mock.calls[0][1]!.body as string,
+    ) as Record<string, unknown>;
+    expect(body.to).toBe('user@example.com');
+    expect(body.subject).toBe('Reset your password');
+    expect(body.html).toContain(
+      'http://localhost:3000/reset-password?token=reset123',
+    );
+  });
+});
+
+describe('MailService — email change confirmation', () => {
+  let service: MailService;
+  let configService: jest.Mocked<ConfigService>;
+
+  beforeEach(async () => {
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        MailService,
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn(),
+            getOrThrow: jest.fn(),
+          },
+        },
+      ],
+    }).compile();
+
+    service = moduleRef.get(MailService);
+    configService = moduleRef.get(ConfigService);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('logs email change link via console provider', async () => {
+    configService.get.mockImplementation((key: string) => {
+      if (key === 'MAIL_PROVIDER') return 'console';
+      return undefined;
+    });
+    configService.getOrThrow.mockReturnValue('http://localhost:3000');
+
+    const loggerSpy = jest
+      .spyOn(Logger.prototype, 'log')
+      .mockImplementation(() => {});
+
+    await service.sendEmailChangeConfirmationEmail({
+      to: 'new@example.com',
+      token: 'change123',
+    });
+
+    expect(loggerSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        '[DEV MAIL] Email change confirmation to new@example.com',
+      ),
+    );
+    expect(loggerSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'http://localhost:3000/confirm-email-change?token=change123',
+      ),
+    );
+  });
+
+  it('calls Resend API for email change confirmation', async () => {
+    configService.get.mockImplementation((key: string) => {
+      if (key === 'MAIL_PROVIDER') return 'resend';
+      if (key === 'RESEND_API_KEY') return 're_123';
+      if (key === 'MAIL_FROM') return 'noreply@example.com';
+      return undefined;
+    });
+    configService.getOrThrow.mockReturnValue('http://localhost:3000');
+
+    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+    } as Response);
+
+    await service.sendEmailChangeConfirmationEmail({
+      to: 'new@example.com',
+      token: 'change123',
+    });
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'https://api.resend.com/emails',
+      expect.objectContaining({
+        method: 'POST',
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        body: expect.stringContaining('Confirm your email change'),
+      }),
+    );
+
+    const body = JSON.parse(
+      fetchSpy.mock.calls[0][1]!.body as string,
+    ) as Record<string, unknown>;
+    expect(body.to).toBe('new@example.com');
+    expect(body.subject).toBe('Confirm your email change');
+    expect(body.html).toContain(
+      'http://localhost:3000/confirm-email-change?token=change123',
+    );
+  });
+});
