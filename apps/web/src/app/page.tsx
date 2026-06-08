@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { getHealth, type HealthResponse } from "@/lib/api";
+import { getApiOrigin } from "@/lib/env";
 
 type HealthState =
   | { kind: "idle" }
@@ -120,7 +121,7 @@ export default function Home() {
               <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-500">
                 Make sure the backend is running on{" "}
                 <code className="rounded bg-zinc-200 dark:bg-zinc-800 px-1 py-0.5">
-                  http://localhost:3001
+                  {getApiOrigin()}
                 </code>
                 .
               </p>

@@ -1,12 +1,25 @@
 # Project Status
 
-> Last updated: 2026-06-04  
-> Code checkpoint: `de8330d`  
-> Docs checkpoint: `de8330d`
+> Last updated: 2026-06-08  
+> Code checkpoint: `ae27bb3`  
+> Docs checkpoint: `ae27bb3`
 
 ---
 
-## 1. Current Implemented Features
+## 1. Deployment Status
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| **Frontend (Vercel-ready)** | ✅ Prepared | `NEXT_PUBLIC_API_URL` / `NEXT_PUBLIC_WS_URL` env wiring, production fallback guards, build docs |
+| **Backend (external host)** | ✅ Ready | Persistent Node.js + Socket.io; CORS via `CORS_ORIGIN` env; health endpoint |
+| **Database** | ✅ Ready | Prisma migrations; PostgreSQL 15+ |
+| **Email** | ✅ Ready | Resend or console dev mode; `APP_WEB_URL` for link generation |
+
+See [`docs/deployment-vercel.md`](deployment-vercel.md) for full deployment guide.
+
+---
+
+## 2. Current Implemented Features
 
 ### Authentication
 - Registration with email, username, password

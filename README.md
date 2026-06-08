@@ -216,6 +216,16 @@ pnpm --filter web build
 
 ---
 
+## Deployment
+
+See [`docs/deployment-vercel.md`](docs/deployment-vercel.md) for Vercel deployment instructions.
+
+- **Frontend** (`apps/web`) → Vercel
+- **Backend** (`apps/api`) → External host with persistent Node.js (Render, Fly.io, Railway, VPS)
+- **Database** → External PostgreSQL 15+
+
+---
+
 ## Roadmap
 
 - [ ] Add screenshots and short demo video

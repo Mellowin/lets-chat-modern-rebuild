@@ -1,4 +1,6 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
+import { getApiBase } from "./env";
+
+const API_BASE = getApiBase();
 
 export interface DirectConversationOtherParticipant {
   id: string;
