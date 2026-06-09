@@ -150,34 +150,55 @@ If `CORS_ORIGIN` is not set, the API falls back to `http://localhost:3000` for l
 
 ---
 
+## Production URLs
+
+| Service | URL |
+|---------|-----|
+| Web (Vercel) | `https://lets-chat-web.vercel.app` |
+| API base | `https://lets-chat-api-wa43.onrender.com/api/v1` |
+| API origin | `https://lets-chat-api-wa43.onrender.com` |
+
+> ⚠️ **Do not use** `lets-chat-api-w43.onrender.com`; the correct host is `lets-chat-api-wa43.onrender.com`.
+
+---
+
 ## Post-deploy smoke check
 
 After both backend and frontend are deployed, run the smoke script to verify the deployment:
 
+**Bash:**
 ```bash
-WEB_URL=https://your-app.vercel.app \
-API_URL=https://your-api.example.com/api/v1 \
+WEB_URL=https://lets-chat-web.vercel.app \
+API_URL=https://lets-chat-api-wa43.onrender.com/api/v1 \
 node scripts/smoke-deploy.mjs
 ```
 
 **PowerShell:**
 ```powershell
-$env:WEB_URL="https://your-app.vercel.app"
-$env:API_URL="https://your-api.example.com/api/v1"
+$env:WEB_URL="https://lets-chat-web.vercel.app"
+$env:API_URL="https://lets-chat-api-wa43.onrender.com/api/v1"
 node scripts/smoke-deploy.mjs
 ```
 
 ### Required values
 
-- `WEB_URL` — full Vercel production URL (e.g. `https://your-app.vercel.app`)
-- `API_URL` — must include `/api/v1` (e.g. `https://your-api.example.com/api/v1`)
+- `WEB_URL` — full Vercel production URL (e.g. `https://lets-chat-web.vercel.app`)
+- `API_URL` — must include `/api/v1` (e.g. `https://lets-chat-api-wa43.onrender.com/api/v1`)
 
-### What the script checks
+### What the script checks (automated)
 
 1. Frontend returns `200 OK` with HTML
 2. Backend `/health` returns `status: ok`
 3. `POST /auth/forgot-password` returns generic success (no email enumeration)
 4. `POST /auth/resend-verification` returns generic success
+5. `API_URL` does not contain the wrong Render host `lets-chat-api-w43.onrender.com`
+
+### What still requires manual verification
+
+- Registration email arrives in Gmail/Inbox
+- Verify email link opens `/verify-email?token=...`
+- Reset password email arrives
+- Same-password reset shows `New password must be different from current password`
 
 ### What success means
 

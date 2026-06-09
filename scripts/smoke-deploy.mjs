@@ -118,13 +118,20 @@ async function main() {
   console.log(`WEB_URL: ${WEB_URL}`);
   console.log(`API_URL: ${API_URL}\n`);
 
+  if (API_URL.includes("lets-chat-api-w43.onrender.com")) {
+    console.error(
+      "Wrong Render host: use lets-chat-api-wa43.onrender.com, not lets-chat-api-w43.onrender.com",
+    );
+    process.exit(1);
+  }
+
   await checkWeb();
   await checkHealth();
   await checkForgotPassword();
   await checkResendVerification();
 
   const failures = checks.filter((c) => !c.ok);
-  console.log("\n=== Summary ===");
+  console.log("\n=== Automated checks completed ===");
   console.log(`Passed: ${checks.length - failures.length}/${checks.length}`);
 
   if (failures.length > 0) {
@@ -141,7 +148,15 @@ async function main() {
     process.exit(1);
   }
 
-  console.log("\n✅ All checks passed.");
+  console.log("\n=== Manual checks still required ===");
+  console.log("  - registration email arrives in Gmail/Inbox");
+  console.log("  - verify email link opens /verify-email?token=...");
+  console.log("  - reset password email arrives");
+  console.log(
+    "  - same-password reset shows 'New password must be different from current password'",
+  );
+
+  console.log("\n✅ All automated checks passed.");
   process.exit(0);
 }
 
