@@ -125,5 +125,6 @@ Use these steps to verify core functionality after deploy or before release:
 
 - **No slug-based URLs** — routing is strictly UUID-based; slugs are cosmetic only.
 - **No auto-dedupe** — duplicate slugs return `409 Conflict`; user must pick a different name.
+- **Password reset and authenticated password change revoke existing refresh sessions** — old devices must re-login after password change.
 - **No file attachments** — text-only messages.
 - **No message search** — not implemented.

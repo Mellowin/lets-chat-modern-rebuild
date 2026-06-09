@@ -57,6 +57,7 @@ describe('AuthService', () => {
             createToken: jest.fn(),
             consumeActiveToken: jest.fn(),
             revokeToken: jest.fn(),
+            revokeAllForUser: jest.fn(),
           },
         },
         {
@@ -387,6 +388,7 @@ describe('AuthService — email verification', () => {
             createToken: jest.fn(),
             consumeActiveToken: jest.fn(),
             revokeToken: jest.fn(),
+            revokeAllForUser: jest.fn(),
           },
         },
         {
@@ -661,6 +663,7 @@ describe('AuthService — password reset', () => {
   let usersRepository: jest.Mocked<UsersRepository>;
   let passwordService: jest.Mocked<PasswordService>;
   let mailService: jest.Mocked<MailService>;
+  let refreshTokensRepository: jest.Mocked<RefreshTokensRepository>;
 
   const makeUser = (overrides: Partial<Record<string, unknown>> = {}) => ({
     id: 'user-id',
@@ -736,6 +739,7 @@ describe('AuthService — password reset', () => {
             createToken: jest.fn(),
             consumeActiveToken: jest.fn(),
             revokeToken: jest.fn(),
+            revokeAllForUser: jest.fn(),
           },
         },
         {
@@ -760,6 +764,7 @@ describe('AuthService — password reset', () => {
     usersRepository = moduleRef.get(UsersRepository);
     passwordService = moduleRef.get(PasswordService);
     mailService = moduleRef.get(MailService);
+    refreshTokensRepository = moduleRef.get(RefreshTokensRepository);
   });
 
   describe('forgotPassword', () => {
@@ -823,6 +828,9 @@ describe('AuthService — password reset', () => {
       expect(usersRepository.clearPasswordResetToken).toHaveBeenCalledWith(
         'user-id',
       );
+      expect(refreshTokensRepository.revokeAllForUser).toHaveBeenCalledWith(
+        'user-id',
+      );
     });
 
     it('throws BadRequestException when new password equals current password', async () => {
@@ -844,6 +852,7 @@ describe('AuthService — password reset', () => {
       expect(passwordService.hashPassword).not.toHaveBeenCalled();
       expect(usersRepository.updatePassword).not.toHaveBeenCalled();
       expect(usersRepository.clearPasswordResetToken).not.toHaveBeenCalled();
+      expect(refreshTokensRepository.revokeAllForUser).not.toHaveBeenCalled();
     });
 
     it('throws NotFoundException for invalid token', async () => {
@@ -852,6 +861,8 @@ describe('AuthService — password reset', () => {
       await expect(
         service.resetPassword('bad-token', 'newpass'),
       ).rejects.toThrow(NotFoundException);
+
+      expect(refreshTokensRepository.revokeAllForUser).not.toHaveBeenCalled();
     });
 
     it('throws NotFoundException for expired token', async () => {
@@ -864,6 +875,8 @@ describe('AuthService — password reset', () => {
       await expect(
         service.resetPassword('raw-token', 'newpass'),
       ).rejects.toThrow(NotFoundException);
+
+      expect(refreshTokensRepository.revokeAllForUser).not.toHaveBeenCalled();
     });
   });
 
@@ -989,6 +1002,7 @@ describe('AuthService — change password', () => {
   let service: AuthService;
   let usersRepository: jest.Mocked<UsersRepository>;
   let passwordService: jest.Mocked<PasswordService>;
+  let refreshTokensRepository: jest.Mocked<RefreshTokensRepository>;
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -1028,6 +1042,7 @@ describe('AuthService — change password', () => {
             createToken: jest.fn(),
             consumeActiveToken: jest.fn(),
             revokeToken: jest.fn(),
+            revokeAllForUser: jest.fn(),
           },
         },
         {
@@ -1051,6 +1066,7 @@ describe('AuthService — change password', () => {
     service = moduleRef.get(AuthService);
     usersRepository = moduleRef.get(UsersRepository);
     passwordService = moduleRef.get(PasswordService);
+    refreshTokensRepository = moduleRef.get(RefreshTokensRepository);
   });
 
   const makeUser = (overrides: Partial<Record<string, unknown>> = {}) => ({
@@ -1109,6 +1125,9 @@ describe('AuthService — change password', () => {
       'user-id',
       'new-hash',
     );
+    expect(refreshTokensRepository.revokeAllForUser).toHaveBeenCalledWith(
+      'user-id',
+    );
   });
 
   it('throws BadRequestException when current password is incorrect', async () => {
@@ -1122,6 +1141,7 @@ describe('AuthService — change password', () => {
 
     expect(passwordService.hashPassword).not.toHaveBeenCalled();
     expect(usersRepository.updatePassword).not.toHaveBeenCalled();
+    expect(refreshTokensRepository.revokeAllForUser).not.toHaveBeenCalled();
   });
 
   it('throws BadRequestException when new password equals current password', async () => {
@@ -1136,5 +1156,6 @@ describe('AuthService — change password', () => {
 
     expect(passwordService.hashPassword).not.toHaveBeenCalled();
     expect(usersRepository.updatePassword).not.toHaveBeenCalled();
+    expect(refreshTokensRepository.revokeAllForUser).not.toHaveBeenCalled();
   });
 });

@@ -354,6 +354,7 @@ export class AuthService {
     const passwordHash = await this.password.hashPassword(password);
     await this.users.updatePassword(user.id, passwordHash);
     await this.users.clearPasswordResetToken(user.id);
+    await this.refreshTokens.revokeAllForUser(user.id);
 
     return { success: true };
   }
@@ -388,6 +389,7 @@ export class AuthService {
 
     const passwordHash = await this.password.hashPassword(newPassword);
     await this.users.updatePassword(user.id, passwordHash);
+    await this.refreshTokens.revokeAllForUser(user.id);
 
     return { success: true };
   }

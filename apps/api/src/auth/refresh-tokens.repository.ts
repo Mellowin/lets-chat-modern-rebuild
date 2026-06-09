@@ -53,4 +53,15 @@ export class RefreshTokensRepository {
       },
     });
   }
+
+  async revokeAllForUser(userId: string): Promise<number> {
+    const result = await this.prisma.refreshToken.updateMany({
+      where: {
+        userId,
+        revokedAt: null,
+      },
+      data: { revokedAt: new Date() },
+    });
+    return result.count;
+  }
 }
