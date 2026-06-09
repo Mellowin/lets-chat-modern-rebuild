@@ -358,6 +358,40 @@ export class AuthService {
     return { success: true };
   }
 
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<{ success: boolean }> {
+    const user = await this.users.findById(userId);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const currentValid = await this.password.verifyPassword(
+      currentPassword,
+      user.passwordHash,
+    );
+    if (!currentValid) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+
+    const isSamePassword = await this.password.verifyPassword(
+      newPassword,
+      user.passwordHash,
+    );
+    if (isSamePassword) {
+      throw new BadRequestException(
+        'New password must be different from current password',
+      );
+    }
+
+    const passwordHash = await this.password.hashPassword(newPassword);
+    await this.users.updatePassword(user.id, passwordHash);
+
+    return { success: true };
+  }
+
   async requestEmailChange(
     userId: string,
     newEmail: string,

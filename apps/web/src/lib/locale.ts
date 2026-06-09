@@ -48,6 +48,14 @@ export type TranslationKey =
   | "profile.errorUploadAvatarFailed"
   | "profile.avatarPreviewAlt"
   | "profile.avatarAlt"
+  | "profile.changePassword"
+  | "profile.currentPassword"
+  | "profile.newPassword"
+  | "profile.confirmNewPassword"
+  | "profile.passwordFieldsRequired"
+  | "profile.passwordsDoNotMatch"
+  | "profile.passwordChangeFailed"
+  | "profile.passwordChanged"
   | "dashboard.welcome"
   | "dashboard.signedInAs"
   | "dashboard.profileSettings"
@@ -374,6 +382,14 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.errorUploadAvatarFailed": "Failed to upload avatar",
     "profile.avatarPreviewAlt": "Avatar preview",
     "profile.avatarAlt": "Avatar",
+    "profile.changePassword": "Change password",
+    "profile.currentPassword": "Current password",
+    "profile.newPassword": "New password",
+    "profile.confirmNewPassword": "Confirm new password",
+    "profile.passwordFieldsRequired": "All password fields are required",
+    "profile.passwordsDoNotMatch": "New passwords do not match",
+    "profile.passwordChangeFailed": "Failed to change password",
+    "profile.passwordChanged": "Password changed successfully.",
     "dashboard.welcome": "Welcome",
     "dashboard.signedInAs": "You are signed in as",
     "dashboard.profileSettings": "Profile settings",
@@ -699,6 +715,14 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.errorUploadAvatarFailed": "Не вдалося завантажити аватар",
     "profile.avatarPreviewAlt": "Попередній перегляд аватара",
     "profile.avatarAlt": "Аватар",
+    "profile.changePassword": "Змінити пароль",
+    "profile.currentPassword": "Поточний пароль",
+    "profile.newPassword": "Новий пароль",
+    "profile.confirmNewPassword": "Підтвердіть новий пароль",
+    "profile.passwordFieldsRequired": "Усі поля пароля обовʼязкові",
+    "profile.passwordsDoNotMatch": "Нові паролі не збігаються",
+    "profile.passwordChangeFailed": "Не вдалося змінити пароль",
+    "profile.passwordChanged": "Пароль успішно змінено.",
     "dashboard.welcome": "Вітаємо",
     "dashboard.signedInAs": "Ви увійшли як",
     "dashboard.profileSettings": "Налаштування профілю",
@@ -1024,6 +1048,14 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.errorUploadAvatarFailed": "Не удалось загрузить аватар",
     "profile.avatarPreviewAlt": "Предпросмотр аватара",
     "profile.avatarAlt": "Аватар",
+    "profile.changePassword": "Изменить пароль",
+    "profile.currentPassword": "Текущий пароль",
+    "profile.newPassword": "Новый пароль",
+    "profile.confirmNewPassword": "Подтвердите новый пароль",
+    "profile.passwordFieldsRequired": "Все поля пароля обязательны",
+    "profile.passwordsDoNotMatch": "Новые пароли не совпадают",
+    "profile.passwordChangeFailed": "Не удалось изменить пароль",
+    "profile.passwordChanged": "Пароль успешно изменён.",
     "dashboard.welcome": "Добро пожаловать",
     "dashboard.signedInAs": "Вы вошли как",
     "dashboard.profileSettings": "Настройки профиля",

@@ -984,3 +984,157 @@ describe('AuthService — password reset', () => {
     });
   });
 });
+
+describe('AuthService — change password', () => {
+  let service: AuthService;
+  let usersRepository: jest.Mocked<UsersRepository>;
+  let passwordService: jest.Mocked<PasswordService>;
+
+  beforeEach(async () => {
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        AuthService,
+        {
+          provide: UsersRepository,
+          useValue: {
+            findById: jest.fn(),
+            findByEmail: jest.fn(),
+            findByUsername: jest.fn(),
+            createUser: jest.fn(),
+            updateDisplayName: jest.fn(),
+            updateAvatar: jest.fn(),
+            updateInterfaceLanguage: jest.fn(),
+            updatePassword: jest.fn(),
+          },
+        },
+        {
+          provide: PasswordService,
+          useValue: {
+            hashPassword: jest.fn(),
+            verifyPassword: jest.fn(),
+          },
+        },
+        {
+          provide: TokenService,
+          useValue: {
+            signAccessToken: jest.fn(),
+            signRefreshToken: jest.fn(),
+            verifyRefreshToken: jest.fn(),
+          },
+        },
+        {
+          provide: RefreshTokensRepository,
+          useValue: {
+            createToken: jest.fn(),
+            consumeActiveToken: jest.fn(),
+            revokeToken: jest.fn(),
+          },
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            getOrThrow: jest.fn().mockReturnValue('7d'),
+            get: jest.fn(),
+          },
+        },
+        {
+          provide: MailService,
+          useValue: {
+            sendVerificationEmail: jest.fn(),
+            sendPasswordResetEmail: jest.fn(),
+            sendEmailChangeConfirmationEmail: jest.fn(),
+          },
+        },
+      ],
+    }).compile();
+
+    service = moduleRef.get(AuthService);
+    usersRepository = moduleRef.get(UsersRepository);
+    passwordService = moduleRef.get(PasswordService);
+  });
+
+  const makeUser = (overrides: Partial<Record<string, unknown>> = {}) => ({
+    id: 'user-id',
+    email: 'u@test.com',
+    username: 'user',
+    displayName: null,
+    avatarUrl: null,
+    avatarUpdatedAt: null,
+    interfaceLanguage: 'en',
+    passwordHash: 'hash',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    deletedAt: null,
+    emailVerifiedAt: null,
+    emailVerificationTokenHash: null,
+    emailVerificationExpiresAt: null,
+    emailVerificationSentAt: null,
+    passwordResetTokenHash: null,
+    passwordResetExpiresAt: null,
+    passwordResetSentAt: null,
+    pendingEmail: null,
+    emailChangeTokenHash: null,
+    emailChangeExpiresAt: null,
+    emailChangeSentAt: null,
+    ...overrides,
+  });
+
+  it('updates password when current password is correct and new password is different', async () => {
+    const user = makeUser();
+    usersRepository.findById.mockResolvedValue(user);
+    passwordService.verifyPassword.mockResolvedValueOnce(true);
+    passwordService.verifyPassword.mockResolvedValueOnce(false);
+    passwordService.hashPassword.mockResolvedValue('new-hash');
+    usersRepository.updatePassword.mockResolvedValue(makeUser());
+
+    const result = await service.changePassword(
+      'user-id',
+      'oldpass123',
+      'newpass123',
+    );
+
+    expect(result).toEqual({ success: true });
+    expect(passwordService.verifyPassword).toHaveBeenNthCalledWith(
+      1,
+      'oldpass123',
+      'hash',
+    );
+    expect(passwordService.verifyPassword).toHaveBeenNthCalledWith(
+      2,
+      'newpass123',
+      'hash',
+    );
+    expect(passwordService.hashPassword).toHaveBeenCalledWith('newpass123');
+    expect(usersRepository.updatePassword).toHaveBeenCalledWith(
+      'user-id',
+      'new-hash',
+    );
+  });
+
+  it('throws BadRequestException when current password is incorrect', async () => {
+    const user = makeUser();
+    usersRepository.findById.mockResolvedValue(user);
+    passwordService.verifyPassword.mockResolvedValueOnce(false);
+
+    await expect(
+      service.changePassword('user-id', 'wrongpass', 'newpass123'),
+    ).rejects.toThrow(BadRequestException);
+
+    expect(passwordService.hashPassword).not.toHaveBeenCalled();
+    expect(usersRepository.updatePassword).not.toHaveBeenCalled();
+  });
+
+  it('throws BadRequestException when new password equals current password', async () => {
+    const user = makeUser();
+    usersRepository.findById.mockResolvedValue(user);
+    passwordService.verifyPassword.mockResolvedValueOnce(true);
+    passwordService.verifyPassword.mockResolvedValueOnce(true);
+
+    await expect(
+      service.changePassword('user-id', 'samepass', 'samepass'),
+    ).rejects.toThrow('New password must be different from current password');
+
+    expect(passwordService.hashPassword).not.toHaveBeenCalled();
+    expect(usersRepository.updatePassword).not.toHaveBeenCalled();
+  });
+});

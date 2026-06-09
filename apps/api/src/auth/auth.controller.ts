@@ -38,6 +38,7 @@ import { VerifyEmailDto } from './dto/verify-email.dto';
 import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { RequestEmailChangeDto } from './dto/request-email-change.dto';
 import { ConfirmEmailChangeDto } from './dto/confirm-email-change.dto';
 import { UpdateDisplayNameDto } from './dto/update-display-name.dto';
@@ -138,6 +139,28 @@ export class AuthController {
   @ApiBadRequestResponse({ description: 'Validation failed' })
   async resetPassword(@Body() dto: ResetPasswordDto) {
     return this.auth.resetPassword(dto.token, dto.password);
+  }
+
+  @Post('change-password')
+  @UseGuards(JwtAccessGuard)
+  @HttpCode(200)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Change password for authenticated user' })
+  @ApiBody({ type: ChangePasswordDto })
+  @ApiOkResponse({ description: 'Password changed successfully' })
+  @ApiBadRequestResponse({
+    description: 'Validation failed or wrong current password',
+  })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async changePassword(
+    @CurrentUser() user: AuthUserResponse,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    return this.auth.changePassword(
+      user.id,
+      dto.currentPassword,
+      dto.newPassword,
+    );
   }
 
   @Post('change-email/request')

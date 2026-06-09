@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import ProfilePage from "./page";
 import { useAuth } from "@/lib/auth-context";
-import { updateDisplayName, uploadAvatar, updateInterfaceLanguage, requestEmailChange } from "@/lib/auth-api";
+import { updateDisplayName, uploadAvatar, updateInterfaceLanguage, requestEmailChange, changePassword } from "@/lib/auth-api";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -18,6 +18,7 @@ vi.mock("@/lib/auth-api", () => ({
   uploadAvatar: vi.fn(),
   updateInterfaceLanguage: vi.fn(),
   requestEmailChange: vi.fn(),
+  changePassword: vi.fn(),
 }));
 
 function mockAuth(userOverrides?: Partial<ReturnType<typeof useAuth>>) {
@@ -660,5 +661,70 @@ describe("ProfilePage — authenticated", () => {
       expect(screen.getByText(/Поточний email/i)).toBeInTheDocument();
       expect(screen.getByPlaceholderText(/korystuvach@pryklad.ua/i)).toBeInTheDocument();
     });
+  });
+});
+
+
+describe("ProfilePage — change password", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+  });
+
+  it("shows validation error when new password and confirm do not match", async () => {
+    mockAuth();
+    render(<ProfilePage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Current password/i)).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText("Current password"), "oldpass123");
+    await userEvent.type(screen.getByPlaceholderText("New password"), "newpass123");
+    await userEvent.type(screen.getByPlaceholderText("Confirm new password"), "different123");
+    await userEvent.click(screen.getByRole("button", { name: /Change password/i }));
+
+    expect(await screen.findByText(/New passwords do not match/i)).toBeInTheDocument();
+    expect(changePassword).not.toHaveBeenCalled();
+  });
+
+  it("shows success message after successful password change", async () => {
+    mockAuth();
+    vi.mocked(changePassword).mockResolvedValueOnce({ success: true });
+
+    render(<ProfilePage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Current password/i)).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText("Current password"), "oldpass123");
+    await userEvent.type(screen.getByPlaceholderText("New password"), "newpass123");
+    await userEvent.type(screen.getByPlaceholderText("Confirm new password"), "newpass123");
+    await userEvent.click(screen.getByRole("button", { name: /Change password/i }));
+
+    expect(await screen.findByText(/Password changed successfully/i)).toBeInTheDocument();
+    expect(changePassword).toHaveBeenCalledWith("token", {
+      currentPassword: "oldpass123",
+      newPassword: "newpass123",
+    });
+  });
+
+  it("shows backend error when current password is wrong", async () => {
+    mockAuth();
+    vi.mocked(changePassword).mockRejectedValueOnce(new Error("Current password is incorrect"));
+
+    render(<ProfilePage />);
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/Current password/i)).toBeInTheDocument();
+    });
+
+    await userEvent.type(screen.getByPlaceholderText("Current password"), "wrongpass");
+    await userEvent.type(screen.getByPlaceholderText("New password"), "newpass123");
+    await userEvent.type(screen.getByPlaceholderText("Confirm new password"), "newpass123");
+    await userEvent.click(screen.getByRole("button", { name: /Change password/i }));
+
+    expect(await screen.findByText(/Current password is incorrect/i)).toBeInTheDocument();
   });
 });

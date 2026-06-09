@@ -216,6 +216,29 @@ export async function resetPassword(input: ResetPasswordInput): Promise<{ succes
   return res.json() as Promise<{ success: boolean }>;
 }
 
+export interface ChangePasswordInput {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export async function changePassword(accessToken: string, input: ChangePasswordInput): Promise<{ success: boolean }> {
+  const res = await fetch(`${API_BASE}/auth/change-password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Change password failed: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<{ success: boolean }>;
+}
+
 export interface RequestEmailChangeInput {
   newEmail: string;
 }
