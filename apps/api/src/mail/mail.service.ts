@@ -16,6 +16,12 @@ export interface SendEmailChangeConfirmationEmailInput {
   token: string;
 }
 
+interface EmailTemplate {
+  subject: string;
+  text: string;
+  html: string;
+}
+
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
@@ -64,6 +70,87 @@ export class MailService {
     }
   }
 
+  private buildVerificationTemplate(link: string): EmailTemplate {
+    return {
+      subject: 'Verify your email address for Lets Chat',
+      text: `Welcome to Lets Chat!\n\nPlease verify your email address by clicking the link below:\n\n${link}\n\nIf you did not create an account, you can safely ignore this email.`,
+      html: `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verify your email</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+<div style="background: #f9f9f9; border-radius: 8px; padding: 30px;">
+<h2 style="color: #111; margin-top: 0;">Welcome to Lets Chat</h2>
+<p>Please verify your email address to complete your registration.</p>
+<div style="text-align: center; margin: 30px 0;">
+<a href="${link}" style="background: #111; color: #fff; text-decoration: none; padding: 14px 28px; border-radius: 6px; display: inline-block; font-weight: bold;">Verify Email Address</a>
+</div>
+<p style="font-size: 14px; color: #666;">If the button doesn't work, copy and paste this link into your browser:</p>
+<p style="font-size: 14px; word-break: break-all; color: #666;">${link}</p>
+<p style="font-size: 13px; color: #999; margin-top: 30px;">If you did not create an account, you can safely ignore this email.</p>
+</div>
+</body>
+</html>`,
+    };
+  }
+
+  private buildPasswordResetTemplate(link: string): EmailTemplate {
+    return {
+      subject: 'Reset your Lets Chat password',
+      text: `You requested a password reset for your Lets Chat account.\n\nClick the link below to reset your password:\n\n${link}\n\nIf you did not request a password reset, you can safely ignore this email.`,
+      html: `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reset your password</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+<div style="background: #f9f9f9; border-radius: 8px; padding: 30px;">
+<h2 style="color: #111; margin-top: 0;">Reset Your Password</h2>
+<p>You requested a password reset for your Lets Chat account. Click the button below to set a new password.</p>
+<div style="text-align: center; margin: 30px 0;">
+<a href="${link}" style="background: #111; color: #fff; text-decoration: none; padding: 14px 28px; border-radius: 6px; display: inline-block; font-weight: bold;">Reset Password</a>
+</div>
+<p style="font-size: 14px; color: #666;">If the button doesn't work, copy and paste this link into your browser:</p>
+<p style="font-size: 14px; word-break: break-all; color: #666;">${link}</p>
+<p style="font-size: 13px; color: #999; margin-top: 30px;">If you did not request a password reset, you can safely ignore this email.</p>
+</div>
+</body>
+</html>`,
+    };
+  }
+
+  private buildEmailChangeTemplate(link: string): EmailTemplate {
+    return {
+      subject: 'Confirm your email change for Lets Chat',
+      text: `You requested to change the email address for your Lets Chat account.\n\nClick the link below to confirm this change:\n\n${link}\n\nIf you did not request this change, you can safely ignore this email.`,
+      html: `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Confirm email change</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+<div style="background: #f9f9f9; border-radius: 8px; padding: 30px;">
+<h2 style="color: #111; margin-top: 0;">Confirm Email Change</h2>
+<p>You requested to change the email address for your Lets Chat account. Click the button below to confirm.</p>
+<div style="text-align: center; margin: 30px 0;">
+<a href="${link}" style="background: #111; color: #fff; text-decoration: none; padding: 14px 28px; border-radius: 6px; display: inline-block; font-weight: bold;">Confirm Email Change</a>
+</div>
+<p style="font-size: 14px; color: #666;">If the button doesn't work, copy and paste this link into your browser:</p>
+<p style="font-size: 14px; word-break: break-all; color: #666;">${link}</p>
+<p style="font-size: 13px; color: #999; margin-top: 30px;">If you did not request this change, you can safely ignore this email.</p>
+</div>
+</body>
+</html>`,
+    };
+  }
+
   private sendViaConsole(input: SendVerificationEmailInput): void {
     const webUrl = this.config.getOrThrow<string>('APP_WEB_URL');
     const link = `${webUrl}/verify-email?token=${input.token}`;
@@ -85,6 +172,7 @@ export class MailService {
     }
 
     const link = `${webUrl}/verify-email?token=${input.token}`;
+    const template = this.buildVerificationTemplate(link);
 
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -95,8 +183,9 @@ export class MailService {
       body: JSON.stringify({
         from,
         to: input.to,
-        subject: 'Verify your email address',
-        html: `<p>Click the link below to verify your email address:</p><p><a href="${link}">${link}</a></p>`,
+        subject: template.subject,
+        text: template.text,
+        html: template.html,
       }),
     });
 
@@ -129,6 +218,7 @@ export class MailService {
     }
 
     const link = `${webUrl}/reset-password?token=${input.token}`;
+    const template = this.buildPasswordResetTemplate(link);
 
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -139,8 +229,9 @@ export class MailService {
       body: JSON.stringify({
         from,
         to: input.to,
-        subject: 'Reset your password',
-        html: `<p>Click the link below to reset your password:</p><p><a href="${link}">${link}</a></p>`,
+        subject: template.subject,
+        text: template.text,
+        html: template.html,
       }),
     });
 
@@ -175,6 +266,7 @@ export class MailService {
     }
 
     const link = `${webUrl}/confirm-email-change?token=${input.token}`;
+    const template = this.buildEmailChangeTemplate(link);
 
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -185,8 +277,9 @@ export class MailService {
       body: JSON.stringify({
         from,
         to: input.to,
-        subject: 'Confirm your email change',
-        html: `<p>Click the link below to confirm your email change:</p><p><a href="${link}">${link}</a></p>`,
+        subject: template.subject,
+        text: template.text,
+        html: template.html,
       }),
     });
 

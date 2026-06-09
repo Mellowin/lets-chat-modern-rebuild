@@ -154,10 +154,14 @@ describe('MailService', () => {
       ) as Record<string, unknown>;
       expect(body.from).toBe('noreply@example.com');
       expect(body.to).toBe('user@example.com');
-      expect(body.subject).toBe('Verify your email address');
+      expect(body.subject).toBe('Verify your email address for Lets Chat');
+      expect(body.text).toContain(
+        'http://localhost:3000/verify-email?token=abc123',
+      );
       expect(body.html).toContain(
         'http://localhost:3000/verify-email?token=abc123',
       );
+      expect(body.html).toContain('Verify Email Address');
     });
 
     it('throws when Resend API returns non-2xx', async () => {
@@ -260,7 +264,7 @@ describe('MailService — password reset', () => {
       expect.objectContaining({
         method: 'POST',
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        body: expect.stringContaining('Reset your password'),
+        body: expect.stringContaining('Reset your Lets Chat password'),
       }),
     );
 
@@ -268,10 +272,14 @@ describe('MailService — password reset', () => {
       fetchSpy.mock.calls[0][1]!.body as string,
     ) as Record<string, unknown>;
     expect(body.to).toBe('user@example.com');
-    expect(body.subject).toBe('Reset your password');
+    expect(body.subject).toBe('Reset your Lets Chat password');
+    expect(body.text).toContain(
+      'http://localhost:3000/reset-password?token=reset123',
+    );
     expect(body.html).toContain(
       'http://localhost:3000/reset-password?token=reset123',
     );
+    expect(body.html).toContain('Reset Password');
   });
 });
 
@@ -353,7 +361,7 @@ describe('MailService — email change confirmation', () => {
       expect.objectContaining({
         method: 'POST',
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        body: expect.stringContaining('Confirm your email change'),
+        body: expect.stringContaining('Confirm your email change for Lets Chat'),
       }),
     );
 
@@ -361,9 +369,13 @@ describe('MailService — email change confirmation', () => {
       fetchSpy.mock.calls[0][1]!.body as string,
     ) as Record<string, unknown>;
     expect(body.to).toBe('new@example.com');
-    expect(body.subject).toBe('Confirm your email change');
+    expect(body.subject).toBe('Confirm your email change for Lets Chat');
+    expect(body.text).toContain(
+      'http://localhost:3000/confirm-email-change?token=change123',
+    );
     expect(body.html).toContain(
       'http://localhost:3000/confirm-email-change?token=change123',
     );
+    expect(body.html).toContain('Confirm Email Change');
   });
 });
