@@ -10,6 +10,7 @@ import { HttpExceptionFilter } from './filters/http-exception.filter';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { HealthModule } from './health/health.module';
+import { MailModule } from './mail/mail.module';
 import { WorkspacesModule } from './workspaces/workspaces.module';
 import { ChannelsModule } from './channels/channels.module';
 import { MessagesModule } from './messages/messages.module';
@@ -43,6 +44,7 @@ import { AppController } from './app.controller';
     AuthModule,
     UsersModule,
     HealthModule,
+    MailModule,
     WorkspacesModule,
     ChannelsModule,
     MessagesModule,

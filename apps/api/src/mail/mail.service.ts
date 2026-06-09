@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 export interface SendVerificationEmailInput {
@@ -67,6 +67,27 @@ export class MailService {
       case 'console':
       default:
         return this.sendEmailChangeViaConsole(input);
+    }
+  }
+
+  previewTemplate(type: string): EmailTemplate {
+    const webUrl = this.config.getOrThrow<string>('APP_WEB_URL');
+
+    switch (type) {
+      case 'verify':
+        return this.buildVerificationTemplate(
+          `${webUrl}/verify-email?token=preview-token`,
+        );
+      case 'reset':
+        return this.buildPasswordResetTemplate(
+          `${webUrl}/reset-password?token=preview-token`,
+        );
+      case 'email-change':
+        return this.buildEmailChangeTemplate(
+          `${webUrl}/confirm-email-change?token=preview-token`,
+        );
+      default:
+        throw new BadRequestException('Unknown preview type');
     }
   }
 

@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
+import { BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Logger } from '@nestjs/common';
 import { MailService } from './mail.service';
 
 describe('MailService', () => {
@@ -379,5 +379,85 @@ describe('MailService — email change confirmation', () => {
       'http://localhost:3000/confirm-email-change?token=change123',
     );
     expect(body.html).toContain('Confirm Email Change');
+  });
+});
+
+describe('MailService — previewTemplate', () => {
+  let service: MailService;
+  let configService: jest.Mocked<ConfigService>;
+
+  beforeEach(async () => {
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        MailService,
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn(),
+            getOrThrow: jest.fn(),
+          },
+        },
+      ],
+    }).compile();
+
+    service = moduleRef.get(MailService);
+    configService = moduleRef.get(ConfigService);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('returns verification template with APP_WEB_URL link', () => {
+    configService.getOrThrow.mockReturnValue('https://app.example.com');
+
+    const result = service.previewTemplate('verify');
+
+    expect(result.subject).toBe('Verify your email address for Lets Chat');
+    expect(result.html).toContain('Verify Email Address');
+    expect(result.html).toContain(
+      'https://app.example.com/verify-email?token=preview-token',
+    );
+    expect(result.text).toContain(
+      'https://app.example.com/verify-email?token=preview-token',
+    );
+  });
+
+  it('returns password reset template with APP_WEB_URL link', () => {
+    configService.getOrThrow.mockReturnValue('https://app.example.com');
+
+    const result = service.previewTemplate('reset');
+
+    expect(result.subject).toBe('Reset your Lets Chat password');
+    expect(result.html).toContain('Reset Password');
+    expect(result.html).toContain(
+      'https://app.example.com/reset-password?token=preview-token',
+    );
+    expect(result.text).toContain(
+      'https://app.example.com/reset-password?token=preview-token',
+    );
+  });
+
+  it('returns email change template with APP_WEB_URL link', () => {
+    configService.getOrThrow.mockReturnValue('https://app.example.com');
+
+    const result = service.previewTemplate('email-change');
+
+    expect(result.subject).toBe('Confirm your email change for Lets Chat');
+    expect(result.html).toContain('Confirm Email Change');
+    expect(result.html).toContain(
+      'https://app.example.com/confirm-email-change?token=preview-token',
+    );
+    expect(result.text).toContain(
+      'https://app.example.com/confirm-email-change?token=preview-token',
+    );
+  });
+
+  it('throws BadRequestException for unknown type', () => {
+    configService.getOrThrow.mockReturnValue('https://app.example.com');
+
+    expect(() => service.previewTemplate('unknown')).toThrow(
+      BadRequestException,
+    );
   });
 });
