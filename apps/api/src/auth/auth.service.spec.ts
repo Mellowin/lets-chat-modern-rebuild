@@ -1,5 +1,6 @@
 import { Test } from '@nestjs/testing';
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   NotFoundException,
@@ -796,12 +797,13 @@ describe('AuthService — password reset', () => {
   });
 
   describe('resetPassword', () => {
-    it('updates password and clears token for valid token', async () => {
+    it('updates password and clears token for valid token with different password', async () => {
       const user = makeUser({
         passwordResetTokenHash: 'hash',
         passwordResetExpiresAt: new Date(Date.now() + 3600_000),
       });
       usersRepository.findByPasswordResetTokenHash.mockResolvedValue(user);
+      passwordService.verifyPassword.mockResolvedValue(false);
       passwordService.hashPassword.mockResolvedValue('new-hash');
       usersRepository.updatePassword.mockResolvedValue(makeUser());
       usersRepository.clearPasswordResetToken.mockResolvedValue(makeUser());
@@ -809,6 +811,10 @@ describe('AuthService — password reset', () => {
       const result = await service.resetPassword('raw-token', 'newpass123');
 
       expect(result).toEqual({ success: true });
+      expect(passwordService.verifyPassword).toHaveBeenCalledWith(
+        'newpass123',
+        'hash',
+      );
       expect(passwordService.hashPassword).toHaveBeenCalledWith('newpass123');
       expect(usersRepository.updatePassword).toHaveBeenCalledWith(
         'user-id',
@@ -817,6 +823,27 @@ describe('AuthService — password reset', () => {
       expect(usersRepository.clearPasswordResetToken).toHaveBeenCalledWith(
         'user-id',
       );
+    });
+
+    it('throws BadRequestException when new password equals current password', async () => {
+      const user = makeUser({
+        passwordResetTokenHash: 'hash',
+        passwordResetExpiresAt: new Date(Date.now() + 3600_000),
+      });
+      usersRepository.findByPasswordResetTokenHash.mockResolvedValue(user);
+      passwordService.verifyPassword.mockResolvedValue(true);
+
+      await expect(
+        service.resetPassword('raw-token', 'samepassword'),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(passwordService.verifyPassword).toHaveBeenCalledWith(
+        'samepassword',
+        'hash',
+      );
+      expect(passwordService.hashPassword).not.toHaveBeenCalled();
+      expect(usersRepository.updatePassword).not.toHaveBeenCalled();
+      expect(usersRepository.clearPasswordResetToken).not.toHaveBeenCalled();
     });
 
     it('throws NotFoundException for invalid token', async () => {

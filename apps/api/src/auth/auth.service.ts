@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -338,6 +339,16 @@ export class AuthService {
       user.passwordResetExpiresAt < new Date()
     ) {
       throw new NotFoundException('Invalid or expired reset token');
+    }
+
+    const isSamePassword = await this.password.verifyPassword(
+      password,
+      user.passwordHash,
+    );
+    if (isSamePassword) {
+      throw new BadRequestException(
+        'New password must be different from current password',
+      );
     }
 
     const passwordHash = await this.password.hashPassword(password);

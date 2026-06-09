@@ -90,6 +90,7 @@ Use these steps to verify core functionality after deploy or before release:
 - [ ] **Delete message** — message disappears for all connected clients
 - [ ] **Direct message** — start 1-to-1 conversation, messages appear in real time
 - [x] **Two tabs / two users** — realtime events propagate correctly across sessions
+- [ ] **Reset password with same current password** → expect rejection
 
 ---
 
