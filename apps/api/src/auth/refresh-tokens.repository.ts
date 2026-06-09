@@ -64,4 +64,17 @@ export class RefreshTokensRepository {
     });
     return result.count;
   }
+
+  async listSessionsForUser(userId: string) {
+    return this.prisma.refreshToken.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        createdAt: true,
+        expiresAt: true,
+        revokedAt: true,
+      },
+    });
+  }
 }

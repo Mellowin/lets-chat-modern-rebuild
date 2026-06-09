@@ -58,6 +58,7 @@ describe('AuthService', () => {
             consumeActiveToken: jest.fn(),
             revokeToken: jest.fn(),
             revokeAllForUser: jest.fn(),
+            listSessionsForUser: jest.fn(),
           },
         },
         {
@@ -389,6 +390,7 @@ describe('AuthService — email verification', () => {
             consumeActiveToken: jest.fn(),
             revokeToken: jest.fn(),
             revokeAllForUser: jest.fn(),
+            listSessionsForUser: jest.fn(),
           },
         },
         {
@@ -740,6 +742,7 @@ describe('AuthService — password reset', () => {
             consumeActiveToken: jest.fn(),
             revokeToken: jest.fn(),
             revokeAllForUser: jest.fn(),
+            listSessionsForUser: jest.fn(),
           },
         },
         {
@@ -1043,6 +1046,7 @@ describe('AuthService — change password', () => {
             consumeActiveToken: jest.fn(),
             revokeToken: jest.fn(),
             revokeAllForUser: jest.fn(),
+            listSessionsForUser: jest.fn(),
           },
         },
         {
@@ -1157,5 +1161,133 @@ describe('AuthService — change password', () => {
     expect(passwordService.hashPassword).not.toHaveBeenCalled();
     expect(usersRepository.updatePassword).not.toHaveBeenCalled();
     expect(refreshTokensRepository.revokeAllForUser).not.toHaveBeenCalled();
+  });
+});
+
+describe('AuthService — sessions', () => {
+  let service: AuthService;
+  let refreshTokensRepository: jest.Mocked<RefreshTokensRepository>;
+
+  beforeEach(async () => {
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        AuthService,
+        {
+          provide: UsersRepository,
+          useValue: {
+            findById: jest.fn(),
+            findByEmail: jest.fn(),
+            findByUsername: jest.fn(),
+            createUser: jest.fn(),
+            updateDisplayName: jest.fn(),
+            updateAvatar: jest.fn(),
+            updateInterfaceLanguage: jest.fn(),
+            updatePassword: jest.fn(),
+          },
+        },
+        {
+          provide: PasswordService,
+          useValue: {
+            hashPassword: jest.fn(),
+            verifyPassword: jest.fn(),
+          },
+        },
+        {
+          provide: TokenService,
+          useValue: {
+            signAccessToken: jest.fn(),
+            signRefreshToken: jest.fn(),
+            verifyRefreshToken: jest.fn(),
+          },
+        },
+        {
+          provide: RefreshTokensRepository,
+          useValue: {
+            createToken: jest.fn(),
+            consumeActiveToken: jest.fn(),
+            revokeToken: jest.fn(),
+            revokeAllForUser: jest.fn(),
+            listSessionsForUser: jest.fn(),
+          },
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            getOrThrow: jest.fn().mockReturnValue('7d'),
+            get: jest.fn(),
+          },
+        },
+        {
+          provide: MailService,
+          useValue: {
+            sendVerificationEmail: jest.fn(),
+            sendPasswordResetEmail: jest.fn(),
+            sendEmailChangeConfirmationEmail: jest.fn(),
+          },
+        },
+      ],
+    }).compile();
+
+    service = moduleRef.get(AuthService);
+    refreshTokensRepository = moduleRef.get(RefreshTokensRepository);
+  });
+
+  describe('listSessions', () => {
+    it('returns sessions with isActive computed for the user', async () => {
+      const now = new Date();
+      refreshTokensRepository.listSessionsForUser.mockResolvedValue([
+        {
+          id: 'session-1',
+          createdAt: now,
+          expiresAt: new Date(now.getTime() + 3600_000),
+          revokedAt: null,
+        },
+        {
+          id: 'session-2',
+          createdAt: now,
+          expiresAt: new Date(now.getTime() - 3600_000),
+          revokedAt: null,
+        },
+        {
+          id: 'session-3',
+          createdAt: now,
+          expiresAt: new Date(now.getTime() + 3600_000),
+          revokedAt: now,
+        },
+      ]);
+
+      const result = await service.listSessions('user-id');
+
+      expect(refreshTokensRepository.listSessionsForUser).toHaveBeenCalledWith(
+        'user-id',
+      );
+      expect(result).toHaveLength(3);
+      expect(result[0]).toMatchObject({
+        id: 'session-1',
+        isActive: true,
+      });
+      expect(result[1]).toMatchObject({
+        id: 'session-2',
+        isActive: false,
+      });
+      expect(result[2]).toMatchObject({
+        id: 'session-3',
+        isActive: false,
+      });
+      expect(result[0]).not.toHaveProperty('tokenHash');
+    });
+  });
+
+  describe('revokeAllSessions', () => {
+    it('returns success and revokedCount', async () => {
+      refreshTokensRepository.revokeAllForUser.mockResolvedValue(3);
+
+      const result = await service.revokeAllSessions('user-id');
+
+      expect(refreshTokensRepository.revokeAllForUser).toHaveBeenCalledWith(
+        'user-id',
+      );
+      expect(result).toEqual({ success: true, revokedCount: 3 });
+    });
   });
 });

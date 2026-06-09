@@ -28,7 +28,7 @@ import {
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthService } from './auth.service';
-import type { AuthUserResponse } from './auth.service';
+import type { AuthUserResponse, SessionResponse } from './auth.service';
 import { AvatarUploadService } from './avatar-upload.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -161,6 +161,31 @@ export class AuthController {
       dto.currentPassword,
       dto.newPassword,
     );
+  }
+
+  @Get('sessions')
+  @UseGuards(JwtAccessGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List current user refresh sessions' })
+  @ApiOkResponse({ description: 'Sessions returned successfully' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async listSessions(
+    @CurrentUser() user: AuthUserResponse,
+  ): Promise<SessionResponse[]> {
+    return this.auth.listSessions(user.id);
+  }
+
+  @Post('sessions/revoke-all')
+  @UseGuards(JwtAccessGuard)
+  @HttpCode(200)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Revoke all active refresh sessions' })
+  @ApiOkResponse({ description: 'Sessions revoked successfully' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async revokeAllSessions(
+    @CurrentUser() user: AuthUserResponse,
+  ): Promise<{ success: boolean; revokedCount: number }> {
+    return this.auth.revokeAllSessions(user.id);
   }
 
   @Post('change-email/request')

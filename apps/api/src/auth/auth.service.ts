@@ -52,6 +52,14 @@ export interface RegisterPendingResult {
   email: string;
 }
 
+export interface SessionResponse {
+  id: string;
+  createdAt: Date;
+  expiresAt: Date;
+  revokedAt: Date | null;
+  isActive: boolean;
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -450,6 +458,24 @@ export class AuthService {
     await this.users.clearEmailChangeToken(user.id);
 
     return { success: true };
+  }
+
+  async listSessions(userId: string): Promise<SessionResponse[]> {
+    const sessions = await this.refreshTokens.listSessionsForUser(userId);
+    return sessions.map((session) => ({
+      id: session.id,
+      createdAt: session.createdAt,
+      expiresAt: session.expiresAt,
+      revokedAt: session.revokedAt,
+      isActive: session.revokedAt === null && session.expiresAt > new Date(),
+    }));
+  }
+
+  async revokeAllSessions(
+    userId: string,
+  ): Promise<{ success: boolean; revokedCount: number }> {
+    const revokedCount = await this.refreshTokens.revokeAllForUser(userId);
+    return { success: true, revokedCount };
   }
 
   private toAuthUserResponse(user: User | SafeUser): AuthUserResponse {

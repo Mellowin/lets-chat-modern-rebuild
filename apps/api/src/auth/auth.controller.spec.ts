@@ -42,6 +42,8 @@ describe('AuthController', () => {
             updateMe: jest.fn(),
             updateAvatar: jest.fn(),
             updateInterfaceLanguage: jest.fn(),
+            listSessions: jest.fn(),
+            revokeAllSessions: jest.fn(),
           },
         },
         {
@@ -399,6 +401,42 @@ describe('AuthController', () => {
         'newpass123',
       );
       expect(result).toEqual({ success: true });
+    });
+  });
+
+  describe('GET /auth/sessions', () => {
+    it('returns user sessions without tokenHash', async () => {
+      const now = new Date();
+      authService.listSessions.mockResolvedValue([
+        {
+          id: 'session-1',
+          createdAt: now,
+          expiresAt: new Date(now.getTime() + 3600_000),
+          revokedAt: null,
+          isActive: true,
+        },
+      ]);
+
+      const result = await controller.listSessions(user);
+
+      expect(authService.listSessions).toHaveBeenCalledWith('user-id');
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({ id: 'session-1', isActive: true });
+      expect(result[0]).not.toHaveProperty('tokenHash');
+    });
+  });
+
+  describe('POST /auth/sessions/revoke-all', () => {
+    it('revokes all sessions and returns revokedCount', async () => {
+      authService.revokeAllSessions.mockResolvedValue({
+        success: true,
+        revokedCount: 2,
+      });
+
+      const result = await controller.revokeAllSessions(user);
+
+      expect(authService.revokeAllSessions).toHaveBeenCalledWith('user-id');
+      expect(result).toEqual({ success: true, revokedCount: 2 });
     });
   });
 });
