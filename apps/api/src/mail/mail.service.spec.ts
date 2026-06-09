@@ -361,7 +361,9 @@ describe('MailService — email change confirmation', () => {
       expect.objectContaining({
         method: 'POST',
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        body: expect.stringContaining('Confirm your email change for Lets Chat'),
+        body: expect.stringContaining(
+          'Confirm your email change for Lets Chat',
+        ),
       }),
     );
 
