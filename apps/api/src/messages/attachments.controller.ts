@@ -24,6 +24,7 @@ import { PresignAttachmentDto } from './dto/presign-attachment.dto';
 import { PresignAttachmentResponseDto } from './dto/presign-attachment-response.dto';
 import { CompleteAttachmentResponseDto } from './dto/complete-attachment-response.dto';
 import { AttachmentDownloadResponseDto } from './dto/attachment-download-response.dto';
+import { AttachmentDownloadUrlResponseDto } from './dto/attachment-download-url-response.dto';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUserResponse } from '../auth/auth.service';
@@ -82,6 +83,30 @@ export class AttachmentsController {
     @CurrentUser() user: AuthUserResponse,
   ) {
     return this.attachments.complete(
+      workspaceId,
+      channelId,
+      messageId,
+      attachmentId,
+      user.id,
+    );
+  }
+
+  @Get(':attachmentId/download-url')
+  @ApiOperation({ summary: 'Get presigned download URL for attachment' })
+  @ApiOkResponse({
+    description: 'Presigned download URL created',
+    type: AttachmentDownloadUrlResponseDto,
+  })
+  @ApiNotFoundResponse({ description: 'Attachment or message not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async getDownloadUrl(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Param('channelId', ParseUUIDPipe) channelId: string,
+    @Param('messageId', ParseUUIDPipe) messageId: string,
+    @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.attachments.getDownloadUrl(
       workspaceId,
       channelId,
       messageId,

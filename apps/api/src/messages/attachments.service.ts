@@ -165,6 +165,39 @@ export class AttachmentsService {
     }
   }
 
+  async getDownloadUrl(
+    workspaceId: string,
+    channelId: string,
+    messageId: string,
+    attachmentId: string,
+    userId: string,
+  ) {
+    await this.channels.findById(workspaceId, channelId, userId);
+    await this.validateMessage(channelId, messageId);
+
+    const attachment = await this.attachments.findById(attachmentId);
+    if (
+      !attachment ||
+      attachment.messageId !== messageId ||
+      attachment.deletedAt !== null
+    ) {
+      throw new NotFoundException('Attachment not found');
+    }
+
+    const { downloadUrl, expiresInSeconds } =
+      await this.storage.getPresignedDownloadUrl(attachment.storageKey, 300);
+
+    return {
+      downloadUrl,
+      expiresInSeconds,
+      fileName: attachment.filename,
+      mimeType: attachment.mimeType,
+      sizeBytes: attachment.size,
+      kind: classifyAttachmentKind(attachment.mimeType),
+      createdAt: attachment.createdAt,
+    };
+  }
+
   async download(
     workspaceId: string,
     channelId: string,

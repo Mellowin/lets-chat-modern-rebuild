@@ -9,11 +9,15 @@ import { StorageService } from '../storage/storage.service';
 describe('AttachmentsService', () => {
   let service: AttachmentsService;
   let channelsService: jest.Mocked<ChannelsService>;
+  let messagesRepository: jest.Mocked<MessagesRepository>;
+  let attachmentsRepository: jest.Mocked<AttachmentsRepository>;
   let storageService: jest.Mocked<StorageService>;
 
   const userId = '11111111-1111-1111-1111-111111111111';
   const workspaceId = '22222222-2222-2222-2222-222222222222';
   const channelId = '33333333-3333-3333-3333-333333333333';
+  const messageId = '44444444-4444-4444-4444-444444444444';
+  const attachmentId = '55555555-5555-5555-5555-555555555555';
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -51,6 +55,8 @@ describe('AttachmentsService', () => {
 
     service = moduleRef.get(AttachmentsService);
     channelsService = moduleRef.get(ChannelsService);
+    messagesRepository = moduleRef.get(MessagesRepository);
+    attachmentsRepository = moduleRef.get(AttachmentsRepository);
     storageService = moduleRef.get(StorageService);
   });
 
@@ -196,6 +202,187 @@ describe('AttachmentsService', () => {
       ).rejects.toBeInstanceOf(NotFoundException);
 
       expect(storageService.getPresignedUploadUrl).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getDownloadUrl', () => {
+    it('returns downloadUrl and safe metadata for valid attachment', async () => {
+      channelsService.findById.mockResolvedValue(undefined as never);
+      messagesRepository.findById.mockResolvedValue({
+        id: messageId,
+        channelId,
+        deletedAt: null,
+      } as never);
+      attachmentsRepository.findById.mockResolvedValue({
+        id: attachmentId,
+        messageId,
+        filename: 'doc.pdf',
+        mimeType: 'application/pdf',
+        size: 1234,
+        storageKey: 'internal/key/doc.pdf',
+        deletedAt: null,
+        createdAt: new Date('2024-01-01'),
+      } as never);
+      storageService.getPresignedDownloadUrl.mockResolvedValue({
+        downloadUrl: 'http://minio/download',
+        objectKey: 'internal/key/doc.pdf',
+        expiresInSeconds: 300,
+      });
+
+      const result = await service.getDownloadUrl(
+        workspaceId,
+        channelId,
+        messageId,
+        attachmentId,
+        userId,
+      );
+
+      expect(result.downloadUrl).toBe('http://minio/download');
+      expect(result.fileName).toBe('doc.pdf');
+      expect(result.mimeType).toBe('application/pdf');
+      expect(result.sizeBytes).toBe(1234);
+      expect(result.kind).toBe('file');
+      expect(result.expiresInSeconds).toBe(300);
+      expect(result.createdAt).toEqual(new Date('2024-01-01'));
+      expect(result).not.toHaveProperty('storageKey');
+      expect(storageService.getPresignedDownloadUrl).toHaveBeenCalledWith(
+        'internal/key/doc.pdf',
+        300,
+      );
+    });
+
+    it('throws NotFound when attachment belongs to another message', async () => {
+      channelsService.findById.mockResolvedValue(undefined as never);
+      messagesRepository.findById.mockResolvedValue({
+        id: messageId,
+        channelId,
+        deletedAt: null,
+      } as never);
+      attachmentsRepository.findById.mockResolvedValue({
+        id: attachmentId,
+        messageId: 'other-message-id',
+        filename: 'doc.pdf',
+        mimeType: 'application/pdf',
+        size: 1234,
+        storageKey: 'internal/key/doc.pdf',
+        deletedAt: null,
+        createdAt: new Date(),
+      } as never);
+
+      await expect(
+        service.getDownloadUrl(
+          workspaceId,
+          channelId,
+          messageId,
+          attachmentId,
+          userId,
+        ),
+      ).rejects.toBeInstanceOf(NotFoundException);
+
+      expect(storageService.getPresignedDownloadUrl).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFound when message belongs to another channel', async () => {
+      channelsService.findById.mockResolvedValue(undefined as never);
+      messagesRepository.findById.mockResolvedValue({
+        id: messageId,
+        channelId: 'other-channel-id',
+        deletedAt: null,
+      } as never);
+
+      await expect(
+        service.getDownloadUrl(
+          workspaceId,
+          channelId,
+          messageId,
+          attachmentId,
+          userId,
+        ),
+      ).rejects.toBeInstanceOf(NotFoundException);
+
+      expect(attachmentsRepository.findById).not.toHaveBeenCalled();
+      expect(storageService.getPresignedDownloadUrl).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFound when user has no channel access', async () => {
+      channelsService.findById.mockRejectedValue(
+        new NotFoundException('Channel not found'),
+      );
+
+      await expect(
+        service.getDownloadUrl(
+          workspaceId,
+          channelId,
+          messageId,
+          attachmentId,
+          userId,
+        ),
+      ).rejects.toBeInstanceOf(NotFoundException);
+
+      expect(storageService.getPresignedDownloadUrl).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFound when attachment is soft-deleted', async () => {
+      channelsService.findById.mockResolvedValue(undefined as never);
+      messagesRepository.findById.mockResolvedValue({
+        id: messageId,
+        channelId,
+        deletedAt: null,
+      } as never);
+      attachmentsRepository.findById.mockResolvedValue({
+        id: attachmentId,
+        messageId,
+        filename: 'doc.pdf',
+        mimeType: 'application/pdf',
+        size: 1234,
+        storageKey: 'internal/key/doc.pdf',
+        deletedAt: new Date(),
+        createdAt: new Date(),
+      } as never);
+
+      await expect(
+        service.getDownloadUrl(
+          workspaceId,
+          channelId,
+          messageId,
+          attachmentId,
+          userId,
+        ),
+      ).rejects.toBeInstanceOf(NotFoundException);
+
+      expect(storageService.getPresignedDownloadUrl).not.toHaveBeenCalled();
+    });
+
+    it('propagates storage provider errors', async () => {
+      channelsService.findById.mockResolvedValue(undefined as never);
+      messagesRepository.findById.mockResolvedValue({
+        id: messageId,
+        channelId,
+        deletedAt: null,
+      } as never);
+      attachmentsRepository.findById.mockResolvedValue({
+        id: attachmentId,
+        messageId,
+        filename: 'doc.pdf',
+        mimeType: 'application/pdf',
+        size: 1234,
+        storageKey: 'internal/key/doc.pdf',
+        deletedAt: null,
+        createdAt: new Date(),
+      } as never);
+      storageService.getPresignedDownloadUrl.mockRejectedValue(
+        new Error('Storage error'),
+      );
+
+      await expect(
+        service.getDownloadUrl(
+          workspaceId,
+          channelId,
+          messageId,
+          attachmentId,
+          userId,
+        ),
+      ).rejects.toThrow('Storage error');
     });
   });
 });
