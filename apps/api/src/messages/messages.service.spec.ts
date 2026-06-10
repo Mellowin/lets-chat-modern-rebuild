@@ -53,6 +53,7 @@ describe('MessagesService', () => {
             listForChannel: jest.fn(),
             updateMessage: jest.fn(),
             softDeleteMessage: jest.fn(),
+            searchChannelMessages: jest.fn(),
           },
         },
         {
@@ -855,6 +856,217 @@ describe('MessagesService', () => {
         createdAt: new Date('2024-01-01'),
       });
       expect(mapped.kind).toBe('image');
+    });
+  });
+
+  describe('searchChannelMessages', () => {
+    it('throws NotFoundException for non-workspace member', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue(null);
+
+      await expect(
+        service.searchChannelMessages(workspaceId, channelId, userId, {
+          q: 'hello',
+        }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('throws NotFoundException for archived channel', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue(null);
+
+      await expect(
+        service.searchChannelMessages(workspaceId, channelId, userId, {
+          q: 'hello',
+        }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('throws NotFoundException for PUBLIC channel when user is not channel member', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue(null);
+
+      await expect(
+        service.searchChannelMessages(workspaceId, channelId, userId, {
+          q: 'hello',
+        }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('throws BadRequestException for empty query after trim', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+
+      await expect(
+        service.searchChannelMessages(workspaceId, channelId, userId, {
+          q: '   ',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('returns empty items when no results', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      messagesRepository.searchChannelMessages.mockResolvedValue([]);
+
+      const result = await service.searchChannelMessages(
+        workspaceId,
+        channelId,
+        userId,
+        { q: 'xyz' },
+      );
+      expect(result.items).toEqual([]);
+      expect(result.nextCursor).toBeNull();
+    });
+
+    it('returns mapped messages with attachments', async () => {
+      const msg = {
+        id: messageId,
+        channelId,
+        content: 'Hello world',
+        parentId: null,
+        createdAt: new Date('2024-01-01'),
+        updatedAt: new Date('2024-01-01'),
+        editedAt: null,
+        author: {
+          id: userId,
+          username: 'user',
+          displayName: null,
+          avatarUrl: null,
+        },
+        reactions: [],
+        attachments: [
+          {
+            id: 'a1',
+            filename: 'doc.pdf',
+            mimeType: 'application/pdf',
+            size: 1234,
+            createdAt: new Date('2024-01-01'),
+          },
+        ],
+      };
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      messagesRepository.searchChannelMessages.mockResolvedValue([
+        msg,
+      ] as unknown as ListedMessage[]);
+
+      const result = await service.searchChannelMessages(
+        workspaceId,
+        channelId,
+        userId,
+        { q: 'hello' },
+      );
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].content).toBe('Hello world');
+      expect(result.items[0].attachments).toHaveLength(1);
+      expect(result.items[0].attachments[0]).not.toHaveProperty('storageKey');
+      expect(result.nextCursor).toBeNull();
+    });
+
+    it('caps limit at 50', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      messagesRepository.searchChannelMessages.mockResolvedValue([]);
+
+      await service.searchChannelMessages(workspaceId, channelId, userId, {
+        q: 'test',
+        limit: 100,
+      });
+      expect(messagesRepository.searchChannelMessages).toHaveBeenCalledWith(
+        channelId,
+        'test',
+        50,
+        undefined,
+      );
+    });
+
+    it('passes cursor to repository', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      messagesRepository.searchChannelMessages.mockResolvedValue([]);
+
+      await service.searchChannelMessages(workspaceId, channelId, userId, {
+        q: 'test',
+        cursor: messageId,
+      });
+      expect(messagesRepository.searchChannelMessages).toHaveBeenCalledWith(
+        channelId,
+        'test',
+        20,
+        messageId,
+      );
+    });
+
+    it('returns nextCursor when more results exist', async () => {
+      const msgs = Array.from({ length: 3 }, (_, i) => ({
+        id: `msg-${i}`,
+        channelId,
+        content: `hello ${i}`,
+        parentId: null,
+        createdAt: new Date('2024-01-01'),
+        updatedAt: new Date('2024-01-01'),
+        editedAt: null,
+        author: {
+          id: userId,
+          username: 'user',
+          displayName: null,
+          avatarUrl: null,
+        },
+        reactions: [],
+        attachments: [],
+      }));
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      messagesRepository.searchChannelMessages.mockResolvedValue(
+        msgs as unknown as ListedMessage[],
+      );
+
+      const result = await service.searchChannelMessages(
+        workspaceId,
+        channelId,
+        userId,
+        {
+          q: 'hello',
+          limit: 2,
+        },
+      );
+      expect(result.items).toHaveLength(2);
+      expect(result.nextCursor).toBe('msg-1');
     });
   });
 

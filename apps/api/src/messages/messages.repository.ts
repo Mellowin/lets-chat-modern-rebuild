@@ -171,4 +171,47 @@ export class MessagesRepository {
       data: { deletedAt: new Date() },
     });
   }
+
+  async searchChannelMessages(
+    channelId: string,
+    q: string,
+    limit: number,
+    cursor?: string,
+  ) {
+    return this.prisma.message.findMany({
+      where: {
+        channelId,
+        deletedAt: null,
+        content: { contains: q, mode: 'insensitive' },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit + 1,
+      cursor: cursor ? { id: cursor } : undefined,
+      skip: cursor ? 1 : 0,
+      include: {
+        author: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+        reactions: {
+          where: { deletedAt: null },
+          select: { emoji: true, userId: true },
+        },
+        attachments: {
+          where: { deletedAt: null },
+          select: {
+            id: true,
+            filename: true,
+            mimeType: true,
+            size: true,
+            createdAt: true,
+          },
+        },
+      },
+    });
+  }
 }

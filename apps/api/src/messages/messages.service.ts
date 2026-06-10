@@ -12,6 +12,7 @@ import { WebsocketEventsService } from '../websocket/websocket-events.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
 import { ListMessagesQueryDto } from './dto/list-messages-query.dto';
+import { SearchChannelMessagesQueryDto } from './dto/search-channel-messages-query.dto';
 
 export type AttachmentKind = 'image' | 'file';
 
@@ -201,6 +202,38 @@ export class MessagesService {
       before,
     );
     return messages.map((m) => this.toMessageResponse(m, userId));
+  }
+
+  async searchChannelMessages(
+    workspaceId: string,
+    channelId: string,
+    userId: string,
+    query: SearchChannelMessagesQueryDto,
+  ) {
+    await this.validateChannelAccess(workspaceId, channelId, userId);
+
+    const q = query.q.trim();
+    if (q.length === 0) {
+      throw new BadRequestException('Search query cannot be empty');
+    }
+
+    const limit = Math.min(query.limit ?? 20, 50);
+    const rows = await this.messages.searchChannelMessages(
+      channelId,
+      q,
+      limit,
+      query.cursor,
+    );
+
+    const hasMore = rows.length > limit;
+    const items = (hasMore ? rows.slice(0, limit) : rows).map((m) =>
+      this.toMessageResponse(m, userId),
+    );
+
+    return {
+      items,
+      nextCursor: hasMore ? (rows[limit - 1]?.id ?? null) : null,
+    };
   }
 
   async update(

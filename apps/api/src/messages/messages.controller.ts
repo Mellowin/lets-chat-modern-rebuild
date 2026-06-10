@@ -30,6 +30,7 @@ import { AttachmentsService } from './attachments.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
 import { ListMessagesQueryDto } from './dto/list-messages-query.dto';
+import { SearchChannelMessagesQueryDto } from './dto/search-channel-messages-query.dto';
 import { PresignAttachmentDto } from './dto/presign-attachment.dto';
 import { PresignAttachmentUploadResponseDto } from './dto/presign-attachment-upload-response.dto';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
@@ -73,6 +74,26 @@ export class MessagesController {
     @CurrentUser() user: AuthUserResponse,
   ) {
     return this.messages.list(workspaceId, channelId, user.id, query);
+  }
+
+  @Get('search')
+  @ApiOperation({ summary: 'Search messages in channel' })
+  @ApiOkResponse({ description: 'Search results' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiNotFoundResponse({ description: 'Channel not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async search(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Param('channelId', ParseUUIDPipe) channelId: string,
+    @Query() query: SearchChannelMessagesQueryDto,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.messages.searchChannelMessages(
+      workspaceId,
+      channelId,
+      user.id,
+      query,
+    );
   }
 
   @Patch(':messageId')
