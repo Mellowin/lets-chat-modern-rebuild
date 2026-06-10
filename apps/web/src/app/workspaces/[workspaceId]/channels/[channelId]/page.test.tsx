@@ -3325,5 +3325,326 @@ describe("ChannelDetailPage — forward", () => {
       expect(openMock).toHaveBeenCalledWith("http://minio/download", "_blank");
       openMock.mockRestore();
     });
+
+    it("selecting image file shows thumbnail preview", async () => {
+      mockChannelAndMessages([], []);
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attach-button")).toBeInTheDocument();
+      });
+
+      const file = new File(["content"], "test.png", { type: "image/png" });
+      await userEvent.upload(screen.getByTestId("composer-file-input"), file);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attachment-preview-0")).toBeInTheDocument();
+      });
+      expect(screen.getByAltText("test.png")).toBeInTheDocument();
+      expect(screen.queryByTestId("composer-attachment-chip-0")).not.toBeInTheDocument();
+    });
+
+    it("removing selected image revokes preview", async () => {
+      mockChannelAndMessages([], []);
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attach-button")).toBeInTheDocument();
+      });
+
+      const file = new File(["content"], "test.png", { type: "image/png" });
+      await userEvent.upload(screen.getByTestId("composer-file-input"), file);
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attachment-preview-0")).toBeInTheDocument();
+      });
+
+      await userEvent.click(screen.getByTestId("composer-attachment-remove-0"));
+
+      await waitFor(() => {
+        expect(screen.queryByTestId("composer-attachment-preview-0")).not.toBeInTheDocument();
+      });
+    });
+
+    it("selecting text file shows file card, not image thumbnail", async () => {
+      mockChannelAndMessages([], []);
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attach-button")).toBeInTheDocument();
+      });
+
+      const file = new File(["content"], "notes.txt", { type: "text/plain" });
+      await userEvent.upload(screen.getByTestId("composer-file-input"), file);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attachment-chip-0")).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId("composer-attachment-preview-0")).not.toBeInTheDocument();
+    });
+
+    it("drag-over shows visual drag state", async () => {
+      mockChannelAndMessages([], []);
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attach-button")).toBeInTheDocument();
+      });
+
+      const form = screen.getByTestId("composer-attach-button").closest("form")!;
+      fireEvent.dragEnter(form, { dataTransfer: { types: ["Files"] } });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-drag-overlay")).toBeInTheDocument();
+      });
+
+      fireEvent.dragLeave(form);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId("composer-drag-overlay")).not.toBeInTheDocument();
+      });
+    });
+
+    it("dropping valid image adds preview", async () => {
+      mockChannelAndMessages([], []);
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attach-button")).toBeInTheDocument();
+      });
+
+      const file = new File(["content"], "drop.png", { type: "image/png" });
+      const form = screen.getByTestId("composer-attach-button").closest("form")!;
+      fireEvent.drop(form, { dataTransfer: { files: [file] } });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attachment-preview-0")).toBeInTheDocument();
+      });
+    });
+
+    it("dropping invalid MIME shows error", async () => {
+      mockChannelAndMessages([], []);
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attach-button")).toBeInTheDocument();
+      });
+
+      const file = new File(["content"], "evil.exe", { type: "application/x-msdownload" });
+      const form = screen.getByTestId("composer-attach-button").closest("form")!;
+      fireEvent.drop(form, { dataTransfer: { files: [file] } });
+
+      await waitFor(() => {
+        expect(screen.getByText("Invalid file type")).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId("composer-attachment-chip-0")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("composer-attachment-preview-0")).not.toBeInTheDocument();
+    });
+
+    it("dropping more than 5 files rejects extras and shows error", async () => {
+      mockChannelAndMessages([], []);
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attach-button")).toBeInTheDocument();
+      });
+
+      const files = Array.from({ length: 6 }, (_, i) => new File(["c"], `f${i}.txt`, { type: "text/plain" }));
+      const form = screen.getByTestId("composer-attach-button").closest("form")!;
+      fireEvent.drop(form, { dataTransfer: { files } });
+
+      await waitFor(() => {
+        expect(screen.getByText("Maximum 5 attachments allowed")).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId("composer-attachment-chip-0")).not.toBeInTheDocument();
+    });
+
+    it("dropping mixed valid and invalid files adds valid and shows error", async () => {
+      mockChannelAndMessages([], []);
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attach-button")).toBeInTheDocument();
+      });
+
+      const validFile = new File(["c"], "valid.txt", { type: "text/plain" });
+      const invalidFile = new File(["c"], "evil.exe", { type: "application/x-msdownload" });
+      const form = screen.getByTestId("composer-attach-button").closest("form")!;
+      fireEvent.drop(form, { dataTransfer: { files: [validFile, invalidFile] } });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attachment-chip-0")).toBeInTheDocument();
+      });
+      expect(screen.getByText("valid.txt")).toBeInTheDocument();
+      expect(screen.getByText("Some files were invalid and not added")).toBeInTheDocument();
+      expect(screen.queryByTestId("composer-attachment-chip-1")).not.toBeInTheDocument();
+    });
+
+    it("sending image attachment calls presign, upload, create message", async () => {
+      mockChannelAndMessages([], []);
+      vi.mocked(presignAttachmentUpload).mockResolvedValueOnce({
+        uploadUrl: "http://minio/upload",
+        storageKey: "attachments/u1/uuid-img.png",
+        fileName: "test.png",
+        mimeType: "image/png",
+        sizeBytes: 7,
+        kind: "image",
+        expiresInSeconds: 300,
+      });
+      vi.mocked(uploadAttachmentToPresignedUrl).mockResolvedValueOnce(undefined);
+      vi.mocked(getAttachmentDownloadUrl).mockResolvedValue({
+        downloadUrl: "http://minio/img",
+        expiresInSeconds: 300,
+        fileName: "test.png",
+        mimeType: "image/png",
+        sizeBytes: 7,
+        kind: "image",
+        createdAt: "2024-01-01T00:00:00Z",
+      });
+      const createdMsg: Message = {
+        id: "m2",
+        channelId: "ch1",
+        content: "",
+        parentId: null,
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        reactions: [],
+        attachments: [
+          {
+            id: "a2",
+            fileName: "test.png",
+            mimeType: "image/png",
+            sizeBytes: 7,
+            kind: "image",
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        ],
+      };
+      vi.mocked(createMessage).mockResolvedValueOnce(createdMsg);
+
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attach-button")).toBeInTheDocument();
+      });
+
+      const file = new File(["content"], "test.png", { type: "image/png" });
+      await userEvent.upload(screen.getByTestId("composer-file-input"), file);
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attachment-preview-0")).toBeInTheDocument();
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: /send/i }));
+
+      await waitFor(() => {
+        expect(presignAttachmentUpload).toHaveBeenCalledWith("token", "ws1", "ch1", {
+          filename: "test.png",
+          mimeType: "image/png",
+          sizeBytes: 7,
+        });
+      });
+      expect(uploadAttachmentToPresignedUrl).toHaveBeenCalledWith("http://minio/upload", expect.any(File));
+      expect(createMessage).toHaveBeenCalledWith("token", "ws1", "ch1", expect.objectContaining({
+        attachments: expect.arrayContaining([
+          expect.objectContaining({ storageKey: "attachments/u1/uuid-img.png", fileName: "test.png" }),
+        ]),
+      }));
+      await waitFor(() => {
+        expect(screen.queryByTestId("composer-attachment-preview-0")).not.toBeInTheDocument();
+      });
+    });
+
+    it("renders image attachment inline preview in message item", async () => {
+      const msgWithImage: Message = {
+        ...ownMessage,
+        content: "",
+        attachments: [
+          {
+            id: "a2",
+            fileName: "photo.png",
+            mimeType: "image/png",
+            sizeBytes: 1234,
+            kind: "image",
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        ],
+      };
+      mockChannelAndMessages([msgWithImage], []);
+      vi.mocked(getAttachmentDownloadUrl).mockResolvedValueOnce({
+        downloadUrl: "http://minio/img",
+        expiresInSeconds: 300,
+        fileName: "photo.png",
+        mimeType: "image/png",
+        sizeBytes: 1234,
+        kind: "image",
+        createdAt: "2024-01-01T00:00:00Z",
+      });
+
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("message-attachments-m1")).toBeInTheDocument();
+      });
+      await waitFor(() => {
+        expect(screen.getByTestId("message-attachment-image-m1-a2")).toBeInTheDocument();
+      });
+      expect(screen.getByAltText("photo.png")).toBeInTheDocument();
+    });
+
+    it("clicking image attachment preview opens download URL", async () => {
+      const msgWithImage: Message = {
+        ...ownMessage,
+        content: "",
+        attachments: [
+          {
+            id: "a2",
+            fileName: "photo.png",
+            mimeType: "image/png",
+            sizeBytes: 1234,
+            kind: "image",
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        ],
+      };
+      mockChannelAndMessages([msgWithImage], []);
+      vi.mocked(getAttachmentDownloadUrl).mockResolvedValueOnce({
+        downloadUrl: "http://minio/img",
+        expiresInSeconds: 300,
+        fileName: "photo.png",
+        mimeType: "image/png",
+        sizeBytes: 1234,
+        kind: "image",
+        createdAt: "2024-01-01T00:00:00Z",
+      });
+      const openMock = vi.spyOn(window, "open").mockImplementation(() => null);
+
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("message-attachment-image-m1-a2")).toBeInTheDocument();
+      });
+
+      await userEvent.click(screen.getByTestId("message-attachment-image-m1-a2"));
+
+      await waitFor(() => {
+        expect(getAttachmentDownloadUrl).toHaveBeenCalledWith("token", "ws1", "ch1", "m1", "a2");
+      });
+      expect(openMock).toHaveBeenCalledWith("http://minio/img", "_blank");
+      openMock.mockRestore();
+    });
+
+    it("does not render empty text block for attachments-only message", async () => {
+      const msgWithAttachment: Message = {
+        ...ownMessage,
+        content: "",
+        attachments: [
+          {
+            id: "a1",
+            fileName: "doc.pdf",
+            mimeType: "application/pdf",
+            sizeBytes: 5678,
+            kind: "file",
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        ],
+      };
+      mockChannelAndMessages([msgWithAttachment], []);
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("message-attachments-m1")).toBeInTheDocument();
+      });
+      const bubble = screen.getByTestId("message-bubble-m1");
+      expect(bubble.querySelector("p.whitespace-pre-wrap")).not.toBeInTheDocument();
+    });
   });
 });

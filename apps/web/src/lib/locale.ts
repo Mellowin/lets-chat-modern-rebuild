@@ -252,6 +252,7 @@ export type TranslationKey =
   | "channel.errorTooManyAttachments"
   | "channel.errorInvalidAttachmentType"
   | "channel.errorAttachmentTooLarge"
+  | "channel.errorSomeAttachmentsInvalid"
   | "channel.errorDownloadFailed"
   | "channel.socketDisconnected"
   | "channel.socketConnecting"
@@ -604,6 +605,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.errorTooManyAttachments": "Maximum 5 attachments allowed",
     "channel.errorInvalidAttachmentType": "Invalid file type",
     "channel.errorAttachmentTooLarge": "File exceeds 10 MB",
+    "channel.errorSomeAttachmentsInvalid": "Some files were invalid and not added",
     "channel.errorDownloadFailed": "Failed to download file",
     "channel.socketDisconnected": "Disconnected",
     "channel.socketConnecting": "Connecting",
@@ -955,6 +957,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.errorTooManyAttachments": "Максимум 5 вкладень",
     "channel.errorInvalidAttachmentType": "Неприпустимий тип файлу",
     "channel.errorAttachmentTooLarge": "Файл перевищує 10 МБ",
+    "channel.errorSomeAttachmentsInvalid": "Деякі файли недійсні та не додані",
     "channel.errorDownloadFailed": "Не вдалося завантажити файл",
     "channel.socketDisconnected": "Відʼєднано",
     "channel.socketConnecting": "Підключення",
@@ -1306,6 +1309,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.errorTooManyAttachments": "Максимум 5 вложений",
     "channel.errorInvalidAttachmentType": "Недопустимый тип файла",
     "channel.errorAttachmentTooLarge": "Файл превышает 10 МБ",
+    "channel.errorSomeAttachmentsInvalid": "Некоторые файлы недействительны и не добавлены",
     "channel.errorDownloadFailed": "Не удалось скачать файл",
     "channel.socketDisconnected": "Отключено",
     "channel.socketConnecting": "Подключение",

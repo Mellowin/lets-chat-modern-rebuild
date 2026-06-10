@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -33,6 +33,78 @@ type MembersState =
   | { kind: "loading" }
   | { kind: "success"; data: ChannelMember[] }
   | { kind: "error"; message: string };
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function classifyAttachmentKind(mimeType: string): "image" | "file" {
+  if (mimeType.startsWith("image/")) return "image";
+  return "file";
+}
+
+function AttachmentImagePreview({
+  attachment,
+  messageId,
+  workspaceId,
+  channelId,
+  accessToken,
+  onDownload,
+}: {
+  attachment: Attachment;
+  messageId: string;
+  workspaceId: string;
+  channelId: string;
+  accessToken: string;
+  onDownload: (att: Attachment) => void;
+}) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    getAttachmentDownloadUrl(accessToken, workspaceId, channelId, messageId, attachment.id)
+      .then((res) => {
+        if (!cancelled) setUrl(res.downloadUrl);
+      })
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, workspaceId, channelId, messageId, attachment.id]);
+
+  if (failed || !url) {
+    return (
+      <button
+        onClick={() => onDownload(attachment)}
+        data-testid={`message-attachment-${messageId}-${attachment.id}`}
+        className="flex items-center gap-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 px-2.5 py-1.5 text-left text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors"
+      >
+        <span className="text-base">🖼️</span>
+        <span className="truncate font-medium text-zinc-700 dark:text-zinc-200">{attachment.fileName}</span>
+        <span className="shrink-0 text-zinc-400 dark:text-zinc-500">{formatFileSize(attachment.sizeBytes)}</span>
+      </button>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => window.open(url, "_blank")}
+      data-testid={`message-attachment-image-${messageId}-${attachment.id}`}
+      className="block w-fit max-w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 p-1 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors"
+    >
+      <img
+        src={url}
+        alt={attachment.fileName}
+        className="max-h-48 rounded-md object-cover"
+      />
+    </button>
+  );
+}
 
 export default function ChannelDetailPage() {
   const params = useParams();
@@ -99,6 +171,8 @@ export default function ChannelDetailPage() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const dragCounterRef = useRef(0);
   const quickEmojis = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
 
   const ALLOWED_ATTACHMENT_TYPES = [
@@ -111,6 +185,22 @@ export default function ChannelDetailPage() {
   ];
   const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
   const MAX_ATTACHMENTS = 5;
+
+  const filePreviews = useMemo(() => {
+    const map = new Map<number, string>();
+    selectedFiles.forEach((file, idx) => {
+      if (file.type.startsWith("image/")) {
+        map.set(idx, URL.createObjectURL(file));
+      }
+    });
+    return map;
+  }, [selectedFiles]);
+
+  useEffect(() => {
+    return () => {
+      filePreviews.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [filePreviews]);
 
   function scrollMessagesToBottom(behavior: ScrollBehavior = "smooth") {
     if (typeof messagesEndRef.current?.scrollIntoView === "function") {
@@ -841,42 +931,76 @@ export default function ChannelDetailPage() {
     }
   }
 
-  function formatFileSize(bytes: number): string {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  }
-
-  function classifyAttachmentKind(mimeType: string): "image" | "file" {
-    if (mimeType.startsWith("image/")) return "image";
-    return "file";
-  }
-
-  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files || []);
+  function validateAndAddFiles(files: File[]) {
     setAttachmentError(null);
 
-    if (selectedFiles.length + files.length > MAX_ATTACHMENTS) {
+    if (files.length === 0) return;
+
+    const validFiles = files.filter((f) => {
+      if (!ALLOWED_ATTACHMENT_TYPES.includes(f.type)) return false;
+      if (f.size > MAX_ATTACHMENT_SIZE) return false;
+      return true;
+    });
+
+    const hasInvalid = validFiles.length < files.length;
+
+    if (selectedFiles.length + validFiles.length > MAX_ATTACHMENTS) {
       setAttachmentError(t("channel.errorTooManyAttachments"));
       return;
     }
 
-    const invalid = files.find((f) => !ALLOWED_ATTACHMENT_TYPES.includes(f.type));
-    if (invalid) {
-      setAttachmentError(t("channel.errorInvalidAttachmentType"));
+    if (validFiles.length === 0) {
+      if (files.some((f) => !ALLOWED_ATTACHMENT_TYPES.includes(f.type))) {
+        setAttachmentError(t("channel.errorInvalidAttachmentType"));
+      } else {
+        setAttachmentError(t("channel.errorAttachmentTooLarge"));
+      }
       return;
     }
 
-    const oversized = files.find((f) => f.size > MAX_ATTACHMENT_SIZE);
-    if (oversized) {
-      setAttachmentError(t("channel.errorAttachmentTooLarge"));
-      return;
+    if (hasInvalid) {
+      setAttachmentError(t("channel.errorSomeAttachmentsInvalid"));
     }
 
-    setSelectedFiles((prev) => [...prev, ...files]);
+    setSelectedFiles((prev) => [...prev, ...validFiles]);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+  }
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []);
+    validateAndAddFiles(files);
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  }
+
+  function handleDragEnter(e: React.DragEvent) {
+    e.preventDefault();
+    dragCounterRef.current += 1;
+    if (dragCounterRef.current === 1) {
+      setIsDragOver(true);
+    }
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    e.preventDefault();
+    dragCounterRef.current -= 1;
+    if (dragCounterRef.current <= 0) {
+      dragCounterRef.current = 0;
+      setIsDragOver(false);
+    }
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    dragCounterRef.current = 0;
+    setIsDragOver(false);
+    const files = Array.from(e.dataTransfer.files);
+    validateAndAddFiles(files);
   }
 
   function handleRemoveFile(index: number) {
@@ -1289,24 +1413,38 @@ export default function ChannelDetailPage() {
                               )}
                             </form>
                           ) : (
-                            <p className="whitespace-pre-wrap break-words text-sm leading-6 text-zinc-800 dark:text-zinc-200">
-                              {msg.content}
-                            </p>
+                            msg.content.trim().length > 0 && (
+                              <p className="whitespace-pre-wrap break-words text-sm leading-6 text-zinc-800 dark:text-zinc-200">
+                                {msg.content}
+                              </p>
+                            )
                           )}
                           {msg.attachments && msg.attachments.length > 0 && (
                             <div data-testid={`message-attachments-${msg.id}`} className="mt-2 flex flex-col gap-1.5">
-                              {msg.attachments.map((att) => (
-                                <button
-                                  key={att.id}
-                                  onClick={() => handleDownloadAttachment(msg, att)}
-                                  data-testid={`message-attachment-${msg.id}-${att.id}`}
-                                  className="flex items-center gap-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 px-2.5 py-1.5 text-left text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors"
-                                >
-                                  <span className="text-base">{att.kind === "image" ? "🖼️" : "📄"}</span>
-                                  <span className="truncate font-medium text-zinc-700 dark:text-zinc-200">{att.fileName}</span>
-                                  <span className="shrink-0 text-zinc-400 dark:text-zinc-500">{formatFileSize(att.sizeBytes)}</span>
-                                </button>
-                              ))}
+                              {msg.attachments.map((att) =>
+                                att.kind === "image" ? (
+                                  <AttachmentImagePreview
+                                    key={att.id}
+                                    attachment={att}
+                                    messageId={msg.id}
+                                    workspaceId={workspaceId}
+                                    channelId={channelId}
+                                    accessToken={accessToken || ""}
+                                    onDownload={() => handleDownloadAttachment(msg, att)}
+                                  />
+                                ) : (
+                                  <button
+                                    key={att.id}
+                                    onClick={() => handleDownloadAttachment(msg, att)}
+                                    data-testid={`message-attachment-${msg.id}-${att.id}`}
+                                    className="flex items-center gap-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 px-2.5 py-1.5 text-left text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors"
+                                  >
+                                    <span className="text-base">📄</span>
+                                    <span className="truncate font-medium text-zinc-700 dark:text-zinc-200">{att.fileName}</span>
+                                    <span className="shrink-0 text-zinc-400 dark:text-zinc-500">{formatFileSize(att.sizeBytes)}</span>
+                                  </button>
+                                ),
+                              )}
                             </div>
                           )}
                           {msg.reactions && msg.reactions.length > 0 && (
@@ -1343,7 +1481,19 @@ export default function ChannelDetailPage() {
 
         
                 {channel.kind === "success" && (
-          <form onSubmit={handleSendMessage} className="shrink-0 flex flex-col gap-2 border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4 shadow-sm">
+          <form
+            onSubmit={handleSendMessage}
+            onDragOver={handleDragOver}
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={`relative shrink-0 flex flex-col gap-2 border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4 shadow-sm ${isDragOver ? "ring-2 ring-inset ring-blue-400 dark:ring-blue-600" : ""}`}
+          >
+            {isDragOver && (
+              <div data-testid="composer-drag-overlay" className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-blue-50/80 dark:bg-blue-900/20 border-2 border-dashed border-blue-400 dark:border-blue-600 backdrop-blur-sm">
+                <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Drop files here</span>
+              </div>
+            )}
             {replyTargetId && (
               <div className="flex items-start justify-between gap-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 px-3 py-2">
                 <div className="min-w-0 flex-1">
@@ -1390,25 +1540,45 @@ export default function ChannelDetailPage() {
             />
             {selectedFiles.length > 0 && (
               <div data-testid="composer-attachments" className="flex flex-wrap gap-2">
-                {selectedFiles.map((file, index) => (
-                  <div
-                    key={`${file.name}-${index}`}
-                    data-testid={`composer-attachment-chip-${index}`}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 px-2.5 py-1 text-xs"
-                  >
-                    <span>{file.name}</span>
-                    <span className="text-zinc-400 dark:text-zinc-500">{formatFileSize(file.size)}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveFile(index)}
-                      data-testid={`composer-attachment-remove-${index}`}
-                      className="inline-flex h-4 w-4 items-center justify-center rounded text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-                      aria-label={t("channel.removeAttachment")}
+                {selectedFiles.map((file, index) => {
+                  const previewUrl = filePreviews.get(index);
+                  return previewUrl ? (
+                    <div
+                      key={`${file.name}-${index}`}
+                      data-testid={`composer-attachment-preview-${index}`}
+                      className="relative inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 p-1"
                     >
-                      ×
-                    </button>
-                  </div>
-                ))}
+                      <img src={previewUrl} alt={file.name} className="h-16 w-16 rounded object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveFile(index)}
+                        data-testid={`composer-attachment-remove-${index}`}
+                        className="absolute -right-1.5 -top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-zinc-200 text-zinc-600 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
+                        aria-label={t("channel.removeAttachment")}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      key={`${file.name}-${index}`}
+                      data-testid={`composer-attachment-chip-${index}`}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 px-2.5 py-1 text-xs"
+                    >
+                      <span>{file.name}</span>
+                      <span className="text-zinc-400 dark:text-zinc-500">{formatFileSize(file.size)}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveFile(index)}
+                        data-testid={`composer-attachment-remove-${index}`}
+                        className="inline-flex h-4 w-4 items-center justify-center rounded text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                        aria-label={t("channel.removeAttachment")}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
             <div className="flex items-center justify-between">
