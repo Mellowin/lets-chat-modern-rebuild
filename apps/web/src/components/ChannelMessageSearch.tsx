@@ -8,7 +8,32 @@ interface ChannelMessageSearchProps {
   workspaceId: string;
   channelId: string;
   accessToken: string;
-  onJumpToMessage: (messageId: string) => void;
+  onJumpToMessage: (messageId: string) => boolean;
+}
+
+function highlightText(text: string, query: string): React.ReactNode[] {
+  if (!query.trim()) return [text];
+  const lowerQuery = query.toLowerCase();
+  const lowerText = text.toLowerCase();
+  const parts: React.ReactNode[] = [];
+  let i = 0;
+  while (i < text.length) {
+    const idx = lowerText.indexOf(lowerQuery, i);
+    if (idx === -1) {
+      parts.push(text.slice(i));
+      break;
+    }
+    if (idx > i) {
+      parts.push(text.slice(i, idx));
+    }
+    parts.push(
+      <mark key={`${idx}-${query}`} className="rounded-sm bg-yellow-200 px-0.5 text-zinc-900 dark:bg-yellow-700 dark:text-zinc-100">
+        {text.slice(idx, idx + query.length)}
+      </mark>,
+    );
+    i = idx + query.length;
+  }
+  return parts;
 }
 
 export default function ChannelMessageSearch({
@@ -25,6 +50,7 @@ export default function ChannelMessageSearch({
   const [status, setStatus] = useState<"idle" | "loading" | "error" | "success">("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [notLoadedMessageId, setNotLoadedMessageId] = useState<string | null>(null);
 
   const performSearch = useCallback(
     async (q: string, cursor?: string) => {
@@ -40,6 +66,7 @@ export default function ChannelMessageSearch({
         setLoadingMore(true);
       }
       setErrorMessage(null);
+      setNotLoadedMessageId(null);
       try {
         const data: SearchChannelMessagesResult = await searchChannelMessages(
           accessToken,
@@ -75,6 +102,7 @@ export default function ChannelMessageSearch({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setNotLoadedMessageId(null);
     void performSearch(query);
   }
 
@@ -84,12 +112,31 @@ export default function ChannelMessageSearch({
   }
 
   function handleJump(msg: Message) {
-    onJumpToMessage(msg.id);
+    setNotLoadedMessageId(null);
+    const found = onJumpToMessage(msg.id);
+    if (!found) {
+      setNotLoadedMessageId(msg.id);
+    }
   }
 
   function formatDate(dateStr: string) {
     const d = new Date(dateStr);
     return d.toLocaleString();
+  }
+
+  function getSnippet(msg: Message): React.ReactNode {
+    const text = msg.content.trim();
+    if (text.length > 0) {
+      return <span className="line-clamp-2">{highlightText(text, query)}</span>;
+    }
+    if (msg.attachments && msg.attachments.length > 0) {
+      return (
+        <span className="italic text-zinc-500 dark:text-zinc-400">
+          {t("channel.searchAttachmentMessage")}
+        </span>
+      );
+    }
+    return <span className="text-zinc-400 dark:text-zinc-500">—</span>;
   }
 
   return (
@@ -152,7 +199,7 @@ export default function ChannelMessageSearch({
                     className="text-left"
                     data-testid={`search-result-${msg.id}`}
                   >
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
                         {msg.author.displayName || msg.author.username}
                       </span>
@@ -170,10 +217,15 @@ export default function ChannelMessageSearch({
                         </span>
                       )}
                     </div>
-                    <p className="mt-0.5 text-sm text-zinc-700 dark:text-zinc-300 line-clamp-2">
-                      {msg.content}
+                    <p className="mt-0.5 text-sm text-zinc-700 dark:text-zinc-300">
+                      {getSnippet(msg)}
                     </p>
                   </button>
+                  {notLoadedMessageId === msg.id && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400" data-testid={`search-not-loaded-${msg.id}`}>
+                      {t("channel.searchMessageNotLoaded")}
+                    </p>
+                  )}
                 </li>
               ))}
             </ul>

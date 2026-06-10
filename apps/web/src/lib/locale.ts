@@ -383,7 +383,9 @@ export type TranslationKey =
   | "channel.loadMoreResults"
   | "channel.searching"
   | "channel.typeSearchQuery"
-  | "channel.jumpToMessage";
+  | "channel.jumpToMessage"
+  | "channel.searchAttachmentMessage"
+  | "channel.searchMessageNotLoaded";
 
 const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string) => string)>> = {
   en: {
@@ -753,6 +755,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.searching": "Searching…",
     "channel.typeSearchQuery": "Type a search query",
     "channel.jumpToMessage": "Jump to message",
+    "channel.searchAttachmentMessage": "Attachment message",
+    "channel.searchMessageNotLoaded": "Message is not currently loaded in the timeline.",
   },
   uk: {
     "header.profile": "Профіль",
@@ -1121,6 +1125,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.searching": "Шукаємо…",
     "channel.typeSearchQuery": "Введіть запит для пошуку",
     "channel.jumpToMessage": "Перейти до повідомлення",
+    "channel.searchAttachmentMessage": "Повідомлення з вкладенням",
+    "channel.searchMessageNotLoaded": "Повідомлення зараз не завантажене в стрічці.",
   },
   ru: {
     "header.profile": "Профиль",
@@ -1489,6 +1495,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.searching": "Ищем…",
     "channel.typeSearchQuery": "Введите запрос для поиска",
     "channel.jumpToMessage": "Перейти к сообщению",
+    "channel.searchAttachmentMessage": "Сообщение с вложением",
+    "channel.searchMessageNotLoaded": "Сообщение сейчас не загружено в ленте.",
   },
 };
 

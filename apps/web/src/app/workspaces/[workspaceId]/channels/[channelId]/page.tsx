@@ -984,14 +984,15 @@ export default function ChannelDetailPage() {
     return `${singleLine.slice(0, 117)}...`;
   }
 
-  function scrollToMessage(messageId: string) {
+  function scrollToMessage(messageId: string): boolean {
     const el = document.getElementById(`message-${messageId}`);
-    if (!el) return;
+    if (!el) return false;
     el.scrollIntoView({ behavior: "smooth", block: "center" });
     setHighlightedMessageId(messageId);
     window.setTimeout(() => {
       setHighlightedMessageId((current) => (current === messageId ? null : current));
     }, 1800);
+    return true;
   }
 
   function socketStatusLabel(status: typeof socketStatus) {

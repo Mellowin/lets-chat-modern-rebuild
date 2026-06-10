@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import ChannelMessageSearch from "./ChannelMessageSearch";
 import * as messagesApi from "@/lib/messages-api";
@@ -16,7 +16,7 @@ describe("ChannelMessageSearch", () => {
     workspaceId: "ws-1",
     channelId: "ch-1",
     accessToken: "token",
-    onJumpToMessage: vi.fn(),
+    onJumpToMessage: vi.fn(() => true),
   };
 
   beforeEach(() => {
@@ -101,8 +101,10 @@ describe("ChannelMessageSearch", () => {
     await waitFor(() => {
       expect(screen.getByTestId("search-result-msg-1")).toBeInTheDocument();
     });
-    expect(screen.getByText("Alice")).toBeInTheDocument();
-    expect(screen.getByText("Hello world")).toBeInTheDocument();
+    const result = screen.getByTestId("search-result-msg-1");
+    expect(within(result).getByText("Alice")).toBeInTheDocument();
+    expect(result.textContent).toContain("Hello");
+    expect(result.textContent).toContain("world");
   });
 
   it("shows empty state when no results", async () => {
@@ -260,5 +262,203 @@ describe("ChannelMessageSearch", () => {
     await waitFor(() => expect(screen.getByTestId("search-result-msg-1")).toBeInTheDocument());
     fireEvent.click(screen.getByTestId("search-result-msg-1"));
     expect(props.onJumpToMessage).toHaveBeenCalledWith("msg-1");
+  });
+
+  it("highlights single match in snippet", async () => {
+    vi.mocked(messagesApi.searchChannelMessages).mockResolvedValue({
+      items: [
+        {
+          id: "msg-1",
+          channelId: "ch-1",
+          content: "Hello world",
+          parentId: null,
+          createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-01T00:00:00.000Z",
+          editedAt: null,
+          author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+          reactions: [],
+          attachments: [],
+        },
+      ],
+      nextCursor: null,
+    });
+    render(<ChannelMessageSearch {...props} />);
+    fireEvent.click(screen.getByTestId("search-toggle-button"));
+    fireEvent.change(screen.getByTestId("search-input"), { target: { value: "world" } });
+    fireEvent.click(screen.getByTestId("search-submit"));
+
+    await waitFor(() => expect(screen.getByTestId("search-result-msg-1")).toBeInTheDocument());
+    const result = screen.getByTestId("search-result-msg-1");
+    expect(result.querySelector("mark")).toBeInTheDocument();
+    expect(result.querySelector("mark")).toHaveTextContent("world");
+  });
+
+  it("highlights multiple matches", async () => {
+    vi.mocked(messagesApi.searchChannelMessages).mockResolvedValue({
+      items: [
+        {
+          id: "msg-1",
+          channelId: "ch-1",
+          content: "test test test",
+          parentId: null,
+          createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-01T00:00:00.000Z",
+          editedAt: null,
+          author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+          reactions: [],
+          attachments: [],
+        },
+      ],
+      nextCursor: null,
+    });
+    render(<ChannelMessageSearch {...props} />);
+    fireEvent.click(screen.getByTestId("search-toggle-button"));
+    fireEvent.change(screen.getByTestId("search-input"), { target: { value: "test" } });
+    fireEvent.click(screen.getByTestId("search-submit"));
+
+    await waitFor(() => expect(screen.getByTestId("search-result-msg-1")).toBeInTheDocument());
+    const marks = screen.getByTestId("search-result-msg-1").querySelectorAll("mark");
+    expect(marks.length).toBe(3);
+  });
+
+  it("highlight is case-insensitive", async () => {
+    vi.mocked(messagesApi.searchChannelMessages).mockResolvedValue({
+      items: [
+        {
+          id: "msg-1",
+          channelId: "ch-1",
+          content: "HELLO there",
+          parentId: null,
+          createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-01T00:00:00.000Z",
+          editedAt: null,
+          author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+          reactions: [],
+          attachments: [],
+        },
+      ],
+      nextCursor: null,
+    });
+    render(<ChannelMessageSearch {...props} />);
+    fireEvent.click(screen.getByTestId("search-toggle-button"));
+    fireEvent.change(screen.getByTestId("search-input"), { target: { value: "hello" } });
+    fireEvent.click(screen.getByTestId("search-submit"));
+
+    await waitFor(() => expect(screen.getByTestId("search-result-msg-1")).toBeInTheDocument());
+    const mark = screen.getByTestId("search-result-msg-1").querySelector("mark");
+    expect(mark).toHaveTextContent("HELLO");
+  });
+
+  it("does not crash on query with special regex characters", async () => {
+    vi.mocked(messagesApi.searchChannelMessages).mockResolvedValue({
+      items: [
+        {
+          id: "msg-1",
+          channelId: "ch-1",
+          content: "price is $5.00 [special]",
+          parentId: null,
+          createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-01T00:00:00.000Z",
+          editedAt: null,
+          author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+          reactions: [],
+          attachments: [],
+        },
+      ],
+      nextCursor: null,
+    });
+    render(<ChannelMessageSearch {...props} />);
+    fireEvent.click(screen.getByTestId("search-toggle-button"));
+    fireEvent.change(screen.getByTestId("search-input"), { target: { value: "$5.00 [" } });
+    fireEvent.click(screen.getByTestId("search-submit"));
+
+    await waitFor(() => expect(screen.getByTestId("search-result-msg-1")).toBeInTheDocument());
+    expect(screen.getByText(/price is/)).toBeInTheDocument();
+  });
+
+  it("shows attachment fallback text for empty content with attachments", async () => {
+    vi.mocked(messagesApi.searchChannelMessages).mockResolvedValue({
+      items: [
+        {
+          id: "msg-1",
+          channelId: "ch-1",
+          content: "",
+          parentId: null,
+          createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-01T00:00:00.000Z",
+          editedAt: null,
+          author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+          reactions: [],
+          attachments: [
+            { id: "a1", fileName: "doc.pdf", mimeType: "application/pdf", sizeBytes: 1234, kind: "file", createdAt: "2024-01-01T00:00:00.000Z" },
+          ],
+        },
+      ],
+      nextCursor: null,
+    });
+    render(<ChannelMessageSearch {...props} />);
+    fireEvent.click(screen.getByTestId("search-toggle-button"));
+    fireEvent.change(screen.getByTestId("search-input"), { target: { value: "file" } });
+    fireEvent.click(screen.getByTestId("search-submit"));
+
+    await waitFor(() => expect(screen.getByTestId("search-result-msg-1")).toBeInTheDocument());
+    expect(screen.getByText("Attachment message")).toBeInTheDocument();
+  });
+
+  it("does not show not-loaded warning when jump succeeds", async () => {
+    vi.mocked(messagesApi.searchChannelMessages).mockResolvedValue({
+      items: [
+        {
+          id: "msg-1",
+          channelId: "ch-1",
+          content: "hello",
+          parentId: null,
+          createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-01T00:00:00.000Z",
+          editedAt: null,
+          author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+          reactions: [],
+          attachments: [],
+        },
+      ],
+      nextCursor: null,
+    });
+    render(<ChannelMessageSearch {...props} />);
+    fireEvent.click(screen.getByTestId("search-toggle-button"));
+    fireEvent.change(screen.getByTestId("search-input"), { target: { value: "hello" } });
+    fireEvent.click(screen.getByTestId("search-submit"));
+
+    await waitFor(() => expect(screen.getByTestId("search-result-msg-1")).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId("search-result-msg-1"));
+    expect(screen.queryByTestId("search-not-loaded-msg-1")).not.toBeInTheDocument();
+  });
+
+  it("shows not-loaded warning when jump returns false", async () => {
+    const unloadedProps = { ...props, onJumpToMessage: vi.fn(() => false) };
+    vi.mocked(messagesApi.searchChannelMessages).mockResolvedValue({
+      items: [
+        {
+          id: "msg-1",
+          channelId: "ch-1",
+          content: "hello",
+          parentId: null,
+          createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-01T00:00:00.000Z",
+          editedAt: null,
+          author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+          reactions: [],
+          attachments: [],
+        },
+      ],
+      nextCursor: null,
+    });
+    render(<ChannelMessageSearch {...unloadedProps} />);
+    fireEvent.click(screen.getByTestId("search-toggle-button"));
+    fireEvent.change(screen.getByTestId("search-input"), { target: { value: "hello" } });
+    fireEvent.click(screen.getByTestId("search-submit"));
+
+    await waitFor(() => expect(screen.getByTestId("search-result-msg-1")).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId("search-result-msg-1"));
+    expect(screen.getByTestId("search-not-loaded-msg-1")).toBeInTheDocument();
   });
 });
