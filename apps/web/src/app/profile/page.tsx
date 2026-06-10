@@ -4,7 +4,7 @@ import { useLayoutEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { updateDisplayName, uploadAvatar, updateInterfaceLanguage, requestEmailChange, changePassword } from "@/lib/auth-api";
+import { updateDisplayName, uploadAvatar, updateInterfaceLanguage, requestEmailChange, changePassword, listSessions, revokeAllSessions } from "@/lib/auth-api";
 import { useLocale, type Locale, localeLabel } from "@/lib/locale";
 import { getAvatarUrl } from "@/lib/avatar-url";
 
@@ -20,7 +20,7 @@ const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const LOCALE_OPTIONS: Locale[] = ["en", "uk", "ru"];
 
 export default function ProfilePage() {
-  const { user, accessToken, isLoading: authLoading, isAuthenticated, setUser } = useAuth();
+  const { user, accessToken, isLoading: authLoading, isAuthenticated, setUser, logout } = useAuth();
   const { locale, setLocale: setLocaleState, t } = useLocale();
 
   const [displayNameInput, setDisplayNameInput] = useState("");
@@ -41,6 +41,11 @@ export default function ProfilePage() {
   const [passwordChangeState, setPasswordChangeState] = useState<FormState>({ kind: "idle" });
   const [passwordError, setPasswordError] = useState("");
 
+  const [sessions, setSessions] = useState<import("@/lib/auth-api").SessionResponse[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [sessionsError, setSessionsError] = useState("");
+  const [revokeState, setRevokeState] = useState<FormState>({ kind: "idle" });
+
   useLayoutEffect(() => {
     if (user?.displayName) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -48,10 +53,42 @@ export default function ProfilePage() {
     }
   }, [user?.displayName]);
 
+  useLayoutEffect(() => {
+    if (!accessToken || !isAuthenticated) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSessionsLoading(true);
+    setSessionsError("");
+    listSessions(accessToken)
+      .then((data) => {
+        setSessions(data);
+      })
+      .catch((err) => {
+        setSessionsError(err instanceof Error ? err.message : t("profile.revokeAllFailed"));
+      })
+      .finally(() => {
+        setSessionsLoading(false);
+      });
+  }, [accessToken, isAuthenticated, t]);
+
   const initials = useCallback(() => {
     const name = user?.displayName || user?.username || "?";
     return name.slice(0, 2).toUpperCase();
   }, [user?.displayName, user?.username]);
+
+  async function handleRevokeAllSessions() {
+    if (!accessToken) return;
+    const confirmed = window.confirm(t("profile.revokeAllConfirm"));
+    if (!confirmed) return;
+    setRevokeState({ kind: "loading" });
+    try {
+      await revokeAllSessions(accessToken);
+      setRevokeState({ kind: "success" });
+      void logout();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t("profile.revokeAllFailed");
+      setRevokeState({ kind: "error", message });
+    }
+  }
 
   async function handleSetLocale(next: Locale) {
     if (accessToken && isAuthenticated) {
@@ -311,6 +348,85 @@ export default function ProfilePage() {
             <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
               <span className="h-2 w-2 rounded-full bg-red-500" />
               {passwordChangeState.message}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
+        <h2 className="text-sm font-semibold">{t("profile.sessions")}</h2>
+        {sessionsLoading && (
+          <div className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
+            {t("profile.loadingSessions")}
+          </div>
+        )}
+        {sessionsError && (
+          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-2.5 text-sm dark:border-red-900 dark:bg-red-950/30">
+            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+              <span className="h-2 w-2 rounded-full bg-red-500" />
+              {sessionsError}
+            </div>
+          </div>
+        )}
+        {!sessionsLoading && !sessionsError && sessions.length === 0 && (
+          <div className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
+            {t("profile.noSessions")}
+          </div>
+        )}
+        {!sessionsLoading && !sessionsError && sessions.length > 0 && (
+          <div className="mt-3 space-y-2">
+            {sessions.map((session) => {
+              let statusLabel = t("profile.sessionActive");
+              let statusClass = "text-emerald-600 dark:text-emerald-400";
+              if (session.revokedAt) {
+                statusLabel = t("profile.sessionRevoked");
+                statusClass = "text-zinc-500 dark:text-zinc-400";
+              } else if (!session.isActive) {
+                statusLabel = t("profile.sessionExpired");
+                statusClass = "text-amber-600 dark:text-amber-400";
+              }
+              return (
+                <div
+                  key={session.id}
+                  className="flex items-center justify-between rounded-lg border border-zinc-200 dark:border-zinc-800 px-3 py-2 text-sm"
+                >
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-zinc-700 dark:text-zinc-300">
+                      {t("profile.createdAt")}: {new Date(session.createdAt).toLocaleString()}
+                    </span>
+                    <span className="text-zinc-500 dark:text-zinc-400">
+                      {t("profile.expiresAt")}: {new Date(session.expiresAt).toLocaleString()}
+                    </span>
+                  </div>
+                  <span className={`font-medium ${statusClass}`}>{statusLabel}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={handleRevokeAllSessions}
+            disabled={revokeState.kind === "loading" || sessionsLoading}
+            className="inline-flex w-full sm:w-auto items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors sm:shrink-0"
+          >
+            {revokeState.kind === "loading" ? t("profile.saving") : t("profile.revokeAllSessions")}
+          </button>
+        </div>
+        {revokeState.kind === "success" && (
+          <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
+            <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              {t("profile.revokeAllSuccess")}
+            </div>
+          </div>
+        )}
+        {revokeState.kind === "error" && (
+          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-2.5 text-sm dark:border-red-900 dark:bg-red-950/30">
+            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+              <span className="h-2 w-2 rounded-full bg-red-500" />
+              {revokeState.message}
             </div>
           </div>
         )}

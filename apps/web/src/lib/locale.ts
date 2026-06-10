@@ -348,7 +348,19 @@ export type TranslationKey =
   | "sidebar.publicShort"
   | "sidebar.privateShort"
   | "sidebar.workspace"
-  | "sidebar.signInToSeeWorkspaces";
+  | "sidebar.signInToSeeWorkspaces"
+  | "profile.sessions"
+  | "profile.revokeAllSessions"
+  | "profile.revokeAllConfirm"
+  | "profile.revokeAllSuccess"
+  | "profile.revokeAllFailed"
+  | "profile.loadingSessions"
+  | "profile.sessionActive"
+  | "profile.sessionRevoked"
+  | "profile.sessionExpired"
+  | "profile.noSessions"
+  | "profile.createdAt"
+  | "profile.expiresAt";
 
 const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string) => string)>> = {
   en: {
@@ -683,6 +695,18 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "dashboard.confirmDeclineInvitation": "Decline this invitation?",
     "dashboard.confirmDeclineChannelInvitation": "Decline this channel invitation?",
     "dashboard.confirmRestoreWorkspacePrefix": "Restore workspace",
+    "profile.sessions": "Sessions",
+    "profile.revokeAllSessions": "Revoke all sessions",
+    "profile.revokeAllConfirm": "Are you sure? This will end all sessions, including the current one, and you will need to sign in again.",
+    "profile.revokeAllSuccess": "All sessions revoked. Please sign in again.",
+    "profile.revokeAllFailed": "Failed to revoke sessions",
+    "profile.loadingSessions": "Loading sessions…",
+    "profile.sessionActive": "Active",
+    "profile.sessionRevoked": "Revoked",
+    "profile.sessionExpired": "Expired",
+    "profile.noSessions": "No sessions found",
+    "profile.createdAt": "Created",
+    "profile.expiresAt": "Expires",
   },
   uk: {
     "header.profile": "Профіль",
@@ -1016,6 +1040,18 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "dashboard.confirmDeclineInvitation": "Відхилити це запрошення?",
     "dashboard.confirmDeclineChannelInvitation": "Відхилити це запрошення до каналу?",
     "dashboard.confirmRestoreWorkspacePrefix": "Відновити робочий простір",
+    "profile.sessions": "Сесії",
+    "profile.revokeAllSessions": "Відкликати всі сесії",
+    "profile.revokeAllConfirm": "Ви впевнені? Це завершить усі сесії, включно з поточною, і вам доведеться увійти знову.",
+    "profile.revokeAllSuccess": "Усі сесії відкликані. Будь ласка, увійдіть знову.",
+    "profile.revokeAllFailed": "Не вдалося відкликати сесії",
+    "profile.loadingSessions": "Завантажуємо сесії…",
+    "profile.sessionActive": "Активна",
+    "profile.sessionRevoked": "Відкликана",
+    "profile.sessionExpired": "Протермінована",
+    "profile.noSessions": "Сесій не знайдено",
+    "profile.createdAt": "Створено",
+    "profile.expiresAt": "Завершується",
   },
   ru: {
     "header.profile": "Профиль",
@@ -1349,6 +1385,18 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "dashboard.confirmDeclineInvitation": "Отклонить это приглашение?",
     "dashboard.confirmDeclineChannelInvitation": "Отклонить это приглашение в канал?",
     "dashboard.confirmRestoreWorkspacePrefix": "Восстановить рабочее пространство",
+    "profile.sessions": "Сессии",
+    "profile.revokeAllSessions": "Отозвать все сессии",
+    "profile.revokeAllConfirm": "Вы уверены? Это завершит все сессии, включая текущую, и вам придётся войти снова.",
+    "profile.revokeAllSuccess": "Все сессии отозваны. Пожалуйста, войдите снова.",
+    "profile.revokeAllFailed": "Не удалось отозвать сессии",
+    "profile.loadingSessions": "Загружаем сессии…",
+    "profile.sessionActive": "Активна",
+    "profile.sessionRevoked": "Отозвана",
+    "profile.sessionExpired": "Истекла",
+    "profile.noSessions": "Сессии не найдены",
+    "profile.createdAt": "Создана",
+    "profile.expiresAt": "Истекает",
   },
 };
 

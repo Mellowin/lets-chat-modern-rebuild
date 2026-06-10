@@ -265,6 +265,14 @@ export interface ConfirmEmailChangeInput {
   token: string;
 }
 
+export interface SessionResponse {
+  id: string;
+  createdAt: string;
+  expiresAt: string;
+  revokedAt: string | null;
+  isActive: boolean;
+}
+
 export async function confirmEmailChange(input: ConfirmEmailChangeInput): Promise<{ success: boolean }> {
   const res = await fetch(`${API_BASE}/auth/change-email/confirm`, {
     method: "POST",
@@ -277,6 +285,38 @@ export async function confirmEmailChange(input: ConfirmEmailChangeInput): Promis
   }
 
   return res.json() as Promise<{ success: boolean }>;
+}
+
+export async function listSessions(accessToken: string): Promise<SessionResponse[]> {
+  const res = await fetch(`${API_BASE}/auth/sessions`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to load sessions: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<SessionResponse[]>;
+}
+
+export async function revokeAllSessions(accessToken: string): Promise<{ success: boolean; revokedCount: number }> {
+  const res = await fetch(`${API_BASE}/auth/sessions/revoke-all`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to revoke sessions: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<{ success: boolean; revokedCount: number }>;
 }
 
 export async function updateInterfaceLanguage(accessToken: string, interfaceLanguage: "en" | "uk" | "ru"): Promise<AuthUser> {

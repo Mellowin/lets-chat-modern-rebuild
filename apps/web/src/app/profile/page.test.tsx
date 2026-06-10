@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import ProfilePage from "./page";
 import { useAuth } from "@/lib/auth-context";
-import { updateDisplayName, uploadAvatar, updateInterfaceLanguage, requestEmailChange, changePassword } from "@/lib/auth-api";
+import { updateDisplayName, uploadAvatar, updateInterfaceLanguage, requestEmailChange, changePassword, listSessions, revokeAllSessions } from "@/lib/auth-api";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -19,6 +19,8 @@ vi.mock("@/lib/auth-api", () => ({
   updateInterfaceLanguage: vi.fn(),
   requestEmailChange: vi.fn(),
   changePassword: vi.fn(),
+  listSessions: vi.fn(),
+  revokeAllSessions: vi.fn(),
 }));
 
 function mockAuth(userOverrides?: Partial<ReturnType<typeof useAuth>>) {
@@ -73,10 +75,11 @@ describe("ProfilePage — unauthenticated", () => {
 });
 
 describe("ProfilePage — authenticated", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    localStorage.clear();
-  });
+    beforeEach(() => {
+      vi.clearAllMocks();
+      localStorage.clear();
+      vi.mocked(listSessions).mockResolvedValue([]);
+    });
 
   it("renders account information", async () => {
     mockAuth({
@@ -726,5 +729,119 @@ describe("ProfilePage — change password", () => {
     await userEvent.click(screen.getByRole("button", { name: /Change password/i }));
 
     expect(await screen.findByText(/Current password is incorrect/i)).toBeInTheDocument();
+  });
+});
+
+describe("ProfilePage — sessions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+  });
+
+  it("renders sessions list with active and revoked statuses", async () => {
+    mockAuth();
+    vi.mocked(listSessions).mockResolvedValueOnce([
+      { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true },
+      { id: "s2", createdAt: "2024-01-02T00:00:00Z", expiresAt: "2024-02-01T00:00:00Z", revokedAt: null, isActive: false },
+      { id: "s3", createdAt: "2024-01-03T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: "2024-01-04T00:00:00Z", isActive: false },
+    ]);
+
+    render(<ProfilePage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: /Sessions/i })).toBeInTheDocument();
+    });
+
+    expect(await screen.findByText(/Active/i)).toBeInTheDocument();
+    expect(screen.getByText(/Expired/i)).toBeInTheDocument();
+    expect(screen.getByText(/Revoked/i)).toBeInTheDocument();
+    expect(listSessions).toHaveBeenCalledWith("token");
+  });
+
+  it("shows error when sessions fail to load", async () => {
+    mockAuth();
+    vi.mocked(listSessions).mockRejectedValueOnce(new Error("Network error"));
+
+    render(<ProfilePage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: /Sessions/i })).toBeInTheDocument();
+    });
+
+    expect(await screen.findByText(/Network error/i)).toBeInTheDocument();
+  });
+
+  it("shows no sessions message when list is empty", async () => {
+    mockAuth();
+    vi.mocked(listSessions).mockResolvedValueOnce([]);
+
+    render(<ProfilePage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: /Sessions/i })).toBeInTheDocument();
+    });
+
+    expect(await screen.findByText(/No sessions found/i)).toBeInTheDocument();
+  });
+
+  it("revokes all sessions after confirm and calls logout", async () => {
+    const logoutMock = vi.fn();
+    mockAuth({ logout: logoutMock });
+    vi.mocked(listSessions).mockResolvedValueOnce([
+      { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true },
+    ]);
+    vi.mocked(revokeAllSessions).mockResolvedValueOnce({ success: true, revokedCount: 1 });
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(<ProfilePage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Revoke all sessions/i })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Revoke all sessions/i }));
+
+    await waitFor(() => {
+      expect(revokeAllSessions).toHaveBeenCalledWith("token");
+    });
+    expect(await screen.findByText(/All sessions revoked/i)).toBeInTheDocument();
+    expect(logoutMock).toHaveBeenCalled();
+  });
+
+  it("does not revoke when confirm is cancelled", async () => {
+    mockAuth();
+    vi.mocked(listSessions).mockResolvedValueOnce([
+      { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true },
+    ]);
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+
+    render(<ProfilePage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Revoke all sessions/i })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Revoke all sessions/i }));
+
+    expect(revokeAllSessions).not.toHaveBeenCalled();
+  });
+
+  it("shows error when revoke fails", async () => {
+    mockAuth();
+    vi.mocked(listSessions).mockResolvedValueOnce([
+      { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true },
+    ]);
+    vi.mocked(revokeAllSessions).mockRejectedValueOnce(new Error("Server error"));
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(<ProfilePage />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Revoke all sessions/i })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Revoke all sessions/i }));
+
+    expect(await screen.findByText(/Server error/i)).toBeInTheDocument();
   });
 });

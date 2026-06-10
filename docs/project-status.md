@@ -127,5 +127,6 @@ Use these steps to verify core functionality after deploy or before release:
 - **No auto-dedupe** — duplicate slugs return `409 Conflict`; user must pick a different name.
 - **Password reset and authenticated password change revoke existing refresh sessions** — old devices must re-login after password change.
 - **Authenticated users can list their refresh sessions and revoke active sessions** — via `GET /auth/sessions` and `POST /auth/sessions/revoke-all`.
+- **Profile page includes session management UI** — list sessions with active/revoked/expired status and revoke-all with confirmation.
 - **No file attachments** — text-only messages.
 - **No message search** — not implemented.
