@@ -1,11 +1,18 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@lets-chat/database';
+import { PrismaService, StorageBackend } from '@lets-chat/database';
 
 interface CreateMessageInput {
   channelId: string;
   authorId: string;
   content: string;
   parentId?: string;
+  attachments?: Array<{
+    storageKey: string;
+    filename: string;
+    mimeType: string;
+    size: number;
+    createdById: string;
+  }>;
 }
 
 @Injectable()
@@ -13,37 +20,64 @@ export class MessagesRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async createMessage(data: CreateMessageInput) {
-    return this.prisma.message.create({
-      data: {
-        channelId: data.channelId,
-        authorId: data.authorId,
-        content: data.content,
-        parentId: data.parentId,
-      },
-      include: {
-        author: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            avatarUrl: true,
+    return this.prisma.$transaction(async (tx) => {
+      const message = await tx.message.create({
+        data: {
+          channelId: data.channelId,
+          authorId: data.authorId,
+          content: data.content,
+          parentId: data.parentId,
+        },
+      });
+
+      if (data.attachments?.length) {
+        await tx.attachment.createMany({
+          data: data.attachments.map((a) => ({
+            messageId: message.id,
+            createdById: a.createdById,
+            filename: a.filename,
+            originalName: a.filename,
+            mimeType: a.mimeType,
+            size: a.size,
+            storageKey: a.storageKey,
+            storageBackend: StorageBackend.MINIO,
+          })),
+        });
+      }
+
+      const result = await tx.message.findUnique({
+        where: { id: message.id },
+        include: {
+          author: {
+            select: {
+              id: true,
+              username: true,
+              displayName: true,
+              avatarUrl: true,
+            },
+          },
+          reactions: {
+            where: { deletedAt: null },
+            select: { emoji: true, userId: true },
+          },
+          attachments: {
+            where: { deletedAt: null },
+            select: {
+              id: true,
+              filename: true,
+              mimeType: true,
+              size: true,
+              createdAt: true,
+            },
           },
         },
-        reactions: {
-          where: { deletedAt: null },
-          select: { emoji: true, userId: true },
-        },
-        attachments: {
-          where: { deletedAt: null },
-          select: {
-            id: true,
-            filename: true,
-            mimeType: true,
-            size: true,
-            createdAt: true,
-          },
-        },
-      },
+      });
+
+      if (!result) {
+        throw new Error('Message not found after creation');
+      }
+
+      return result;
     });
   }
 

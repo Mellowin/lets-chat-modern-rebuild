@@ -147,11 +147,36 @@ export class MessagesService {
       }
     }
 
+    const hasContent = dto.content && dto.content.trim().length > 0;
+    const hasAttachments = dto.attachments && dto.attachments.length > 0;
+
+    if (!hasContent && !hasAttachments) {
+      throw new BadRequestException('Message must have content or attachments');
+    }
+
+    if (dto.attachments) {
+      for (const att of dto.attachments) {
+        const expectedKind = classifyAttachmentKind(att.mimeType);
+        if (att.kind !== expectedKind) {
+          throw new BadRequestException(
+            `Attachment kind mismatch for ${att.fileName}: expected ${expectedKind}, received ${att.kind}`,
+          );
+        }
+      }
+    }
+
     const message = await this.messages.createMessage({
       channelId,
       authorId: userId,
-      content: dto.content,
+      content: dto.content ?? '',
       parentId: dto.parentId,
+      attachments: dto.attachments?.map((a) => ({
+        storageKey: a.storageKey,
+        filename: a.fileName,
+        mimeType: a.mimeType,
+        size: a.sizeBytes,
+        createdById: userId,
+      })),
     });
 
     const response = this.toMessageResponse(message, userId);

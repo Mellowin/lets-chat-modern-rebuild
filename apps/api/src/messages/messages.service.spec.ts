@@ -1,5 +1,6 @@
 import { Test } from '@nestjs/testing';
 import {
+  BadRequestException,
   ForbiddenException,
   NotFoundException,
   UnprocessableEntityException,
@@ -205,6 +206,208 @@ describe('MessagesService', () => {
         userId,
       );
       expect(result.content).toBe('hello');
+    });
+
+    it('returns empty attachments array for text-only message', async () => {
+      const message = {
+        id: messageId,
+        channelId,
+        content: 'hello',
+        author: {
+          id: userId,
+          username: 'user',
+          displayName: null,
+          avatarUrl: null,
+        },
+        reactions: [],
+        attachments: [],
+      } as unknown as CreatedMessage;
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      messagesRepository.createMessage.mockResolvedValue(message);
+
+      const result = await service.create(
+        workspaceId,
+        channelId,
+        { content: 'hello' },
+        userId,
+      );
+      expect(result.attachments).toEqual([]);
+    });
+
+    it('creates message with an image attachment', async () => {
+      const message = {
+        id: messageId,
+        channelId,
+        content: 'hello',
+        author: {
+          id: userId,
+          username: 'user',
+          displayName: null,
+          avatarUrl: null,
+        },
+        reactions: [],
+        attachments: [
+          {
+            id: 'a1',
+            filename: 'pic.png',
+            mimeType: 'image/png',
+            size: 5678,
+            createdAt: new Date('2024-01-01'),
+          },
+        ],
+      } as unknown as CreatedMessage;
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      messagesRepository.createMessage.mockResolvedValue(message);
+
+      const result = await service.create(
+        workspaceId,
+        channelId,
+        {
+          content: 'hello',
+          attachments: [
+            {
+              storageKey: 'attachments/user-id/uuid-pic.png',
+              fileName: 'pic.png',
+              mimeType: 'image/png',
+              sizeBytes: 5678,
+              kind: 'image',
+            },
+          ],
+        },
+        userId,
+      );
+      expect(result.attachments).toHaveLength(1);
+      expect(result.attachments[0]).toMatchObject({
+        id: 'a1',
+        fileName: 'pic.png',
+        mimeType: 'image/png',
+        sizeBytes: 5678,
+        kind: 'image',
+      });
+      expect(result.attachments[0]).not.toHaveProperty('storageKey');
+      expect(messagesRepository.createMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          attachments: [
+            {
+              storageKey: 'attachments/user-id/uuid-pic.png',
+              filename: 'pic.png',
+              mimeType: 'image/png',
+              size: 5678,
+              createdById: userId,
+            },
+          ],
+        }),
+      );
+    });
+
+    it('creates attachments-only message without content', async () => {
+      const message = {
+        id: messageId,
+        channelId,
+        content: '',
+        author: {
+          id: userId,
+          username: 'user',
+          displayName: null,
+          avatarUrl: null,
+        },
+        reactions: [],
+        attachments: [
+          {
+            id: 'a1',
+            filename: 'doc.pdf',
+            mimeType: 'application/pdf',
+            size: 1234,
+            createdAt: new Date('2024-01-01'),
+          },
+        ],
+      } as unknown as CreatedMessage;
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      messagesRepository.createMessage.mockResolvedValue(message);
+
+      const result = await service.create(
+        workspaceId,
+        channelId,
+        {
+          attachments: [
+            {
+              storageKey: 'attachments/user-id/uuid-doc.pdf',
+              fileName: 'doc.pdf',
+              mimeType: 'application/pdf',
+              sizeBytes: 1234,
+              kind: 'file',
+            },
+          ],
+        },
+        userId,
+      );
+      expect(result.attachments).toHaveLength(1);
+      expect(result.content).toBe('');
+    });
+
+    it('throws BadRequest for empty content and no attachments', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+
+      await expect(
+        service.create(workspaceId, channelId, {}, userId),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(messagesRepository.createMessage).not.toHaveBeenCalled();
+    });
+
+    it('throws BadRequest when attachment kind does not match MIME', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+
+      await expect(
+        service.create(
+          workspaceId,
+          channelId,
+          {
+            attachments: [
+              {
+                storageKey: 'attachments/user-id/uuid-pic.png',
+                fileName: 'pic.png',
+                mimeType: 'image/png',
+                sizeBytes: 5678,
+                kind: 'file',
+              },
+            ],
+          },
+          userId,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(messagesRepository.createMessage).not.toHaveBeenCalled();
     });
   });
 

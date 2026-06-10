@@ -131,5 +131,5 @@ Use these steps to verify core functionality after deploy or before release:
 - **Production smoke verifies protected auth/session endpoints reject anonymous requests** — `GET /auth/sessions`, `POST /auth/sessions/revoke-all`, `POST /auth/change-password` checked for `401` without token.
 - **Public `/project-status` page added for portfolio/employer review** — honest overview of implemented and planned features, tech stack, and production links.
 - **Production smoke verifies public `/project-status` page** — checked for `200` and expected content.
-- **Attachment backend metadata and presigned upload preparation are implemented** — message responses include `attachments` array; authenticated `POST /workspaces/:workspaceId/channels/:channelId/messages/attachments/presign` returns presigned upload URL and safe `storageKey`; frontend upload UI and download/display flow are still in progress.
+- **Backend can now save uploaded attachment metadata on message creation** — message creation accepts optional `attachments` array (max 5), validates MIME/size/kind, stores `Attachment` rows linked to `Message` via transaction, and returns safe metadata without `storageKey`; presigned upload endpoint returns `storageKey` for direct S3 upload; frontend upload UI and download/display flow are still in progress.
 - **No message search** — not implemented.
