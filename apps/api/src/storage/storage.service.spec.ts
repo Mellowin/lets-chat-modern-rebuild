@@ -2,6 +2,7 @@ import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import {
   S3Client,
+  HeadBucketCommand,
   ListObjectsV2Command,
   DeleteObjectCommand,
 } from '@aws-sdk/client-s3';
@@ -137,6 +138,85 @@ describe('StorageService', () => {
       await service.deleteObject('attachments/u1/file.png');
 
       expect(s3SendMock).toHaveBeenCalledWith(expect.any(DeleteObjectCommand));
+    });
+  });
+
+  describe('onModuleInit', () => {
+    it('logs that bucket exists when HeadBucket succeeds', async () => {
+      s3SendMock.mockResolvedValue({});
+      const logSpy = jest.spyOn(service['logger'], 'log');
+
+      await service.onModuleInit();
+
+      expect(s3SendMock).toHaveBeenCalledWith(expect.any(HeadBucketCommand));
+      expect(logSpy).toHaveBeenCalledWith('Bucket "bucket" exists');
+    });
+
+    it('creates bucket when HeadBucket returns NotFound', async () => {
+      const notFoundError = Object.assign(new Error('NotFound'), {
+        name: 'NotFound',
+      });
+      s3SendMock.mockRejectedValueOnce(notFoundError).mockResolvedValueOnce({});
+      const logSpy = jest.spyOn(service['logger'], 'log');
+
+      await service.onModuleInit();
+
+      expect(logSpy).toHaveBeenCalledWith('Bucket "bucket" created');
+    });
+
+    it('does not throw on 403 Forbidden and logs a warning', async () => {
+      const forbiddenError = Object.assign(new Error('Forbidden'), {
+        name: 'Forbidden',
+        $metadata: { httpStatusCode: 403 },
+      });
+      s3SendMock.mockRejectedValueOnce(forbiddenError);
+      const warnSpy = jest.spyOn(service['logger'], 'warn');
+
+      await expect(service.onModuleInit()).resolves.not.toThrow();
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('403 Forbidden'),
+      );
+    });
+
+    it('does not throw on AccessDenied and logs a warning', async () => {
+      const accessDeniedError = Object.assign(new Error('AccessDenied'), {
+        name: 'AccessDenied',
+      });
+      s3SendMock.mockRejectedValueOnce(accessDeniedError);
+      const warnSpy = jest.spyOn(service['logger'], 'warn');
+
+      await expect(service.onModuleInit()).resolves.not.toThrow();
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('403 Forbidden'),
+      );
+    });
+
+    it('does not throw on 403 via $metadata only', async () => {
+      const forbiddenError = Object.assign(new Error('SomeError'), {
+        $metadata: { httpStatusCode: 403 },
+      });
+      s3SendMock.mockRejectedValueOnce(forbiddenError);
+      const warnSpy = jest.spyOn(service['logger'], 'warn');
+
+      await expect(service.onModuleInit()).resolves.not.toThrow();
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('403 Forbidden'),
+      );
+    });
+
+    it('throws on unexpected HeadBucket errors', async () => {
+      const unknownError = new Error('Network failure');
+      s3SendMock.mockRejectedValueOnce(unknownError);
+      const errorSpy = jest.spyOn(service['logger'], 'error');
+
+      await expect(service.onModuleInit()).rejects.toThrow('Network failure');
+
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to check bucket'),
+      );
     });
   });
 

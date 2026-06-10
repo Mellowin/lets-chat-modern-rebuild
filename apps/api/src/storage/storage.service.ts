@@ -36,6 +36,15 @@ export class StorageService implements OnModuleInit {
     await this.ensureBucketExists();
   }
 
+  private isAwsForbiddenError(error: unknown): boolean {
+    if (typeof error !== 'object' || error === null) return false;
+    const err = error as Record<string, unknown>;
+    if (err.name === 'Forbidden' || err.name === 'AccessDenied') return true;
+    const metadata = err.$metadata;
+    if (typeof metadata !== 'object' || metadata === null) return false;
+    return (metadata as Record<string, unknown>).httpStatusCode === 403;
+  }
+
   private async ensureBucketExists() {
     try {
       await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
@@ -58,6 +67,10 @@ export class StorageService implements OnModuleInit {
           );
           throw createError;
         }
+      } else if (this.isAwsForbiddenError(error)) {
+        this.logger.warn(
+          `No permission to verify bucket "${this.bucket}" (403 Forbidden). Assuming bucket exists.`,
+        );
       } else {
         this.logger.error(
           `Failed to check bucket "${this.bucket}": ${(error as Error).message}`,
