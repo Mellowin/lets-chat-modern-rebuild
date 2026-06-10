@@ -9,7 +9,7 @@ import { useLocale, translate, getLocale } from "@/lib/locale";
 import { getChannel, getChannelMembers, removeChannelMember, archiveChannel, leaveChannel, type Channel, type ChannelMember } from "@/lib/channels-api";
 import { createChannelInvite } from "@/lib/channel-invites-api";
 
-import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, presignAttachmentUpload, uploadAttachmentToPresignedUrl, getAttachmentDownloadUrl, type Message, type CreateMessageInput, type UpdateMessageInput, type ReactionSummary, type Attachment } from "@/lib/messages-api";
+import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, presignAttachmentUpload, uploadAttachmentToPresignedUrlWithProgress, getAttachmentDownloadUrl, type Message, type CreateMessageInput, type UpdateMessageInput, type ReactionSummary, type Attachment, CreateMessageAttachmentInput } from "@/lib/messages-api";
 import { sendDirectMessage, listDirectConversations, type DirectConversation } from "@/lib/direct-conversations-api";
 import { createSocket } from "@/lib/socket-client";
 import { getAvatarUrl } from "@/lib/avatar-url";
@@ -33,6 +33,15 @@ type MembersState =
   | { kind: "loading" }
   | { kind: "success"; data: ChannelMember[] }
   | { kind: "error"; message: string };
+
+type ComposerAttachment = {
+  id: string;
+  file: File;
+  status: "ready" | "uploading" | "uploaded" | "failed";
+  progress: number;
+  error: string | null;
+  result?: CreateMessageAttachmentInput;
+};
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -168,11 +177,15 @@ export default function ChannelDetailPage() {
   const [forwardTargets, setForwardTargets] = useState<DirectConversation[] | null>(null);
   const [forwardError, setForwardError] = useState<string | null>(null);
   const [forwarding, setForwarding] = useState(false);
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [composerAttachments, setComposerAttachments] = useState<ComposerAttachment[]>([]);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const dragCounterRef = useRef(0);
+  const composerAttachmentsRef = useRef<ComposerAttachment[]>([]);
+  useEffect(() => {
+    composerAttachmentsRef.current = composerAttachments;
+  }, [composerAttachments]);
   const quickEmojis = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
 
   const ALLOWED_ATTACHMENT_TYPES = [
@@ -187,14 +200,14 @@ export default function ChannelDetailPage() {
   const MAX_ATTACHMENTS = 5;
 
   const filePreviews = useMemo(() => {
-    const map = new Map<number, string>();
-    selectedFiles.forEach((file, idx) => {
-      if (file.type.startsWith("image/")) {
-        map.set(idx, URL.createObjectURL(file));
+    const map = new Map<string, string>();
+    composerAttachments.forEach((att) => {
+      if (att.file.type.startsWith("image/")) {
+        map.set(att.id, URL.createObjectURL(att.file));
       }
     });
     return map;
-  }, [selectedFiles]);
+  }, [composerAttachments]);
 
   useEffect(() => {
     return () => {
@@ -765,10 +778,73 @@ export default function ChannelDetailPage() {
     }
   }
 
+  async function uploadOneAttachment(id: string): Promise<boolean> {
+    if (!accessToken || !workspaceId || !channelId) return false;
+    const att = composerAttachmentsRef.current.find((a) => a.id === id);
+    if (!att || att.status === "uploaded") return true;
+
+    const setUploading = (prev: ComposerAttachment[]) =>
+      prev.map((a): ComposerAttachment => (a.id === id ? { ...a, status: "uploading", progress: 0, error: null } : a));
+    setComposerAttachments(setUploading);
+    composerAttachmentsRef.current = setUploading(composerAttachmentsRef.current);
+
+    try {
+      const presign = await presignAttachmentUpload(accessToken, workspaceId, channelId, {
+        filename: att.file.name,
+        mimeType: att.file.type,
+        sizeBytes: att.file.size,
+      });
+
+      await uploadAttachmentToPresignedUrlWithProgress(
+        presign.uploadUrl,
+        att.file,
+        (percent) => {
+          const setProgress = (prev: ComposerAttachment[]) =>
+            prev.map((a): ComposerAttachment => (a.id === id ? { ...a, progress: percent } : a));
+          setComposerAttachments(setProgress);
+          composerAttachmentsRef.current = setProgress(composerAttachmentsRef.current);
+        },
+      );
+
+      const setUploaded = (prev: ComposerAttachment[]) =>
+        prev.map((a): ComposerAttachment =>
+          a.id === id
+            ? {
+                ...a,
+                status: "uploaded",
+                progress: 100,
+                error: null,
+                result: {
+                  storageKey: presign.storageKey,
+                  fileName: att.file.name,
+                  mimeType: att.file.type,
+                  sizeBytes: att.file.size,
+                  kind: classifyAttachmentKind(att.file.type),
+                },
+              }
+            : a,
+        );
+      setComposerAttachments(setUploaded);
+      composerAttachmentsRef.current = setUploaded(composerAttachmentsRef.current);
+      return true;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t("channel.errorAttachmentUploadFailed");
+      const setFailed = (prev: ComposerAttachment[]) =>
+        prev.map((a): ComposerAttachment => (a.id === id ? { ...a, status: "failed", progress: 0, error: message } : a));
+      setComposerAttachments(setFailed);
+      composerAttachmentsRef.current = setFailed(composerAttachmentsRef.current);
+      return false;
+    }
+  }
+
+  function handleRetryAttachment(id: string) {
+    void uploadOneAttachment(id);
+  }
+
   async function submitMessage() {
     const trimmed = content.trim();
     const hasContent = trimmed.length > 0;
-    const hasAttachments = selectedFiles.length > 0;
+    const hasAttachments = composerAttachments.length > 0;
 
     if (!hasContent && !hasAttachments) {
       setSendState({ kind: "error", message: t("channel.errorMessageEmpty") });
@@ -784,37 +860,37 @@ export default function ChannelDetailPage() {
     setAttachmentError(null);
 
     try {
-      let attachmentInputs: CreateMessageInput["attachments"] = undefined;
+      const needsUpload = composerAttachmentsRef.current.filter(
+        (a) => a.status === "ready" || a.status === "failed",
+      );
 
-      if (selectedFiles.length > 0) {
-        const uploaded = await Promise.all(
-          selectedFiles.map(async (file) => {
-            const presign = await presignAttachmentUpload(accessToken, workspaceId, channelId, {
-              filename: file.name,
-              mimeType: file.type,
-              sizeBytes: file.size,
-            });
-            await uploadAttachmentToPresignedUrl(presign.uploadUrl, file);
-            return {
-              storageKey: presign.storageKey,
-              fileName: file.name,
-              mimeType: file.type,
-              sizeBytes: file.size,
-              kind: classifyAttachmentKind(file.type),
-            };
-          }),
-        );
-        attachmentInputs = uploaded;
+      if (needsUpload.length > 0) {
+        const results = await Promise.all(needsUpload.map((a) => uploadOneAttachment(a.id)));
+        if (!results.every((r) => r)) {
+          setSendState({ kind: "error", message: t("channel.errorAttachmentUploadFailed") });
+          return;
+        }
       }
+
+      const current = composerAttachmentsRef.current;
+      const allUploaded = current.every((a) => a.status === "uploaded");
+      if (!allUploaded) {
+        setSendState({ kind: "error", message: t("channel.errorAttachmentUploadFailed") });
+        return;
+      }
+
+      const attachmentInputs = current
+        .map((a) => a.result)
+        .filter((r): r is CreateMessageAttachmentInput => !!r);
 
       const input: CreateMessageInput = {
         ...(hasContent ? { content: trimmed } : {}),
         ...(replyTargetId ? { parentId: replyTargetId } : {}),
-        ...(attachmentInputs ? { attachments: attachmentInputs } : {}),
+        ...(attachmentInputs.length > 0 ? { attachments: attachmentInputs } : {}),
       };
       const msg = await createMessage(accessToken, workspaceId, channelId, input);
       setContent("");
-      setSelectedFiles([]);
+      setComposerAttachments([]);
       setReplyTargetId(null);
       setSendState({ kind: "idle" });
       appendMessage(msg);
@@ -857,6 +933,7 @@ export default function ChannelDetailPage() {
     socket.emit("typing:stop", { workspaceId, channelId });
   }
 
+  const isUploadingAttachments = composerAttachments.some((a) => a.status === "uploading");
   const myChannelRole =
     members.kind === "success"
       ? members.data.find((m) => m.user.id === user?.id)?.role
@@ -944,7 +1021,7 @@ export default function ChannelDetailPage() {
 
     const hasInvalid = validFiles.length < files.length;
 
-    if (selectedFiles.length + validFiles.length > MAX_ATTACHMENTS) {
+    if (composerAttachments.length + validFiles.length > MAX_ATTACHMENTS) {
       setAttachmentError(t("channel.errorTooManyAttachments"));
       return;
     }
@@ -962,7 +1039,18 @@ export default function ChannelDetailPage() {
       setAttachmentError(t("channel.errorSomeAttachmentsInvalid"));
     }
 
-    setSelectedFiles((prev) => [...prev, ...validFiles]);
+    const addFiles = (prev: ComposerAttachment[]) => [
+      ...prev,
+      ...validFiles.map((file): ComposerAttachment => ({
+        id: crypto.randomUUID(),
+        file,
+        status: "ready",
+        progress: 0,
+        error: null,
+      })),
+    ];
+    setComposerAttachments(addFiles);
+    composerAttachmentsRef.current = addFiles(composerAttachmentsRef.current);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -1003,8 +1091,10 @@ export default function ChannelDetailPage() {
     validateAndAddFiles(files);
   }
 
-  function handleRemoveFile(index: number) {
-    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+  function handleRemoveAttachment(id: string) {
+    const remove = (prev: ComposerAttachment[]) => prev.filter((a) => a.id !== id);
+    setComposerAttachments(remove);
+    composerAttachmentsRef.current = remove(composerAttachmentsRef.current);
     setAttachmentError(null);
   }
 
@@ -1538,44 +1628,146 @@ export default function ChannelDetailPage() {
               disabled={sendState.kind === "loading"}
               className="w-full resize-none rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100 disabled:opacity-60"
             />
-            {selectedFiles.length > 0 && (
+            {composerAttachments.length > 0 && (
               <div data-testid="composer-attachments" className="flex flex-wrap gap-2">
-                {selectedFiles.map((file, index) => {
-                  const previewUrl = filePreviews.get(index);
+                {composerAttachments.map((att, index) => {
+                  const previewUrl = filePreviews.get(att.id);
+                  const isUploading = att.status === "uploading";
+                  const isFailed = att.status === "failed";
+                  const isUploaded = att.status === "uploaded";
+                  const canRemove = att.status === "ready" || att.status === "failed";
+
                   return previewUrl ? (
                     <div
-                      key={`${file.name}-${index}`}
+                      key={att.id}
                       data-testid={`composer-attachment-preview-${index}`}
-                      className="relative inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 p-1"
+                      className="relative inline-flex flex-col gap-1 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 p-1"
                     >
-                      <img src={previewUrl} alt={file.name} className="h-16 w-16 rounded object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveFile(index)}
-                        data-testid={`composer-attachment-remove-${index}`}
-                        className="absolute -right-1.5 -top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-zinc-200 text-zinc-600 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
-                        aria-label={t("channel.removeAttachment")}
-                      >
-                        ×
-                      </button>
+                      <div className="relative">
+                        <img src={previewUrl} alt={att.file.name} className="h-16 w-16 rounded object-cover" />
+                        {canRemove && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveAttachment(att.id)}
+                            data-testid={`composer-attachment-remove-${index}`}
+                            className="absolute -right-1.5 -top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-zinc-200 text-zinc-600 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
+                            aria-label={t("channel.removeAttachment")}
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between gap-1 px-0.5">
+                        <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
+                          {formatFileSize(att.file.size)}
+                        </span>
+                        <span
+                          className={`text-[10px] font-medium ${
+                            isFailed
+                              ? "text-red-600 dark:text-red-400"
+                              : isUploaded
+                              ? "text-green-600 dark:text-green-400"
+                              : "text-zinc-500 dark:text-zinc-400"
+                          }`}
+                          data-testid={`composer-attachment-status-${index}`}
+                        >
+                          {isUploading
+                            ? t("channel.attachmentUploading")
+                            : isFailed
+                            ? t("channel.attachmentUploadFailed")
+                            : isUploaded
+                            ? t("channel.attachmentUploaded")
+                            : t("channel.attachmentReady")}
+                        </span>
+                      </div>
+                      {isUploading && (
+                        <div className="w-full px-0.5">
+                          <div className="h-1 w-full rounded-full bg-zinc-200 dark:bg-zinc-700">
+                            <div
+                              className="h-1 rounded-full bg-blue-500 transition-all"
+                              style={{ width: `${att.progress}%` }}
+                              data-testid={`composer-attachment-progress-${index}`}
+                            />
+                          </div>
+                          <span className="text-[10px] text-zinc-500 dark:text-zinc-400">{att.progress}%</span>
+                        </div>
+                      )}
+                      {isFailed && (
+                        <button
+                          type="button"
+                          onClick={() => handleRetryAttachment(att.id)}
+                          data-testid={`composer-attachment-retry-${index}`}
+                          className="px-0.5 text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                        >
+                          {t("channel.retryUpload")}
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <div
-                      key={`${file.name}-${index}`}
+                      key={att.id}
                       data-testid={`composer-attachment-chip-${index}`}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 px-2.5 py-1 text-xs"
+                      className="inline-flex flex-col gap-1 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 px-2.5 py-1 text-xs"
                     >
-                      <span>{file.name}</span>
-                      <span className="text-zinc-400 dark:text-zinc-500">{formatFileSize(file.size)}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveFile(index)}
-                        data-testid={`composer-attachment-remove-${index}`}
-                        className="inline-flex h-4 w-4 items-center justify-center rounded text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-                        aria-label={t("channel.removeAttachment")}
-                      >
-                        ×
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate max-w-[6rem]">{att.file.name}</span>
+                        {canRemove && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveAttachment(att.id)}
+                            data-testid={`composer-attachment-remove-${index}`}
+                            className="inline-flex h-4 w-4 items-center justify-center rounded text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                            aria-label={t("channel.removeAttachment")}
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
+                          {formatFileSize(att.file.size)}
+                        </span>
+                        <span
+                          className={`text-[10px] font-medium ${
+                            isFailed
+                              ? "text-red-600 dark:text-red-400"
+                              : isUploaded
+                              ? "text-green-600 dark:text-green-400"
+                              : "text-zinc-500 dark:text-zinc-400"
+                          }`}
+                          data-testid={`composer-attachment-status-${index}`}
+                        >
+                          {isUploading
+                            ? t("channel.attachmentUploading")
+                            : isFailed
+                            ? t("channel.attachmentUploadFailed")
+                            : isUploaded
+                            ? t("channel.attachmentUploaded")
+                            : t("channel.attachmentReady")}
+                        </span>
+                      </div>
+                      {isUploading && (
+                        <div className="w-full">
+                          <div className="h-1 w-full rounded-full bg-zinc-200 dark:bg-zinc-700">
+                            <div
+                              className="h-1 rounded-full bg-blue-500 transition-all"
+                              style={{ width: `${att.progress}%` }}
+                              data-testid={`composer-attachment-progress-${index}`}
+                            />
+                          </div>
+                          <span className="text-[10px] text-zinc-500 dark:text-zinc-400">{att.progress}%</span>
+                        </div>
+                      )}
+                      {isFailed && (
+                        <button
+                          type="button"
+                          onClick={() => handleRetryAttachment(att.id)}
+                          data-testid={`composer-attachment-retry-${index}`}
+                          className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                        >
+                          {t("channel.retryUpload")}
+                        </button>
+                      )}
                     </div>
                   );
                 })}
@@ -1586,7 +1778,7 @@ export default function ChannelDetailPage() {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  disabled={sendState.kind === "loading"}
+                  disabled={sendState.kind === "loading" || isUploadingAttachments}
                   data-testid="composer-attach-button"
                   className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-60 transition-colors"
                   aria-label={t("channel.attachFile")}
@@ -1608,10 +1800,10 @@ export default function ChannelDetailPage() {
               </div>
               <button
                 type="submit"
-                disabled={sendState.kind === "loading"}
+                disabled={sendState.kind === "loading" || isUploadingAttachments}
                 className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
               >
-                {sendState.kind === "loading" ? t("channel.sending") : t("channel.send")}
+                {sendState.kind === "loading" || isUploadingAttachments ? t("channel.sending") : t("channel.send")}
               </button>
             </div>
             {attachmentError && (

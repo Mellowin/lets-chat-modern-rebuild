@@ -254,6 +254,12 @@ export type TranslationKey =
   | "channel.errorAttachmentTooLarge"
   | "channel.errorSomeAttachmentsInvalid"
   | "channel.errorDownloadFailed"
+  | "channel.attachmentUploading"
+  | "channel.attachmentUploadFailed"
+  | "channel.retryUpload"
+  | "channel.attachmentReady"
+  | "channel.attachmentUploaded"
+  | "channel.errorAttachmentUploadFailed"
   | "channel.socketDisconnected"
   | "channel.socketConnecting"
   | "channel.socketConnected"
@@ -607,6 +613,12 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.errorAttachmentTooLarge": "File exceeds 10 MB",
     "channel.errorSomeAttachmentsInvalid": "Some files were invalid and not added",
     "channel.errorDownloadFailed": "Failed to download file",
+    "channel.attachmentUploading": "Uploading…",
+    "channel.attachmentUploadFailed": "Upload failed",
+    "channel.retryUpload": "Retry",
+    "channel.attachmentReady": "Ready",
+    "channel.attachmentUploaded": "Uploaded",
+    "channel.errorAttachmentUploadFailed": "Attachment upload failed. Please try again.",
     "channel.socketDisconnected": "Disconnected",
     "channel.socketConnecting": "Connecting",
     "channel.socketConnected": "Connected",
@@ -959,6 +971,12 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.errorAttachmentTooLarge": "Файл перевищує 10 МБ",
     "channel.errorSomeAttachmentsInvalid": "Деякі файли недійсні та не додані",
     "channel.errorDownloadFailed": "Не вдалося завантажити файл",
+    "channel.attachmentUploading": "Завантажуємо…",
+    "channel.attachmentUploadFailed": "Завантаження не вдалося",
+    "channel.retryUpload": "Повторити",
+    "channel.attachmentReady": "Готово",
+    "channel.attachmentUploaded": "Завантажено",
+    "channel.errorAttachmentUploadFailed": "Не вдалося завантажити вкладення. Спробуйте ще раз.",
     "channel.socketDisconnected": "Відʼєднано",
     "channel.socketConnecting": "Підключення",
     "channel.socketConnected": "Підключено",
@@ -1311,6 +1329,12 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.errorAttachmentTooLarge": "Файл превышает 10 МБ",
     "channel.errorSomeAttachmentsInvalid": "Некоторые файлы недействительны и не добавлены",
     "channel.errorDownloadFailed": "Не удалось скачать файл",
+    "channel.attachmentUploading": "Загружаем…",
+    "channel.attachmentUploadFailed": "Загрузка не удалась",
+    "channel.retryUpload": "Повторить",
+    "channel.attachmentReady": "Готово",
+    "channel.attachmentUploaded": "Загружено",
+    "channel.errorAttachmentUploadFailed": "Не удалось загрузить вложение. Попробуйте ещё раз.",
     "channel.socketDisconnected": "Отключено",
     "channel.socketConnecting": "Подключение",
     "channel.socketConnected": "Подключено",

@@ -1,8 +1,8 @@
 # Project Status
 
-> Last updated: 2026-06-08  
-> Code checkpoint: `ae27bb3`  
-> Docs checkpoint: `ae27bb3`
+> Last updated: 2026-06-10  
+> Code checkpoint: `3b36aa8`  
+> Docs checkpoint: `3b36aa8`
 
 ---
 
@@ -131,5 +131,5 @@ Use these steps to verify core functionality after deploy or before release:
 - **Production smoke verifies protected auth/session endpoints reject anonymous requests** — `GET /auth/sessions`, `POST /auth/sessions/revoke-all`, `POST /auth/change-password` checked for `401` without token.
 - **Public `/project-status` page added for portfolio/employer review** — honest overview of implemented and planned features, tech stack, and production links.
 - **Production smoke verifies public `/project-status` page** — checked for `200` and expected content.
-- **Channel attachments support file picker, drag-and-drop, image previews, presigned upload, message rendering, and authenticated download URLs** — frontend composer supports selecting up to 5 files (validated MIME/size), drag-and-drop into the composer, thumbnail previews for images before send, inline image previews in the message list, file cards for non-image attachments, presigned upload to storage, and secure download via backend download-url endpoint; further polish such as gallery/lightbox and upload progress is still in progress.
+- **Channel attachments support file picker, drag-and-drop, image previews, upload progress, presigned upload, message rendering, and authenticated download URLs** — frontend composer supports selecting up to 5 files (validated MIME/size), drag-and-drop into the composer, thumbnail previews for images before send, upload progress per file with retry on failure, inline image previews in the message list, file cards for non-image attachments, presigned upload to storage, and secure download via backend download-url endpoint; further polish such as gallery/lightbox and orphaned upload cleanup is still in progress.
 - **No message search** — not implemented.

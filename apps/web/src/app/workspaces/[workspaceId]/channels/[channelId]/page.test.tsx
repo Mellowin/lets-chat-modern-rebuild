@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import ChannelDetailPage from "./page";
 import { getChannel, getChannelMembers, addChannelMember, removeChannelMember, leaveChannel, archiveChannel, type ChannelMember } from "@/lib/channels-api";
 import { createChannelInvite } from "@/lib/channel-invites-api";
-import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, presignAttachmentUpload, uploadAttachmentToPresignedUrl, getAttachmentDownloadUrl, Message } from "@/lib/messages-api";
+import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, presignAttachmentUpload, uploadAttachmentToPresignedUrl, uploadAttachmentToPresignedUrlWithProgress, getAttachmentDownloadUrl, Message } from "@/lib/messages-api";
 import { sendDirectMessage, listDirectConversations } from "@/lib/direct-conversations-api";
 
 const socketHandlers: Record<string, (...args: unknown[]) => void> = {};
@@ -53,6 +53,10 @@ vi.mock("@/lib/messages-api", () => ({
   removeMessageReaction: vi.fn(),
   presignAttachmentUpload: vi.fn(),
   uploadAttachmentToPresignedUrl: vi.fn(),
+  uploadAttachmentToPresignedUrlWithProgress: vi.fn((_, __, onProgress) => {
+    onProgress?.(100);
+    return Promise.resolve();
+  }),
   getAttachmentDownloadUrl: vi.fn(),
 }));
 
@@ -3141,7 +3145,7 @@ describe("ChannelDetailPage — forward", () => {
         kind: "file",
         expiresInSeconds: 300,
       });
-      vi.mocked(uploadAttachmentToPresignedUrl).mockResolvedValueOnce(undefined);
+      vi.mocked(uploadAttachmentToPresignedUrlWithProgress).mockResolvedValueOnce(undefined);
       const createdMsg: Message = {
         id: "m2",
         channelId: "ch1",
@@ -3187,7 +3191,7 @@ describe("ChannelDetailPage — forward", () => {
           sizeBytes: 7,
         });
       });
-      expect(uploadAttachmentToPresignedUrl).toHaveBeenCalledWith("http://minio/upload", expect.any(File));
+      expect(uploadAttachmentToPresignedUrlWithProgress).toHaveBeenCalledWith("http://minio/upload", expect.any(File), expect.any(Function));
       expect(createMessage).toHaveBeenCalledWith("token", "ws1", "ch1", expect.objectContaining({
         content: "hello with file",
         attachments: expect.arrayContaining([
@@ -3211,7 +3215,7 @@ describe("ChannelDetailPage — forward", () => {
         kind: "file",
         expiresInSeconds: 300,
       });
-      vi.mocked(uploadAttachmentToPresignedUrl).mockRejectedValueOnce(new Error("Upload failed: 403 Forbidden"));
+      vi.mocked(uploadAttachmentToPresignedUrlWithProgress).mockRejectedValueOnce(new Error("Upload failed: 403 Forbidden"));
 
       render(<ChannelDetailPage />);
       await waitFor(() => {
@@ -3227,8 +3231,9 @@ describe("ChannelDetailPage — forward", () => {
       await userEvent.click(screen.getByRole("button", { name: /send/i }));
 
       await waitFor(() => {
-        expect(screen.getByText("Upload failed: 403 Forbidden")).toBeInTheDocument();
+        expect(screen.getByText("Attachment upload failed. Please try again.")).toBeInTheDocument();
       });
+      expect(screen.getByText("Upload failed")).toBeInTheDocument();
       expect(createMessage).not.toHaveBeenCalled();
       expect(screen.getByTestId("composer-attachment-chip-0")).toBeInTheDocument();
     });
@@ -3244,7 +3249,7 @@ describe("ChannelDetailPage — forward", () => {
         kind: "file",
         expiresInSeconds: 300,
       });
-      vi.mocked(uploadAttachmentToPresignedUrl).mockResolvedValueOnce(undefined);
+      vi.mocked(uploadAttachmentToPresignedUrlWithProgress).mockResolvedValueOnce(undefined);
       const createdMsg: Message = {
         id: "m2",
         channelId: "ch1",
@@ -3482,7 +3487,7 @@ describe("ChannelDetailPage — forward", () => {
         kind: "image",
         expiresInSeconds: 300,
       });
-      vi.mocked(uploadAttachmentToPresignedUrl).mockResolvedValueOnce(undefined);
+      vi.mocked(uploadAttachmentToPresignedUrlWithProgress).mockResolvedValueOnce(undefined);
       vi.mocked(getAttachmentDownloadUrl).mockResolvedValue({
         downloadUrl: "http://minio/img",
         expiresInSeconds: 300,
@@ -3535,7 +3540,7 @@ describe("ChannelDetailPage — forward", () => {
           sizeBytes: 7,
         });
       });
-      expect(uploadAttachmentToPresignedUrl).toHaveBeenCalledWith("http://minio/upload", expect.any(File));
+      expect(uploadAttachmentToPresignedUrlWithProgress).toHaveBeenCalledWith("http://minio/upload", expect.any(File), expect.any(Function));
       expect(createMessage).toHaveBeenCalledWith("token", "ws1", "ch1", expect.objectContaining({
         attachments: expect.arrayContaining([
           expect.objectContaining({ storageKey: "attachments/u1/uuid-img.png", fileName: "test.png" }),
@@ -3645,6 +3650,152 @@ describe("ChannelDetailPage — forward", () => {
       });
       const bubble = screen.getByTestId("message-bubble-m1");
       expect(bubble.querySelector("p.whitespace-pre-wrap")).not.toBeInTheDocument();
+    });
+
+    it("shows upload progress during send", async () => {
+      mockChannelAndMessages([], []);
+      vi.mocked(presignAttachmentUpload).mockResolvedValueOnce({
+        uploadUrl: "http://minio/upload",
+        storageKey: "attachments/u1/uuid-file.txt",
+        fileName: "test.txt",
+        mimeType: "text/plain",
+        sizeBytes: 7,
+        kind: "file",
+        expiresInSeconds: 300,
+      });
+      let progressCb: ((p: number) => void) | undefined;
+      let resolveUpload: (() => void) | undefined;
+      vi.mocked(uploadAttachmentToPresignedUrlWithProgress).mockImplementationOnce((_, __, onProgress) => {
+        progressCb = onProgress;
+        return new Promise((resolve) => {
+          resolveUpload = resolve;
+        });
+      });
+      vi.mocked(createMessage).mockResolvedValueOnce({
+        id: "m2",
+        channelId: "ch1",
+        content: "hello",
+        parentId: null,
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        reactions: [],
+        attachments: [],
+      });
+
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attach-button")).toBeInTheDocument();
+      });
+
+      const file = new File(["content"], "test.txt", { type: "text/plain" });
+      await userEvent.upload(screen.getByTestId("composer-file-input"), file);
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attachment-chip-0")).toBeInTheDocument();
+      });
+
+      await userEvent.type(screen.getByPlaceholderText("Type a message…"), "hello");
+      await userEvent.click(screen.getByRole("button", { name: /send/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText("Uploading…")).toBeInTheDocument();
+      });
+
+      progressCb?.(50);
+
+      await waitFor(() => {
+        expect(screen.getByText("50%")).toBeInTheDocument();
+      });
+
+      progressCb?.(100);
+      resolveUpload?.();
+
+      await waitFor(() => {
+        expect(createMessage).toHaveBeenCalled();
+      });
+    });
+
+    it("retry failed upload calls presign and upload again", async () => {
+      mockChannelAndMessages([], []);
+      vi.mocked(presignAttachmentUpload).mockRejectedValueOnce(new Error("Presign failed"));
+      vi.mocked(presignAttachmentUpload).mockResolvedValueOnce({
+        uploadUrl: "http://minio/upload",
+        storageKey: "attachments/u1/uuid-file.txt",
+        fileName: "test.txt",
+        mimeType: "text/plain",
+        sizeBytes: 7,
+        kind: "file",
+        expiresInSeconds: 300,
+      });
+      vi.mocked(uploadAttachmentToPresignedUrlWithProgress).mockResolvedValueOnce(undefined);
+      vi.mocked(createMessage).mockResolvedValueOnce({
+        id: "m2",
+        channelId: "ch1",
+        content: "",
+        parentId: null,
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        reactions: [],
+        attachments: [],
+      });
+
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attach-button")).toBeInTheDocument();
+      });
+
+      const file = new File(["content"], "test.txt", { type: "text/plain" });
+      await userEvent.upload(screen.getByTestId("composer-file-input"), file);
+
+      await userEvent.click(screen.getByRole("button", { name: /send/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText("Upload failed")).toBeInTheDocument();
+      });
+      expect(screen.getByTestId("composer-attachment-retry-0")).toBeInTheDocument();
+
+      await userEvent.click(screen.getByTestId("composer-attachment-retry-0"));
+
+      await waitFor(() => {
+        expect(presignAttachmentUpload).toHaveBeenCalledTimes(2);
+      });
+      expect(uploadAttachmentToPresignedUrlWithProgress).toHaveBeenCalledTimes(1);
+      await waitFor(() => {
+        expect(screen.queryByTestId("composer-attachment-retry-0")).not.toBeInTheDocument();
+      });
+    });
+
+    it("send disabled while uploading", async () => {
+      mockChannelAndMessages([], []);
+      vi.mocked(presignAttachmentUpload).mockResolvedValueOnce({
+        uploadUrl: "http://minio/upload",
+        storageKey: "attachments/u1/uuid-file.txt",
+        fileName: "test.txt",
+        mimeType: "text/plain",
+        sizeBytes: 7,
+        kind: "file",
+        expiresInSeconds: 300,
+      });
+      vi.mocked(uploadAttachmentToPresignedUrlWithProgress).mockImplementationOnce(() => new Promise(() => {}));
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attach-button")).toBeInTheDocument();
+      });
+
+      const file = new File(["content"], "test.txt", { type: "text/plain" });
+      await userEvent.upload(screen.getByTestId("composer-file-input"), file);
+
+      await userEvent.click(screen.getByRole("button", { name: /send/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText("Uploading…")).toBeInTheDocument();
+      });
+
+      const sendButton = screen.getByRole("button", { name: /send/i });
+      expect(sendButton).toBeDisabled();
     });
   });
 });

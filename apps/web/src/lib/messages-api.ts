@@ -157,6 +157,43 @@ export async function uploadAttachmentToPresignedUrl(
   }
 }
 
+export function uploadAttachmentToPresignedUrlWithProgress(
+  uploadUrl: string,
+  file: File,
+  onProgress: (percent: number) => void,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable) {
+        const percent = Math.round((event.loaded / event.total) * 100);
+        onProgress(percent);
+      }
+    });
+
+    xhr.addEventListener("load", () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+      } else {
+        reject(new Error(`Upload failed: ${xhr.status} ${xhr.statusText}`));
+      }
+    });
+
+    xhr.addEventListener("error", () => {
+      reject(new Error("Upload failed: network error"));
+    });
+
+    xhr.addEventListener("abort", () => {
+      reject(new Error("Upload failed: aborted"));
+    });
+
+    xhr.open("PUT", uploadUrl);
+    xhr.setRequestHeader("Content-Type", file.type);
+    xhr.send(file);
+  });
+}
+
 export async function getAttachmentDownloadUrl(
   accessToken: string,
   workspaceId: string,
