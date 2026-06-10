@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { getMessages, createMessage, updateMessage, deleteMessage } from "./messages-api";
+import { getMessages, createMessage, updateMessage, deleteMessage, presignAttachmentUpload, uploadAttachmentToPresignedUrl, getAttachmentDownloadUrl } from "./messages-api";
 
 const API_BASE = "http://localhost:3001/api/v1";
 
@@ -97,6 +97,91 @@ describe("messages-api", () => {
     it("throws with backend error message", async () => {
       vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ message: "Not found" }), { status: 404 }));
       await expect(deleteMessage("token", "ws1", "ch1", "m1")).rejects.toThrow("Not found");
+    });
+  });
+
+  describe("presignAttachmentUpload", () => {
+    it("sends POST to presign endpoint", async () => {
+      const mock = {
+        uploadUrl: "http://minio/upload",
+        storageKey: "attachments/u1/uuid-file.png",
+        fileName: "file.png",
+        mimeType: "image/png",
+        sizeBytes: 1234,
+        kind: "image",
+        expiresInSeconds: 300,
+      };
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(mock), { status: 201 }));
+
+      const result = await presignAttachmentUpload("token", "ws1", "ch1", {
+        filename: "file.png",
+        mimeType: "image/png",
+        sizeBytes: 1234,
+      });
+
+      expect(fetch).toHaveBeenCalledWith(
+        `${API_BASE}/workspaces/ws1/channels/ch1/messages/attachments/presign`,
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ filename: "file.png", mimeType: "image/png", sizeBytes: 1234 }),
+        }),
+      );
+      expect(result).toEqual(mock);
+    });
+
+    it("throws with backend error message", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ message: "Bad request" }), { status: 400 }));
+      await expect(presignAttachmentUpload("token", "ws1", "ch1", { filename: "x", mimeType: "image/png", sizeBytes: 1 })).rejects.toThrow("Bad request");
+    });
+  });
+
+  describe("uploadAttachmentToPresignedUrl", () => {
+    it("sends PUT with file and Content-Type", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(null, { status: 200 }));
+      const file = new File(["content"], "test.txt", { type: "text/plain" });
+
+      await uploadAttachmentToPresignedUrl("http://minio/upload", file);
+
+      expect(fetch).toHaveBeenCalledWith("http://minio/upload", expect.objectContaining({
+        method: "PUT",
+        headers: { "Content-Type": "text/plain" },
+        body: file,
+      }));
+    });
+
+    it("throws on non-2xx response", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(null, { status: 403, statusText: "Forbidden" }));
+      const file = new File(["content"], "test.txt", { type: "text/plain" });
+
+      await expect(uploadAttachmentToPresignedUrl("http://minio/upload", file)).rejects.toThrow("Upload failed: 403 Forbidden");
+    });
+  });
+
+  describe("getAttachmentDownloadUrl", () => {
+    it("sends GET to download-url endpoint", async () => {
+      const mock = {
+        downloadUrl: "http://minio/download",
+        expiresInSeconds: 300,
+        fileName: "doc.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: 5678,
+        kind: "file",
+        createdAt: "2024-01-01T00:00:00Z",
+      };
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(mock), { status: 200 }));
+
+      const result = await getAttachmentDownloadUrl("token", "ws1", "ch1", "m1", "a1");
+
+      expect(fetch).toHaveBeenCalledWith(
+        `${API_BASE}/workspaces/ws1/channels/ch1/messages/m1/attachments/a1/download-url`,
+        expect.objectContaining({ method: "GET" }),
+      );
+      expect(result).toEqual(mock);
+    });
+
+    it("throws with backend error message", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ message: "Not found" }), { status: 404 }));
+      await expect(getAttachmentDownloadUrl("token", "ws1", "ch1", "m1", "a1")).rejects.toThrow("Not found");
     });
   });
 });

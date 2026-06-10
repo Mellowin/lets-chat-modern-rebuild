@@ -247,6 +247,12 @@ export type TranslationKey =
   | "channel.errorForwardFailed"
   | "channel.noConversations"
   | "channel.messageMenu"
+  | "channel.attachFile"
+  | "channel.removeAttachment"
+  | "channel.errorTooManyAttachments"
+  | "channel.errorInvalidAttachmentType"
+  | "channel.errorAttachmentTooLarge"
+  | "channel.errorDownloadFailed"
   | "channel.socketDisconnected"
   | "channel.socketConnecting"
   | "channel.socketConnected"
@@ -593,6 +599,12 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.errorForwardFailed": "Failed to forward message",
     "channel.noConversations": "No direct conversations yet.",
     "channel.messageMenu": "Message actions",
+    "channel.attachFile": "Attach file",
+    "channel.removeAttachment": "Remove attachment",
+    "channel.errorTooManyAttachments": "Maximum 5 attachments allowed",
+    "channel.errorInvalidAttachmentType": "Invalid file type",
+    "channel.errorAttachmentTooLarge": "File exceeds 10 MB",
+    "channel.errorDownloadFailed": "Failed to download file",
     "channel.socketDisconnected": "Disconnected",
     "channel.socketConnecting": "Connecting",
     "channel.socketConnected": "Connected",
@@ -938,6 +950,12 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.errorForwardFailed": "Не вдалося переслати повідомлення",
     "channel.noConversations": "Особистих розмов ще немає.",
     "channel.messageMenu": "Дії з повідомленням",
+    "channel.attachFile": "Прикріпити файл",
+    "channel.removeAttachment": "Видалити вкладення",
+    "channel.errorTooManyAttachments": "Максимум 5 вкладень",
+    "channel.errorInvalidAttachmentType": "Неприпустимий тип файлу",
+    "channel.errorAttachmentTooLarge": "Файл перевищує 10 МБ",
+    "channel.errorDownloadFailed": "Не вдалося завантажити файл",
     "channel.socketDisconnected": "Відʼєднано",
     "channel.socketConnecting": "Підключення",
     "channel.socketConnected": "Підключено",
@@ -1283,6 +1301,12 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.errorForwardFailed": "Не удалось переслать сообщение",
     "channel.noConversations": "Личных переписок пока нет.",
     "channel.messageMenu": "Действия с сообщением",
+    "channel.attachFile": "Прикрепить файл",
+    "channel.removeAttachment": "Удалить вложение",
+    "channel.errorTooManyAttachments": "Максимум 5 вложений",
+    "channel.errorInvalidAttachmentType": "Недопустимый тип файла",
+    "channel.errorAttachmentTooLarge": "Файл превышает 10 МБ",
+    "channel.errorDownloadFailed": "Не удалось скачать файл",
     "channel.socketDisconnected": "Отключено",
     "channel.socketConnecting": "Подключение",
     "channel.socketConnected": "Подключено",

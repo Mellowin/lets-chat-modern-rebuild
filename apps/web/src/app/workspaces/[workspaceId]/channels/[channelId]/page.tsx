@@ -9,7 +9,7 @@ import { useLocale, translate, getLocale } from "@/lib/locale";
 import { getChannel, getChannelMembers, removeChannelMember, archiveChannel, leaveChannel, type Channel, type ChannelMember } from "@/lib/channels-api";
 import { createChannelInvite } from "@/lib/channel-invites-api";
 
-import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, type Message, type CreateMessageInput, type UpdateMessageInput, type ReactionSummary } from "@/lib/messages-api";
+import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, presignAttachmentUpload, uploadAttachmentToPresignedUrl, getAttachmentDownloadUrl, type Message, type CreateMessageInput, type UpdateMessageInput, type ReactionSummary, type Attachment } from "@/lib/messages-api";
 import { sendDirectMessage, listDirectConversations, type DirectConversation } from "@/lib/direct-conversations-api";
 import { createSocket } from "@/lib/socket-client";
 import { getAvatarUrl } from "@/lib/avatar-url";
@@ -96,7 +96,21 @@ export default function ChannelDetailPage() {
   const [forwardTargets, setForwardTargets] = useState<DirectConversation[] | null>(null);
   const [forwardError, setForwardError] = useState<string | null>(null);
   const [forwarding, setForwarding] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const quickEmojis = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
+
+  const ALLOWED_ATTACHMENT_TYPES = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+    "application/pdf",
+    "text/plain",
+  ];
+  const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
+  const MAX_ATTACHMENTS = 5;
 
   function scrollMessagesToBottom(behavior: ScrollBehavior = "smooth") {
     if (typeof messagesEndRef.current?.scrollIntoView === "function") {
@@ -663,21 +677,54 @@ export default function ChannelDetailPage() {
 
   async function submitMessage() {
     const trimmed = content.trim();
-    if (!trimmed) {
+    const hasContent = trimmed.length > 0;
+    const hasAttachments = selectedFiles.length > 0;
+
+    if (!hasContent && !hasAttachments) {
       setSendState({ kind: "error", message: t("channel.errorMessageEmpty") });
       return;
     }
-    if (trimmed.length > 4000) {
+    if (hasContent && trimmed.length > 4000) {
       setSendState({ kind: "error", message: t("channel.errorMessageTooLong") });
       return;
     }
     if (!accessToken || !workspaceId || !channelId) return;
 
     setSendState({ kind: "loading" });
+    setAttachmentError(null);
+
     try {
-      const input: CreateMessageInput = { content: trimmed, ...(replyTargetId ? { parentId: replyTargetId } : {}) };
+      let attachmentInputs: CreateMessageInput["attachments"] = undefined;
+
+      if (selectedFiles.length > 0) {
+        const uploaded = await Promise.all(
+          selectedFiles.map(async (file) => {
+            const presign = await presignAttachmentUpload(accessToken, workspaceId, channelId, {
+              filename: file.name,
+              mimeType: file.type,
+              sizeBytes: file.size,
+            });
+            await uploadAttachmentToPresignedUrl(presign.uploadUrl, file);
+            return {
+              storageKey: presign.storageKey,
+              fileName: file.name,
+              mimeType: file.type,
+              sizeBytes: file.size,
+              kind: classifyAttachmentKind(file.type),
+            };
+          }),
+        );
+        attachmentInputs = uploaded;
+      }
+
+      const input: CreateMessageInput = {
+        ...(hasContent ? { content: trimmed } : {}),
+        ...(replyTargetId ? { parentId: replyTargetId } : {}),
+        ...(attachmentInputs ? { attachments: attachmentInputs } : {}),
+      };
       const msg = await createMessage(accessToken, workspaceId, channelId, input);
       setContent("");
+      setSelectedFiles([]);
       setReplyTargetId(null);
       setSendState({ kind: "idle" });
       appendMessage(msg);
@@ -791,6 +838,60 @@ export default function ChannelDetailPage() {
       case "disconnected":
       default:
         return t("channel.socketDisconnected");
+    }
+  }
+
+  function formatFileSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  function classifyAttachmentKind(mimeType: string): "image" | "file" {
+    if (mimeType.startsWith("image/")) return "image";
+    return "file";
+  }
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []);
+    setAttachmentError(null);
+
+    if (selectedFiles.length + files.length > MAX_ATTACHMENTS) {
+      setAttachmentError(t("channel.errorTooManyAttachments"));
+      return;
+    }
+
+    const invalid = files.find((f) => !ALLOWED_ATTACHMENT_TYPES.includes(f.type));
+    if (invalid) {
+      setAttachmentError(t("channel.errorInvalidAttachmentType"));
+      return;
+    }
+
+    const oversized = files.find((f) => f.size > MAX_ATTACHMENT_SIZE);
+    if (oversized) {
+      setAttachmentError(t("channel.errorAttachmentTooLarge"));
+      return;
+    }
+
+    setSelectedFiles((prev) => [...prev, ...files]);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }
+
+  function handleRemoveFile(index: number) {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+    setAttachmentError(null);
+  }
+
+  async function handleDownloadAttachment(msg: Message, att: Attachment) {
+    if (!accessToken || !workspaceId || !channelId) return;
+    try {
+      const result = await getAttachmentDownloadUrl(accessToken, workspaceId, channelId, msg.id, att.id);
+      window.open(result.downloadUrl, "_blank");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t("channel.errorDownloadFailed");
+      alert(message);
     }
   }
 
@@ -1192,6 +1293,22 @@ export default function ChannelDetailPage() {
                               {msg.content}
                             </p>
                           )}
+                          {msg.attachments && msg.attachments.length > 0 && (
+                            <div data-testid={`message-attachments-${msg.id}`} className="mt-2 flex flex-col gap-1.5">
+                              {msg.attachments.map((att) => (
+                                <button
+                                  key={att.id}
+                                  onClick={() => handleDownloadAttachment(msg, att)}
+                                  data-testid={`message-attachment-${msg.id}-${att.id}`}
+                                  className="flex items-center gap-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 px-2.5 py-1.5 text-left text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors"
+                                >
+                                  <span className="text-base">{att.kind === "image" ? "🖼️" : "📄"}</span>
+                                  <span className="truncate font-medium text-zinc-700 dark:text-zinc-200">{att.fileName}</span>
+                                  <span className="shrink-0 text-zinc-400 dark:text-zinc-500">{formatFileSize(att.sizeBytes)}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
                           {msg.reactions && msg.reactions.length > 0 && (
                             <div data-testid={`channel-reactions-${msg.id}`} className="mt-1.5 flex flex-wrap gap-1">
                               {msg.reactions.map((reaction) => (
@@ -1271,10 +1388,54 @@ export default function ChannelDetailPage() {
               disabled={sendState.kind === "loading"}
               className="w-full resize-none rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100 disabled:opacity-60"
             />
+            {selectedFiles.length > 0 && (
+              <div data-testid="composer-attachments" className="flex flex-wrap gap-2">
+                {selectedFiles.map((file, index) => (
+                  <div
+                    key={`${file.name}-${index}`}
+                    data-testid={`composer-attachment-chip-${index}`}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 px-2.5 py-1 text-xs"
+                  >
+                    <span>{file.name}</span>
+                    <span className="text-zinc-400 dark:text-zinc-500">{formatFileSize(file.size)}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveFile(index)}
+                      data-testid={`composer-attachment-remove-${index}`}
+                      className="inline-flex h-4 w-4 items-center justify-center rounded text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                      aria-label={t("channel.removeAttachment")}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="flex items-center justify-between">
-              <span className="text-xs text-zinc-400 dark:text-zinc-500">
-                {content.length}/4000
-              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={sendState.kind === "loading"}
+                  data-testid="composer-attach-button"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-60 transition-colors"
+                  aria-label={t("channel.attachFile")}
+                >
+                  📎
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  data-testid="composer-file-input"
+                />
+                <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                  {content.length}/4000
+                </span>
+              </div>
               <button
                 type="submit"
                 disabled={sendState.kind === "loading"}
@@ -1283,6 +1444,14 @@ export default function ChannelDetailPage() {
                 {sendState.kind === "loading" ? t("channel.sending") : t("channel.send")}
               </button>
             </div>
+            {attachmentError && (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-2.5 text-sm dark:border-red-900 dark:bg-red-950/30">
+                <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+                  <span className="h-2 w-2 rounded-full bg-red-500" />
+                  {attachmentError}
+                </div>
+              </div>
+            )}
             {sendState.kind === "error" && (
               <div className="rounded-lg border border-red-200 bg-red-50 p-2.5 text-sm dark:border-red-900 dark:bg-red-950/30">
                 <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">

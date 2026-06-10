@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import ChannelDetailPage from "./page";
 import { getChannel, getChannelMembers, addChannelMember, removeChannelMember, leaveChannel, archiveChannel, type ChannelMember } from "@/lib/channels-api";
 import { createChannelInvite } from "@/lib/channel-invites-api";
-import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, Message } from "@/lib/messages-api";
+import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, presignAttachmentUpload, uploadAttachmentToPresignedUrl, getAttachmentDownloadUrl, Message } from "@/lib/messages-api";
 import { sendDirectMessage, listDirectConversations } from "@/lib/direct-conversations-api";
 
 const socketHandlers: Record<string, (...args: unknown[]) => void> = {};
@@ -51,6 +51,9 @@ vi.mock("@/lib/messages-api", () => ({
   deleteMessage: vi.fn(),
   addMessageReaction: vi.fn(),
   removeMessageReaction: vi.fn(),
+  presignAttachmentUpload: vi.fn(),
+  uploadAttachmentToPresignedUrl: vi.fn(),
+  getAttachmentDownloadUrl: vi.fn(),
 }));
 
 vi.mock("@/lib/direct-conversations-api", () => ({
@@ -3033,6 +3036,294 @@ describe("ChannelDetailPage — forward", () => {
 
     await waitFor(() => {
       expect(screen.getByText("No direct conversations yet.")).toBeInTheDocument();
+    });
+  });
+
+  describe("attachments", () => {
+    const ownMessageWithAttachment: Message = {
+      ...ownMessage,
+      attachments: [
+        {
+          id: "a1",
+          fileName: "doc.pdf",
+          mimeType: "application/pdf",
+          sizeBytes: 5678,
+          kind: "file",
+          createdAt: "2024-01-01T00:00:00Z",
+        },
+      ],
+    };
+
+    it("renders attachment button and hidden file input", async () => {
+      mockChannelAndMessages([], []);
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attach-button")).toBeInTheDocument();
+      });
+      expect(screen.getByTestId("composer-file-input")).toBeInTheDocument();
+    });
+
+    it("selecting valid file shows file chip", async () => {
+      mockChannelAndMessages([], []);
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attach-button")).toBeInTheDocument();
+      });
+
+      const file = new File(["content"], "test.txt", { type: "text/plain" });
+      const input = screen.getByTestId("composer-file-input") as HTMLInputElement;
+      await userEvent.upload(input, file);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attachment-chip-0")).toBeInTheDocument();
+      });
+      expect(screen.getByText("test.txt")).toBeInTheDocument();
+    });
+
+    it("shows error for invalid MIME and does not add file", async () => {
+      mockChannelAndMessages([], []);
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attach-button")).toBeInTheDocument();
+      });
+
+      const file = new File(["content"], "evil.exe", { type: "application/x-msdownload" });
+      const input = screen.getByTestId("composer-file-input") as HTMLInputElement;
+      await userEvent.upload(input, file);
+
+      await waitFor(() => {
+        expect(screen.getByText("Invalid file type")).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId("composer-attachment-chip-0")).not.toBeInTheDocument();
+    });
+
+    it("shows error for oversized file and does not add file", async () => {
+      mockChannelAndMessages([], []);
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attach-button")).toBeInTheDocument();
+      });
+
+      const file = new File([new Uint8Array(11 * 1024 * 1024)], "huge.png", { type: "image/png" });
+      const input = screen.getByTestId("composer-file-input") as HTMLInputElement;
+      await userEvent.upload(input, file);
+
+      await waitFor(() => {
+        expect(screen.getByText("File exceeds 10 MB")).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId("composer-attachment-chip-0")).not.toBeInTheDocument();
+    });
+
+    it("rejects more than 5 files", async () => {
+      mockChannelAndMessages([], []);
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attach-button")).toBeInTheDocument();
+      });
+
+      const files = Array.from({ length: 6 }, (_, i) => new File(["c"], `f${i}.txt`, { type: "text/plain" }));
+      const input = screen.getByTestId("composer-file-input") as HTMLInputElement;
+      await userEvent.upload(input, files);
+
+      await waitFor(() => {
+        expect(screen.getByText("Maximum 5 attachments allowed")).toBeInTheDocument();
+      });
+    });
+
+    it("sends text + attachment: calls presign, upload, create message, clears files", async () => {
+      mockChannelAndMessages([], []);
+      vi.mocked(presignAttachmentUpload).mockResolvedValueOnce({
+        uploadUrl: "http://minio/upload",
+        storageKey: "attachments/u1/uuid-file.txt",
+        fileName: "test.txt",
+        mimeType: "text/plain",
+        sizeBytes: 7,
+        kind: "file",
+        expiresInSeconds: 300,
+      });
+      vi.mocked(uploadAttachmentToPresignedUrl).mockResolvedValueOnce(undefined);
+      const createdMsg: Message = {
+        id: "m2",
+        channelId: "ch1",
+        content: "hello with file",
+        parentId: null,
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        reactions: [],
+        attachments: [
+          {
+            id: "a1",
+            fileName: "test.txt",
+            mimeType: "text/plain",
+            sizeBytes: 7,
+            kind: "file",
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        ],
+      };
+      vi.mocked(createMessage).mockResolvedValueOnce(createdMsg);
+
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attach-button")).toBeInTheDocument();
+      });
+
+      const file = new File(["content"], "test.txt", { type: "text/plain" });
+      await userEvent.upload(screen.getByTestId("composer-file-input"), file);
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attachment-chip-0")).toBeInTheDocument();
+      });
+
+      const textarea = screen.getByPlaceholderText("Type a message…");
+      await userEvent.type(textarea, "hello with file");
+      await userEvent.click(screen.getByRole("button", { name: /send/i }));
+
+      await waitFor(() => {
+        expect(presignAttachmentUpload).toHaveBeenCalledWith("token", "ws1", "ch1", {
+          filename: "test.txt",
+          mimeType: "text/plain",
+          sizeBytes: 7,
+        });
+      });
+      expect(uploadAttachmentToPresignedUrl).toHaveBeenCalledWith("http://minio/upload", expect.any(File));
+      expect(createMessage).toHaveBeenCalledWith("token", "ws1", "ch1", expect.objectContaining({
+        content: "hello with file",
+        attachments: expect.arrayContaining([
+          expect.objectContaining({ storageKey: "attachments/u1/uuid-file.txt", fileName: "test.txt" }),
+        ]),
+      }));
+      await waitFor(() => {
+        expect(screen.getByText("hello with file")).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId("composer-attachment-chip-0")).not.toBeInTheDocument();
+    });
+
+    it("upload failure shows error and does not call createMessage", async () => {
+      mockChannelAndMessages([], []);
+      vi.mocked(presignAttachmentUpload).mockResolvedValueOnce({
+        uploadUrl: "http://minio/upload",
+        storageKey: "attachments/u1/uuid-file.txt",
+        fileName: "test.txt",
+        mimeType: "text/plain",
+        sizeBytes: 7,
+        kind: "file",
+        expiresInSeconds: 300,
+      });
+      vi.mocked(uploadAttachmentToPresignedUrl).mockRejectedValueOnce(new Error("Upload failed: 403 Forbidden"));
+
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attach-button")).toBeInTheDocument();
+      });
+
+      const file = new File(["content"], "test.txt", { type: "text/plain" });
+      await userEvent.upload(screen.getByTestId("composer-file-input"), file);
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attachment-chip-0")).toBeInTheDocument();
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: /send/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText("Upload failed: 403 Forbidden")).toBeInTheDocument();
+      });
+      expect(createMessage).not.toHaveBeenCalled();
+      expect(screen.getByTestId("composer-attachment-chip-0")).toBeInTheDocument();
+    });
+
+    it("sends attachments-only message", async () => {
+      mockChannelAndMessages([], []);
+      vi.mocked(presignAttachmentUpload).mockResolvedValueOnce({
+        uploadUrl: "http://minio/upload",
+        storageKey: "attachments/u1/uuid-file.txt",
+        fileName: "test.txt",
+        mimeType: "text/plain",
+        sizeBytes: 7,
+        kind: "file",
+        expiresInSeconds: 300,
+      });
+      vi.mocked(uploadAttachmentToPresignedUrl).mockResolvedValueOnce(undefined);
+      const createdMsg: Message = {
+        id: "m2",
+        channelId: "ch1",
+        content: "",
+        parentId: null,
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        editedAt: null,
+        author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+        reactions: [],
+        attachments: [
+          {
+            id: "a1",
+            fileName: "test.txt",
+            mimeType: "text/plain",
+            sizeBytes: 7,
+            kind: "file",
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        ],
+      };
+      vi.mocked(createMessage).mockResolvedValueOnce(createdMsg);
+
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attach-button")).toBeInTheDocument();
+      });
+
+      const file = new File(["content"], "test.txt", { type: "text/plain" });
+      await userEvent.upload(screen.getByTestId("composer-file-input"), file);
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attachment-chip-0")).toBeInTheDocument();
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: /send/i }));
+
+      await waitFor(() => {
+        expect(createMessage).toHaveBeenCalledWith("token", "ws1", "ch1", expect.objectContaining({
+          attachments: expect.any(Array),
+        }));
+      });
+      expect(screen.queryByTestId("composer-attachment-chip-0")).not.toBeInTheDocument();
+    });
+
+    it("renders attachment metadata in message item", async () => {
+      mockChannelAndMessages([ownMessageWithAttachment], []);
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("message-attachments-m1")).toBeInTheDocument();
+      });
+      expect(screen.getByText("doc.pdf")).toBeInTheDocument();
+      expect(screen.getByText("5.5 KB")).toBeInTheDocument();
+    });
+
+    it("clicking attachment calls download-url API and opens URL", async () => {
+      mockChannelAndMessages([ownMessageWithAttachment], []);
+      vi.mocked(getAttachmentDownloadUrl).mockResolvedValueOnce({
+        downloadUrl: "http://minio/download",
+        expiresInSeconds: 300,
+        fileName: "doc.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: 5678,
+        kind: "file",
+        createdAt: "2024-01-01T00:00:00Z",
+      });
+      const openMock = vi.spyOn(window, "open").mockImplementation(() => null);
+
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("message-attachments-m1")).toBeInTheDocument();
+      });
+
+      await userEvent.click(screen.getByTestId("message-attachment-m1-a1"));
+
+      await waitFor(() => {
+        expect(getAttachmentDownloadUrl).toHaveBeenCalledWith("token", "ws1", "ch1", "m1", "a1");
+      });
+      expect(openMock).toHaveBeenCalledWith("http://minio/download", "_blank");
+      openMock.mockRestore();
     });
   });
 });

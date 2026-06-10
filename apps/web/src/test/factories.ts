@@ -90,6 +90,7 @@ export function createMessage(overrides?: Partial<Message>): Message {
     editedAt: null,
     author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
     reactions: [],
+    attachments: [],
     ...overrides,
   };
 }
