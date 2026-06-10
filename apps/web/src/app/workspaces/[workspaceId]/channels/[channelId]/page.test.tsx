@@ -3089,7 +3089,7 @@ describe("ChannelDetailPage — forward", () => {
 
       const file = new File(["content"], "evil.exe", { type: "application/x-msdownload" });
       const input = screen.getByTestId("composer-file-input") as HTMLInputElement;
-      await userEvent.upload(input, file);
+      fireEvent.change(input, { target: { files: [file] } });
 
       await waitFor(() => {
         expect(screen.getByText("Invalid file type")).toBeInTheDocument();
