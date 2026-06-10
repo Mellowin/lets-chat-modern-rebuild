@@ -375,7 +375,15 @@ export type TranslationKey =
   | "profile.createdAt"
   | "profile.expiresAt"
   | "api.timeoutError"
-  | "api.coldStartHint";
+  | "api.coldStartHint"
+  | "channel.searchMessages"
+  | "channel.searchInThisChannel"
+  | "channel.noMessagesFound"
+  | "channel.searchFailed"
+  | "channel.loadMoreResults"
+  | "channel.searching"
+  | "channel.typeSearchQuery"
+  | "channel.jumpToMessage";
 
 const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string) => string)>> = {
   en: {
@@ -737,6 +745,14 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.expiresAt": "Expires",
     "api.timeoutError": "The server is taking too long to respond. It may be waking up. Please try again in a moment.",
     "api.coldStartHint": "Free Render instances may take up to a minute to wake up.",
+    "channel.searchMessages": "Search messages",
+    "channel.searchInThisChannel": "Search in this channel",
+    "channel.noMessagesFound": "No messages found.",
+    "channel.searchFailed": "Search failed",
+    "channel.loadMoreResults": "Load more results",
+    "channel.searching": "Searching…",
+    "channel.typeSearchQuery": "Type a search query",
+    "channel.jumpToMessage": "Jump to message",
   },
   uk: {
     "header.profile": "Профіль",
@@ -1097,6 +1113,14 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.expiresAt": "Завершується",
     "api.timeoutError": "Сервер відповідає занадто довго. Можливо, він прокидається. Спробуйте ще раз за мить.",
     "api.coldStartHint": "Безкоштовні інстанси Render можуть прокидатися до хвилини.",
+    "channel.searchMessages": "Шукати повідомлення",
+    "channel.searchInThisChannel": "Шукати в цьому каналі",
+    "channel.noMessagesFound": "Повідомлень не знайдено.",
+    "channel.searchFailed": "Пошук не вдався",
+    "channel.loadMoreResults": "Завантажити ще",
+    "channel.searching": "Шукаємо…",
+    "channel.typeSearchQuery": "Введіть запит для пошуку",
+    "channel.jumpToMessage": "Перейти до повідомлення",
   },
   ru: {
     "header.profile": "Профиль",
@@ -1457,6 +1481,14 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.expiresAt": "Истекает",
     "api.timeoutError": "Сервер слишком долго отвечает. Возможно, он просыпается. Попробуйте ещё раз через минуту.",
     "api.coldStartHint": "Бесплатные инстансы Render могут просыпаться до минуты.",
+    "channel.searchMessages": "Искать сообщения",
+    "channel.searchInThisChannel": "Искать в этом канале",
+    "channel.noMessagesFound": "Сообщения не найдены.",
+    "channel.searchFailed": "Поиск не удался",
+    "channel.loadMoreResults": "Загрузить ещё",
+    "channel.searching": "Ищем…",
+    "channel.typeSearchQuery": "Введите запрос для поиска",
+    "channel.jumpToMessage": "Перейти к сообщению",
   },
 };
 

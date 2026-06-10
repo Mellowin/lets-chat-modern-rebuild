@@ -14,6 +14,7 @@ import { sendDirectMessage, listDirectConversations, type DirectConversation } f
 import { createSocket } from "@/lib/socket-client";
 import { getAvatarUrl } from "@/lib/avatar-url";
 import { MessageAuthor } from "@/components/MessageAuthor";
+import ChannelMessageSearch from "@/components/ChannelMessageSearch";
 
 
 type ChannelState =
@@ -1324,6 +1325,16 @@ export default function ChannelDetailPage() {
             <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
               {channel.data.description}
             </p>
+          )}
+          {channel.kind === "success" && accessToken && (
+            <div className="mt-3">
+              <ChannelMessageSearch
+                workspaceId={workspaceId}
+                channelId={channelId}
+                accessToken={accessToken}
+                onJumpToMessage={scrollToMessage}
+              />
+            </div>
           )}
         </>
       )}

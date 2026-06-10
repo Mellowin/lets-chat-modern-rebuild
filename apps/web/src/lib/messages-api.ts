@@ -393,3 +393,46 @@ export async function removeMessageReaction(
 
   return res.json() as Promise<ReactionSummary[]>;
 }
+
+export interface SearchChannelMessagesResult {
+  items: Message[];
+  nextCursor: string | null;
+}
+
+export async function searchChannelMessages(
+  accessToken: string,
+  workspaceId: string,
+  channelId: string,
+  q: string,
+  options?: { limit?: number; cursor?: string },
+): Promise<SearchChannelMessagesResult> {
+  const params = new URLSearchParams();
+  params.set("q", q.trim());
+  if (options?.limit) params.set("limit", String(options.limit));
+  if (options?.cursor) params.set("cursor", options.cursor);
+
+  const res = await fetch(
+    `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/messages/search?${params.toString()}`,
+    {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
+
+  if (!res.ok) {
+    let message = `Search failed: ${res.status} ${res.statusText}`;
+    try {
+      const body = await res.json();
+      if (body?.message) message = body.message;
+      else if (body?.error) message = body.error;
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+
+  return res.json() as Promise<SearchChannelMessagesResult>;
+}
