@@ -1,0 +1,4 @@
+-- This migration is intentionally empty.
+-- The Attachment table and storageKey unique index were already created
+-- by the initial migration (20260512142003_init).
+-- The remaining delta (messageId index) is handled by a later migration.
