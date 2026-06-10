@@ -10,7 +10,7 @@ import {
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 
-const ALLOWED_MIME_TYPES = [
+export const ALLOWED_MIME_TYPES = [
   'image/png',
   'image/jpeg',
   'image/webp',

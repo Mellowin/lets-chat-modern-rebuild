@@ -26,9 +26,12 @@ import {
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import { MessagesService } from './messages.service';
+import { AttachmentsService } from './attachments.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
 import { ListMessagesQueryDto } from './dto/list-messages-query.dto';
+import { PresignAttachmentDto } from './dto/presign-attachment.dto';
+import { PresignAttachmentUploadResponseDto } from './dto/presign-attachment-upload-response.dto';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUserResponse } from '../auth/auth.service';
@@ -38,7 +41,10 @@ import type { AuthUserResponse } from '../auth/auth.service';
 @UseGuards(JwtAccessGuard)
 @ApiBearerAuth()
 export class MessagesController {
-  constructor(private readonly messages: MessagesService) {}
+  constructor(
+    private readonly messages: MessagesService,
+    private readonly attachments: AttachmentsService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Create message' })
@@ -111,5 +117,23 @@ export class MessagesController {
     @CurrentUser() user: AuthUserResponse,
   ) {
     await this.messages.remove(workspaceId, channelId, messageId, user.id);
+  }
+
+  @Post('attachments/presign')
+  @ApiOperation({ summary: 'Get presigned upload URL for a future attachment' })
+  @ApiCreatedResponse({
+    description: 'Presigned URL created',
+    type: PresignAttachmentUploadResponseDto,
+  })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiNotFoundResponse({ description: 'Workspace or channel not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async presignAttachmentUpload(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Param('channelId', ParseUUIDPipe) channelId: string,
+    @Body() dto: PresignAttachmentDto,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.attachments.prepareUpload(workspaceId, channelId, dto, user.id);
   }
 }

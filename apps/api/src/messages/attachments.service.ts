@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -9,7 +10,11 @@ import { ChannelsService } from '../channels/channels.service';
 import { MessagesRepository } from './messages.repository';
 import { AttachmentsRepository } from './attachments.repository';
 import { StorageService } from '../storage/storage.service';
-import { PresignAttachmentDto } from './dto/presign-attachment.dto';
+import {
+  PresignAttachmentDto,
+  ALLOWED_MIME_TYPES,
+} from './dto/presign-attachment.dto';
+import { classifyAttachmentKind } from './messages.service';
 import { randomUUID } from 'crypto';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -31,6 +36,42 @@ export class AttachmentsService {
     private readonly attachments: AttachmentsRepository,
     private readonly storage: StorageService,
   ) {}
+
+  async prepareUpload(
+    workspaceId: string,
+    channelId: string,
+    dto: PresignAttachmentDto,
+    userId: string,
+  ) {
+    await this.channels.findById(workspaceId, channelId, userId);
+
+    if (!(ALLOWED_MIME_TYPES as readonly string[]).includes(dto.mimeType)) {
+      throw new BadRequestException(
+        `Unsupported attachment type: ${dto.mimeType}`,
+      );
+    }
+
+    const maxSize = 10 * 1024 * 1024;
+    if (dto.sizeBytes > maxSize) {
+      throw new BadRequestException('File exceeds maximum size of 10 MB');
+    }
+
+    const sanitized = dto.filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const storageKey = `attachments/${userId}/${randomUUID()}-${sanitized}`;
+
+    const { uploadUrl, expiresInSeconds } =
+      await this.storage.getPresignedUploadUrl(storageKey, dto.mimeType, 300);
+
+    return {
+      uploadUrl,
+      storageKey,
+      fileName: dto.filename,
+      mimeType: dto.mimeType,
+      sizeBytes: dto.sizeBytes,
+      kind: classifyAttachmentKind(dto.mimeType),
+      expiresInSeconds,
+    };
+  }
 
   async presign(
     workspaceId: string,
