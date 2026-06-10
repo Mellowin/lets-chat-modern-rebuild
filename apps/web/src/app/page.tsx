@@ -49,6 +49,12 @@ export default function Home() {
         >
           Create account
         </Link>
+        <Link
+          href="/project-status"
+          className="inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+        >
+          Project status
+        </Link>
       </div>
 
       <div className="mt-8 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 p-5">
