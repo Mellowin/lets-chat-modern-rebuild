@@ -187,11 +187,17 @@ node scripts/smoke-deploy.mjs
 
 ### What the script checks (automated)
 
+**Public endpoints**
 1. Frontend returns `200 OK` with HTML
 2. Backend `/health` returns `status: ok`
 3. `POST /auth/forgot-password` returns generic success (no email enumeration)
 4. `POST /auth/resend-verification` returns generic success
 5. `API_URL` does not contain the wrong Render host `lets-chat-api-w43.onrender.com`
+
+**Protected endpoints (no token)**
+6. `GET /auth/sessions` returns `401 Unauthorized`
+7. `POST /auth/sessions/revoke-all` returns `401 Unauthorized`
+8. `POST /auth/change-password` returns `401 Unauthorized`
 
 ### What still requires manual verification
 

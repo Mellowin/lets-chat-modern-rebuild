@@ -103,6 +103,22 @@ async function checkResendVerification() {
   }
 }
 
+async function checkProtected(label, method, path) {
+  try {
+    const res = await fetch(`${API_URL}${path}`, {
+      method,
+      headers: { Accept: "application/json" },
+    });
+    if (res.status !== 401) {
+      fail(label, `expected 401, got ${res.status}`);
+      return;
+    }
+    pass(label);
+  } catch (err) {
+    fail(label, err instanceof Error ? err.message : String(err));
+  }
+}
+
 async function main() {
   console.log("=== Deployment Smoke Check ===\n");
 
@@ -125,10 +141,28 @@ async function main() {
     process.exit(1);
   }
 
+  console.log("\n--- Public endpoints ---");
   await checkWeb();
   await checkHealth();
   await checkForgotPassword();
   await checkResendVerification();
+
+  console.log("\n--- Protected endpoints (no token) ---");
+  await checkProtected(
+    "GET /auth/sessions rejects anonymous with 401",
+    "GET",
+    "/auth/sessions",
+  );
+  await checkProtected(
+    "POST /auth/sessions/revoke-all rejects anonymous with 401",
+    "POST",
+    "/auth/sessions/revoke-all",
+  );
+  await checkProtected(
+    "POST /auth/change-password rejects anonymous with 401",
+    "POST",
+    "/auth/change-password",
+  );
 
   const failures = checks.filter((c) => !c.ok);
   console.log("\n=== Automated checks completed ===");
