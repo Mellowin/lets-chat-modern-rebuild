@@ -1,8 +1,8 @@
 # Project Status
 
 > Last updated: 2026-06-10  
-> Code checkpoint: `47393c7c7028d0c4698b7624cf8db88c2e24d362`  
-> Docs checkpoint: `47393c7c7028d0c4698b7624cf8db88c2e24d362`
+> Code checkpoint: `1330ee00e92927cd6895cac29315002ccfe02ef6`  
+> Docs checkpoint: `1330ee00e92927cd6895cac29315002ccfe02ef6`
 
 ---
 
@@ -131,5 +131,49 @@ Use these steps to verify core functionality after deploy or before release:
 - **Production smoke verifies protected auth/session endpoints reject anonymous requests** — `GET /auth/sessions`, `POST /auth/sessions/revoke-all`, `POST /auth/change-password` checked for `401` without token.
 - **Public `/project-status` page added for portfolio/employer review** — honest overview of implemented and planned features, tech stack, and production links.
 - **Production smoke verifies public `/project-status` page** — checked for `200` and expected content.
-- **Channel attachments support file picker, drag-and-drop, image previews, upload progress, presigned upload, message rendering, and authenticated download URLs** — frontend composer supports selecting up to 5 files (validated MIME/size), drag-and-drop into the composer, thumbnail previews for images before send, upload progress per file with retry on failure, inline image previews in the message list, file cards for non-image attachments, presigned upload to storage, and secure download via backend download-url endpoint; further polish such as gallery/lightbox and orphaned upload cleanup is still in progress.
+- **Channel attachments support file picker, drag-and-drop, image previews, upload progress, retry, presigned upload, message rendering, authenticated download URLs, and orphaned upload cleanup** — frontend composer supports selecting up to 5 files (validated MIME/size), drag-and-drop into the composer, thumbnail previews for images before send, upload progress per file with retry on failure, inline image previews in the message list, file cards for non-image attachments, presigned upload to storage, secure download via backend download-url endpoint, and a cleanup script that removes orphaned storage objects older than a configurable threshold by comparing against the Attachment table; gallery/lightbox is still in progress.
 - **No message search** — not implemented.
+
+---
+
+## 7. Orphaned Attachment Cleanup
+
+A cleanup script removes storage objects that were uploaded but never attached to a message.
+
+**Script:** `apps/api/scripts/cleanup-orphaned-attachments.mjs`
+
+**How it works:**
+- Lists all storage objects under the `attachments/` prefix.
+- Compares object keys against active `Attachment.storageKey` rows in the database.
+- Skips objects newer than the age threshold (default: 24 hours) to avoid deleting in-progress uploads.
+- Defaults to **dry-run**; no objects are deleted unless `--delete` is passed.
+
+**Run dry-run (safe, recommended first step):**
+```bash
+node apps/api/scripts/cleanup-orphaned-attachments.mjs
+```
+
+**Actually delete orphaned objects:**
+```bash
+node apps/api/scripts/cleanup-orphaned-attachments.mjs --delete
+```
+
+**Environment variables:**
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATABASE_URL` | — | PostgreSQL connection string |
+| `S3_ENDPOINT` | — | S3/MinIO endpoint |
+| `S3_REGION` | — | S3 region |
+| `S3_ACCESS_KEY` | — | S3 access key |
+| `S3_SECRET_KEY` | — | S3 secret key |
+| `S3_BUCKET` | — | Bucket name |
+| `S3_FORCE_PATH_STYLE` | `true` | Use path-style URLs |
+| `CLEANUP_AGE_HOURS` | `24` | Minimum age in hours to consider an object orphaned |
+
+**Recommended schedule:** Run dry-run periodically (e.g., weekly). Run with `--delete` after confirming the dry-run output looks correct.
+
+**Safety measures:**
+- Dry-run by default.
+- Requires explicit `--delete` flag for destructive operations.
+- Age threshold prevents deletion of recently uploaded files that may still be in a user's composer.
+- DB comparison ensures valid attachments are never deleted.

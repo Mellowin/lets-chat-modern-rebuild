@@ -7,6 +7,8 @@ import {
   HeadObjectCommand,
   HeadBucketCommand,
   CreateBucketCommand,
+  ListObjectsV2Command,
+  DeleteObjectCommand,
   NotFound,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
@@ -100,5 +102,47 @@ export class StorageService implements OnModuleInit {
     });
 
     return { downloadUrl, objectKey, expiresInSeconds };
+  }
+
+  async listObjects(prefix: string) {
+    const objects: Array<{
+      key: string;
+      lastModified: Date;
+      size: number;
+    }> = [];
+    let continuationToken: string | undefined;
+
+    do {
+      const response = await this.client.send(
+        new ListObjectsV2Command({
+          Bucket: this.bucket,
+          Prefix: prefix,
+          ContinuationToken: continuationToken,
+        }),
+      );
+
+      for (const item of response.Contents ?? []) {
+        if (item.Key && item.LastModified) {
+          objects.push({
+            key: item.Key,
+            lastModified: item.LastModified,
+            size: item.Size ?? 0,
+          });
+        }
+      }
+
+      continuationToken = response.NextContinuationToken;
+    } while (continuationToken);
+
+    return objects;
+  }
+
+  async deleteObject(objectKey: string) {
+    await this.client.send(
+      new DeleteObjectCommand({
+        Bucket: this.bucket,
+        Key: objectKey,
+      }),
+    );
   }
 }
