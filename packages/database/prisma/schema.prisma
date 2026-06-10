@@ -259,6 +259,7 @@ model Attachment {
   message   Message? @relation(fields: [messageId], references: [id])
   createdBy User     @relation(fields: [createdById], references: [id])
 
+  @@index([messageId])
 }
 
 model AuditLog {

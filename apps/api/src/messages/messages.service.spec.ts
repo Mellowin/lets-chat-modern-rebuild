@@ -4,7 +4,11 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { MessagesService } from './messages.service';
+import {
+  MessagesService,
+  classifyAttachmentKind,
+  mapAttachmentResponse,
+} from './messages.service';
 import { MessagesRepository } from './messages.repository';
 import { WorkspacesRepository } from '../workspaces/workspaces.repository';
 import { ChannelsRepository } from '../channels/channels.repository';
@@ -606,6 +610,129 @@ describe('MessagesService', () => {
       await expect(
         service.remove(workspaceId, channelId, messageId, userId),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('attachment helpers', () => {
+    it('classifies image MIME as image', () => {
+      expect(classifyAttachmentKind('image/png')).toBe('image');
+      expect(classifyAttachmentKind('image/jpeg')).toBe('image');
+      expect(classifyAttachmentKind('image/webp')).toBe('image');
+    });
+
+    it('classifies document MIME as file', () => {
+      expect(classifyAttachmentKind('application/pdf')).toBe('file');
+      expect(classifyAttachmentKind('text/plain')).toBe('file');
+    });
+
+    it('maps attachment without storageKey', () => {
+      const mapped = mapAttachmentResponse({
+        id: 'a1',
+        filename: 'doc.pdf',
+        mimeType: 'application/pdf',
+        size: 1234,
+        createdAt: new Date('2024-01-01'),
+      });
+      expect(mapped).toMatchObject({
+        id: 'a1',
+        fileName: 'doc.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 1234,
+        kind: 'file',
+      });
+      expect(mapped).not.toHaveProperty('storageKey');
+    });
+
+    it('maps image attachment with image kind', () => {
+      const mapped = mapAttachmentResponse({
+        id: 'a2',
+        filename: 'pic.png',
+        mimeType: 'image/png',
+        size: 5678,
+        createdAt: new Date('2024-01-01'),
+      });
+      expect(mapped.kind).toBe('image');
+    });
+  });
+
+  describe('message response with attachments', () => {
+    it('returns empty attachments array when message has no attachments', async () => {
+      const message = {
+        id: messageId,
+        channelId,
+        content: 'hello',
+        author: {
+          id: userId,
+          username: 'user',
+          displayName: null,
+          avatarUrl: null,
+        },
+        reactions: [],
+        attachments: [],
+      } as unknown as CreatedMessage;
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      messagesRepository.createMessage.mockResolvedValue(message);
+
+      const result = await service.create(
+        workspaceId,
+        channelId,
+        { content: 'hello' },
+        userId,
+      );
+      expect(result.attachments).toEqual([]);
+    });
+
+    it('returns attachments metadata when message has attachments', async () => {
+      const message = {
+        id: messageId,
+        channelId,
+        content: 'hello',
+        author: {
+          id: userId,
+          username: 'user',
+          displayName: null,
+          avatarUrl: null,
+        },
+        attachments: [
+          {
+            id: 'a1',
+            filename: 'doc.pdf',
+            mimeType: 'application/pdf',
+            size: 1234,
+            createdAt: new Date('2024-01-01'),
+          },
+        ],
+      } as unknown as CreatedMessage;
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      messagesRepository.createMessage.mockResolvedValue(message);
+
+      const result = await service.create(
+        workspaceId,
+        channelId,
+        { content: 'hello' },
+        userId,
+      );
+      expect(result.attachments).toHaveLength(1);
+      expect(result.attachments[0]).toMatchObject({
+        id: 'a1',
+        fileName: 'doc.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 1234,
+        kind: 'file',
+      });
+      expect(result.attachments[0]).not.toHaveProperty('storageKey');
     });
   });
 });

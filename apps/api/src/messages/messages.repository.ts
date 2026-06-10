@@ -33,6 +33,16 @@ export class MessagesRepository {
           where: { deletedAt: null },
           select: { emoji: true, userId: true },
         },
+        attachments: {
+          where: { deletedAt: null },
+          select: {
+            id: true,
+            filename: true,
+            mimeType: true,
+            size: true,
+            createdAt: true,
+          },
+        },
       },
     });
   }
@@ -65,6 +75,16 @@ export class MessagesRepository {
           where: { deletedAt: null },
           select: { emoji: true, userId: true },
         },
+        attachments: {
+          where: { deletedAt: null },
+          select: {
+            id: true,
+            filename: true,
+            mimeType: true,
+            size: true,
+            createdAt: true,
+          },
+        },
       },
     });
   }
@@ -94,6 +114,16 @@ export class MessagesRepository {
           reactions: {
             where: { deletedAt: null },
             select: { emoji: true, userId: true },
+          },
+          attachments: {
+            where: { deletedAt: null },
+            select: {
+              id: true,
+              filename: true,
+              mimeType: true,
+              size: true,
+              createdAt: true,
+            },
           },
         },
       }),

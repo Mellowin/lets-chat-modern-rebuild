@@ -13,6 +13,30 @@ import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
 import { ListMessagesQueryDto } from './dto/list-messages-query.dto';
 
+export type AttachmentKind = 'image' | 'file';
+
+export function classifyAttachmentKind(mimeType: string): AttachmentKind {
+  if (mimeType.startsWith('image/')) return 'image';
+  return 'file';
+}
+
+export function mapAttachmentResponse(attachment: {
+  id: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  createdAt: Date;
+}) {
+  return {
+    id: attachment.id,
+    fileName: attachment.filename,
+    mimeType: attachment.mimeType,
+    sizeBytes: attachment.size,
+    kind: classifyAttachmentKind(attachment.mimeType),
+    createdAt: attachment.createdAt,
+  };
+}
+
 @Injectable()
 export class MessagesService {
   constructor(
@@ -38,6 +62,13 @@ export class MessagesService {
         avatarUrl: string | null;
       };
       reactions: Array<{ emoji: string; userId: string }>;
+      attachments: Array<{
+        id: string;
+        filename: string;
+        mimeType: string;
+        size: number;
+        createdAt: Date;
+      }>;
     },
     userId: string,
   ) {
@@ -57,6 +88,8 @@ export class MessagesService {
       }))
       .sort((a, b) => a.emoji.localeCompare(b.emoji));
 
+    const attachments = (message.attachments ?? []).map(mapAttachmentResponse);
+
     return {
       id: message.id,
       channelId: message.channelId,
@@ -67,6 +100,7 @@ export class MessagesService {
       editedAt: message.editedAt,
       author: message.author,
       reactions,
+      attachments,
     };
   }
 
