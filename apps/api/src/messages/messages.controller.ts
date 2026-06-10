@@ -31,6 +31,7 @@ import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
 import { ListMessagesQueryDto } from './dto/list-messages-query.dto';
 import { SearchChannelMessagesQueryDto } from './dto/search-channel-messages-query.dto';
+import { MessageContextQueryDto } from './dto/message-context-query.dto';
 import { PresignAttachmentDto } from './dto/presign-attachment.dto';
 import { PresignAttachmentUploadResponseDto } from './dto/presign-attachment-upload-response.dto';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
@@ -91,6 +92,28 @@ export class MessagesController {
     return this.messages.searchChannelMessages(
       workspaceId,
       channelId,
+      user.id,
+      query,
+    );
+  }
+
+  @Get(':messageId/context')
+  @ApiOperation({ summary: 'Get message context' })
+  @ApiOkResponse({ description: 'Message context' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiNotFoundResponse({ description: 'Message or channel not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async getContext(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Param('channelId', ParseUUIDPipe) channelId: string,
+    @Param('messageId', ParseUUIDPipe) messageId: string,
+    @Query() query: MessageContextQueryDto,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.messages.getContext(
+      workspaceId,
+      channelId,
+      messageId,
       user.id,
       query,
     );

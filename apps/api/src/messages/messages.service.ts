@@ -13,6 +13,7 @@ import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
 import { ListMessagesQueryDto } from './dto/list-messages-query.dto';
 import { SearchChannelMessagesQueryDto } from './dto/search-channel-messages-query.dto';
+import { MessageContextQueryDto } from './dto/message-context-query.dto';
 
 export type AttachmentKind = 'image' | 'file';
 
@@ -233,6 +234,48 @@ export class MessagesService {
     return {
       items,
       nextCursor: hasMore ? (rows[limit - 1]?.id ?? null) : null,
+    };
+  }
+
+  async getContext(
+    workspaceId: string,
+    channelId: string,
+    messageId: string,
+    userId: string,
+    query: MessageContextQueryDto,
+  ) {
+    await this.validateChannelAccess(workspaceId, channelId, userId);
+
+    const target = await this.messages.findByIdWithRelations(messageId);
+    if (!target || target.channelId !== channelId) {
+      throw new NotFoundException('Message not found');
+    }
+
+    const beforeLimit = Math.min(query.before ?? 20, 50);
+    const afterLimit = Math.min(query.after ?? 20, 50);
+
+    const [beforeRaw, afterRaw] = await Promise.all([
+      this.messages.findContextBefore(channelId, target.createdAt, beforeLimit),
+      this.messages.findContextAfter(channelId, target.createdAt, afterLimit),
+    ]);
+
+    const hasMoreBefore = beforeRaw.length > beforeLimit;
+    const hasMoreAfter = afterRaw.length > afterLimit;
+
+    const before = (hasMoreBefore ? beforeRaw.slice(0, beforeLimit) : beforeRaw)
+      .reverse()
+      .map((m) => this.toMessageResponse(m, userId));
+
+    const after = (hasMoreAfter ? afterRaw.slice(0, afterLimit) : afterRaw).map(
+      (m) => this.toMessageResponse(m, userId),
+    );
+
+    return {
+      target: this.toMessageResponse(target, userId),
+      before,
+      after,
+      hasMoreBefore,
+      hasMoreAfter,
     };
   }
 

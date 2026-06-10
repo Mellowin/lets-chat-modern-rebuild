@@ -54,6 +54,9 @@ describe('MessagesService', () => {
             updateMessage: jest.fn(),
             softDeleteMessage: jest.fn(),
             searchChannelMessages: jest.fn(),
+            findByIdWithRelations: jest.fn(),
+            findContextBefore: jest.fn(),
+            findContextAfter: jest.fn(),
           },
         },
         {
@@ -1067,6 +1070,373 @@ describe('MessagesService', () => {
       );
       expect(result.items).toHaveLength(2);
       expect(result.nextCursor).toBe('msg-1');
+    });
+  });
+
+  describe('getContext', () => {
+    it('throws NotFoundException for non-workspace member', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue(null);
+
+      await expect(
+        service.getContext(workspaceId, channelId, messageId, userId, {}),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('throws NotFoundException for archived channel', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue(null);
+
+      await expect(
+        service.getContext(workspaceId, channelId, messageId, userId, {}),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('throws NotFoundException when target message not found', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      messagesRepository.findByIdWithRelations.mockResolvedValue(null);
+
+      await expect(
+        service.getContext(workspaceId, channelId, messageId, userId, {}),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('throws NotFoundException when target message belongs to another channel', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      messagesRepository.findByIdWithRelations.mockResolvedValue({
+        id: messageId,
+        channelId: 'other-channel',
+        content: 'hello',
+        createdAt: new Date('2024-01-01'),
+        updatedAt: new Date('2024-01-01'),
+        editedAt: null,
+        author: {
+          id: userId,
+          username: 'user',
+          displayName: null,
+          avatarUrl: null,
+        },
+        reactions: [],
+        attachments: [],
+      } as unknown as ListedMessage);
+
+      await expect(
+        service.getContext(workspaceId, channelId, messageId, userId, {}),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('returns before target after with correct ordering', async () => {
+      const target = {
+        id: messageId,
+        channelId,
+        content: 'target',
+        parentId: null,
+        createdAt: new Date('2024-01-02T00:00:00.000Z'),
+        updatedAt: new Date('2024-01-02T00:00:00.000Z'),
+        editedAt: null,
+        author: {
+          id: userId,
+          username: 'user',
+          displayName: null,
+          avatarUrl: null,
+        },
+        reactions: [],
+        attachments: [],
+      };
+      const beforeMsg = {
+        id: 'msg-before',
+        channelId,
+        content: 'before',
+        parentId: null,
+        createdAt: new Date('2024-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2024-01-01T00:00:00.000Z'),
+        editedAt: null,
+        author: {
+          id: userId,
+          username: 'user',
+          displayName: null,
+          avatarUrl: null,
+        },
+        reactions: [],
+        attachments: [],
+      };
+      const afterMsg = {
+        id: 'msg-after',
+        channelId,
+        content: 'after',
+        parentId: null,
+        createdAt: new Date('2024-01-03T00:00:00.000Z'),
+        updatedAt: new Date('2024-01-03T00:00:00.000Z'),
+        editedAt: null,
+        author: {
+          id: userId,
+          username: 'user',
+          displayName: null,
+          avatarUrl: null,
+        },
+        reactions: [],
+        attachments: [],
+      };
+
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      messagesRepository.findByIdWithRelations.mockResolvedValue(
+        target as unknown as ListedMessage,
+      );
+      messagesRepository.findContextBefore.mockResolvedValue([
+        beforeMsg,
+      ] as unknown as ListedMessage[]);
+      messagesRepository.findContextAfter.mockResolvedValue([
+        afterMsg,
+      ] as unknown as ListedMessage[]);
+
+      const result = await service.getContext(
+        workspaceId,
+        channelId,
+        messageId,
+        userId,
+        {},
+      );
+      expect(result.target.content).toBe('target');
+      expect(result.before).toHaveLength(1);
+      expect(result.before[0].content).toBe('before');
+      expect(result.after).toHaveLength(1);
+      expect(result.after[0].content).toBe('after');
+      expect(result.hasMoreBefore).toBe(false);
+      expect(result.hasMoreAfter).toBe(false);
+    });
+
+    it('sets hasMoreBefore when more results exist', async () => {
+      const target = {
+        id: messageId,
+        channelId,
+        content: 'target',
+        parentId: null,
+        createdAt: new Date('2024-01-02T00:00:00.000Z'),
+        updatedAt: new Date('2024-01-02T00:00:00.000Z'),
+        editedAt: null,
+        author: {
+          id: userId,
+          username: 'user',
+          displayName: null,
+          avatarUrl: null,
+        },
+        reactions: [],
+        attachments: [],
+      };
+      const beforeMsgs = Array.from({ length: 3 }, (_, i) => ({
+        id: `msg-before-${i}`,
+        channelId,
+        content: `before ${i}`,
+        parentId: null,
+        createdAt: new Date(2024, 0, 1, 0, 0, i),
+        updatedAt: new Date(2024, 0, 1, 0, 0, i),
+        editedAt: null,
+        author: {
+          id: userId,
+          username: 'user',
+          displayName: null,
+          avatarUrl: null,
+        },
+        reactions: [],
+        attachments: [],
+      }));
+
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      messagesRepository.findByIdWithRelations.mockResolvedValue(
+        target as unknown as ListedMessage,
+      );
+      messagesRepository.findContextBefore.mockResolvedValue(
+        beforeMsgs as unknown as ListedMessage[],
+      );
+      messagesRepository.findContextAfter.mockResolvedValue([]);
+
+      const result = await service.getContext(
+        workspaceId,
+        channelId,
+        messageId,
+        userId,
+        { before: 2 },
+      );
+      expect(result.before).toHaveLength(2);
+      expect(result.hasMoreBefore).toBe(true);
+      expect(result.hasMoreAfter).toBe(false);
+    });
+
+    it('sets hasMoreAfter when more results exist', async () => {
+      const target = {
+        id: messageId,
+        channelId,
+        content: 'target',
+        parentId: null,
+        createdAt: new Date('2024-01-02T00:00:00.000Z'),
+        updatedAt: new Date('2024-01-02T00:00:00.000Z'),
+        editedAt: null,
+        author: {
+          id: userId,
+          username: 'user',
+          displayName: null,
+          avatarUrl: null,
+        },
+        reactions: [],
+        attachments: [],
+      };
+      const afterMsgs = Array.from({ length: 3 }, (_, i) => ({
+        id: `msg-after-${i}`,
+        channelId,
+        content: `after ${i}`,
+        parentId: null,
+        createdAt: new Date(2024, 0, 3, 0, 0, i),
+        updatedAt: new Date(2024, 0, 3, 0, 0, i),
+        editedAt: null,
+        author: {
+          id: userId,
+          username: 'user',
+          displayName: null,
+          avatarUrl: null,
+        },
+        reactions: [],
+        attachments: [],
+      }));
+
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      messagesRepository.findByIdWithRelations.mockResolvedValue(
+        target as unknown as ListedMessage,
+      );
+      messagesRepository.findContextBefore.mockResolvedValue([]);
+      messagesRepository.findContextAfter.mockResolvedValue(
+        afterMsgs as unknown as ListedMessage[],
+      );
+
+      const result = await service.getContext(
+        workspaceId,
+        channelId,
+        messageId,
+        userId,
+        { after: 2 },
+      );
+      expect(result.after).toHaveLength(2);
+      expect(result.hasMoreAfter).toBe(true);
+      expect(result.hasMoreBefore).toBe(false);
+    });
+
+    it('caps before and after at 50', async () => {
+      const target = {
+        id: messageId,
+        channelId,
+        content: 'target',
+        parentId: null,
+        createdAt: new Date('2024-01-02T00:00:00.000Z'),
+        updatedAt: new Date('2024-01-02T00:00:00.000Z'),
+        editedAt: null,
+        author: {
+          id: userId,
+          username: 'user',
+          displayName: null,
+          avatarUrl: null,
+        },
+        reactions: [],
+        attachments: [],
+      };
+
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      messagesRepository.findByIdWithRelations.mockResolvedValue(
+        target as unknown as ListedMessage,
+      );
+      messagesRepository.findContextBefore.mockResolvedValue([]);
+      messagesRepository.findContextAfter.mockResolvedValue([]);
+
+      await service.getContext(workspaceId, channelId, messageId, userId, {
+        before: 100,
+        after: 100,
+      });
+      expect(messagesRepository.findContextBefore).toHaveBeenCalledWith(
+        channelId,
+        target.createdAt,
+        50,
+      );
+      expect(messagesRepository.findContextAfter).toHaveBeenCalledWith(
+        channelId,
+        target.createdAt,
+        50,
+      );
+    });
+
+    it('excludes deleted surrounding messages via repository filter', async () => {
+      const target = {
+        id: messageId,
+        channelId,
+        content: 'target',
+        parentId: null,
+        createdAt: new Date('2024-01-02T00:00:00.000Z'),
+        updatedAt: new Date('2024-01-02T00:00:00.000Z'),
+        editedAt: null,
+        author: {
+          id: userId,
+          username: 'user',
+          displayName: null,
+          avatarUrl: null,
+        },
+        reactions: [],
+        attachments: [],
+      };
+
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      messagesRepository.findByIdWithRelations.mockResolvedValue(
+        target as unknown as ListedMessage,
+      );
+      messagesRepository.findContextBefore.mockResolvedValue([]);
+      messagesRepository.findContextAfter.mockResolvedValue([]);
+
+      const result = await service.getContext(
+        workspaceId,
+        channelId,
+        messageId,
+        userId,
+        {},
+      );
+      expect(result.before).toEqual([]);
+      expect(result.after).toEqual([]);
     });
   });
 

@@ -32,6 +32,7 @@ describe('MessagesController', () => {
             update: jest.fn(),
             remove: jest.fn(),
             searchChannelMessages: jest.fn(),
+            getContext: jest.fn(),
           },
         },
         {
@@ -72,6 +73,38 @@ describe('MessagesController', () => {
       );
       expect(result.items).toEqual([]);
       expect(result.nextCursor).toBeNull();
+    });
+  });
+
+  describe('GET workspaces/:workspaceId/channels/:channelId/messages/:messageId/context', () => {
+    it('calls getContext with correct params', async () => {
+      messagesService.getContext.mockResolvedValue({
+        target: { id: 'msg-1', content: 'hello' } as unknown as Awaited<
+          ReturnType<MessagesService['getContext']>
+        >['target'],
+        before: [],
+        after: [],
+        hasMoreBefore: false,
+        hasMoreAfter: false,
+      });
+
+      const result = await controller.getContext(
+        'workspace-id',
+        'channel-id',
+        'msg-1',
+        { before: 10, after: 10 },
+        user,
+      );
+
+      expect(messagesService.getContext).toHaveBeenCalledWith(
+        'workspace-id',
+        'channel-id',
+        'msg-1',
+        user.id,
+        { before: 10, after: 10 },
+      );
+      expect(result.before).toEqual([]);
+      expect(result.after).toEqual([]);
     });
   });
 });
