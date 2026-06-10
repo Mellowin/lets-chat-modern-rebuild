@@ -189,10 +189,11 @@ node scripts/smoke-deploy.mjs
 
 **Public endpoints**
 1. Frontend returns `200 OK` with HTML
-2. Backend `/health` returns `status: ok`
-3. `POST /auth/forgot-password` returns generic success (no email enumeration)
-4. `POST /auth/resend-verification` returns generic success
-5. `API_URL` does not contain the wrong Render host `lets-chat-api-w43.onrender.com`
+2. `GET /project-status` returns `200` and contains expected content
+3. Backend `/health` returns `status: ok`
+4. `POST /auth/forgot-password` returns generic success (no email enumeration)
+5. `POST /auth/resend-verification` returns generic success
+6. `API_URL` does not contain the wrong Render host `lets-chat-api-w43.onrender.com`
 
 **Protected endpoints (no token)**
 6. `GET /auth/sessions` returns `401 Unauthorized`

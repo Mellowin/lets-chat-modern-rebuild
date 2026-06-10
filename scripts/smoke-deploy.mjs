@@ -85,6 +85,29 @@ async function checkForgotPassword() {
   }
 }
 
+async function checkProjectStatus() {
+  const label = "GET /project-status returns 200 with expected content";
+  try {
+    const res = await fetch(`${WEB_URL}/project-status`, { method: "GET" });
+    if (res.status !== 200) {
+      fail(label, `status ${res.status}`);
+      return;
+    }
+    const body = await res.text();
+    if (!body.includes("Project Status")) {
+      fail(label, "missing 'Project Status' in response");
+      return;
+    }
+    if (!body.includes("actively in development")) {
+      fail(label, "missing 'actively in development' in response");
+      return;
+    }
+    pass(label);
+  } catch (err) {
+    fail(label, err instanceof Error ? err.message : String(err));
+  }
+}
+
 async function checkResendVerification() {
   const label = "POST /auth/resend-verification returns generic success";
   try {
@@ -143,6 +166,7 @@ async function main() {
 
   console.log("\n--- Public endpoints ---");
   await checkWeb();
+  await checkProjectStatus();
   await checkHealth();
   await checkForgotPassword();
   await checkResendVerification();

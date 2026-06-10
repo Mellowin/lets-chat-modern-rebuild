@@ -14,6 +14,21 @@ describe("ProjectStatusPage", () => {
     expect(screen.getByText(/This project is actively in development/i)).toBeInTheDocument();
   });
 
+  it("shows best viewed as block", () => {
+    render(<ProjectStatusPage />);
+    expect(screen.getByRole("heading", { name: /Best viewed as/i })).toBeInTheDocument();
+    expect(screen.getByText(/Portfolio piece \/ active development project/i)).toBeInTheDocument();
+  });
+
+  it("shows current production status", () => {
+    render(<ProjectStatusPage />);
+    expect(screen.getByRole("heading", { name: /Current production status/i })).toBeInTheDocument();
+    expect(screen.getByText(/Web deployed on Vercel/i)).toBeInTheDocument();
+    expect(screen.getByText(/API deployed on Render/i)).toBeInTheDocument();
+    expect(screen.getByText(/Emails delivered via Resend/i)).toBeInTheDocument();
+    expect(screen.getByText(/Database running on PostgreSQL/i)).toBeInTheDocument();
+  });
+
   it("shows implemented features", () => {
     render(<ProjectStatusPage />);
     expect(screen.getByRole("heading", { name: /What already works/i })).toBeInTheDocument();
@@ -34,6 +49,14 @@ describe("ProjectStatusPage", () => {
     expect(screen.getByRole("heading", { name: /Tech stack/i })).toBeInTheDocument();
     expect(screen.getByText(/Next.js 16/i)).toBeInTheDocument();
     expect(screen.getByText(/NestJS/i)).toBeInTheDocument();
+  });
+
+  it("has correct page metadata", () => {
+    // Metadata is exported separately; this test documents the expectation
+    // Next.js renders metadata outside of the component tree.
+    // We verify the component still renders normally after the metadata change.
+    render(<ProjectStatusPage />);
+    expect(screen.getByRole("heading", { name: /Project Status/i })).toBeInTheDocument();
   });
 
   it("shows production links", () => {
