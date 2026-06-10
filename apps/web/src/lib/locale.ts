@@ -373,7 +373,9 @@ export type TranslationKey =
   | "profile.sessionExpired"
   | "profile.noSessions"
   | "profile.createdAt"
-  | "profile.expiresAt";
+  | "profile.expiresAt"
+  | "api.timeoutError"
+  | "api.coldStartHint";
 
 const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string) => string)>> = {
   en: {
@@ -733,6 +735,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.noSessions": "No sessions found",
     "profile.createdAt": "Created",
     "profile.expiresAt": "Expires",
+    "api.timeoutError": "The server is taking too long to respond. It may be waking up. Please try again in a moment.",
+    "api.coldStartHint": "Free Render instances may take up to a minute to wake up.",
   },
   uk: {
     "header.profile": "Профіль",
@@ -1091,6 +1095,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.noSessions": "Сесій не знайдено",
     "profile.createdAt": "Створено",
     "profile.expiresAt": "Завершується",
+    "api.timeoutError": "Сервер відповідає занадто довго. Можливо, він прокидається. Спробуйте ще раз за мить.",
+    "api.coldStartHint": "Безкоштовні інстанси Render можуть прокидатися до хвилини.",
   },
   ru: {
     "header.profile": "Профиль",
@@ -1449,6 +1455,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.noSessions": "Сессии не найдены",
     "profile.createdAt": "Создана",
     "profile.expiresAt": "Истекает",
+    "api.timeoutError": "Сервер слишком долго отвечает. Возможно, он просыпается. Попробуйте ещё раз через минуту.",
+    "api.coldStartHint": "Бесплатные инстансы Render могут просыпаться до минуты.",
   },
 };
 

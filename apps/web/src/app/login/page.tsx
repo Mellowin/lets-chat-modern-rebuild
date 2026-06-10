@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { login, resendVerification, type AuthResult } from "@/lib/auth-api";
+import { login, resendVerification, type AuthResult, isApiTimeoutError } from "@/lib/auth-api";
 import { useAuth } from "@/lib/auth-context";
 import { useLocale } from "@/lib/locale";
 
@@ -12,6 +12,7 @@ type FormState =
   | { kind: "loading" }
   | { kind: "success"; data: AuthResult }
   | { kind: "error"; message: string }
+  | { kind: "timeout" }
   | { kind: "unverified"; email: string }
   | { kind: "resend-loading"; email: string }
   | { kind: "resend-success"; message: string };
@@ -37,6 +38,10 @@ export default function LoginPage() {
       setFormState({ kind: "success", data });
       router.push("/dashboard");
     } catch (err) {
+      if (isApiTimeoutError(err)) {
+        setFormState({ kind: "timeout" });
+        return;
+      }
       const message = err instanceof Error ? err.message : t("auth.loginFailed");
       if (message.toLowerCase().includes("email not verified") || message.toLowerCase().includes("not verified")) {
         setFormState({ kind: "unverified", email: email.trim() });
@@ -159,6 +164,18 @@ export default function LoginPage() {
               <span className="h-2 w-2 rounded-full bg-red-500" />
               {formState.message}
             </div>
+          </div>
+        )}
+
+        {formState.kind === "timeout" && (
+          <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm dark:border-amber-900 dark:bg-amber-950/30">
+            <div className="flex items-center gap-2 font-medium text-amber-800 dark:text-amber-400">
+              <span className="h-2 w-2 rounded-full bg-amber-500" />
+              {t("api.timeoutError")}
+            </div>
+            <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+              {t("api.coldStartHint")}
+            </p>
           </div>
         )}
 

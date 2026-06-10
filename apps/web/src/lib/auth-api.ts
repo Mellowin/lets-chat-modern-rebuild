@@ -1,6 +1,9 @@
 import { getApiBase } from "./env";
+import { fetchWithTimeout, ApiTimeoutError, isApiTimeoutError } from "./fetch-timeout";
 
 const API_BASE = getApiBase();
+
+export { ApiTimeoutError, isApiTimeoutError };
 
 export interface AuthUser {
   id: string;
@@ -56,7 +59,7 @@ async function parseErrorMessage(res: Response, fallback: string): Promise<strin
 }
 
 export async function login(input: LoginInput): Promise<AuthResult> {
-  const res = await fetch(`${API_BASE}/auth/login`, {
+  const res = await fetchWithTimeout(`${API_BASE}/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify(input),
@@ -70,7 +73,7 @@ export async function login(input: LoginInput): Promise<AuthResult> {
 }
 
 export async function register(input: RegisterInput): Promise<RegisterPendingResult> {
-  const res = await fetch(`${API_BASE}/auth/register`, {
+  const res = await fetchWithTimeout(`${API_BASE}/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify(input),
@@ -84,7 +87,7 @@ export async function register(input: RegisterInput): Promise<RegisterPendingRes
 }
 
 export async function getMe(accessToken: string): Promise<AuthUser> {
-  const res = await fetch(`${API_BASE}/auth/me`, {
+  const res = await fetchWithTimeout(`${API_BASE}/auth/me`, {
     method: "GET",
     headers: {
       Accept: "application/json",
@@ -100,7 +103,7 @@ export async function getMe(accessToken: string): Promise<AuthUser> {
 }
 
 export async function logout(refreshToken: string): Promise<{ success: boolean }> {
-  const res = await fetch(`${API_BASE}/auth/logout`, {
+  const res = await fetchWithTimeout(`${API_BASE}/auth/logout`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({ refreshToken }),
@@ -114,7 +117,7 @@ export async function logout(refreshToken: string): Promise<{ success: boolean }
 }
 
 export async function updateDisplayName(accessToken: string, displayName: string): Promise<AuthUser> {
-  const res = await fetch(`${API_BASE}/auth/me`, {
+  const res = await fetchWithTimeout(`${API_BASE}/auth/me`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
@@ -135,7 +138,7 @@ export async function uploadAvatar(accessToken: string, file: File): Promise<Aut
   const formData = new FormData();
   formData.append("avatar", file);
 
-  const res = await fetch(`${API_BASE}/auth/me/avatar/upload`, {
+  const res = await fetchWithTimeout(`${API_BASE}/auth/me/avatar/upload`, {
     method: "PATCH",
     headers: {
       Accept: "application/json",
@@ -152,7 +155,7 @@ export async function uploadAvatar(accessToken: string, file: File): Promise<Aut
 }
 
 export async function verifyEmail(input: VerifyEmailInput): Promise<{ success: boolean }> {
-  const res = await fetch(`${API_BASE}/auth/verify-email`, {
+  const res = await fetchWithTimeout(`${API_BASE}/auth/verify-email`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify(input),
@@ -166,7 +169,7 @@ export async function verifyEmail(input: VerifyEmailInput): Promise<{ success: b
 }
 
 export async function resendVerification(input: ResendVerificationInput): Promise<{ message: string }> {
-  const res = await fetch(`${API_BASE}/auth/resend-verification`, {
+  const res = await fetchWithTimeout(`${API_BASE}/auth/resend-verification`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify(input),
@@ -184,7 +187,7 @@ export interface ForgotPasswordInput {
 }
 
 export async function forgotPassword(input: ForgotPasswordInput): Promise<{ message: string }> {
-  const res = await fetch(`${API_BASE}/auth/forgot-password`, {
+  const res = await fetchWithTimeout(`${API_BASE}/auth/forgot-password`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify(input),
@@ -203,7 +206,7 @@ export interface ResetPasswordInput {
 }
 
 export async function resetPassword(input: ResetPasswordInput): Promise<{ success: boolean }> {
-  const res = await fetch(`${API_BASE}/auth/reset-password`, {
+  const res = await fetchWithTimeout(`${API_BASE}/auth/reset-password`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify(input),
@@ -222,7 +225,7 @@ export interface ChangePasswordInput {
 }
 
 export async function changePassword(accessToken: string, input: ChangePasswordInput): Promise<{ success: boolean }> {
-  const res = await fetch(`${API_BASE}/auth/change-password`, {
+  const res = await fetchWithTimeout(`${API_BASE}/auth/change-password`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -244,7 +247,7 @@ export interface RequestEmailChangeInput {
 }
 
 export async function requestEmailChange(accessToken: string, input: RequestEmailChangeInput): Promise<{ message: string }> {
-  const res = await fetch(`${API_BASE}/auth/change-email/request`, {
+  const res = await fetchWithTimeout(`${API_BASE}/auth/change-email/request`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -274,7 +277,7 @@ export interface SessionResponse {
 }
 
 export async function confirmEmailChange(input: ConfirmEmailChangeInput): Promise<{ success: boolean }> {
-  const res = await fetch(`${API_BASE}/auth/change-email/confirm`, {
+  const res = await fetchWithTimeout(`${API_BASE}/auth/change-email/confirm`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify(input),
@@ -288,7 +291,7 @@ export async function confirmEmailChange(input: ConfirmEmailChangeInput): Promis
 }
 
 export async function listSessions(accessToken: string): Promise<SessionResponse[]> {
-  const res = await fetch(`${API_BASE}/auth/sessions`, {
+  const res = await fetchWithTimeout(`${API_BASE}/auth/sessions`, {
     method: "GET",
     headers: {
       Accept: "application/json",
@@ -304,7 +307,7 @@ export async function listSessions(accessToken: string): Promise<SessionResponse
 }
 
 export async function revokeAllSessions(accessToken: string): Promise<{ success: boolean; revokedCount: number }> {
-  const res = await fetch(`${API_BASE}/auth/sessions/revoke-all`, {
+  const res = await fetchWithTimeout(`${API_BASE}/auth/sessions/revoke-all`, {
     method: "POST",
     headers: {
       Accept: "application/json",
@@ -320,7 +323,7 @@ export async function revokeAllSessions(accessToken: string): Promise<{ success:
 }
 
 export async function updateInterfaceLanguage(accessToken: string, interfaceLanguage: "en" | "uk" | "ru"): Promise<AuthUser> {
-  const res = await fetch(`${API_BASE}/auth/me/interface-language`, {
+  const res = await fetchWithTimeout(`${API_BASE}/auth/me/interface-language`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",

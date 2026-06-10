@@ -2,7 +2,7 @@ import { render, screen, waitFor, fireEvent, act } from "@testing-library/react"
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import LoginPage from "./page";
-import { login, resendVerification } from "@/lib/auth-api";
+import { login, resendVerification, ApiTimeoutError } from "@/lib/auth-api";
 import { createAuthUser } from "@/test/factories";
 
 const pushMock = vi.fn();
@@ -12,10 +12,20 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock }),
 }));
 
-vi.mock("@/lib/auth-api", () => ({
-  login: vi.fn(),
-  resendVerification: vi.fn(),
-}));
+vi.mock("@/lib/auth-api", () => {
+  class ApiTimeoutError extends Error {
+    constructor(message = "Request timed out") {
+      super(message);
+      this.name = "ApiTimeoutError";
+    }
+  }
+  return {
+    login: vi.fn(),
+    resendVerification: vi.fn(),
+    ApiTimeoutError,
+    isApiTimeoutError: (err: unknown) => err instanceof ApiTimeoutError,
+  };
+});
 
 vi.mock("@/lib/auth-context", () => ({
   useAuth: () => ({ loginSuccess: loginSuccessMock }),
@@ -207,6 +217,48 @@ describe("LoginPage", () => {
         refreshToken: "rt",
       });
     });
+
+    await waitFor(() => {
+      expect(loginSuccessMock).toHaveBeenCalled();
+    });
+    expect(pushMock).toHaveBeenCalledWith("/dashboard");
+  });
+
+  it("stops loading and shows timeout message on ApiTimeoutError", async () => {
+    vi.mocked(login).mockRejectedValueOnce(new ApiTimeoutError());
+
+    render(<LoginPage />);
+
+    await userEvent.type(screen.getByLabelText(/Email/i), "a@b.com");
+    await userEvent.type(screen.getByLabelText(/Password/i), "secret");
+    await userEvent.click(screen.getByRole("button", { name: /Sign in/i }));
+
+    expect(await screen.findByText(/taking too long to respond/i)).toBeInTheDocument();
+    expect(screen.getByText(/Free Render instances may take up to a minute/i)).toBeInTheDocument();
+    expect(screen.getByRole("button")).toHaveTextContent(/Sign in/i);
+    expect(screen.getByRole("button")).not.toBeDisabled();
+    expect(loginSuccessMock).not.toHaveBeenCalled();
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it("allows retry after timeout error", async () => {
+    vi.mocked(login)
+      .mockRejectedValueOnce(new ApiTimeoutError())
+      .mockResolvedValueOnce({
+        user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en" as const, createdAt: "2024-01-01T00:00:00Z" },
+        accessToken: "at",
+        refreshToken: "rt",
+      });
+
+    render(<LoginPage />);
+
+    await userEvent.type(screen.getByLabelText(/Email/i), "a@b.com");
+    await userEvent.type(screen.getByLabelText(/Password/i), "secret");
+    await userEvent.click(screen.getByRole("button", { name: /Sign in/i }));
+
+    expect(await screen.findByText(/taking too long to respond/i)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: /Sign in/i }));
 
     await waitFor(() => {
       expect(loginSuccessMock).toHaveBeenCalled();
