@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import ChannelDetailPage from "./page";
 import { getChannel, getChannelMembers, addChannelMember, removeChannelMember, leaveChannel, archiveChannel, type ChannelMember } from "@/lib/channels-api";
 import { createChannelInvite } from "@/lib/channel-invites-api";
-import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, presignAttachmentUpload, uploadAttachmentToPresignedUrl, uploadAttachmentToPresignedUrlWithProgress, getAttachmentDownloadUrl, Message } from "@/lib/messages-api";
+import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, presignAttachmentUpload, uploadAttachmentToPresignedUrlWithProgress, getAttachmentDownloadUrl, Message } from "@/lib/messages-api";
 import { sendDirectMessage, listDirectConversations } from "@/lib/direct-conversations-api";
 
 const socketHandlers: Record<string, (...args: unknown[]) => void> = {};

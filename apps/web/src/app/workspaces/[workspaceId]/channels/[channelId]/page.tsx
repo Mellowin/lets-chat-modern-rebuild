@@ -106,6 +106,7 @@ function AttachmentImagePreview({
       data-testid={`message-attachment-image-${messageId}-${attachment.id}`}
       className="block w-fit max-w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 p-1 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors"
     >
+      {/* eslint-disable-next-line @next/next/no-img-element -- dynamic presigned attachment URLs are intentionally rendered with native img */}
       <img
         src={url}
         alt={attachment.fileName}
@@ -1644,6 +1645,7 @@ export default function ChannelDetailPage() {
                       className="relative inline-flex flex-col gap-1 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 p-1"
                     >
                       <div className="relative">
+                        {/* eslint-disable-next-line @next/next/no-img-element -- blob preview URLs are intentionally rendered with native img */}
                         <img src={previewUrl} alt={att.file.name} className="h-16 w-16 rounded object-cover" />
                         {canRemove && (
                           <button

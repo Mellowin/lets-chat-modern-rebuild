@@ -13,15 +13,12 @@ import {
   ApiBearerAuth,
   ApiOkResponse,
   ApiCreatedResponse,
-  ApiBadRequestResponse,
   ApiNotFoundResponse,
   ApiConflictResponse,
   ApiUnauthorizedResponse,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import { AttachmentsService } from './attachments.service';
-import { PresignAttachmentDto } from './dto/presign-attachment.dto';
-import { PresignAttachmentResponseDto } from './dto/presign-attachment-response.dto';
 import { CompleteAttachmentResponseDto } from './dto/complete-attachment-response.dto';
 import { AttachmentDownloadResponseDto } from './dto/attachment-download-response.dto';
 import { AttachmentDownloadUrlResponseDto } from './dto/attachment-download-url-response.dto';
@@ -37,31 +34,6 @@ import type { AuthUserResponse } from '../auth/auth.service';
 @ApiBearerAuth()
 export class AttachmentsController {
   constructor(private readonly attachments: AttachmentsService) {}
-
-  @Post('presign')
-  @ApiOperation({ summary: 'Get presigned upload URL for attachment' })
-  @ApiCreatedResponse({
-    description: 'Presigned URL created',
-    type: PresignAttachmentResponseDto,
-  })
-  @ApiBadRequestResponse({ description: 'Validation failed' })
-  @ApiNotFoundResponse({ description: 'Message or channel not found' })
-  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
-  async presign(
-    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
-    @Param('channelId', ParseUUIDPipe) channelId: string,
-    @Param('messageId', ParseUUIDPipe) messageId: string,
-    @Body() dto: PresignAttachmentDto,
-    @CurrentUser() user: AuthUserResponse,
-  ) {
-    return this.attachments.presign(
-      workspaceId,
-      channelId,
-      messageId,
-      dto,
-      user.id,
-    );
-  }
 
   @Post(':attachmentId/complete')
   @ApiOperation({ summary: 'Confirm attachment upload completion' })
