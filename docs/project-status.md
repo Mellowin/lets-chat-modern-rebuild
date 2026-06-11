@@ -127,7 +127,9 @@ Use these steps to verify core functionality after deploy or before release:
 - **No auto-dedupe** — duplicate slugs return `409 Conflict`; user must pick a different name.
 - **Password reset and authenticated password change revoke existing refresh sessions** — old devices must re-login after password change.
 - **Authenticated users can list their refresh sessions and revoke active sessions** — via `GET /auth/sessions` and `POST /auth/sessions/revoke-all`.
-- **Profile page includes session management UI** — list sessions with active/revoked/expired status and revoke-all with confirmation.
+- **Profile page includes grouped settings layout** — Account (info, email change, avatar, display name), Security (change password with show/hide toggles), Sessions (collapsed by default with explanation and active count, expandable list with revoke-all), and Language (interface language selector).
+  - Password fields have eye icon show/hide toggles per field.
+  - Sessions are hidden behind a "Show sessions" toggle with a short explanation of what sessions are.
 - **Production smoke verifies protected auth/session endpoints reject anonymous requests** — `GET /auth/sessions`, `POST /auth/sessions/revoke-all`, `POST /auth/change-password` checked for `401` without token.
 - **Public `/project-status` page added for portfolio/employer review** — honest overview of implemented and planned features, tech stack, and production links.
 - **Production smoke verifies public `/project-status` page** — checked for `200` and expected content.

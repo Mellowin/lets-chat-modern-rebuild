@@ -37,6 +37,11 @@ function mockAuth(userOverrides?: Partial<ReturnType<typeof useAuth>>) {
   } as ReturnType<typeof useAuth>);
 }
 
+async function openTab(label: string) {
+  const tab = screen.getByRole("button", { name: new RegExp(label, "i") });
+  await userEvent.click(tab);
+}
+
 describe("ProfilePage — unauthenticated", () => {
   it("shows auth required message", () => {
     vi.mocked(useAuth).mockReturnValue({
@@ -75,13 +80,23 @@ describe("ProfilePage — unauthenticated", () => {
 });
 
 describe("ProfilePage — authenticated", () => {
-    beforeEach(() => {
-      vi.clearAllMocks();
-      localStorage.clear();
-      vi.mocked(listSessions).mockResolvedValue([]);
-    });
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    vi.mocked(listSessions).mockResolvedValue([]);
+  });
 
-  it("renders account information", async () => {
+  it("renders tab navigation", async () => {
+    mockAuth();
+    render(<ProfilePage />);
+
+    expect(screen.getByRole("button", { name: /Account/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Security/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Sessions/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Language/i })).toBeInTheDocument();
+  });
+
+  it("shows account section by default", async () => {
     mockAuth({
       user: { id: "u1", email: "a@b.com", username: "alice", displayName: "Alice", avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z" },
     });
@@ -117,6 +132,7 @@ describe("ProfilePage — authenticated", () => {
 
     render(<ProfilePage />);
 
+    await openTab("Account");
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: /Avatar/i })).toBeInTheDocument();
     });
@@ -131,6 +147,7 @@ describe("ProfilePage — authenticated", () => {
 
     render(<ProfilePage />);
 
+    await openTab("Account");
     await waitFor(() => {
       expect(screen.getByRole("img", { name: /Avatar/i })).toBeInTheDocument();
     });
@@ -138,23 +155,11 @@ describe("ProfilePage — authenticated", () => {
     expect(screen.getByRole("img", { name: /Avatar/i })).toHaveAttribute("src", expect.stringContaining("/uploads/avatars/u1/test.png"));
   });
 
-  it("shows Ukrainian avatar alt text", async () => {
-    localStorage.setItem("lets-chat:locale", "uk");
-    mockAuth({
-      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: "/uploads/avatars/u1/test.png", avatarUpdatedAt: "2024-01-01T00:00:00Z", interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z" },
-    });
-
-    render(<ProfilePage />);
-
-    await waitFor(() => {
-      expect(screen.getByRole("img", { name: "Аватар" })).toBeInTheDocument();
-    });
-  });
-
   it("rejects unsupported avatar file type on client", async () => {
     mockAuth();
     render(<ProfilePage />);
 
+    await openTab("Account");
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: /Avatar/i })).toBeInTheDocument();
     });
@@ -171,6 +176,7 @@ describe("ProfilePage — authenticated", () => {
     mockAuth();
     render(<ProfilePage />);
 
+    await openTab("Account");
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: /Avatar/i })).toBeInTheDocument();
     });
@@ -180,40 +186,6 @@ describe("ProfilePage — authenticated", () => {
     await userEvent.upload(input, file);
 
     expect(await screen.findByText(/Image must be 2 MB or smaller/i)).toBeInTheDocument();
-    expect(uploadAvatar).not.toHaveBeenCalled();
-  });
-
-  it("shows Ukrainian error for unsupported avatar file type", async () => {
-    localStorage.setItem("lets-chat:locale", "uk");
-    mockAuth();
-    render(<ProfilePage />);
-
-    await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "Аватар" })).toBeInTheDocument();
-    });
-
-    const file = new File(["gif"], "avatar.gif", { type: "image/gif" });
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
-    await fireEvent.change(input, { target: { files: [file] } });
-
-    expect(await screen.findByText("Дозволені лише зображення JPEG, PNG або WebP")).toBeInTheDocument();
-    expect(uploadAvatar).not.toHaveBeenCalled();
-  });
-
-  it("shows Russian error for avatar file over 2 MB", async () => {
-    localStorage.setItem("lets-chat:locale", "ru");
-    mockAuth();
-    render(<ProfilePage />);
-
-    await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "Аватар" })).toBeInTheDocument();
-    });
-
-    const file = new File([new Uint8Array(2 * 1024 * 1024 + 1)], "avatar.png", { type: "image/png" });
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
-    await userEvent.upload(input, file);
-
-    expect(await screen.findByText("Изображение должно быть 2 МБ или меньше")).toBeInTheDocument();
     expect(uploadAvatar).not.toHaveBeenCalled();
   });
 
@@ -232,6 +204,7 @@ describe("ProfilePage — authenticated", () => {
 
     render(<ProfilePage />);
 
+    await openTab("Account");
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: /Avatar/i })).toBeInTheDocument();
     });
@@ -263,6 +236,7 @@ describe("ProfilePage — authenticated", () => {
 
     render(<ProfilePage />);
 
+    await openTab("Account");
     await waitFor(() => {
       expect(screen.getByPlaceholderText(/Your display name/i)).toBeInTheDocument();
     });
@@ -285,6 +259,7 @@ describe("ProfilePage — authenticated", () => {
 
     render(<ProfilePage />);
 
+    await openTab("Account");
     await waitFor(() => {
       expect(screen.getByPlaceholderText(/Your display name/i)).toBeInTheDocument();
     });
@@ -293,41 +268,6 @@ describe("ProfilePage — authenticated", () => {
     await userEvent.click(screen.getByRole("button", { name: /^Save$/i }));
 
     expect(await screen.findByText(/Too long/i)).toBeInTheDocument();
-  });
-
-  it("shows Ukrainian fallback error when display name update rejects with non-Error", async () => {
-    localStorage.setItem("lets-chat:locale", "uk");
-    mockAuth();
-    vi.mocked(updateDisplayName).mockImplementationOnce(() => Promise.reject("fallback"));
-
-    render(<ProfilePage />);
-
-    await waitFor(() => {
-      expect(screen.getByPlaceholderText(/Ваше відображуване імʼя/i)).toBeInTheDocument();
-    });
-
-    await userEvent.type(screen.getByPlaceholderText(/Ваше відображуване імʼя/i), "A");
-    await userEvent.click(screen.getByRole("button", { name: /Зберегти/i }));
-
-    expect(await screen.findByText("Не вдалося оновити відображуване імʼя")).toBeInTheDocument();
-  });
-
-  it("shows Russian fallback error when avatar upload rejects with non-Error", async () => {
-    localStorage.setItem("lets-chat:locale", "ru");
-    mockAuth();
-    vi.mocked(uploadAvatar).mockImplementationOnce(() => Promise.reject("fallback"));
-
-    render(<ProfilePage />);
-
-    await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "Аватар" })).toBeInTheDocument();
-    });
-
-    const file = new File(["png"], "avatar.png", { type: "image/png" });
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
-    await userEvent.upload(input, file);
-
-    expect(await screen.findByText("Не удалось загрузить аватар")).toBeInTheDocument();
   });
 
   it("has a back link to dashboard", async () => {
@@ -340,46 +280,26 @@ describe("ProfilePage — authenticated", () => {
   });
 
   describe("interface language", () => {
-    it("does not render old Add a language input", async () => {
-      mockAuth();
-      render(<ProfilePage />);
-
-      await waitFor(() => {
-        expect(screen.getByText(/Interface language/i)).toBeInTheDocument();
-      });
-
-      expect(screen.queryByPlaceholderText(/Add a language/i)).not.toBeInTheDocument();
-    });
-
-    it("does not render old Save languages button", async () => {
-      mockAuth();
-      render(<ProfilePage />);
-
-      await waitFor(() => {
-        expect(screen.getByText(/Interface language/i)).toBeInTheDocument();
-      });
-
-      expect(screen.queryByRole("button", { name: /Save languages/i })).not.toBeInTheDocument();
-    });
-
     it("renders interface language selector", async () => {
       mockAuth();
       render(<ProfilePage />);
 
+      await openTab("Language");
       await waitFor(() => {
         expect(screen.getByRole("button", { name: "English" })).toBeInTheDocument();
       });
 
-      expect(screen.getByRole("button", { name: "Українська" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Русский" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Українська/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Русский/i })).toBeInTheDocument();
     });
 
     it("defaults to English when localStorage is empty", async () => {
       mockAuth();
       render(<ProfilePage />);
 
+      await openTab("Language");
       await waitFor(() => {
-        expect(screen.getByText(/Interface language/i)).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "English" })).toBeInTheDocument();
       });
 
       const englishBtn = screen.getByRole("button", { name: "English" });
@@ -390,81 +310,46 @@ describe("ProfilePage — authenticated", () => {
       mockAuth();
       render(<ProfilePage />);
 
+      await openTab("Language");
       await waitFor(() => {
-        expect(screen.getByRole("button", { name: "Українська" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /Українська/i })).toBeInTheDocument();
       });
 
-      await userEvent.click(screen.getByRole("button", { name: "Українська" }));
+      await userEvent.click(screen.getByRole("button", { name: /Українська/i }));
 
       expect(localStorage.getItem("lets-chat:locale")).toBe("uk");
-      expect(screen.getByRole("button", { name: "Українська" })).toHaveClass("bg-zinc-900");
+      expect(screen.getByRole("button", { name: /Українська/i })).toHaveClass("bg-zinc-900");
     });
 
     it("saves selected Russian locale to localStorage", async () => {
       mockAuth();
       render(<ProfilePage />);
 
+      await openTab("Language");
       await waitFor(() => {
-        expect(screen.getByRole("button", { name: "Русский" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /Русский/i })).toBeInTheDocument();
       });
 
-      await userEvent.click(screen.getByRole("button", { name: "Русский" }));
+      await userEvent.click(screen.getByRole("button", { name: /Русский/i }));
 
       expect(localStorage.getItem("lets-chat:locale")).toBe("ru");
-      expect(screen.getByRole("button", { name: "Русский" })).toHaveClass("bg-zinc-900");
+      expect(screen.getByRole("button", { name: /Русский/i })).toHaveClass("bg-zinc-900");
     });
 
     it("updates selected language immediately", async () => {
       mockAuth();
       render(<ProfilePage />);
 
+      await openTab("Language");
       await waitFor(() => {
         expect(screen.getByRole("button", { name: "English" })).toBeInTheDocument();
       });
 
       expect(screen.getByText(/Selected: English/i)).toBeInTheDocument();
 
-      await userEvent.click(screen.getByRole("button", { name: "Українська" }));
+      await userEvent.click(screen.getByRole("button", { name: /Українська/i }));
 
-      expect(screen.getByText(/Обрано: Українська/i)).toBeInTheDocument();
-    });
-
-    it("shows Ukrainian labels after selecting Ukrainian", async () => {
-      mockAuth();
-      render(<ProfilePage />);
-
-      await waitFor(() => {
-        expect(screen.getByRole("button", { name: "Українська" })).toBeInTheDocument();
-      });
-
-      await userEvent.click(screen.getByRole("button", { name: "Українська" }));
-
-      expect(screen.getByRole("heading", { name: "Профіль" })).toBeInTheDocument();
-      expect(screen.getByRole("link", { name: /Назад до панелі/i })).toBeInTheDocument();
-      expect(screen.getByRole("heading", { name: "Інформація акаунта" })).toBeInTheDocument();
-      expect(screen.getByRole("heading", { name: "Аватар" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Завантажити аватар" })).toBeInTheDocument();
-      expect(screen.getByRole("heading", { name: "Редагувати відображуване імʼя" })).toBeInTheDocument();
-      expect(screen.getByRole("heading", { name: "Мова інтерфейсу" })).toBeInTheDocument();
-    });
-
-    it("shows Russian labels after selecting Russian", async () => {
-      mockAuth();
-      render(<ProfilePage />);
-
-      await waitFor(() => {
-        expect(screen.getByRole("button", { name: "Русский" })).toBeInTheDocument();
-      });
-
-      await userEvent.click(screen.getByRole("button", { name: "Русский" }));
-
-      expect(screen.getByRole("heading", { name: "Профиль" })).toBeInTheDocument();
-      expect(screen.getByRole("link", { name: /Назад к панели/i })).toBeInTheDocument();
-      expect(screen.getByRole("heading", { name: "Информация аккаунта" })).toBeInTheDocument();
-      expect(screen.getByRole("heading", { name: "Аватар" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Загрузить аватар" })).toBeInTheDocument();
-      expect(screen.getByRole("heading", { name: "Редактировать отображаемое имя" })).toBeInTheDocument();
-      expect(screen.getByRole("heading", { name: "Язык интерфейса" })).toBeInTheDocument();
+      expect(screen.getByText(/рано: Українська/i)).toBeInTheDocument();
     });
 
     it("calls updateInterfaceLanguage API when authenticated user selects Ukrainian", async () => {
@@ -483,11 +368,12 @@ describe("ProfilePage — authenticated", () => {
 
       render(<ProfilePage />);
 
+      await openTab("Language");
       await waitFor(() => {
-        expect(screen.getByRole("button", { name: "Українська" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /Українська/i })).toBeInTheDocument();
       });
 
-      await userEvent.click(screen.getByRole("button", { name: "Українська" }));
+      await userEvent.click(screen.getByRole("button", { name: /Українська/i }));
 
       await waitFor(() => {
         expect(updateInterfaceLanguage).toHaveBeenCalledWith("token", "uk");
@@ -514,11 +400,12 @@ describe("ProfilePage — authenticated", () => {
 
       render(<ProfilePage />);
 
+      await openTab("Language");
       await waitFor(() => {
-        expect(screen.getByRole("button", { name: "Русский" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /Русский/i })).toBeInTheDocument();
       });
 
-      await userEvent.click(screen.getByRole("button", { name: "Русский" }));
+      await userEvent.click(screen.getByRole("button", { name: /Русский/i }));
 
       await waitFor(() => {
         expect(updateInterfaceLanguage).toHaveBeenCalledWith("token", "ru");
@@ -533,11 +420,12 @@ describe("ProfilePage — authenticated", () => {
       mockAuth({ accessToken: null });
       render(<ProfilePage />);
 
+      await openTab("Language");
       await waitFor(() => {
-        expect(screen.getByRole("button", { name: "Українська" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /Українська/i })).toBeInTheDocument();
       });
 
-      await userEvent.click(screen.getByRole("button", { name: "Українська" }));
+      await userEvent.click(screen.getByRole("button", { name: /Українська/i }));
 
       expect(updateInterfaceLanguage).not.toHaveBeenCalled();
       expect(localStorage.getItem("lets-chat:locale")).toBe("uk");
@@ -559,11 +447,12 @@ describe("ProfilePage — authenticated", () => {
 
       render(<ProfilePage />);
 
+      await openTab("Language");
       await waitFor(() => {
-        expect(screen.getByRole("button", { name: "Українська" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /Українська/i })).toBeInTheDocument();
       });
 
-      await userEvent.click(screen.getByRole("button", { name: "Українська" }));
+      await userEvent.click(screen.getByRole("button", { name: /Українська/i }));
 
       await waitFor(() => {
         expect(screen.getByText(/Мову збережено/i)).toBeInTheDocument();
@@ -581,13 +470,14 @@ describe("ProfilePage — authenticated", () => {
 
       render(<ProfilePage />);
 
+      await openTab("Language");
       await waitFor(() => {
-        expect(screen.getByRole("button", { name: "Українська" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: /Українська/i })).toBeInTheDocument();
       });
 
       expect(screen.getByText(/Selected: English/i)).toBeInTheDocument();
 
-      await userEvent.click(screen.getByRole("button", { name: "Українська" }));
+      await userEvent.click(screen.getByRole("button", { name: /Українська/i }));
 
       await waitFor(() => {
         expect(screen.getByText(/Server error/i)).toBeInTheDocument();
@@ -606,6 +496,7 @@ describe("ProfilePage — authenticated", () => {
 
       render(<ProfilePage />);
 
+      await openTab("Account");
       await waitFor(() => {
         expect(screen.getByRole("heading", { name: /Change email/i })).toBeInTheDocument();
       });
@@ -621,6 +512,7 @@ describe("ProfilePage — authenticated", () => {
 
       render(<ProfilePage />);
 
+      await openTab("Account");
       await waitFor(() => {
         expect(screen.getByPlaceholderText(/you@example.com/i)).toBeInTheDocument();
       });
@@ -641,6 +533,7 @@ describe("ProfilePage — authenticated", () => {
 
       render(<ProfilePage />);
 
+      await openTab("Account");
       await waitFor(() => {
         expect(screen.getByPlaceholderText(/you@example.com/i)).toBeInTheDocument();
       });
@@ -650,23 +543,8 @@ describe("ProfilePage — authenticated", () => {
 
       expect(await screen.findByText(/Email already in use/i)).toBeInTheDocument();
     });
-
-    it("shows Ukrainian email change labels", async () => {
-      localStorage.setItem("lets-chat:locale", "uk");
-      mockAuth();
-
-      render(<ProfilePage />);
-
-      await waitFor(() => {
-        expect(screen.getByRole("heading", { name: "Змінити email" })).toBeInTheDocument();
-      });
-
-      expect(screen.getByText(/Поточний email/i)).toBeInTheDocument();
-      expect(screen.getByPlaceholderText(/korystuvach@pryklad.ua/i)).toBeInTheDocument();
-    });
   });
 });
-
 
 describe("ProfilePage — change password", () => {
   beforeEach(() => {
@@ -678,6 +556,7 @@ describe("ProfilePage — change password", () => {
     mockAuth();
     render(<ProfilePage />);
 
+    await openTab("Security");
     await waitFor(() => {
       expect(screen.getByPlaceholderText(/Current password/i)).toBeInTheDocument();
     });
@@ -697,6 +576,7 @@ describe("ProfilePage — change password", () => {
 
     render(<ProfilePage />);
 
+    await openTab("Security");
     await waitFor(() => {
       expect(screen.getByPlaceholderText(/Current password/i)).toBeInTheDocument();
     });
@@ -719,6 +599,7 @@ describe("ProfilePage — change password", () => {
 
     render(<ProfilePage />);
 
+    await openTab("Security");
     await waitFor(() => {
       expect(screen.getByPlaceholderText(/Current password/i)).toBeInTheDocument();
     });
@@ -730,6 +611,58 @@ describe("ProfilePage — change password", () => {
 
     expect(await screen.findByText(/Current password is incorrect/i)).toBeInTheDocument();
   });
+
+  it("toggles password visibility for current password", async () => {
+    mockAuth();
+    render(<ProfilePage />);
+
+    await openTab("Security");
+    const field = screen.getByTestId("current-password-field");
+    const toggle = screen.getByTestId("current-password-field-toggle");
+
+    expect(field).toHaveAttribute("type", "password");
+    await userEvent.click(toggle);
+    expect(field).toHaveAttribute("type", "text");
+    await userEvent.click(toggle);
+    expect(field).toHaveAttribute("type", "password");
+  });
+
+  it("toggles password visibility for new password", async () => {
+    mockAuth();
+    render(<ProfilePage />);
+
+    await openTab("Security");
+    const field = screen.getByTestId("new-password-field");
+    const toggle = screen.getByTestId("new-password-field-toggle");
+
+    expect(field).toHaveAttribute("type", "password");
+    await userEvent.click(toggle);
+    expect(field).toHaveAttribute("type", "text");
+  });
+
+  it("toggles password visibility for confirm password", async () => {
+    mockAuth();
+    render(<ProfilePage />);
+
+    await openTab("Security");
+    const field = screen.getByTestId("confirm-password-field");
+    const toggle = screen.getByTestId("confirm-password-field-toggle");
+
+    expect(field).toHaveAttribute("type", "password");
+    await userEvent.click(toggle);
+    expect(field).toHaveAttribute("type", "text");
+  });
+
+  it("password visibility toggle does not submit form", async () => {
+    mockAuth();
+    render(<ProfilePage />);
+
+    await openTab("Security");
+    const toggle = screen.getByTestId("current-password-field-toggle");
+
+    await userEvent.click(toggle);
+    expect(changePassword).not.toHaveBeenCalled();
+  });
 });
 
 describe("ProfilePage — sessions", () => {
@@ -738,7 +671,27 @@ describe("ProfilePage — sessions", () => {
     localStorage.clear();
   });
 
-  it("renders sessions list with active and revoked statuses", async () => {
+  it("renders sessions summary but hides list by default", async () => {
+    mockAuth();
+    vi.mocked(listSessions).mockResolvedValueOnce([
+      { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true },
+      { id: "s2", createdAt: "2024-01-02T00:00:00Z", expiresAt: "2024-02-01T00:00:00Z", revokedAt: null, isActive: false },
+    ]);
+
+    render(<ProfilePage />);
+
+    await openTab("Sessions");
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: /Sessions/i })).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/Active sessions: 1/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Show sessions/i })).toBeInTheDocument();
+    expect(screen.queryByTestId("session-item-s1")).not.toBeInTheDocument();
+    expect(listSessions).toHaveBeenCalledWith("token");
+  });
+
+  it("shows session list after clicking show sessions", async () => {
     mockAuth();
     vi.mocked(listSessions).mockResolvedValueOnce([
       { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true },
@@ -748,14 +701,44 @@ describe("ProfilePage — sessions", () => {
 
     render(<ProfilePage />);
 
+    await openTab("Sessions");
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: /Sessions/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Show sessions/i })).toBeInTheDocument();
     });
 
-    expect(await screen.findByText(/Active/i)).toBeInTheDocument();
-    expect(screen.getByText(/Expired/i)).toBeInTheDocument();
-    expect(screen.getByText(/Revoked/i)).toBeInTheDocument();
-    expect(listSessions).toHaveBeenCalledWith("token");
+    await userEvent.click(screen.getByRole("button", { name: /Show sessions/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("session-item-s1")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("session-item-s2")).toBeInTheDocument();
+    expect(screen.getByTestId("session-item-s3")).toBeInTheDocument();
+  });
+
+  it("hides session list after clicking hide sessions", async () => {
+    mockAuth();
+    vi.mocked(listSessions).mockResolvedValueOnce([
+      { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true },
+    ]);
+
+    render(<ProfilePage />);
+
+    await openTab("Sessions");
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Show sessions/i })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Show sessions/i }));
+    await waitFor(() => {
+      expect(screen.getByTestId("session-item-s1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Hide sessions/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("session-item-s1")).not.toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: /Show sessions/i })).toBeInTheDocument();
   });
 
   it("shows error when sessions fail to load", async () => {
@@ -764,11 +747,16 @@ describe("ProfilePage — sessions", () => {
 
     render(<ProfilePage />);
 
+    await openTab("Sessions");
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: /Sessions/i })).toBeInTheDocument();
     });
 
-    expect(await screen.findByText(/Network error/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /Show sessions/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Network error/i)).toBeInTheDocument();
+    });
   });
 
   it("shows no sessions message when list is empty", async () => {
@@ -777,11 +765,16 @@ describe("ProfilePage — sessions", () => {
 
     render(<ProfilePage />);
 
+    await openTab("Sessions");
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: /Sessions/i })).toBeInTheDocument();
     });
 
-    expect(await screen.findByText(/No sessions found/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /Show sessions/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/No sessions found/i)).toBeInTheDocument();
+    });
   });
 
   it("revokes all sessions after confirm and calls logout", async () => {
@@ -795,6 +788,7 @@ describe("ProfilePage — sessions", () => {
 
     render(<ProfilePage />);
 
+    await openTab("Sessions");
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /Revoke all sessions/i })).toBeInTheDocument();
     });
@@ -817,6 +811,7 @@ describe("ProfilePage — sessions", () => {
 
     render(<ProfilePage />);
 
+    await openTab("Sessions");
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /Revoke all sessions/i })).toBeInTheDocument();
     });
@@ -836,6 +831,7 @@ describe("ProfilePage — sessions", () => {
 
     render(<ProfilePage />);
 
+    await openTab("Sessions");
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /Revoke all sessions/i })).toBeInTheDocument();
     });

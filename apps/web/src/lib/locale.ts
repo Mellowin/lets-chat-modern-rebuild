@@ -56,6 +56,17 @@ export type TranslationKey =
   | "profile.passwordsDoNotMatch"
   | "profile.passwordChangeFailed"
   | "profile.passwordChanged"
+  | "profile.account"
+  | "profile.security"
+  | "profile.languageSection"
+  | "profile.showSessions"
+  | "profile.hideSessions"
+  | "profile.activeSessionsCount"
+  | "profile.sessionsExplanation"
+  | "profile.showPassword"
+  | "profile.hidePassword"
+  | "profile.accountSettings"
+  | "profile.profileSettings"
   | "dashboard.welcome"
   | "dashboard.signedInAs"
   | "dashboard.profileSettings"
@@ -748,6 +759,17 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.noSessions": "No sessions found",
     "profile.createdAt": "Created",
     "profile.expiresAt": "Expires",
+    "profile.account": "Account",
+    "profile.security": "Security",
+    "profile.languageSection": "Language",
+    "profile.showSessions": "Show sessions",
+    "profile.hideSessions": "Hide sessions",
+    "profile.activeSessionsCount": "Active sessions: {arg0}",
+    "profile.sessionsExplanation": "Sessions are devices or browsers where your account is currently signed in.",
+    "profile.showPassword": "Show password",
+    "profile.hidePassword": "Hide password",
+    "profile.accountSettings": "Account settings",
+    "profile.profileSettings": "Profile settings",
     "api.timeoutError": "The server is taking too long to respond. It may be waking up. Please try again in a moment.",
     "api.coldStartHint": "Free Render instances may take up to a minute to wake up.",
     "channel.searchMessages": "Search messages",
@@ -1121,6 +1143,17 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.noSessions": "Сесій не знайдено",
     "profile.createdAt": "Створено",
     "profile.expiresAt": "Завершується",
+    "profile.account": "Обліковий запис",
+    "profile.security": "Безпека",
+    "profile.languageSection": "Мова",
+    "profile.showSessions": "Показати сесії",
+    "profile.hideSessions": "Приховати сесії",
+    "profile.activeSessionsCount": "Активні сесії: {arg0}",
+    "profile.sessionsExplanation": "Сесії — це пристрої або браузери, де зараз виконано вхід у ваш акаунт.",
+    "profile.showPassword": "Показати пароль",
+    "profile.hidePassword": "Приховати пароль",
+    "profile.accountSettings": "Налаштування облікового запису",
+    "profile.profileSettings": "Налаштування профілю",
     "api.timeoutError": "Сервер відповідає занадто довго. Можливо, він прокидається. Спробуйте ще раз за мить.",
     "api.coldStartHint": "Безкоштовні інстанси Render можуть прокидатися до хвилини.",
     "channel.searchMessages": "Шукати повідомлення",
@@ -1494,6 +1527,17 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.noSessions": "Сессии не найдены",
     "profile.createdAt": "Создана",
     "profile.expiresAt": "Истекает",
+    "profile.account": "Аккаунт",
+    "profile.security": "Безопасность",
+    "profile.languageSection": "Язык",
+    "profile.showSessions": "Показать сессии",
+    "profile.hideSessions": "Скрыть сессии",
+    "profile.activeSessionsCount": "Активные сессии: {arg0}",
+    "profile.sessionsExplanation": "Сессии — это устройства или браузеры, где сейчас выполнен вход в ваш аккаунт.",
+    "profile.showPassword": "Показать пароль",
+    "profile.hidePassword": "Скрыть пароль",
+    "profile.accountSettings": "Настройки аккаунта",
+    "profile.profileSettings": "Настройки профиля",
     "api.timeoutError": "Сервер слишком долго отвечает. Возможно, он просыпается. Попробуйте ещё раз через минуту.",
     "api.coldStartHint": "Бесплатные инстансы Render могут просыпаться до минуты.",
     "channel.searchMessages": "Искать сообщения",
