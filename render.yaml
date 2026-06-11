@@ -6,7 +6,7 @@ services:
     plan: free
     branch: main
     rootDir: .
-    buildCommand: pnpm install --include=dev && pnpm --filter @lets-chat/shared build && pnpm --filter @lets-chat/database generate && pnpm --filter @lets-chat/database build && pnpm --filter api build
+    buildCommand: pnpm install --include=dev && pnpm run build:api:prod
     startCommand: pnpm --filter api start:prod
     envVars:
       - key: NODE_ENV

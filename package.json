@@ -5,6 +5,7 @@
   "description": "Modern rebuild of lets-chat — secure team collaboration platform",
   "scripts": {
     "build": "pnpm -r build",
+    "build:api:prod": "pnpm --filter @lets-chat/shared build && pnpm --filter @lets-chat/database generate && pnpm --filter @lets-chat/database build && pnpm --filter api build",
     "dev": "pnpm --parallel --filter api --filter web dev",
     "dev:api": "pnpm --filter api start:dev",
     "dev:web": "pnpm --filter web dev",
