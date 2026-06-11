@@ -888,6 +888,7 @@ describe('AuthService — password reset', () => {
 
   describe('requestEmailChange', () => {
     it('stores pending email and sends confirmation for valid new email', async () => {
+      usersRepository.findById.mockResolvedValue(makeUser());
       usersRepository.findByEmail.mockResolvedValue(null);
       usersRepository.updateEmailChangeToken.mockResolvedValue(makeUser());
       mailService.sendEmailChangeConfirmationEmail.mockResolvedValue(undefined);
@@ -917,6 +918,9 @@ describe('AuthService — password reset', () => {
     });
 
     it('throws ConflictException when new email is already used by another user', async () => {
+      usersRepository.findById.mockResolvedValue(
+        makeUser({ email: 'current@example.com' }),
+      );
       usersRepository.findByEmail.mockResolvedValue(
         makeUser({ id: 'other-id' }),
       );
@@ -926,15 +930,31 @@ describe('AuthService — password reset', () => {
       ).rejects.toThrow(ConflictException);
     });
 
-    it('allows same email for same user', async () => {
-      usersRepository.findByEmail.mockResolvedValue(makeUser());
+    it('throws BadRequestException when new email equals current email', async () => {
+      usersRepository.findById.mockResolvedValue(makeUser());
+
+      await expect(
+        service.requestEmailChange('user-id', 'u@test.com'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('invalidates previous token when second request is made', async () => {
+      usersRepository.findById.mockResolvedValue(makeUser());
+      usersRepository.findByEmail.mockResolvedValue(null);
       usersRepository.updateEmailChangeToken.mockResolvedValue(makeUser());
       mailService.sendEmailChangeConfirmationEmail.mockResolvedValue(undefined);
 
-      const result = await service.requestEmailChange('user-id', 'u@test.com');
+      await service.requestEmailChange('user-id', 'first@example.com');
+      await service.requestEmailChange('user-id', 'second@example.com');
 
-      expect(result.message).toBe(
-        'Check your new email to confirm the change.',
+      expect(usersRepository.updateEmailChangeToken).toHaveBeenCalledTimes(2);
+      expect(usersRepository.updateEmailChangeToken).toHaveBeenNthCalledWith(
+        2,
+        'user-id',
+        'second@example.com',
+        expect.any(String),
+        expect.any(Date),
+        expect.any(Date),
       );
     });
   });
@@ -982,6 +1002,14 @@ describe('AuthService — password reset', () => {
       usersRepository.findByEmailChangeTokenHash.mockResolvedValue(user);
 
       await expect(service.confirmEmailChange('raw-token')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('throws NotFoundException when confirming old token after newer request', async () => {
+      usersRepository.findByEmailChangeTokenHash.mockResolvedValue(null);
+
+      await expect(service.confirmEmailChange('old-token')).rejects.toThrow(
         NotFoundException,
       );
     });

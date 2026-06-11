@@ -545,6 +545,7 @@ describe("ProfilePage — authenticated", () => {
       });
 
       expect(await screen.findByText(/Check your new email to confirm the change/i)).toBeInTheDocument();
+      expect(screen.getByText(/Only the latest confirmation email will work/i)).toBeInTheDocument();
     });
 
     it("shows error on email change failure", async () => {

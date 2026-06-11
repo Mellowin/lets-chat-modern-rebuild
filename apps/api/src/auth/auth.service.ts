@@ -408,6 +408,17 @@ export class AuthService {
   ): Promise<{ message: string }> {
     const normalizedEmail = newEmail.trim().toLowerCase();
 
+    const user = await this.users.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (normalizedEmail === user.email.toLowerCase()) {
+      throw new BadRequestException(
+        'New email must be different from current email',
+      );
+    }
+
     const existingUser = await this.users.findByEmail(normalizedEmail);
     if (existingUser && existingUser.id !== userId) {
       throw new ConflictException('Email already in use');

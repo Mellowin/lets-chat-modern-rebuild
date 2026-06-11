@@ -156,6 +156,7 @@ export type TranslationKey =
   | "auth.currentEmail"
   | "auth.newEmail"
   | "auth.emailChangeRequested"
+  | "auth.emailChangeLatestOnly"
   | "auth.confirmEmailChangeTitle"
   | "auth.emailChanged"
   | "auth.emailChangeFailed"
@@ -542,6 +543,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "auth.currentEmail": "Current email",
     "auth.newEmail": "New email",
     "auth.emailChangeRequested": "Check your new email to confirm the change.",
+    "auth.emailChangeLatestOnly": "Only the latest confirmation email will work.",
     "auth.confirmEmailChangeTitle": "Confirm email change",
     "auth.emailChanged": "Email changed successfully",
     "auth.emailChangeFailed": "Email change failed",
@@ -938,6 +940,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "auth.currentEmail": "Поточний email",
     "auth.newEmail": "Новий email",
     "auth.emailChangeRequested": "Перевірте нову пошту для підтвердження.",
+    "auth.emailChangeLatestOnly": "Працює лише останнє підтвердження.",
     "auth.confirmEmailChangeTitle": "Підтвердження зміни email",
     "auth.emailChanged": "Email успішно змінено",
     "auth.emailChangeFailed": "Не вдалося змінити email",
@@ -1334,6 +1337,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "auth.currentEmail": "Текущий email",
     "auth.newEmail": "Новый email",
     "auth.emailChangeRequested": "Проверьте новую почту для подтверждения.",
+    "auth.emailChangeLatestOnly": "Работает только последнее подтверждение.",
     "auth.confirmEmailChangeTitle": "Подтверждение изменения email",
     "auth.emailChanged": "Email успешно изменён",
     "auth.emailChangeFailed": "Не удалось изменить email",

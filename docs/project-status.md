@@ -128,6 +128,7 @@ Use these steps to verify core functionality after deploy or before release:
 - **Password reset and authenticated password change revoke existing refresh sessions** — old devices must re-login after password change.
 - **Authenticated users can list their refresh sessions and revoke active sessions** — via `GET /auth/sessions` and `POST /auth/sessions/revoke-all`.
 - **Profile page includes grouped settings layout** — Account (info, email change, avatar, display name), Security (change password with show/hide toggles), Sessions (collapsed by default with explanation and active count, expandable list with revoke-all), and Language (interface language selector).
+- **Email change flow invalidates older pending requests** — when a user requests a new email change, any previous pending email-change token is overwritten and becomes invalid. Only the latest confirmation link works. Requests to change to the current email are rejected.
   - Password fields have eye icon show/hide toggles per field.
   - Sessions are hidden behind a "Show sessions" toggle with a short explanation of what sessions are.
 - **Production smoke verifies protected auth/session endpoints reject anonymous requests** — `GET /auth/sessions`, `POST /auth/sessions/revoke-all`, `POST /auth/change-password` checked for `401` without token.

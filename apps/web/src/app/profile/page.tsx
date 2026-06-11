@@ -462,6 +462,9 @@ export default function ProfilePage() {
                   <span className="h-2 w-2 rounded-full bg-emerald-500" />
                   {t("auth.emailChangeRequested")}
                 </div>
+                <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-300">
+                  {t("auth.emailChangeLatestOnly")}
+                </p>
               </div>
             )}
             {emailChangeState.kind === "error" && (
