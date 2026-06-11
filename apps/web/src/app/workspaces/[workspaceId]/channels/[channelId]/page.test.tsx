@@ -20,6 +20,7 @@ const mockRouter = { push: routerPushMock };
 vi.mock("next/navigation", () => ({
   useParams: () => ({ workspaceId: "ws1", channelId: "ch1" }),
   useRouter: () => mockRouter,
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 vi.mock("@/lib/auth-context", () => ({

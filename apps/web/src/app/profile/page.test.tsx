@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import ProfilePage from "./page";
 import { useAuth } from "@/lib/auth-context";
-import { updateDisplayName, uploadAvatar, updateInterfaceLanguage, requestEmailChange, changePassword, listSessions, revokeAllSessions, revokeSession } from "@/lib/auth-api";
+import { updateDisplayName, uploadAvatar, updateInterfaceLanguage, requestEmailChange, changePassword, listSessions, revokeAllSessions, revokeSession, getCurrentSessionId } from "@/lib/auth-api";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -22,6 +22,7 @@ vi.mock("@/lib/auth-api", () => ({
   listSessions: vi.fn(),
   revokeAllSessions: vi.fn(),
   revokeSession: vi.fn(),
+  getCurrentSessionId: vi.fn(),
 }));
 
 function mockAuth(userOverrides?: Partial<ReturnType<typeof useAuth>>) {
@@ -85,6 +86,7 @@ describe("ProfilePage — authenticated", () => {
     vi.clearAllMocks();
     localStorage.clear();
     vi.mocked(listSessions).mockResolvedValue([]);
+    vi.mocked(getCurrentSessionId).mockReturnValue(null);
   });
 
   it("renders tab navigation", async () => {
@@ -810,6 +812,10 @@ describe("ProfilePage — sessions", () => {
       { id: "s2", createdAt: "2024-01-02T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true },
     ]);
     vi.mocked(revokeSession).mockResolvedValueOnce({ success: true });
+    vi.mocked(listSessions).mockResolvedValueOnce([
+      { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: new Date().toISOString(), isActive: false },
+      { id: "s2", createdAt: "2024-01-02T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true },
+    ]);
     vi.spyOn(window, "confirm").mockReturnValue(true);
 
     render(<ProfilePage />);
@@ -839,7 +845,10 @@ describe("ProfilePage — sessions", () => {
     vi.mocked(listSessions).mockResolvedValueOnce([
       { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true },
     ]);
-    vi.mocked(revokeSession).mockRejectedValueOnce(new Error("Session not found"));
+    vi.mocked(listSessions).mockResolvedValueOnce([
+      { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true },
+    ]);
+    vi.mocked(revokeSession).mockRejectedValueOnce(new Error("Failed to revoke session"));
     vi.spyOn(window, "confirm").mockReturnValue(true);
 
     render(<ProfilePage />);
@@ -856,7 +865,7 @@ describe("ProfilePage — sessions", () => {
 
     await userEvent.click(screen.getByTestId("revoke-session-s1"));
 
-    expect(await screen.findByText(/Session not found/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Failed to revoke session/i)).toBeInTheDocument();
   });
 
   it("does not revoke individual session when confirm is cancelled", async () => {

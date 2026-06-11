@@ -186,7 +186,8 @@ export default function ImageLightbox({
             <img
               src={currentUrl}
               alt={current.fileName}
-              className="max-h-full max-w-full object-contain"
+              draggable={false}
+              className="pointer-events-none max-h-full max-w-full object-contain"
               data-testid="lightbox-image"
             />
           )}

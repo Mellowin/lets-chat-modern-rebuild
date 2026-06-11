@@ -276,6 +276,15 @@ export interface SessionResponse {
   isActive: boolean;
 }
 
+export function getCurrentSessionId(accessToken: string): string | null {
+  try {
+    const payload = JSON.parse(atob(accessToken.split(".")[1])) as { jti?: string } | undefined;
+    return payload?.jti ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function confirmEmailChange(input: ConfirmEmailChangeInput): Promise<{ success: boolean }> {
   const res = await fetchWithTimeout(`${API_BASE}/auth/change-email/confirm`, {
     method: "POST",

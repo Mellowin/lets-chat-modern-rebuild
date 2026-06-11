@@ -3,13 +3,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useLocale, translate, getLocale } from "@/lib/locale";
 import { getChannel, getChannelMembers, removeChannelMember, archiveChannel, leaveChannel, markChannelRead, type Channel, type ChannelMember } from "@/lib/channels-api";
 import { createChannelInvite } from "@/lib/channel-invites-api";
 
-import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, presignAttachmentUpload, uploadAttachmentToPresignedUrlWithProgress, getAttachmentDownloadUrl, type Message, type CreateMessageInput, type UpdateMessageInput, type ReactionSummary, type Attachment, type MessageContextResult, CreateMessageAttachmentInput } from "@/lib/messages-api";
+import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, presignAttachmentUpload, uploadAttachmentToPresignedUrlWithProgress, getAttachmentDownloadUrl, getMessageContext, type Message, type CreateMessageInput, type UpdateMessageInput, type ReactionSummary, type Attachment, type MessageContextResult, CreateMessageAttachmentInput } from "@/lib/messages-api";
 import { sendDirectMessage, listDirectConversations, type DirectConversation } from "@/lib/direct-conversations-api";
 import { createSocket } from "@/lib/socket-client";
 import { getAvatarUrl } from "@/lib/avatar-url";
@@ -62,7 +62,6 @@ function AttachmentImagePreview({
   workspaceId,
   channelId,
   accessToken,
-  onDownload,
   onOpen,
 }: {
   attachment: Attachment;
@@ -70,7 +69,6 @@ function AttachmentImagePreview({
   workspaceId: string;
   channelId: string;
   accessToken: string;
-  onDownload: (att: Attachment) => void;
   onOpen: (att: Attachment) => void;
 }) {
   const [url, setUrl] = useState<string | null>(null);
@@ -90,32 +88,28 @@ function AttachmentImagePreview({
     };
   }, [accessToken, workspaceId, channelId, messageId, attachment.id]);
 
-  if (failed || !url) {
-    return (
-      <button
-        onClick={() => onDownload(attachment)}
-        data-testid={`message-attachment-${messageId}-${attachment.id}`}
-        className="flex items-center gap-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 px-2.5 py-1.5 text-left text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors"
-      >
-        <span className="text-base">🖼️</span>
-        <span className="truncate font-medium text-zinc-700 dark:text-zinc-200">{attachment.fileName}</span>
-        <span className="shrink-0 text-zinc-400 dark:text-zinc-500">{formatFileSize(attachment.sizeBytes)}</span>
-      </button>
-    );
-  }
-
   return (
     <button
+      type="button"
       onClick={() => onOpen(attachment)}
       data-testid={`message-attachment-image-${messageId}-${attachment.id}`}
       className="block w-fit max-w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 p-1 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors"
     >
-      {/* eslint-disable-next-line @next/next/no-img-element -- dynamic presigned attachment URLs are intentionally rendered with native img */}
-      <img
-        src={url}
-        alt={attachment.fileName}
-        className="max-h-48 rounded-md object-cover"
-      />
+      {url && !failed ? (
+        /* eslint-disable-next-line @next/next/no-img-element -- dynamic presigned attachment URLs are intentionally rendered with native img */
+        <img
+          src={url}
+          alt={attachment.fileName}
+          draggable={false}
+          className="pointer-events-none max-h-48 rounded-md object-cover"
+        />
+      ) : (
+        <div className="flex items-center gap-2 px-1.5 py-1 text-xs">
+          <span className="text-base">🖼️</span>
+          <span className="truncate font-medium text-zinc-700 dark:text-zinc-200">{attachment.fileName}</span>
+          <span className="shrink-0 text-zinc-400 dark:text-zinc-500">{formatFileSize(attachment.sizeBytes)}</span>
+        </div>
+      )}
     </button>
   );
 }
@@ -128,7 +122,9 @@ export default function ChannelDetailPage() {
     typeof params.channelId === "string" ? params.channelId : "";
   const { isLoading: authLoading, isAuthenticated, user, accessToken } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { t } = useLocale();
+  const handledQueryMessageIdRef = useRef<string | null>(null);
   const [channel, setChannel] = useState<ChannelState>({ kind: "idle" });
   const [messages, setMessages] = useState<MessagesState>({ kind: "idle" });
   const [members, setMembers] = useState<MembersState>({ kind: "idle" });
@@ -362,6 +358,41 @@ export default function ChannelDetailPage() {
       cancelled = true;
     };
   }, [isAuthenticated, workspaceId, channelId, accessToken, router]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !workspaceId || !channelId || !accessToken) return;
+
+    const targetMessageId = searchParams?.get("message");
+    if (
+      targetMessageId &&
+      messages.kind === "success" &&
+      contextMode.kind === "idle" &&
+      handledQueryMessageIdRef.current !== targetMessageId
+    ) {
+      handledQueryMessageIdRef.current = targetMessageId;
+      const loaded = messages.data.find((m) => m.id === targetMessageId);
+      if (loaded) {
+        scrollToMessage(targetMessageId);
+      } else {
+        getMessageContext(accessToken, workspaceId, channelId, targetMessageId)
+          .then((result) => {
+            handleLoadContext({ ...result, targetId: targetMessageId });
+          })
+          .catch(() => {
+            // ignore: message may not exist or be inaccessible
+          });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    isAuthenticated,
+    workspaceId,
+    channelId,
+    accessToken,
+    searchParams,
+    messages,
+    contextMode.kind,
+  ]);
 
   useEffect(() => {
     if (!isAuthenticated || !workspaceId || !channelId || !accessToken) return;
@@ -1592,7 +1623,6 @@ export default function ChannelDetailPage() {
                                     workspaceId={workspaceId}
                                     channelId={channelId}
                                     accessToken={accessToken || ""}
-                                    onDownload={() => handleDownloadAttachment(msg, att)}
                                     onOpen={() => {
                                       const images = msg.attachments!.filter((a) => a.kind === "image");
                                       const idx = images.findIndex((a) => a.id === att.id);

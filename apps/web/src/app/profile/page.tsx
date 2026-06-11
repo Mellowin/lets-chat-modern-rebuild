@@ -3,8 +3,9 @@
 import { useLayoutEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { updateDisplayName, uploadAvatar, updateInterfaceLanguage, requestEmailChange, changePassword, listSessions, revokeAllSessions, revokeSession } from "@/lib/auth-api";
+import { updateDisplayName, uploadAvatar, updateInterfaceLanguage, requestEmailChange, changePassword, listSessions, revokeAllSessions, revokeSession, getCurrentSessionId } from "@/lib/auth-api";
 import { useLocale, type Locale, localeLabel } from "@/lib/locale";
 import { getAvatarUrl } from "@/lib/avatar-url";
 
@@ -81,7 +82,9 @@ function PasswordField({
 
 export default function ProfilePage() {
   const { user, accessToken, isLoading: authLoading, isAuthenticated, setUser, logout } = useAuth();
+  const router = useRouter();
   const { locale, setLocale: setLocaleState, t } = useLocale();
+  const currentSessionId = accessToken ? getCurrentSessionId(accessToken) : null;
 
   const [activeTab, setActiveTab] = useState<TabKey>("account");
 
@@ -122,22 +125,24 @@ export default function ProfilePage() {
     }
   }, [user?.displayName]);
 
-  useLayoutEffect(() => {
+  const loadSessions = useCallback(async () => {
     if (!accessToken || !isAuthenticated) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSessionsLoading(true);
     setSessionsError("");
-    listSessions(accessToken)
-      .then((data) => {
-        setSessions(data);
-      })
-      .catch((err) => {
-        setSessionsError(err instanceof Error ? err.message : t("profile.revokeAllFailed"));
-      })
-      .finally(() => {
-        setSessionsLoading(false);
-      });
+    try {
+      const data = await listSessions(accessToken);
+      setSessions(data);
+    } catch (err) {
+      setSessionsError(err instanceof Error ? err.message : t("profile.revokeAllFailed"));
+    } finally {
+      setSessionsLoading(false);
+    }
   }, [accessToken, isAuthenticated, t]);
+
+  useLayoutEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadSessions();
+  }, [loadSessions]);
 
   const initials = useCallback(() => {
     const name = user?.displayName || user?.username || "?";
@@ -152,31 +157,38 @@ export default function ProfilePage() {
     try {
       await revokeAllSessions(accessToken);
       setRevokeState({ kind: "success" });
-      void logout();
+      await logout();
+      router.push("/login");
     } catch (err) {
       const message = err instanceof Error ? err.message : t("profile.revokeAllFailed");
       setRevokeState({ kind: "error", message });
+      await loadSessions();
     }
   }
 
   async function handleRevokeSession(sessionId: string) {
     if (!accessToken) return;
-    const confirmed = window.confirm(t("profile.revokeSessionConfirm"));
-    if (!confirmed) return;
+    const isCurrent = sessionId === currentSessionId;
+    const confirmMessage = isCurrent
+      ? `${t("profile.revokeCurrentSessionConfirm")}\n${t("profile.revokeCurrentSessionWarning")}`
+      : t("profile.revokeSessionConfirm");
+    if (!window.confirm(confirmMessage)) return;
+
     setSessionRevokeState({ kind: "loading", sessionId });
     try {
       await revokeSession(accessToken, sessionId);
-      setSessions((prev) =>
-        prev.map((s) =>
-          s.id === sessionId
-            ? { ...s, revokedAt: new Date().toISOString(), isActive: false }
-            : s,
-        ),
-      );
       setSessionRevokeState({ kind: "success", sessionId });
+      await loadSessions();
+      if (isCurrent) {
+        await logout();
+        router.push("/login");
+      }
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("profile.revokeSessionFailed");
+      const raw = err instanceof Error ? err.message : "";
+      const isNotFound = raw.toLowerCase().includes("not found") || raw.includes("404");
+      const message = isNotFound ? t("profile.sessionNotFoundRefreshed") : raw || t("profile.revokeSessionFailed");
       setSessionRevokeState({ kind: "error", sessionId, message });
+      await loadSessions();
     }
   }
 
@@ -635,6 +647,7 @@ export default function ProfilePage() {
                         statusLabel = t("profile.sessionExpired");
                         statusClass = "text-amber-600 dark:text-amber-400";
                       }
+                      const isCurrent = session.id === currentSessionId;
                       const canRevoke = !session.revokedAt && session.isActive;
                       const isRevoking = sessionRevokeState.kind === "loading" && sessionRevokeState.sessionId === session.id;
                       return (
@@ -653,6 +666,11 @@ export default function ProfilePage() {
                           </div>
                           <div className="flex items-center gap-3">
                             <span className={`font-medium ${statusClass}`}>{statusLabel}</span>
+                            {isCurrent && (
+                              <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/40 dark:text-blue-400">
+                                {t("profile.currentSession")}
+                              </span>
+                            )}
                             {canRevoke && (
                               <button
                                 type="button"

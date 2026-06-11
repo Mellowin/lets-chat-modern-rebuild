@@ -9,6 +9,7 @@ import { getWorkspace, getWorkspaceMembers, leaveWorkspace, removeWorkspaceMembe
 import { MessageAuthor } from "@/components/MessageAuthor";
 import { createWorkspaceInvite } from "@/lib/invites-api";
 import WorkspaceInvitesSection from "@/components/WorkspaceInvitesSection";
+import WorkspaceMessageSearch from "@/components/WorkspaceMessageSearch";
 import { getChannels, getArchivedChannels, createChannel, archiveChannel, restoreChannel, type Channel, type CreateChannelInput } from "@/lib/channels-api";
 
 type DetailState =
@@ -383,6 +384,12 @@ export default function WorkspaceDetailPage() {
             {detail.data.slug}
           </p>
         </>
+      )}
+
+      {accessToken && (
+        <div className="mt-5">
+          <WorkspaceMessageSearch workspaceId={workspaceId} accessToken={accessToken} />
+        </div>
       )}
 
       {/* Create channel */}

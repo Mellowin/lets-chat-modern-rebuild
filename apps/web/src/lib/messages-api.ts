@@ -481,3 +481,57 @@ export async function searchChannelMessages(
 
   return res.json() as Promise<SearchChannelMessagesResult>;
 }
+
+export interface WorkspaceSearchResult {
+  id: string;
+  content: string;
+  createdAt: string;
+  author: {
+    id: string;
+    username: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+  };
+  channel: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+}
+
+export async function searchWorkspaceMessages(
+  accessToken: string,
+  workspaceId: string,
+  q: string,
+  options?: { limit?: number; channelId?: string },
+): Promise<WorkspaceSearchResult[]> {
+  const params = new URLSearchParams();
+  params.set("q", q.trim());
+  if (options?.limit) params.set("limit", String(options.limit));
+  if (options?.channelId) params.set("channelId", options.channelId);
+
+  const res = await fetch(
+    `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/search/messages?${params.toString()}`,
+    {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
+
+  if (!res.ok) {
+    let message = `Search failed: ${res.status} ${res.statusText}`;
+    try {
+      const body = await res.json();
+      if (body?.message) message = body.message;
+      else if (body?.error) message = body.error;
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+
+  return res.json() as Promise<WorkspaceSearchResult[]>;
+}

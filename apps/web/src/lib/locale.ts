@@ -430,6 +430,10 @@ export type TranslationKey =
   | "profile.revokeSessionSuccess"
   | "profile.revokeSessionFailed"
   | "profile.revokeSessionConfirm"
+  | "profile.currentSession"
+  | "profile.revokeCurrentSessionConfirm"
+  | "profile.revokeCurrentSessionWarning"
+  | "profile.sessionNotFoundRefreshed"
   | "profile.loadingSessions"
   | "profile.sessionActive"
   | "profile.sessionRevoked"
@@ -451,7 +455,12 @@ export type TranslationKey =
   | "channel.searchMessageNotLoaded"
   | "channel.loadingContext"
   | "channel.backToLatestMessages"
-  | "channel.contextLoadFailed";
+  | "channel.contextLoadFailed"
+  | "workspace.searchMessages"
+  | "workspace.searchInWorkspace"
+  | "workspace.searchFailed"
+  | "workspace.noMessagesFound"
+  | "workspace.searching";
 
 const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string) => string)>> = {
   en: {
@@ -856,6 +865,10 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.revokeSessionSuccess": "Session revoked",
     "profile.revokeSessionFailed": "Failed to revoke session",
     "profile.revokeSessionConfirm": "Revoke this session? It will be signed out on the next request.",
+    "profile.currentSession": "Current session",
+    "profile.revokeCurrentSessionConfirm": "This is your current session. Revoking it will sign you out immediately.",
+    "profile.revokeCurrentSessionWarning": "You will need to sign in again.",
+    "profile.sessionNotFoundRefreshed": "Session was already revoked or expired. The list has been refreshed.",
     "profile.loadingSessions": "Loading sessions…",
     "profile.sessionActive": "Active",
     "profile.sessionRevoked": "Revoked",
@@ -889,6 +902,11 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.loadingContext": "Loading message context…",
     "channel.backToLatestMessages": "Back to latest messages",
     "channel.contextLoadFailed": "Failed to load message context.",
+    "workspace.searchMessages": "Search messages",
+    "workspace.searchInWorkspace": "Search in workspace…",
+    "workspace.searchFailed": "Search failed",
+    "workspace.noMessagesFound": "No messages found.",
+    "workspace.searching": "Searching…",
   },
   uk: {
     "header.profile": "Профіль",
@@ -1292,6 +1310,10 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.revokeSessionSuccess": "Сесію відкликано",
     "profile.revokeSessionFailed": "Не вдалося відкликати сесію",
     "profile.revokeSessionConfirm": "Відкликати цю сесію? Її буде завершено під час наступного запиту.",
+    "profile.currentSession": "Поточна сесія",
+    "profile.revokeCurrentSessionConfirm": "Це ваша поточна сесія. Відкликання одразу завершить вашу авторизацію.",
+    "profile.revokeCurrentSessionWarning": "Вам доведеться увійти знову.",
+    "profile.sessionNotFoundRefreshed": "Сесію вже відкликано або термін її дії закінчився. Список оновлено.",
     "profile.loadingSessions": "Завантажуємо сесії…",
     "profile.sessionActive": "Активна",
     "profile.sessionRevoked": "Відкликана",
@@ -1325,6 +1347,11 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.loadingContext": "Завантаження контексту повідомлення…",
     "channel.backToLatestMessages": "Назад до останніх повідомлень",
     "channel.contextLoadFailed": "Не вдалося завантажити контекст повідомлення.",
+    "workspace.searchMessages": "Пошук повідомлень",
+    "workspace.searchInWorkspace": "Шукати в робочому просторі…",
+    "workspace.searchFailed": "Помилка пошуку",
+    "workspace.noMessagesFound": "Повідомлень не знайдено.",
+    "workspace.searching": "Шукаємо…",
   },
   ru: {
     "header.profile": "Профиль",
@@ -1728,6 +1755,10 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.revokeSessionSuccess": "Сессия отозвана",
     "profile.revokeSessionFailed": "Не удалось отозвать сессию",
     "profile.revokeSessionConfirm": "Отозвать эту сессию? Она будет завершена при следующем запросе.",
+    "profile.currentSession": "Текущая сессия",
+    "profile.revokeCurrentSessionConfirm": "Это ваша текущая сессия. Отзыв немедленно завершит вашу авторизацию.",
+    "profile.revokeCurrentSessionWarning": "Вам нужно будет войти снова.",
+    "profile.sessionNotFoundRefreshed": "Сессия уже отозвана или срок её действия истёк. Список обновлён.",
     "profile.loadingSessions": "Загружаем сессии…",
     "profile.sessionActive": "Активна",
     "profile.sessionRevoked": "Отозвана",
@@ -1761,6 +1792,11 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.loadingContext": "Загрузка контекста сообщения…",
     "channel.backToLatestMessages": "Назад к последним сообщениям",
     "channel.contextLoadFailed": "Не удалось загрузить контекст сообщения.",
+    "workspace.searchMessages": "Поиск сообщений",
+    "workspace.searchInWorkspace": "Искать в рабочем пространстве…",
+    "workspace.searchFailed": "Ошибка поиска",
+    "workspace.noMessagesFound": "Сообщений не найдено.",
+    "workspace.searching": "Ищем…",
   },
 };
 
