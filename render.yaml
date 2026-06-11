@@ -1,12 +1,12 @@
 services:
   - type: web
-    name: lets-chat-api
+    name: lets-chat-api-v2
     runtime: node
     region: frankfurt
     plan: free
     branch: main
     rootDir: .
-    buildCommand: pnpm install && pnpm --filter @lets-chat/database generate && pnpm --filter api build
+    buildCommand: pnpm install --include=dev && pnpm --filter @lets-chat/shared build && pnpm --filter @lets-chat/database generate && pnpm --filter @lets-chat/database build && pnpm --filter api build
     startCommand: pnpm --filter api start:prod
     envVars:
       - key: NODE_ENV
@@ -14,6 +14,6 @@ services:
       - key: PORT
         value: 3001
       - key: API_URL
-        value: https://lets-chat-api-wa43.onrender.com/api/v1
+        value: https://lets-chat-api-v2.onrender.com/api/v1
     healthCheckPath: /api/v1/health
     autoDeploy: true
