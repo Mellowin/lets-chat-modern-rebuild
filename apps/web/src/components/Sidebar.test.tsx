@@ -1,5 +1,5 @@
 import { render, screen, waitFor, fireEvent, act } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import Sidebar from "./Sidebar";
 import { useAuth } from "@/lib/auth-context";
@@ -1071,5 +1071,199 @@ describe("Sidebar — realtime unread sync", () => {
     await waitFor(() => {
       expect(vi.mocked(getChannels).mock.calls.length).toBeGreaterThan(callsBefore);
     });
+  });
+});
+
+describe("Sidebar — global unread", () => {
+  let originalTitle: string;
+
+  beforeEach(() => {
+    originalTitle = document.title;
+  });
+
+  afterEach(() => {
+    document.title = originalTitle;
+  });
+
+  function zeroDmUnread() {
+    vi.mocked(listDirectConversations).mockResolvedValue([
+      { id: "dc1", createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", otherParticipant: { id: "u2", username: "bob", displayName: null, avatarUrl: null }, lastMessage: null, unreadCount: 0, isOnline: false },
+      { id: "dc2", createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", otherParticipant: { id: "u3", username: "charlie", displayName: null, avatarUrl: null }, lastMessage: null, unreadCount: 0, isOnline: false },
+    ]);
+  }
+
+  it("does not show global unread indicator when total is 0", async () => {
+    setupDefaultMocks();
+    zeroDmUnread();
+    vi.mocked(getChannels).mockResolvedValue([
+      createChannel({ id: "ch1", name: "general", workspaceId: "ws1", type: "PUBLIC" as const, unreadCount: 0, hasUnread: false }),
+    ]);
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText("Direct messages")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("sidebar-global-unread")).not.toBeInTheDocument();
+    expect(document.title).toBe("lets-chat");
+  });
+
+  it("shows global unread indicator with total from channels and DMs", async () => {
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    zeroDmUnread();
+    vi.mocked(getChannels).mockImplementation(async (_token, wsId) => {
+      if (wsId === "ws1") {
+        return [
+          createChannel({ id: "ch1", name: "Boboski", workspaceId: "ws1", type: "PUBLIC" as const, unreadCount: 5, hasUnread: true }),
+          createChannel({ id: "ch2", name: "ПОПА", workspaceId: "ws1", type: "PRIVATE" as const, unreadCount: 3, hasUnread: true }),
+        ];
+      }
+      return [];
+    });
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-global-unread")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("sidebar-global-unread")).toHaveTextContent("8");
+  });
+
+  it("shows 99+ in global unread indicator when total exceeds 99", async () => {
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    zeroDmUnread();
+    vi.mocked(getChannels).mockImplementation(async (_token, wsId) => {
+      if (wsId === "ws1") {
+        return [
+          createChannel({ id: "ch1", name: "Boboski", workspaceId: "ws1", type: "PUBLIC" as const, unreadCount: 60, hasUnread: true }),
+          createChannel({ id: "ch2", name: "ПОПА", workspaceId: "ws1", type: "PRIVATE" as const, unreadCount: 50, hasUnread: true }),
+        ];
+      }
+      return [];
+    });
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-global-unread")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("sidebar-global-unread")).toHaveTextContent("99+");
+  });
+
+  it("updates document title to (N) lets-chat when unread > 0", async () => {
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    zeroDmUnread();
+    vi.mocked(getChannels).mockImplementation(async (_token, wsId) => {
+      if (wsId === "ws1") {
+        return [
+          createChannel({ id: "ch1", name: "Boboski", workspaceId: "ws1", type: "PUBLIC" as const, unreadCount: 5, hasUnread: true }),
+        ];
+      }
+      return [];
+    });
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-global-unread")).toBeInTheDocument();
+    });
+    expect(document.title).toBe("(5) lets-chat");
+  });
+
+  it("resets document title to lets-chat when unread becomes 0", async () => {
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    zeroDmUnread();
+    vi.mocked(getChannels).mockResolvedValue([
+      createChannel({ id: "ch1", name: "Boboski", workspaceId: "ws1", type: "PUBLIC" as const, unreadCount: 5, hasUnread: true }),
+    ]);
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(document.title).toBe("(5) lets-chat");
+    });
+
+    vi.mocked(getChannels).mockResolvedValue([
+      createChannel({ id: "ch1", name: "Boboski", workspaceId: "ws1", type: "PUBLIC" as const, unreadCount: 0, hasUnread: false }),
+    ]);
+    act(() => {
+      window.dispatchEvent(new CustomEvent("channels:changed"));
+    });
+    await waitFor(() => {
+      expect(document.title).toBe("lets-chat");
+    });
+  });
+
+  it("shows workspace unread badge when workspace has unread channels", async () => {
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    zeroDmUnread();
+    vi.mocked(getChannels).mockImplementation(async (_token, wsId) => {
+      if (wsId === "ws1") {
+        return [
+          createChannel({ id: "ch1", name: "Boboski", workspaceId: "ws1", type: "PUBLIC" as const, unreadCount: 5, hasUnread: true }),
+          createChannel({ id: "ch2", name: "ПОПА", workspaceId: "ws1", type: "PRIVATE" as const, unreadCount: 3, hasUnread: true }),
+        ];
+      }
+      if (wsId === "ws2") {
+        return [
+          createChannel({ id: "ch3", name: "general", workspaceId: "ws2", type: "PUBLIC" as const, unreadCount: 0, hasUnread: false }),
+        ];
+      }
+      return [];
+    });
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-workspace-unread-ws1")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("sidebar-workspace-unread-ws1")).toHaveTextContent("8");
+    expect(screen.queryByTestId("sidebar-workspace-unread-ws2")).not.toBeInTheDocument();
+  });
+
+  it("updates global total when channel unread increments via socket", async () => {
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    zeroDmUnread();
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-channel-link-ch2")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("sidebar-global-unread")).not.toBeInTheDocument();
+
+    const handler = socketHandlers["message:created"];
+    handler({
+      id: "m-new",
+      channelId: "ch2",
+      author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+      content: "hello",
+      parentId: null,
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      editedAt: null,
+      reactions: [],
+      attachments: [],
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-global-unread")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("sidebar-global-unread")).toHaveTextContent("1");
+  });
+
+  it("includes DM unread in global total", async () => {
+    setupDefaultMocks();
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-global-unread")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("sidebar-global-unread")).toHaveTextContent("3");
+  });
+
+  it("handles missing unread fields safely", async () => {
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    zeroDmUnread();
+    vi.mocked(getChannels).mockImplementation(async (_token, wsId) => {
+      if (wsId === "ws1") {
+        return [
+          createChannel({ id: "ch1", name: "Boboski", workspaceId: "ws1", type: "PUBLIC" as const }),
+          createChannel({ id: "ch2", name: "ПОПА", workspaceId: "ws1", type: "PRIVATE" as const }),
+        ];
+      }
+      return [];
+    });
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByText("Direct messages")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("sidebar-global-unread")).not.toBeInTheDocument();
+    expect(document.title).toBe("lets-chat");
   });
 });

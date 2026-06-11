@@ -10,6 +10,7 @@ import { listDirectConversations, type DirectConversation } from "@/lib/direct-c
 import { type Message } from "@/lib/messages-api";
 import { createSocket } from "@/lib/socket-client";
 import { useLocale } from "@/lib/locale";
+import { dispatchGlobalUnread, updateDocumentTitle } from "@/lib/global-unread";
 
 type WorkspacesState =
   | { kind: "idle" }
@@ -392,6 +393,32 @@ export default function Sidebar() {
     });
   }
 
+  const directUnreadTotal =
+    directConversations.kind === "success"
+      ? directConversations.data.reduce((sum, c) => sum + c.unreadCount, 0)
+      : 0;
+
+  const workspaceChannelUnread = Object.entries(workspaceChannels).reduce(
+    (acc, [wsId, wsState]) => {
+      if (wsState?.kind !== "success") return acc;
+      acc[wsId] = wsState.data.reduce((sum, ch) => sum + (ch.unreadCount ?? 0), 0);
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
+
+  const channelUnreadTotal = Object.values(workspaceChannelUnread).reduce(
+    (sum, count) => sum + count,
+    0,
+  );
+
+  const totalUnread = channelUnreadTotal + directUnreadTotal;
+
+  useEffect(() => {
+    updateDocumentTitle(totalUnread);
+    dispatchGlobalUnread(totalUnread);
+  }, [totalUnread]);
+
   if (authLoading || !isAuthenticated) {
     return (
       <aside className="w-60 shrink-0 border-r border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 hidden sm:flex flex-col p-3">
@@ -400,11 +427,6 @@ export default function Sidebar() {
       </aside>
     );
   }
-
-  const directUnreadTotal =
-    directConversations.kind === "success"
-      ? directConversations.data.reduce((sum, c) => sum + c.unreadCount, 0)
-      : 0;
 
   const directSectionHeader = (
     <div className="flex items-center gap-1">
@@ -556,6 +578,14 @@ export default function Sidebar() {
                     >
                       <span className={`transition-transform ${isExpanded ? "rotate-90" : ""}`}>▸</span>
                       <span className="truncate flex-1 text-left">{ws.name}</span>
+                      {(workspaceChannelUnread[ws.id] ?? 0) > 0 && (
+                        <span
+                          data-testid={`sidebar-workspace-unread-${ws.id}`}
+                          className="inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-zinc-900 px-1 text-[9px] font-bold text-white dark:bg-zinc-100 dark:text-zinc-900"
+                        >
+                          {workspaceChannelUnread[ws.id] > 99 ? "99+" : workspaceChannelUnread[ws.id]}
+                        </span>
+                      )}
                     </button>
                     {isExpanded && (
                       <div className="ml-4 mt-0.5 space-y-0.5" data-testid={`sidebar-workspace-channels-${ws.id}`}>
@@ -640,6 +670,19 @@ export default function Sidebar() {
   return (
     <aside className="w-60 shrink-0 border-r border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 hidden sm:flex flex-col p-3 overflow-y-auto">
       <div className="space-y-4">
+        {totalUnread > 0 && (
+          <div
+            data-testid="sidebar-global-unread"
+            className="flex items-center justify-between rounded-md bg-zinc-100 dark:bg-zinc-800 px-2.5 py-1.5"
+          >
+            <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+              {t("sidebar.unread")}
+            </span>
+            <span className="inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-zinc-900 px-1 text-[9px] font-bold text-white dark:bg-zinc-100 dark:text-zinc-900">
+              {totalUnread > 99 ? "99+" : totalUnread}
+            </span>
+          </div>
+        )}
         {sectionOrder === "direct-first" ? (
           <>
             {directSection}

@@ -2,19 +2,40 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocale } from "@/lib/locale";
 import { getAvatarUrl } from "@/lib/avatar-url";
+import { GLOBAL_UNREAD_CHANGED_EVENT, type GlobalUnreadPayload } from "@/lib/global-unread";
 
 export default function Header() {
   const { user, isAuthenticated, isLoading, logout } = useAuth();
   const { t } = useLocale();
+  const [globalUnread, setGlobalUnread] = useState(0);
+
+  useEffect(() => {
+    function handleGlobalUnread(event: CustomEvent<GlobalUnreadPayload>) {
+      setGlobalUnread(event.detail.total);
+    }
+    window.addEventListener(GLOBAL_UNREAD_CHANGED_EVENT, handleGlobalUnread as EventListener);
+    return () => {
+      window.removeEventListener(GLOBAL_UNREAD_CHANGED_EVENT, handleGlobalUnread as EventListener);
+    };
+  }, []);
 
   return (
     <header className="flex items-center justify-between h-14 px-4 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
       <Link href={isAuthenticated ? "/dashboard" : "/"} className="flex items-center gap-2">
         <div className="w-6 h-6 rounded bg-zinc-900 dark:bg-zinc-100" />
         <span className="font-semibold text-sm tracking-tight">lets-chat</span>
+        {globalUnread > 0 && (
+          <span
+            data-testid="header-global-unread"
+            className="inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-bold text-white"
+          >
+            {globalUnread > 99 ? "99+" : globalUnread}
+          </span>
+        )}
       </Link>
 
       <div className="flex items-center gap-3">

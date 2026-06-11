@@ -62,6 +62,20 @@ See [`docs/deployment-vercel.md`](deployment-vercel.md) for full deployment guid
   - Opening a channel marks it read and clears the badge locally
   - Own messages and current-channel messages do not create unread badges
   - Focus regain and socket reconnect resync counts
+- **Direct message unread counters** (B177):
+  - Unread count / badge computed server-side from `DirectConversationParticipant.lastReadAt`
+  - Opening a DM conversation marks it read and clears the badge locally
+- **Global unread summary** (B178):
+  - Total unread count across all channels and DMs
+  - Browser tab title shows unread badge: `(N) lets-chat`
+  - Sidebar shows global unread indicator when total > 0
+  - Workspace-level unread badges show aggregated channel unread per workspace
+  - Header shows global unread badge when total > 0
+  - Realtime updates: channel and DM unread changes propagate to global total immediately
+  - Limitations:
+    - No push/browser notifications yet
+    - No OS-level notifications yet
+    - No email notifications yet
 
 ---
 

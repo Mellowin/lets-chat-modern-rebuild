@@ -419,6 +419,7 @@ export type TranslationKey =
   | "sidebar.privateShort"
   | "sidebar.workspace"
   | "sidebar.signInToSeeWorkspaces"
+  | "sidebar.unread"
   | "profile.sessions"
   | "profile.revokeAllSessions"
   | "profile.revokeAllConfirm"
@@ -786,6 +787,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "sidebar.privateShort": "Prv",
     "sidebar.workspace": "Workspace",
     "sidebar.signInToSeeWorkspaces": "Sign in to see your workspaces",
+    "sidebar.unread": "Unread",
     "workspace.confirmArchiveChannelPrefix": "Archive channel",
     "workspace.confirmArchiveChannelBody": "This will hide the channel from the workspace. Only the channel owner can do this.",
     "workspace.confirmRestoreChannelPrefix": "Restore channel",
@@ -1221,6 +1223,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "sidebar.privateShort": "Прив.",
     "sidebar.workspace": "Робочий простір",
     "sidebar.signInToSeeWorkspaces": "Увійдіть, щоб бачити свої робочі простори",
+    "sidebar.unread": "Непрочитані",
     "workspace.confirmArchiveChannelPrefix": "Архівувати канал",
     "workspace.confirmArchiveChannelBody": "Це приховає канал з робочого простору. Це може зробити лише власник каналу.",
     "workspace.confirmRestoreChannelPrefix": "Відновити канал",
@@ -1656,6 +1659,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "sidebar.privateShort": "Прив.",
     "sidebar.workspace": "Рабочее пространство",
     "sidebar.signInToSeeWorkspaces": "Войдите, чтобы видеть свои рабочие пространства",
+    "sidebar.unread": "Непрочитанные",
     "workspace.confirmArchiveChannelPrefix": "Архивировать канал",
     "workspace.confirmArchiveChannelBody": "Это скроет канал из рабочего пространства. Это может сделать только владелец канала.",
     "workspace.confirmRestoreChannelPrefix": "Восстановить канал",
