@@ -8,6 +8,7 @@ import { useLocale, translate, getLocale } from "@/lib/locale";
 import { getWorkspace, getWorkspaceMembers, leaveWorkspace, removeWorkspaceMember, type Workspace, type WorkspaceMember } from "@/lib/workspaces-api";
 import { MessageAuthor } from "@/components/MessageAuthor";
 import { createWorkspaceInvite } from "@/lib/invites-api";
+import WorkspaceInvitesSection from "@/components/WorkspaceInvitesSection";
 import { getChannels, getArchivedChannels, createChannel, archiveChannel, restoreChannel, type Channel, type CreateChannelInput } from "@/lib/channels-api";
 
 type DetailState =
@@ -68,6 +69,9 @@ export default function WorkspaceDetailPage() {
   >({ kind: "idle" });
   const router = useRouter();
   const { t } = useLocale();
+
+  const myRole = members.kind === "success" ? members.data.find((m) => m.user.id === user?.id)?.role : undefined;
+  const canManageMembers = myRole === "OWNER" || myRole === "ADMIN";
 
   useEffect(() => {
     if (!isAuthenticated || !workspaceId) return;
@@ -651,6 +655,14 @@ export default function WorkspaceDetailPage() {
           })()
         )}
       </div>
+
+      {accessToken && (
+        <WorkspaceInvitesSection
+          workspaceId={workspaceId}
+          accessToken={accessToken}
+          canManage={canManageMembers}
+        />
+      )}
 
       {/* Archived channels */}
       <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 p-5">

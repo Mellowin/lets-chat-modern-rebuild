@@ -303,6 +303,27 @@ export type TranslationKey =
   | "workspace.errorAddMemberFailed"
   | "workspace.errorLeaveWorkspaceFailed"
   | "workspace.errorRemoveMemberFailed"
+  | "workspace.invites"
+  | "workspace.createInviteLink"
+  | "workspace.inviteByEmail"
+  | "workspace.maxUses"
+  | "workspace.uses"
+  | "workspace.expires"
+  | "workspace.copyInviteLink"
+  | "workspace.copied"
+  | "workspace.revokeInvite"
+  | "workspace.inviteRevoked"
+  | "workspace.errorCreateInviteFailed"
+  | "workspace.errorLoadInvitesFailed"
+  | "workspace.errorRevokeInviteFailed"
+  | "workspace.noPermissionToManageInvites"
+  | "workspace.inviteRole"
+  | "workspace.publicInviteLink"
+  | "workspace.targetedInvite"
+  | "workspace.inviteLinkCreated"
+  | "workspace.active"
+  | "workspace.past"
+  | "workspace.noInvites"
   | "workspace.invitationSent"
   | "workspace.memberRemoved"
   | "dashboard.errorLoadWorkspacesFailed"
@@ -749,6 +770,27 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "workspace.errorAddMemberFailed": "Failed to add member",
     "workspace.errorLeaveWorkspaceFailed": "Failed to leave workspace",
     "workspace.errorRemoveMemberFailed": "Failed to remove member",
+    "workspace.invites": "Invites",
+    "workspace.createInviteLink": "Create invite link",
+    "workspace.inviteByEmail": "Invite by email or username",
+    "workspace.maxUses": "Max uses",
+    "workspace.uses": "uses",
+    "workspace.expires": "Expires",
+    "workspace.copyInviteLink": "Copy invite link",
+    "workspace.copied": "Copied!",
+    "workspace.revokeInvite": "Revoke",
+    "workspace.inviteRevoked": "Invite revoked",
+    "workspace.errorCreateInviteFailed": "Failed to create invite",
+    "workspace.errorLoadInvitesFailed": "Failed to load invites",
+    "workspace.errorRevokeInviteFailed": "Failed to revoke invite",
+    "workspace.noPermissionToManageInvites": "You don’t have permission to manage invites.",
+    "workspace.inviteRole": "Role",
+    "workspace.publicInviteLink": "Public invite link",
+    "workspace.targetedInvite": "Targeted invite",
+    "workspace.inviteLinkCreated": "Invite link created. Copy and share it.",
+    "workspace.active": "Active",
+    "workspace.past": "Past",
+    "workspace.noInvites": "No invites yet.",
     "workspace.invitationSent": "Invitation sent",
     "workspace.memberRemoved": "Member removed",
     "dashboard.errorLoadWorkspacesFailed": "Failed to load workspaces",
@@ -1146,6 +1188,27 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "workspace.errorAddMemberFailed": "Не вдалося додати учасника",
     "workspace.errorLeaveWorkspaceFailed": "Не вдалося покинути робочий простір",
     "workspace.errorRemoveMemberFailed": "Не вдалося вилучити учасника",
+    "workspace.invites": "Запрошення",
+    "workspace.createInviteLink": "Створити посилання для запрошення",
+    "workspace.inviteByEmail": "Запросити за email або іменем користувача",
+    "workspace.maxUses": "Макс. використань",
+    "workspace.uses": "використань",
+    "workspace.expires": "Термін дії",
+    "workspace.copyInviteLink": "Копіювати посилання",
+    "workspace.copied": "Скопійовано!",
+    "workspace.revokeInvite": "Скасувати",
+    "workspace.inviteRevoked": "Запрошення скасовано",
+    "workspace.errorCreateInviteFailed": "Не вдалося створити запрошення",
+    "workspace.errorLoadInvitesFailed": "Не вдалося завантажити запрошення",
+    "workspace.errorRevokeInviteFailed": "Не вдалося скасувати запрошення",
+    "workspace.noPermissionToManageInvites": "У вас немає прав для керування запрошеннями.",
+    "workspace.inviteRole": "Роль",
+    "workspace.publicInviteLink": "Публічне посилання",
+    "workspace.targetedInvite": "Цільове запрошення",
+    "workspace.inviteLinkCreated": "Посилання створено. Скопіюйте та поділіться ним.",
+    "workspace.active": "Активні",
+    "workspace.past": "Минулі",
+    "workspace.noInvites": "Поки що немає запрошень.",
     "workspace.invitationSent": "Запрошення надіслано",
     "workspace.memberRemoved": "Учасника вилучено",
     "dashboard.errorLoadWorkspacesFailed": "Не вдалося завантажити робочі простори",
@@ -1543,6 +1606,27 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "workspace.errorAddMemberFailed": "Не удалось добавить участника",
     "workspace.errorLeaveWorkspaceFailed": "Не удалось покинуть рабочее пространство",
     "workspace.errorRemoveMemberFailed": "Не удалось удалить участника",
+    "workspace.invites": "Приглашения",
+    "workspace.createInviteLink": "Создать ссылку для приглашения",
+    "workspace.inviteByEmail": "Пригласить по email или имени пользователя",
+    "workspace.maxUses": "Макс. использований",
+    "workspace.uses": "использований",
+    "workspace.expires": "Срок действия",
+    "workspace.copyInviteLink": "Копировать ссылку",
+    "workspace.copied": "Скопировано!",
+    "workspace.revokeInvite": "Отозвать",
+    "workspace.inviteRevoked": "Приглашение отозвано",
+    "workspace.errorCreateInviteFailed": "Не удалось создать приглашение",
+    "workspace.errorLoadInvitesFailed": "Не удалось загрузить приглашения",
+    "workspace.errorRevokeInviteFailed": "Не удалось отозвать приглашение",
+    "workspace.noPermissionToManageInvites": "У вас нет прав для управления приглашениями.",
+    "workspace.inviteRole": "Роль",
+    "workspace.publicInviteLink": "Публичная ссылка",
+    "workspace.targetedInvite": "Целевое приглашение",
+    "workspace.inviteLinkCreated": "Ссылка создана. Скопируйте и поделитесь ею.",
+    "workspace.active": "Активные",
+    "workspace.past": "Прошлые",
+    "workspace.noInvites": "Приглашений пока нет.",
     "workspace.invitationSent": "Приглашение отправлено",
     "workspace.memberRemoved": "Участник удалён",
     "dashboard.errorLoadWorkspacesFailed": "Не удалось загрузить рабочие пространства",

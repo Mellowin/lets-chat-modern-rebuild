@@ -11,6 +11,20 @@ export interface PendingInvite {
   createdAt: string;
 }
 
+export interface WorkspaceInvite {
+  id: string;
+  workspaceId: string;
+  email: string | null;
+  role: "ADMIN" | "MEMBER";
+  status: "PENDING" | "USED" | "REVOKED" | "EXPIRED";
+  expiresAt: string;
+  usedAt: string | null;
+  deletedAt: string | null;
+  maxUses: number | null;
+  usesCount: number;
+  createdAt: string;
+}
+
 async function parseErrorMessage(res: Response, fallback: string): Promise<string> {
   let message = fallback;
   try {
@@ -31,8 +45,8 @@ async function parseErrorMessage(res: Response, fallback: string): Promise<strin
 export async function createWorkspaceInvite(
   accessToken: string,
   workspaceId: string,
-  input: { email?: string; identifier?: string; role: "ADMIN" | "MEMBER" },
-): Promise<{ id: string; workspaceId: string; email: string; role: string; token: string; expiresAt: string; createdAt: string }> {
+  input: { email?: string; identifier?: string; role: "ADMIN" | "MEMBER"; maxUses?: number },
+): Promise<{ id: string; workspaceId: string; email: string | null; role: string; token: string; expiresAt: string; maxUses: number | null; createdAt: string }> {
   const res = await fetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/invites`,
     {
@@ -50,7 +64,52 @@ export async function createWorkspaceInvite(
     throw new Error(await parseErrorMessage(res, `Failed to create invite: ${res.status} ${res.statusText}`));
   }
 
-  return res.json() as Promise<{ id: string; workspaceId: string; email: string; role: string; token: string; expiresAt: string; createdAt: string }>;
+  return res.json();
+}
+
+export async function listWorkspaceInvites(
+  accessToken: string,
+  workspaceId: string,
+): Promise<WorkspaceInvite[]> {
+  const res = await fetch(
+    `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/invites`,
+    {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to load invites: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json();
+}
+
+export async function revokeWorkspaceInvite(
+  accessToken: string,
+  workspaceId: string,
+  inviteId: string,
+): Promise<{ id: string; deletedAt: string }> {
+  const res = await fetch(
+    `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/invites/${encodeURIComponent(inviteId)}`,
+    {
+      method: "DELETE",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to revoke invite: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json();
 }
 
 export async function getPendingInvites(accessToken: string): Promise<PendingInvite[]> {
@@ -66,7 +125,7 @@ export async function getPendingInvites(accessToken: string): Promise<PendingInv
     throw new Error(await parseErrorMessage(res, `Failed to load invites: ${res.status} ${res.statusText}`));
   }
 
-  return res.json() as Promise<PendingInvite[]>;
+  return res.json();
 }
 
 export async function acceptInvite(
@@ -85,7 +144,7 @@ export async function acceptInvite(
     throw new Error(await parseErrorMessage(res, `Failed to accept invite: ${res.status} ${res.statusText}`));
   }
 
-  return res.json() as Promise<{ workspaceId: string; role: string; joinedAt: string }>;
+  return res.json();
 }
 
 export async function declineInvite(
@@ -104,5 +163,5 @@ export async function declineInvite(
     throw new Error(await parseErrorMessage(res, `Failed to decline invite: ${res.status} ${res.statusText}`));
   }
 
-  return res.json() as Promise<{ id: string; deletedAt: string }>;
+  return res.json();
 }

@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import WorkspaceDetailPage from "./page";
 import { getWorkspace, getWorkspaceMembers, addWorkspaceMember, leaveWorkspace, removeWorkspaceMember } from "@/lib/workspaces-api";
-import { createWorkspaceInvite } from "@/lib/invites-api";
+import { createWorkspaceInvite, listWorkspaceInvites, revokeWorkspaceInvite } from "@/lib/invites-api";
 import { getChannels, getArchivedChannels, archiveChannel, restoreChannel } from "@/lib/channels-api";
 
 const routerPushMock = vi.fn();
@@ -35,6 +35,8 @@ vi.mock("@/lib/workspaces-api", () => ({
 
 vi.mock("@/lib/invites-api", () => ({
   createWorkspaceInvite: vi.fn(),
+  listWorkspaceInvites: vi.fn(),
+  revokeWorkspaceInvite: vi.fn(),
 }));
 
 vi.mock("@/lib/channels-api", () => ({
@@ -65,6 +67,7 @@ function mockWorkspaceData({ archived = [] as unknown[] } = {}) {
     { id: "wm1", workspaceId: "ws1", role: "OWNER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice", displayName: "Alice" } },
   ]);
   vi.mocked(getArchivedChannels).mockResolvedValue(archived as ReturnType<typeof getArchivedChannels> extends Promise<infer T> ? T : never);
+  vi.mocked(listWorkspaceInvites).mockResolvedValue([]);
 }
 
 describe("WorkspaceDetailPage — locale", () => {
@@ -198,6 +201,7 @@ describe("WorkspaceDetailPage — locale", () => {
       role: "MEMBER",
       token: "token123",
       expiresAt: new Date().toISOString(),
+      maxUses: null,
       createdAt: new Date().toISOString(),
     });
 
@@ -484,7 +488,7 @@ describe("WorkspaceDetailPage — add member / invite", () => {
       expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
     });
 
-    const select = screen.getByDisplayValue("Member");
+    const select = screen.getAllByDisplayValue("Member")[0];
     expect(select).toBeInTheDocument();
   });
 
@@ -497,6 +501,7 @@ describe("WorkspaceDetailPage — add member / invite", () => {
       role: "ADMIN",
       token: "token123",
       expiresAt: new Date().toISOString(),
+      maxUses: null,
       createdAt: new Date().toISOString(),
     });
 
@@ -506,7 +511,7 @@ describe("WorkspaceDetailPage — add member / invite", () => {
       expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
     });
 
-    await userEvent.selectOptions(screen.getByDisplayValue("Member"), "ADMIN");
+    await userEvent.selectOptions(screen.getAllByDisplayValue("Member")[0], "ADMIN");
     await userEvent.type(screen.getByPlaceholderText(/Username or email/i), "bob@example.com");
     await userEvent.click(screen.getByRole("button", { name: /Add member/i }));
 
@@ -524,6 +529,7 @@ describe("WorkspaceDetailPage — add member / invite", () => {
       role: "ADMIN",
       token: "token123",
       expiresAt: new Date().toISOString(),
+      maxUses: null,
       createdAt: new Date().toISOString(),
     });
 
@@ -533,7 +539,7 @@ describe("WorkspaceDetailPage — add member / invite", () => {
       expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
     });
 
-    await userEvent.selectOptions(screen.getByDisplayValue("Member"), "ADMIN");
+    await userEvent.selectOptions(screen.getAllByDisplayValue("Member")[0], "ADMIN");
     await userEvent.type(screen.getByPlaceholderText(/Username or email/i), "bob");
     await userEvent.click(screen.getByRole("button", { name: /Add member/i }));
 
@@ -579,6 +585,7 @@ describe("WorkspaceDetailPage — add member / invite", () => {
       role: "MEMBER",
       token: "token123",
       expiresAt: new Date().toISOString(),
+      maxUses: null,
       createdAt: new Date().toISOString(),
     });
 
@@ -607,6 +614,7 @@ describe("WorkspaceDetailPage — add member / invite", () => {
       role: "MEMBER",
       token: "token123",
       expiresAt: new Date().toISOString(),
+      maxUses: null,
       createdAt: new Date().toISOString(),
     });
 
@@ -635,6 +643,7 @@ describe("WorkspaceDetailPage — add member / invite", () => {
       role: "MEMBER",
       token: "token123",
       expiresAt: new Date().toISOString(),
+      maxUses: null,
       createdAt: new Date().toISOString(),
     });
 
@@ -733,6 +742,7 @@ describe("WorkspaceDetailPage — add member / invite", () => {
       role: "MEMBER",
       token: "token123",
       expiresAt: new Date().toISOString(),
+      maxUses: null,
       createdAt: new Date().toISOString(),
     });
     vi.mocked(getWorkspaceMembers).mockResolvedValue([
@@ -766,6 +776,7 @@ describe("WorkspaceDetailPage — add member / invite", () => {
       role: "MEMBER",
       token: "token123",
       expiresAt: new Date().toISOString(),
+      maxUses: null,
       createdAt: new Date().toISOString(),
     });
     vi.mocked(getWorkspaceMembers).mockResolvedValue([
