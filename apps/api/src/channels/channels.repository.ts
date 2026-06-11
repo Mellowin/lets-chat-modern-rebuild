@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { ChannelRole, Prisma, PrismaService } from '@lets-chat/database';
+import { ChannelRole, PrismaService } from '@lets-chat/database';
 
 interface CreateChannelInput {
   workspaceId: string;
@@ -121,10 +121,10 @@ export class ChannelsRepository {
     >`
       SELECT m."channelId", COUNT(*)::int as "unreadCount"
       FROM "Message" m
-      LEFT JOIN "ChannelReadState" crs ON crs."channelId" = m."channelId" AND crs."userId" = ${userId}
-      WHERE m."channelId" IN (${Prisma.join(channelIds)})
+      LEFT JOIN "ChannelReadState" crs ON crs."channelId" = m."channelId" AND crs."userId" = ${userId}::uuid
+      WHERE m."channelId" = ANY(${channelIds}::uuid[])
         AND m."deletedAt" IS NULL
-        AND m."authorId" != ${userId}
+        AND m."authorId" != ${userId}::uuid
         AND m."createdAt" > COALESCE(crs."lastReadAt", '1970-01-01'::timestamp)
       GROUP BY m."channelId"
     `;

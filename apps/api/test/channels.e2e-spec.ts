@@ -166,4 +166,64 @@ describe('Channels E2E Security', () => {
         .expect(201);
     });
   });
+
+  describe('channel list with unread (regression P0)', () => {
+    interface ChannelListItem {
+      id: string;
+      unreadCount: number;
+      hasUnread: boolean;
+    }
+
+    it('lists workspace channels when user has no ChannelReadState rows', () => {
+      return request(app.getHttpServer())
+        .get(`/workspaces/${workspace.id}/channels`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .expect(200)
+        .expect((res) => {
+          expect(Array.isArray(res.body)).toBe(true);
+          const list = res.body as ChannelListItem[];
+          expect(list.length).toBeGreaterThan(0);
+          const ch = list.find(
+            (c: ChannelListItem) => c.id === privateChannel.id,
+          );
+          expect(ch).toBeDefined();
+          expect(ch!.unreadCount).toBe(0);
+          expect(ch!.hasUnread).toBe(false);
+        });
+    });
+
+    it('creates a channel successfully', async () => {
+      const res = await request(app.getHttpServer())
+        .post(`/workspaces/${workspace.id}/channels`)
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ name: `New Channel ${randomUUID()}`, type: 'PUBLIC' })
+        .expect(201);
+
+      const body = res.body as { id: string; workspaceId: string };
+      expect(body).toHaveProperty('id');
+      expect(body).toHaveProperty('workspaceId', workspace.id);
+
+      await prisma.channel.deleteMany({
+        where: { id: body.id },
+      });
+    });
+
+    it('lists channels with unread counts after messages exist', async () => {
+      await prisma.message.create({
+        data: {
+          channelId: privateChannel.id,
+          authorId: userA.id,
+          content: 'test message',
+        },
+      });
+
+      await request(app.getHttpServer())
+        .get(`/workspaces/${workspace.id}/channels`)
+        .set('Authorization', `Bearer ${tokenB}`)
+        .expect(200)
+        .expect((res) => {
+          expect(Array.isArray(res.body)).toBe(true);
+        });
+    });
+  });
 });
