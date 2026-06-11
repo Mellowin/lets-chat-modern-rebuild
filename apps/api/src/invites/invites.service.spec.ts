@@ -809,12 +809,11 @@ describe('InvitesService', () => {
 
     it('should return preview for valid invite link', async () => {
       invitesRepository.findByTokenHashWithWorkspace.mockResolvedValue(
-        mockInvitation({
+        mockPendingInvitationWithRelations({
           tokenHash,
           invitedEmail: null,
           maxUses: 10,
           usesCount: 2,
-          workspace: { id: workspaceId, name: 'Test Workspace', slug: 'test' },
         }),
       );
 
@@ -826,13 +825,12 @@ describe('InvitesService', () => {
 
     it('should return invalid for expired invite link', async () => {
       invitesRepository.findByTokenHashWithWorkspace.mockResolvedValue(
-        mockInvitation({
+        mockPendingInvitationWithRelations({
           tokenHash,
           invitedEmail: null,
           maxUses: 10,
           usesCount: 2,
           expiresAt: new Date(Date.now() - 1000),
-          workspace: { id: workspaceId, name: 'Test Workspace', slug: 'test' },
         }),
       );
 
@@ -843,12 +841,11 @@ describe('InvitesService', () => {
 
     it('should return invalid for max uses reached', async () => {
       invitesRepository.findByTokenHashWithWorkspace.mockResolvedValue(
-        mockInvitation({
+        mockPendingInvitationWithRelations({
           tokenHash,
           invitedEmail: null,
           maxUses: 5,
           usesCount: 5,
-          workspace: { id: workspaceId, name: 'Test Workspace', slug: 'test' },
         }),
       );
 
