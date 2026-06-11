@@ -15,6 +15,7 @@
     "noFallthroughCasesInSwitch": false,
     "inlineSourceMap": true,
     "inlineSources": true,
+    "skipLibCheck": true,
     "experimentalDecorators": true,
     "strictPropertyInitialization": true,
     "outDir": "./dist",
