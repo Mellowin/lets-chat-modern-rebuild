@@ -193,6 +193,19 @@ export type TranslationKey =
   | "workspace.restore"
   | "workspace.restoring"
   | "channel.backToWorkspace"
+  | "invite.loadingInvite"
+  | "invite.invitedToJoin"
+  | "invite.inviteExpires"
+  | "invite.acceptInvite"
+  | "invite.acceptingInvite"
+  | "invite.inviteAccepted"
+  | "invite.invalidOrExpired"
+  | "invite.signInToAccept"
+  | "invite.goToWorkspace"
+  | "invite.goToLogin"
+  | "invite.acceptFailed"
+  | "invite.goToDashboard"
+  | "invite.expired"
   | "channel.loading"
   | "channel.archive"
   | "channel.archiving"
@@ -601,6 +614,19 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "workspace.restore": "Restore",
     "workspace.restoring": "Restoring…",
     "channel.backToWorkspace": "← Back to workspace",
+    "invite.loadingInvite": "Loading invite…",
+    "invite.invitedToJoin": "You have been invited to join",
+    "invite.inviteExpires": "Invite expires",
+    "invite.acceptInvite": "Accept invite",
+    "invite.acceptingInvite": "Accepting invite…",
+    "invite.inviteAccepted": "Invite accepted",
+    "invite.invalidOrExpired": "This invite link is invalid or expired.",
+    "invite.signInToAccept": "Sign in to accept this invite.",
+    "invite.goToWorkspace": "Go to workspace",
+    "invite.goToLogin": "Go to login",
+    "invite.acceptFailed": "Invite could not be accepted",
+    "invite.goToDashboard": "Go to dashboard",
+    "invite.expired": "Expired",
     "channel.loading": "Loading channel…",
     "channel.archive": "Archive",
     "channel.archiving": "Archiving…",
@@ -1019,6 +1045,19 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "workspace.restore": "Відновити",
     "workspace.restoring": "Відновлюємо…",
     "channel.backToWorkspace": "← Назад до робочого простору",
+    "invite.loadingInvite": "Завантаження запрошення…",
+    "invite.invitedToJoin": "Вас запросили приєднатися до",
+    "invite.inviteExpires": "Термін дії запрошення",
+    "invite.acceptInvite": "Прийняти запрошення",
+    "invite.acceptingInvite": "Прийняття запрошення…",
+    "invite.inviteAccepted": "Запрошення прийнято",
+    "invite.invalidOrExpired": "Це посилання недійсне або термін його дії минув.",
+    "invite.signInToAccept": "Увійдіть, щоб прийняти запрошення.",
+    "invite.goToWorkspace": "Перейти до робочого простору",
+    "invite.goToLogin": "Увійти",
+    "invite.acceptFailed": "Не вдалося прийняти запрошення",
+    "invite.goToDashboard": "На головну",
+    "invite.expired": "Термін дії минув",
     "channel.loading": "Завантажуємо канал…",
     "channel.archive": "Архівувати",
     "channel.archiving": "Архівуємо…",
@@ -1437,6 +1476,19 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "workspace.restore": "Восстановить",
     "workspace.restoring": "Восстанавливаем…",
     "channel.backToWorkspace": "← Назад к рабочему пространству",
+    "invite.loadingInvite": "Загрузка приглашения…",
+    "invite.invitedToJoin": "Вас пригласили присоединиться к",
+    "invite.inviteExpires": "Срок действия приглашения",
+    "invite.acceptInvite": "Принять приглашение",
+    "invite.acceptingInvite": "Принятие приглашения…",
+    "invite.inviteAccepted": "Приглашение принято",
+    "invite.invalidOrExpired": "Эта ссылка недействительна или срок её действия истёк.",
+    "invite.signInToAccept": "Войдите, чтобы принять приглашение.",
+    "invite.goToWorkspace": "Перейти в рабочее пространство",
+    "invite.goToLogin": "Войти",
+    "invite.acceptFailed": "Не удалось принять приглашение",
+    "invite.goToDashboard": "На главную",
+    "invite.expired": "Срок действия истёк",
     "channel.loading": "Загружаем канал…",
     "channel.archive": "Архивировать",
     "channel.archiving": "Архивируем…",

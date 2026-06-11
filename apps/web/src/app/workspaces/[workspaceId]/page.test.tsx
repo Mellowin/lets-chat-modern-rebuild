@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import WorkspaceDetailPage from "./page";
 import { getWorkspace, getWorkspaceMembers, addWorkspaceMember, leaveWorkspace, removeWorkspaceMember } from "@/lib/workspaces-api";
-import { createWorkspaceInvite, listWorkspaceInvites, revokeWorkspaceInvite } from "@/lib/invites-api";
+import { createWorkspaceInvite, listWorkspaceInvites } from "@/lib/invites-api";
 import { getChannels, getArchivedChannels, archiveChannel, restoreChannel } from "@/lib/channels-api";
 
 const routerPushMock = vi.fn();

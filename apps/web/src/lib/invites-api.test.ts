@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { getPendingInvites, acceptInvite, declineInvite } from "./invites-api";
+import { getPendingInvites, acceptInvite, declineInvite, previewInvite, acceptInviteByToken } from "./invites-api";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
 
@@ -117,6 +117,65 @@ describe("invites-api", () => {
       });
 
       await expect(acceptInvite(token, "invite-1")).rejects.toThrow("Already a member");
+    });
+  });
+
+  describe("previewInvite", () => {
+    it("returns preview on success", async () => {
+      const payload = { workspaceName: "Test Workspace", expiresAt: new Date().toISOString(), valid: true };
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(payload),
+      });
+
+      const result = await previewInvite("invite-token");
+      expect(result).toEqual(payload);
+      expect(global.fetch).toHaveBeenCalledWith(
+        `${API_BASE}/invites/invite-token/preview`,
+        expect.objectContaining({ method: "GET" }),
+      );
+    });
+
+    it("throws on error response", async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        statusText: "Not Found",
+        json: () => Promise.resolve({ message: "Invite not found" }),
+      });
+
+      await expect(previewInvite("invite-token")).rejects.toThrow("Invite not found");
+    });
+  });
+
+  describe("acceptInviteByToken", () => {
+    it("returns result on success", async () => {
+      const payload = { workspaceId: "ws-1", role: "MEMBER", joinedAt: new Date().toISOString() };
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(payload),
+      });
+
+      const result = await acceptInviteByToken(token, "invite-token");
+      expect(result).toEqual(payload);
+      expect(global.fetch).toHaveBeenCalledWith(
+        `${API_BASE}/invites/accept`,
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ token: "invite-token" }),
+        }),
+      );
+    });
+
+    it("throws on error response", async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 410,
+        statusText: "Gone",
+        json: () => Promise.resolve({ message: "Invite expired" }),
+      });
+
+      await expect(acceptInviteByToken(token, "invite-token")).rejects.toThrow("Invite expired");
     });
   });
 
