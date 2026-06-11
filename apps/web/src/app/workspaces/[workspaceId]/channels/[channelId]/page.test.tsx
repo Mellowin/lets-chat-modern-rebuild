@@ -1,5 +1,5 @@
 import { render, screen, waitFor, fireEvent, act } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import ChannelDetailPage from "./page";
 import { getChannel, getChannelMembers, addChannelMember, removeChannelMember, leaveChannel, archiveChannel, type ChannelMember } from "@/lib/channels-api";
@@ -3046,6 +3046,18 @@ describe("ChannelDetailPage — forward", () => {
   });
 
   describe("attachments", () => {
+    afterEach(() => {
+      vi.mocked(getAttachmentDownloadUrl).mockReset();
+      vi.mocked(getAttachmentDownloadUrl).mockResolvedValue({
+        downloadUrl: "http://minio/img",
+        expiresInSeconds: 300,
+        fileName: "photo.png",
+        mimeType: "image/png",
+        sizeBytes: 1234,
+        kind: "image",
+        createdAt: "2024-01-01T00:00:00Z",
+      });
+    });
     const ownMessageWithAttachment: Message = {
       ...ownMessage,
       attachments: [
@@ -3589,7 +3601,361 @@ describe("ChannelDetailPage — forward", () => {
       expect(screen.getByAltText("photo.png")).toBeInTheDocument();
     });
 
-    it("clicking image attachment preview opens download URL", async () => {
+    it("clicking image attachment opens lightbox", async () => {
+      const msgWithImage: Message = {
+        ...ownMessage,
+        content: "",
+        attachments: [
+          {
+            id: "a2",
+            fileName: "photo.png",
+            mimeType: "image/png",
+            sizeBytes: 1234,
+            kind: "image",
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        ],
+      };
+      mockChannelAndMessages([msgWithImage], []);
+      vi.mocked(getAttachmentDownloadUrl).mockResolvedValueOnce({
+        downloadUrl: "http://minio/img",
+        expiresInSeconds: 300,
+        fileName: "photo.png",
+        mimeType: "image/png",
+        sizeBytes: 1234,
+        kind: "image",
+        createdAt: "2024-01-01T00:00:00Z",
+      });
+
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("message-attachment-image-m1-a2")).toBeInTheDocument();
+      });
+
+      await userEvent.click(screen.getByTestId("message-attachment-image-m1-a2"));
+
+      await waitFor(() => {
+        expect(screen.getByTestId("image-lightbox")).toBeInTheDocument();
+      });
+      expect(screen.getByTestId("lightbox-image")).toHaveAttribute("src", "http://minio/img");
+    });
+
+    it("lightbox close button closes it", async () => {
+      const msgWithImage: Message = {
+        ...ownMessage,
+        content: "",
+        attachments: [
+          {
+            id: "a2",
+            fileName: "photo.png",
+            mimeType: "image/png",
+            sizeBytes: 1234,
+            kind: "image",
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        ],
+      };
+      mockChannelAndMessages([msgWithImage], []);
+      vi.mocked(getAttachmentDownloadUrl).mockResolvedValueOnce({
+        downloadUrl: "http://minio/img",
+        expiresInSeconds: 300,
+        fileName: "photo.png",
+        mimeType: "image/png",
+        sizeBytes: 1234,
+        kind: "image",
+        createdAt: "2024-01-01T00:00:00Z",
+      });
+
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("message-attachment-image-m1-a2")).toBeInTheDocument();
+      });
+      await userEvent.click(screen.getByTestId("message-attachment-image-m1-a2"));
+      await waitFor(() => {
+        expect(screen.getByTestId("image-lightbox")).toBeInTheDocument();
+      });
+
+      await userEvent.click(screen.getByTestId("lightbox-close"));
+
+      await waitFor(() => {
+        expect(screen.queryByTestId("image-lightbox")).not.toBeInTheDocument();
+      });
+    });
+
+    it("lightbox closes on Escape key", async () => {
+      const msgWithImage: Message = {
+        ...ownMessage,
+        content: "",
+        attachments: [
+          {
+            id: "a2",
+            fileName: "photo.png",
+            mimeType: "image/png",
+            sizeBytes: 1234,
+            kind: "image",
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        ],
+      };
+      mockChannelAndMessages([msgWithImage], []);
+      vi.mocked(getAttachmentDownloadUrl).mockResolvedValueOnce({
+        downloadUrl: "http://minio/img",
+        expiresInSeconds: 300,
+        fileName: "photo.png",
+        mimeType: "image/png",
+        sizeBytes: 1234,
+        kind: "image",
+        createdAt: "2024-01-01T00:00:00Z",
+      });
+
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("message-attachment-image-m1-a2")).toBeInTheDocument();
+      });
+      await userEvent.click(screen.getByTestId("message-attachment-image-m1-a2"));
+      await waitFor(() => {
+        expect(screen.getByTestId("image-lightbox")).toBeInTheDocument();
+      });
+
+      await userEvent.keyboard("{Escape}");
+
+      await waitFor(() => {
+        expect(screen.queryByTestId("image-lightbox")).not.toBeInTheDocument();
+      });
+    });
+
+    it("lightbox closes on backdrop click", async () => {
+      const msgWithImage: Message = {
+        ...ownMessage,
+        content: "",
+        attachments: [
+          {
+            id: "a2",
+            fileName: "photo.png",
+            mimeType: "image/png",
+            sizeBytes: 1234,
+            kind: "image",
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        ],
+      };
+      mockChannelAndMessages([msgWithImage], []);
+      vi.mocked(getAttachmentDownloadUrl).mockResolvedValueOnce({
+        downloadUrl: "http://minio/img",
+        expiresInSeconds: 300,
+        fileName: "photo.png",
+        mimeType: "image/png",
+        sizeBytes: 1234,
+        kind: "image",
+        createdAt: "2024-01-01T00:00:00Z",
+      });
+
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("message-attachment-image-m1-a2")).toBeInTheDocument();
+      });
+      await userEvent.click(screen.getByTestId("message-attachment-image-m1-a2"));
+      await waitFor(() => {
+        expect(screen.getByTestId("image-lightbox")).toBeInTheDocument();
+      });
+
+      await userEvent.click(screen.getByTestId("image-lightbox"));
+
+      await waitFor(() => {
+        expect(screen.queryByTestId("image-lightbox")).not.toBeInTheDocument();
+      });
+    });
+
+    it("lightbox shows counter and navigation for multiple images", async () => {
+      const msgWithImages: Message = {
+        ...ownMessage,
+        content: "",
+        attachments: [
+          {
+            id: "a1",
+            fileName: "one.png",
+            mimeType: "image/png",
+            sizeBytes: 100,
+            kind: "image",
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+          {
+            id: "a2",
+            fileName: "two.png",
+            mimeType: "image/png",
+            sizeBytes: 200,
+            kind: "image",
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        ],
+      };
+      mockChannelAndMessages([msgWithImages], []);
+      vi.mocked(getAttachmentDownloadUrl).mockImplementation(async (_t, _w, _c, _m, attachmentId) => {
+        if (attachmentId === "a1") {
+          return { downloadUrl: "http://minio/one", expiresInSeconds: 300, fileName: "one.png", mimeType: "image/png", sizeBytes: 100, kind: "image" as const, createdAt: "2024-01-01T00:00:00Z" };
+        }
+        return { downloadUrl: "http://minio/two", expiresInSeconds: 300, fileName: "two.png", mimeType: "image/png", sizeBytes: 200, kind: "image" as const, createdAt: "2024-01-01T00:00:00Z" };
+      });
+
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("message-attachment-image-m1-a1")).toBeInTheDocument();
+      });
+      await userEvent.click(screen.getByTestId("message-attachment-image-m1-a1"));
+      await waitFor(() => {
+        expect(screen.getByTestId("image-lightbox")).toBeInTheDocument();
+      });
+
+      expect(screen.getByText("1 / 2")).toBeInTheDocument();
+      expect(screen.getByTestId("lightbox-prev")).toBeInTheDocument();
+      expect(screen.getByTestId("lightbox-next")).toBeInTheDocument();
+    });
+
+    it("lightbox prev/next buttons switch image", async () => {
+      const msgWithImages: Message = {
+        ...ownMessage,
+        content: "",
+        attachments: [
+          {
+            id: "a1",
+            fileName: "one.png",
+            mimeType: "image/png",
+            sizeBytes: 100,
+            kind: "image",
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+          {
+            id: "a2",
+            fileName: "two.png",
+            mimeType: "image/png",
+            sizeBytes: 200,
+            kind: "image",
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        ],
+      };
+      mockChannelAndMessages([msgWithImages], []);
+      vi.mocked(getAttachmentDownloadUrl).mockImplementation(async (_t, _w, _c, _m, attachmentId) => {
+        if (attachmentId === "a1") {
+          return { downloadUrl: "http://minio/one", expiresInSeconds: 300, fileName: "one.png", mimeType: "image/png", sizeBytes: 100, kind: "image" as const, createdAt: "2024-01-01T00:00:00Z" };
+        }
+        return { downloadUrl: "http://minio/two", expiresInSeconds: 300, fileName: "two.png", mimeType: "image/png", sizeBytes: 200, kind: "image" as const, createdAt: "2024-01-01T00:00:00Z" };
+      });
+
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("message-attachment-image-m1-a1")).toBeInTheDocument();
+      });
+      await userEvent.click(screen.getByTestId("message-attachment-image-m1-a1"));
+      await waitFor(() => {
+        expect(screen.getByTestId("lightbox-image")).toHaveAttribute("src", "http://minio/one");
+      });
+
+      await userEvent.click(screen.getByTestId("lightbox-next"));
+      await waitFor(() => {
+        expect(screen.getByTestId("lightbox-image")).toHaveAttribute("src", "http://minio/two");
+      });
+      expect(screen.getByText("2 / 2")).toBeInTheDocument();
+
+      await userEvent.click(screen.getByTestId("lightbox-prev"));
+      await waitFor(() => {
+        expect(screen.getByTestId("lightbox-image")).toHaveAttribute("src", "http://minio/one");
+      });
+      expect(screen.getByText("1 / 2")).toBeInTheDocument();
+    });
+
+    it("lightbox ArrowLeft/ArrowRight switches image", async () => {
+      const msgWithImages: Message = {
+        ...ownMessage,
+        content: "",
+        attachments: [
+          {
+            id: "a1",
+            fileName: "one.png",
+            mimeType: "image/png",
+            sizeBytes: 100,
+            kind: "image",
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+          {
+            id: "a2",
+            fileName: "two.png",
+            mimeType: "image/png",
+            sizeBytes: 200,
+            kind: "image",
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        ],
+      };
+      mockChannelAndMessages([msgWithImages], []);
+      vi.mocked(getAttachmentDownloadUrl).mockImplementation(async (_t, _w, _c, _m, attachmentId) => {
+        if (attachmentId === "a1") {
+          return { downloadUrl: "http://minio/one", expiresInSeconds: 300, fileName: "one.png", mimeType: "image/png", sizeBytes: 100, kind: "image" as const, createdAt: "2024-01-01T00:00:00Z" };
+        }
+        return { downloadUrl: "http://minio/two", expiresInSeconds: 300, fileName: "two.png", mimeType: "image/png", sizeBytes: 200, kind: "image" as const, createdAt: "2024-01-01T00:00:00Z" };
+      });
+
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("message-attachment-image-m1-a1")).toBeInTheDocument();
+      });
+      await userEvent.click(screen.getByTestId("message-attachment-image-m1-a1"));
+      await waitFor(() => {
+        expect(screen.getByTestId("lightbox-image")).toHaveAttribute("src", "http://minio/one");
+      });
+
+      await userEvent.keyboard("{ArrowRight}");
+      await waitFor(() => {
+        expect(screen.getByTestId("lightbox-image")).toHaveAttribute("src", "http://minio/two");
+      });
+
+      await userEvent.keyboard("{ArrowLeft}");
+      await waitFor(() => {
+        expect(screen.getByTestId("lightbox-image")).toHaveAttribute("src", "http://minio/one");
+      });
+    });
+
+    it("lightbox hides navigation for single image", async () => {
+      const msgWithImage: Message = {
+        ...ownMessage,
+        content: "",
+        attachments: [
+          {
+            id: "a2",
+            fileName: "photo.png",
+            mimeType: "image/png",
+            sizeBytes: 1234,
+            kind: "image",
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        ],
+      };
+      mockChannelAndMessages([msgWithImage], []);
+      vi.mocked(getAttachmentDownloadUrl).mockResolvedValueOnce({
+        downloadUrl: "http://minio/img",
+        expiresInSeconds: 300,
+        fileName: "photo.png",
+        mimeType: "image/png",
+        sizeBytes: 1234,
+        kind: "image",
+        createdAt: "2024-01-01T00:00:00Z",
+      });
+
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("message-attachment-image-m1-a2")).toBeInTheDocument();
+      });
+      await userEvent.click(screen.getByTestId("message-attachment-image-m1-a2"));
+      await waitFor(() => {
+        expect(screen.getByTestId("image-lightbox")).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTestId("lightbox-prev")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("lightbox-next")).not.toBeInTheDocument();
+      expect(screen.queryByText(/\/ 1/)).not.toBeInTheDocument();
+    });
+
+    it("lightbox download button triggers download", async () => {
       const msgWithImage: Message = {
         ...ownMessage,
         content: "",
@@ -3620,14 +3986,70 @@ describe("ChannelDetailPage — forward", () => {
       await waitFor(() => {
         expect(screen.getByTestId("message-attachment-image-m1-a2")).toBeInTheDocument();
       });
-
       await userEvent.click(screen.getByTestId("message-attachment-image-m1-a2"));
+      await waitFor(() => {
+        expect(screen.getByTestId("image-lightbox")).toBeInTheDocument();
+      });
+
+      await userEvent.click(screen.getByTestId("lightbox-download"));
 
       await waitFor(() => {
         expect(getAttachmentDownloadUrl).toHaveBeenCalledWith("token", "ws1", "ch1", "m1", "a2");
       });
       expect(openMock).toHaveBeenCalledWith("http://minio/img", "_blank");
       openMock.mockRestore();
+    });
+
+    it("lightbox shows error when image URL fails to load", async () => {
+      const msgWithImage: Message = {
+        ...ownMessage,
+        content: "",
+        attachments: [
+          {
+            id: "a2",
+            fileName: "photo.png",
+            mimeType: "image/png",
+            sizeBytes: 1234,
+            kind: "image",
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        ],
+      };
+      mockChannelAndMessages([msgWithImage], []);
+      vi.mocked(getAttachmentDownloadUrl).mockResolvedValueOnce({
+        downloadUrl: "http://minio/img",
+        expiresInSeconds: 300,
+        fileName: "photo.png",
+        mimeType: "image/png",
+        sizeBytes: 1234,
+        kind: "image",
+        createdAt: "2024-01-01T00:00:00Z",
+      });
+
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("message-attachment-image-m1-a2")).toBeInTheDocument();
+      });
+
+      vi.mocked(getAttachmentDownloadUrl).mockRejectedValueOnce(new Error("Network error"));
+
+      await userEvent.click(screen.getByTestId("message-attachment-image-m1-a2"));
+      await waitFor(() => {
+        expect(screen.getByTestId("image-lightbox")).toBeInTheDocument();
+      });
+
+      expect(await screen.findByText(/Failed to load image/i)).toBeInTheDocument();
+    });
+
+    it("non-image attachment still renders as file card and does not open lightbox", async () => {
+      mockChannelAndMessages([ownMessageWithAttachment], []);
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("message-attachments-m1")).toBeInTheDocument();
+      });
+
+      expect(screen.getByTestId("message-attachment-m1-a1")).toBeInTheDocument();
+      expect(screen.queryByTestId("message-attachment-image-m1-a1")).not.toBeInTheDocument();
     });
 
     it("does not render empty text block for attachments-only message", async () => {

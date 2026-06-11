@@ -15,6 +15,7 @@ import { createSocket } from "@/lib/socket-client";
 import { getAvatarUrl } from "@/lib/avatar-url";
 import { MessageAuthor } from "@/components/MessageAuthor";
 import ChannelMessageSearch from "@/components/ChannelMessageSearch";
+import ImageLightbox from "@/components/ImageLightbox";
 
 
 type ChannelState =
@@ -62,6 +63,7 @@ function AttachmentImagePreview({
   channelId,
   accessToken,
   onDownload,
+  onOpen,
 }: {
   attachment: Attachment;
   messageId: string;
@@ -69,6 +71,7 @@ function AttachmentImagePreview({
   channelId: string;
   accessToken: string;
   onDownload: (att: Attachment) => void;
+  onOpen: (att: Attachment) => void;
 }) {
   const [url, setUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
@@ -103,7 +106,7 @@ function AttachmentImagePreview({
 
   return (
     <button
-      onClick={() => window.open(url, "_blank")}
+      onClick={() => onOpen(attachment)}
       data-testid={`message-attachment-image-${messageId}-${attachment.id}`}
       className="block w-fit max-w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 p-1 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors"
     >
@@ -183,6 +186,11 @@ export default function ChannelDetailPage() {
   const [forwardTargets, setForwardTargets] = useState<DirectConversation[] | null>(null);
   const [forwardError, setForwardError] = useState<string | null>(null);
   const [forwarding, setForwarding] = useState(false);
+  const [lightbox, setLightbox] = useState<{
+    messageId: string;
+    attachments: Attachment[];
+    index: number;
+  } | null>(null);
   const [composerAttachments, setComposerAttachments] = useState<ComposerAttachment[]>([]);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -1569,6 +1577,11 @@ export default function ChannelDetailPage() {
                                     channelId={channelId}
                                     accessToken={accessToken || ""}
                                     onDownload={() => handleDownloadAttachment(msg, att)}
+                                    onOpen={() => {
+                                      const images = msg.attachments!.filter((a) => a.kind === "image");
+                                      const idx = images.findIndex((a) => a.id === att.id);
+                                      setLightbox({ messageId: msg.id, attachments: images, index: Math.max(0, idx) });
+                                    }}
                                   />
                                 ) : (
                                   <button
@@ -2027,6 +2040,23 @@ export default function ChannelDetailPage() {
             )}
           </div>
         </div>
+      )}
+
+      {lightbox && (
+        <ImageLightbox
+          attachments={lightbox.attachments}
+          currentIndex={lightbox.index}
+          messageId={lightbox.messageId}
+          workspaceId={workspaceId}
+          channelId={channelId}
+          accessToken={accessToken || ""}
+          onClose={() => setLightbox(null)}
+          onDownload={(att) => {
+            if (!lightbox) return;
+            const msg = messages.kind === "success" ? messages.data.find((m) => m.id === lightbox.messageId) : undefined;
+            if (msg) handleDownloadAttachment(msg, att);
+          }}
+        />
       )}
 
     {isMembersOpen && (

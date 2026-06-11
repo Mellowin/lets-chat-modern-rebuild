@@ -271,6 +271,13 @@ export type TranslationKey =
   | "channel.attachmentReady"
   | "channel.attachmentUploaded"
   | "channel.errorAttachmentUploadFailed"
+  | "channel.lightboxTitle"
+  | "channel.lightboxClose"
+  | "channel.lightboxPrevious"
+  | "channel.lightboxNext"
+  | "channel.lightboxDownload"
+  | "channel.lightboxLoading"
+  | "channel.lightboxImageFailed"
   | "channel.socketDisconnected"
   | "channel.socketConnecting"
   | "channel.socketConnected"
@@ -650,6 +657,13 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.attachmentReady": "Ready",
     "channel.attachmentUploaded": "Uploaded",
     "channel.errorAttachmentUploadFailed": "Attachment upload failed. Please try again.",
+    "channel.lightboxTitle": "Image preview",
+    "channel.lightboxClose": "Close preview",
+    "channel.lightboxPrevious": "Previous image",
+    "channel.lightboxNext": "Next image",
+    "channel.lightboxDownload": "Download",
+    "channel.lightboxLoading": "Loading image…",
+    "channel.lightboxImageFailed": "Failed to load image",
     "channel.socketDisconnected": "Disconnected",
     "channel.socketConnecting": "Connecting",
     "channel.socketConnected": "Connected",
@@ -1039,6 +1053,13 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.attachmentReady": "Готово",
     "channel.attachmentUploaded": "Завантажено",
     "channel.errorAttachmentUploadFailed": "Не вдалося завантажити вкладення. Спробуйте ще раз.",
+    "channel.lightboxTitle": "Перегляд зображення",
+    "channel.lightboxClose": "Закрити перегляд",
+    "channel.lightboxPrevious": "Попереднє зображення",
+    "channel.lightboxNext": "Наступне зображення",
+    "channel.lightboxDownload": "Завантажити",
+    "channel.lightboxLoading": "Завантажуємо зображення…",
+    "channel.lightboxImageFailed": "Не вдалося завантажити зображення",
     "channel.socketDisconnected": "Відʼєднано",
     "channel.socketConnecting": "Підключення",
     "channel.socketConnected": "Підключено",
@@ -1428,6 +1449,13 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.attachmentReady": "Готово",
     "channel.attachmentUploaded": "Загружено",
     "channel.errorAttachmentUploadFailed": "Не удалось загрузить вложение. Попробуйте ещё раз.",
+    "channel.lightboxTitle": "Просмотр изображения",
+    "channel.lightboxClose": "Закрыть просмотр",
+    "channel.lightboxPrevious": "Предыдущее изображение",
+    "channel.lightboxNext": "Следующее изображение",
+    "channel.lightboxDownload": "Скачать",
+    "channel.lightboxLoading": "Загружаем изображение…",
+    "channel.lightboxImageFailed": "Не удалось загрузить изображение",
     "channel.socketDisconnected": "Отключено",
     "channel.socketConnecting": "Подключение",
     "channel.socketConnected": "Подключено",
