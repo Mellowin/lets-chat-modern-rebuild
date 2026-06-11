@@ -20,8 +20,8 @@ type RestoredChannel = Awaited<
 type ChannelWithArchive = NonNullable<
   Awaited<ReturnType<ChannelsRepository['findByIdIncludingArchived']>>
 >;
-type ListedChannel = Awaited<
-  ReturnType<ChannelsRepository['listForWorkspace']>
+type ChannelWithUnread = Awaited<
+  ReturnType<ChannelsRepository['listForWorkspaceWithUnread']>
 >[number];
 type ArchivedChannelList = Awaited<
   ReturnType<ChannelsRepository['listArchivedForWorkspace']>
@@ -577,7 +577,7 @@ describe('ChannelsService', () => {
           hasUnread: false,
           lastReadAt: null,
         },
-      ] as unknown as ListedChannel[]);
+      ] as unknown as ChannelWithUnread[]);
 
       const restoreResult = await service.restore(
         workspaceId,
@@ -607,6 +607,8 @@ describe('ChannelsService', () => {
         channelId,
         userId,
         lastReadAt: new Date('2026-06-11T10:00:00Z'),
+        createdAt: new Date('2026-06-11T10:00:00Z'),
+        updatedAt: new Date('2026-06-11T10:00:00Z'),
       });
 
       const result = await service.markChannelRead(
