@@ -6,6 +6,7 @@ export interface SocketMock {
   socketHandlers: Record<string, (...args: unknown[]) => void>;
   socketOnMock: ReturnType<typeof vi.fn>;
   socketOffMock: ReturnType<typeof vi.fn>;
+  socketEmitMock: ReturnType<typeof vi.fn>;
   socketDisconnectMock: ReturnType<typeof vi.fn>;
   clearSocketHandlers: () => void;
 }
@@ -13,6 +14,7 @@ export interface SocketMock {
 export function createSocketMock(): SocketMock {
   const rawHandlers: Record<string, (...args: unknown[]) => void> = {};
   const offHandlers: Record<string, ((...args: unknown[]) => void)[]> = {};
+  const socketEmitMock = vi.fn();
 
   const socketHandlers = new Proxy(rawHandlers, {
     get(target, prop: string) {
@@ -61,6 +63,7 @@ export function createSocketMock(): SocketMock {
     socketHandlers,
     socketOnMock,
     socketOffMock,
+    socketEmitMock,
     socketDisconnectMock,
     clearSocketHandlers,
   };

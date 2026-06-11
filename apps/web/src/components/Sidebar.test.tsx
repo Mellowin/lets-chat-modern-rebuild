@@ -10,13 +10,14 @@ import { listDirectConversations } from "@/lib/direct-conversations-api";
 import { createWorkspace, createChannel } from "@/test/factories";
 import { createSocketMock } from "@/test/socket-mock";
 
-const { socketHandlers, socketOnMock, socketOffMock, socketDisconnectMock, clearSocketHandlers } =
+const { socketHandlers, socketOnMock, socketOffMock, socketEmitMock, socketDisconnectMock, clearSocketHandlers } =
   createSocketMock();
 
 function makeMockSocket() {
   return {
     on: socketOnMock,
     off: socketOffMock,
+    emit: socketEmitMock,
     disconnect: socketDisconnectMock,
   };
 }
@@ -878,5 +879,197 @@ describe("Sidebar — unauthenticated localization", () => {
     render(<Sidebar />);
     expect(screen.getByText("Робочий простір")).toBeInTheDocument();
     expect(screen.getByText("Увійдіть, щоб бачити свої робочі простори")).toBeInTheDocument();
+  });
+});
+
+
+describe("Sidebar — realtime unread sync", () => {
+  function emitMessageCreated(msg: {
+    id: string;
+    channelId: string;
+    content?: string;
+    author: { id: string; username: string; displayName?: string | null; avatarUrl?: string | null };
+  }) {
+    const full = {
+      content: "hello",
+      parentId: null,
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      editedAt: null,
+      reactions: [],
+      attachments: [],
+      ...msg,
+    };
+    socketHandlers["message:created"](full);
+  }
+
+  it("joins channel rooms after channels load", async () => {
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-channel-link-ch1")).toBeInTheDocument();
+    });
+    expect(socketEmitMock).toHaveBeenCalledWith("channel:join", { workspaceId: "ws1", channelId: "ch1" });
+    expect(socketEmitMock).toHaveBeenCalledWith("channel:join", { workspaceId: "ws1", channelId: "ch2" });
+  });
+
+  it("leaves joined channel rooms on unmount", async () => {
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    const { unmount } = render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-channel-link-ch1")).toBeInTheDocument();
+    });
+    unmount();
+    expect(socketEmitMock).toHaveBeenCalledWith("channel:leave", { channelId: "ch1" });
+    expect(socketEmitMock).toHaveBeenCalledWith("channel:leave", { channelId: "ch2" });
+  });
+
+  it("increments unread badge when message arrives in inactive channel", async () => {
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-channel-link-ch2")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("sidebar-channel-unread-ch2")).not.toBeInTheDocument();
+
+    emitMessageCreated({
+      id: "m-new",
+      channelId: "ch2",
+      author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-channel-unread-ch2")).toHaveTextContent("1");
+    });
+    expect(screen.getByTestId("sidebar-channel-link-ch2")).toHaveClass("font-medium");
+  });
+
+  it("does not increment unread badge when message arrives in current channel", async () => {
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-channel-link-ch1")).toBeInTheDocument();
+    });
+
+    emitMessageCreated({
+      id: "m-new",
+      channelId: "ch1",
+      author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.queryByTestId("sidebar-channel-unread-ch1")).not.toBeInTheDocument();
+  });
+
+  it("does not increment unread badge for own messages", async () => {
+    setupDefaultMocks("/workspaces/ws1/channels/ch2");
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-channel-link-ch1")).toBeInTheDocument();
+    });
+
+    emitMessageCreated({
+      id: "m-new",
+      channelId: "ch1",
+      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.queryByTestId("sidebar-channel-unread-ch1")).not.toBeInTheDocument();
+  });
+
+  it("clears unread badge on channel:read event", async () => {
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    vi.mocked(getChannels).mockResolvedValue([
+      createChannel({ id: "ch1", name: "Boboski", workspaceId: "ws1", type: "PUBLIC" as const }),
+      createChannel({ id: "ch2", name: "ПОПА", workspaceId: "ws1", type: "PRIVATE" as const, unreadCount: 5, hasUnread: true }),
+    ]);
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-channel-unread-ch2")).toHaveTextContent("5");
+    });
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent("channel:read", { detail: { channelId: "ch2" } }));
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("sidebar-channel-unread-ch2")).not.toBeInTheDocument();
+    });
+  });
+
+  it("shows 99+ badge for large unread counts", async () => {
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    vi.mocked(getChannels).mockResolvedValue([
+      createChannel({ id: "ch1", name: "Boboski", workspaceId: "ws1", type: "PUBLIC" as const }),
+      createChannel({ id: "ch2", name: "ПОПА", workspaceId: "ws1", type: "PRIVATE" as const, unreadCount: 150, hasUnread: true }),
+    ]);
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-channel-unread-ch2")).toHaveTextContent("99+");
+    });
+  });
+
+  it("increments unread badge multiple times for several messages", async () => {
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-channel-link-ch2")).toBeInTheDocument();
+    });
+
+    emitMessageCreated({
+      id: "m1",
+      channelId: "ch2",
+      author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+    });
+    emitMessageCreated({
+      id: "m2",
+      channelId: "ch2",
+      author: { id: "u3", username: "charlie", displayName: null, avatarUrl: null },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-channel-unread-ch2")).toHaveTextContent("2");
+    });
+  });
+
+  it("ignores message:created for unknown channels without crashing", async () => {
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-channel-link-ch1")).toBeInTheDocument();
+    });
+
+    emitMessageCreated({
+      id: "m-new",
+      channelId: "unknown-channel",
+      author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.getByTestId("sidebar-channel-link-ch1")).toBeInTheDocument();
+  });
+
+  it("refetches active workspace channels on socket reconnect", async () => {
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-channel-link-ch1")).toBeInTheDocument();
+    });
+    const callsBefore = vi.mocked(getChannels).mock.calls.length;
+
+    act(() => {
+      socketHandlers["connect"]();
+    });
+
+    await waitFor(() => {
+      expect(vi.mocked(getChannels).mock.calls.length).toBeGreaterThan(callsBefore);
+    });
   });
 });

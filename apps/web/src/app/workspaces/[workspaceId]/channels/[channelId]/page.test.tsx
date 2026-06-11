@@ -38,7 +38,7 @@ vi.mock("@/lib/channels-api", () => ({
   removeChannelMember: vi.fn(),
   leaveChannel: vi.fn(),
   archiveChannel: vi.fn(),
-  markChannelRead: vi.fn(),
+  markChannelRead: vi.fn(() => Promise.resolve({ success: true, lastReadAt: "2024-01-01T00:00:00Z" })),
 }));
 
 vi.mock("@/lib/channel-invites-api", () => ({
@@ -485,7 +485,53 @@ describe("ChannelDetailPage — composer focus", () => {
     await waitFor(() => {
       expect(markChannelRead).toHaveBeenCalledWith("token", "ws1", "ch1");
     });
-    expect(dispatchSpy).toHaveBeenCalledWith(expect.any(Event));
+    const calls = dispatchSpy.mock.calls;
+    const channelReadCall = calls.find((call) => {
+      const event = call[0];
+      return event instanceof CustomEvent && event.type === "channel:read";
+    });
+    expect(channelReadCall).toBeDefined();
+    expect((channelReadCall![0] as CustomEvent).detail).toEqual({ channelId: "ch1" });
+
+    dispatchSpy.mockRestore();
+  });
+
+  it("does not call markChannelRead more than once for the same channel load", async () => {
+    mockChannelAndMessages([]);
+    vi.mocked(markChannelRead).mockResolvedValue({ success: true, lastReadAt: "2024-01-01T00:00:00Z" });
+
+    const { rerender } = render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(markChannelRead).toHaveBeenCalledTimes(1);
+    });
+
+    // Simulate a re-render with the same channel
+    rerender(<ChannelDetailPage />);
+
+    // Give any queued microtasks a chance to run
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(markChannelRead).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not crash when markChannelRead fails", async () => {
+    mockChannelAndMessages([]);
+    vi.mocked(markChannelRead).mockRejectedValueOnce(new Error("network"));
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent").mockImplementation(() => true);
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(markChannelRead).toHaveBeenCalledWith("token", "ws1", "ch1");
+    });
+    const channelReadCall = dispatchSpy.mock.calls.find((call) => {
+      const event = call[0];
+      return event instanceof CustomEvent && event.type === "channel:read";
+    });
+    expect(channelReadCall).toBeUndefined();
 
     dispatchSpy.mockRestore();
   });

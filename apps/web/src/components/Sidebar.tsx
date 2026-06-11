@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { getWorkspaces, type Workspace } from "@/lib/workspaces-api";
 import { getChannels, type Channel } from "@/lib/channels-api";
 import { listDirectConversations, type DirectConversation } from "@/lib/direct-conversations-api";
+import { type Message } from "@/lib/messages-api";
 import { createSocket } from "@/lib/socket-client";
 import { useLocale } from "@/lib/locale";
 
@@ -68,6 +69,28 @@ export default function Sidebar() {
     ? pathname.split("/")[2]
     : null;
 
+  const { user } = useAuth();
+  const socketRef = useRef<ReturnType<typeof createSocket> | null>(null);
+  const joinedChannelRoomsRef = useRef<Set<string>>(new Set());
+  const activeWorkspaceIdRef = useRef(activeWorkspaceId);
+  const activeChannelIdRef = useRef(activeChannelId);
+  const userIdRef = useRef(user?.id);
+  const accessTokenRef = useRef(accessToken);
+  const loadChannelsForWorkspaceRef = useRef<(token: string, wsId: string, force?: boolean) => Promise<void>>(async () => {});
+
+  useEffect(() => {
+    activeWorkspaceIdRef.current = activeWorkspaceId;
+  }, [activeWorkspaceId]);
+  useEffect(() => {
+    activeChannelIdRef.current = activeChannelId;
+  }, [activeChannelId]);
+  useEffect(() => {
+    userIdRef.current = user?.id;
+  }, [user?.id]);
+  useEffect(() => {
+    accessTokenRef.current = accessToken;
+  }, [accessToken]);
+
   // Load workspaces
   useEffect(() => {
     if (!isAuthenticated || !accessToken) return;
@@ -93,6 +116,23 @@ export default function Sidebar() {
     };
   }, [isAuthenticated, accessToken]);
 
+  function syncChannelRooms(channels: Channel[], wsId: string) {
+    const socket = socketRef.current;
+    if (!socket) return;
+    for (const roomId of joinedChannelRoomsRef.current) {
+      if (!channels.some((ch) => ch.id === roomId)) {
+        socket.emit("channel:leave", { channelId: roomId });
+        joinedChannelRoomsRef.current.delete(roomId);
+      }
+    }
+    for (const ch of channels) {
+      if (!joinedChannelRoomsRef.current.has(ch.id)) {
+        socket.emit("channel:join", { workspaceId: wsId, channelId: ch.id });
+        joinedChannelRoomsRef.current.add(ch.id);
+      }
+    }
+  }
+
   // Load direct conversations
   useEffect(() => {
     if (!isAuthenticated || !accessToken) return;
@@ -114,6 +154,8 @@ export default function Sidebar() {
     window.addEventListener("direct-conversations:changed", handleDirectConversationsChanged);
     const token = accessToken;
     const socket = createSocket(token);
+    socketRef.current = socket;
+    const joinedRooms = joinedChannelRoomsRef.current;
     function handleDirectConversationUpdated() {
       load(token);
     }
@@ -143,16 +185,51 @@ export default function Sidebar() {
         return { kind: "success", data: updated };
       });
     }
+    function handleMessageCreated(msg: Message) {
+      if (msg.author.id === userIdRef.current) return;
+      const activeCh = activeChannelIdRef.current;
+      if (msg.channelId === activeCh) return;
+      const activeWs = activeWorkspaceIdRef.current;
+      if (!activeWs) return;
+      setWorkspaceChannels((prev) => {
+        const wsState = prev[activeWs];
+        if (wsState?.kind !== "success") return prev;
+        const idx = wsState.data.findIndex((ch) => ch.id === msg.channelId);
+        if (idx === -1) return prev;
+        const next = [...wsState.data];
+        const ch = next[idx];
+        next[idx] = {
+          ...ch,
+          unreadCount: (ch.unreadCount ?? 0) + 1,
+          hasUnread: true,
+        };
+        return { ...prev, [activeWs]: { kind: "success", data: next } };
+      });
+    }
+    function handleConnect() {
+      const activeWs = activeWorkspaceIdRef.current;
+      if (!activeWs) return;
+      loadChannelsForWorkspaceRef.current(token, activeWs, true);
+    }
+    socket.on("connect", handleConnect);
     socket.on("direct:conversation:updated", handleDirectConversationUpdated);
     socket.on("presence:online", handlePresenceOnline);
     socket.on("presence:offline", handlePresenceOffline);
+    socket.on("message:created", handleMessageCreated);
     return () => {
       cancelled = true;
       window.removeEventListener("direct-conversations:changed", handleDirectConversationsChanged);
+      socket.off("connect", handleConnect);
       socket.off("direct:conversation:updated", handleDirectConversationUpdated);
       socket.off("presence:online", handlePresenceOnline);
       socket.off("presence:offline", handlePresenceOffline);
+      socket.off("message:created", handleMessageCreated);
+      for (const roomId of joinedRooms) {
+        socket.emit("channel:leave", { channelId: roomId });
+      }
+      joinedRooms.clear();
       socket.disconnect();
+      socketRef.current = null;
     };
   }, [isAuthenticated, accessToken]);
 
@@ -168,10 +245,17 @@ export default function Sidebar() {
     try {
       const data = await getChannels(token, wsId);
       setWorkspaceChannels((prev) => ({ ...prev, [wsId]: { kind: "success", data } }));
+      if (wsId === activeWorkspaceIdRef.current) {
+        syncChannelRooms(data, wsId);
+      }
     } catch {
       setWorkspaceChannels((prev) => ({ ...prev, [wsId]: { kind: "error" } }));
     }
   }, []);
+
+  useEffect(() => {
+    loadChannelsForWorkspaceRef.current = loadChannelsForWorkspace;
+  }, [loadChannelsForWorkspace]);
 
   // Initialize workspace expansion and load active workspace channels
   const workspacesInitialized = useRef(false);
@@ -221,6 +305,40 @@ export default function Sidebar() {
       window.removeEventListener("channels:changed", handleChannelsChanged);
     };
   }, [isAuthenticated, accessToken, activeWorkspaceId, loadChannelsForWorkspace]);
+
+  // Clear unread badge locally when current channel is marked as read
+  useEffect(() => {
+    function handleChannelRead(event: Event) {
+      const detail = (event as CustomEvent<{ channelId: string } | undefined>).detail;
+      if (!detail?.channelId) return;
+      const wsId = activeWorkspaceIdRef.current;
+      if (!wsId) return;
+      setWorkspaceChannels((prev) => {
+        const wsState = prev[wsId];
+        if (wsState?.kind !== "success") return prev;
+        const idx = wsState.data.findIndex((ch) => ch.id === detail.channelId);
+        if (idx === -1) return prev;
+        const next = [...wsState.data];
+        next[idx] = { ...next[idx], unreadCount: 0, hasUnread: false };
+        return { ...prev, [wsId]: { kind: "success", data: next } };
+      });
+    }
+    window.addEventListener("channel:read", handleChannelRead);
+    return () => window.removeEventListener("channel:read", handleChannelRead);
+  }, []);
+
+  // Resync unread counts when app regains focus
+  useEffect(() => {
+    function handleVisibilityChange() {
+      if (document.visibilityState !== "visible") return;
+      const wsId = activeWorkspaceIdRef.current;
+      const token = accessTokenRef.current;
+      if (!wsId || !token) return;
+      loadChannelsForWorkspaceRef.current(token, wsId, true);
+    }
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, []);
 
   function toggleDirect() {
     setDirectExpanded((prev) => {

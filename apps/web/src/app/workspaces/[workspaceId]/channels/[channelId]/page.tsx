@@ -173,6 +173,7 @@ export default function ChannelDetailPage() {
   const [replyTargetId, setReplyTargetId] = useState<string | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const socketRef = useRef<ReturnType<typeof createSocket> | null>(null);
+  const markReadInFlightRef = useRef<Promise<unknown> | null>(null);
   const typingTimeoutRef = useRef<number | null>(null);
   const messagesScrollRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -318,12 +319,20 @@ export default function ChannelDetailPage() {
         if (!cancelled) {
           setChannel({ kind: "success", data: chData });
           setMessages({ kind: "success", data: msgData });
-          // mark channel as read after successful load
-          try {
-            await markChannelRead(token, ws, ch);
-            window.dispatchEvent(new Event("channels:changed"));
-          } catch {
-            // ignore mark-read failures silently
+          // mark channel as read after successful load; dedupe in-flight calls
+          if (!markReadInFlightRef.current) {
+            markReadInFlightRef.current = markChannelRead(token, ws, ch)
+              .then(() => {
+                window.dispatchEvent(
+                  new CustomEvent("channel:read", { detail: { channelId: ch } }),
+                );
+              })
+              .catch(() => {
+                // ignore mark-read failures silently
+              })
+              .finally(() => {
+                markReadInFlightRef.current = null;
+              });
           }
         }
       } catch (err) {

@@ -56,6 +56,12 @@ See [`docs/deployment-vercel.md`](deployment-vercel.md) for full deployment guid
   - `message:updated` — edited content updates instantly
   - `message:deleted` — message removed instantly
   - `message:reaction_changed` — reaction updates instantly
+- **Channel unread counters** (B175 + B176):
+  - Unread count / badge computed server-side from `ChannelReadState` and non-own messages
+  - Badges update in real time when messages arrive in other channels of the active workspace
+  - Opening a channel marks it read and clears the badge locally
+  - Own messages and current-channel messages do not create unread badges
+  - Focus regain and socket reconnect resync counts
 
 ---
 
@@ -112,8 +118,8 @@ Use these steps to verify core functionality after deploy or before release:
 - **Messages authorization unit tests** added (`messages.service.spec.ts`) — workspace/PRIVATE access, author-only edit with 15-min window, role-based delete permissions.
 - **WebSocket typing access revalidation** added — `broadcastTyping` revalidates channel membership on every event; revoked access triggers `typing:error`, presence cleanup, and automatic room leave.
 - **Private channel E2E security smoke tests** added (`channels.e2e-spec.ts`) — 7 tests proving private channel access control through real HTTP endpoints.
-- **API tests count:** 536 unit tests (24 suites)
-- **Web tests count:** 615 unit tests (18 files) + 232 page tests (2 files)
+- **API tests count:** 695 unit tests (31 suites)
+- **Web tests count:** 629 unit tests (18 files) + 235 page tests (2 files)
 - **E2E tests:** 7 passing locally (2 suites); requires Docker PostgreSQL
 - **CI:** green ✅ (unit tests, builds, lint, typecheck; e2e not yet in CI)
 - **Remaining known risks:**
@@ -140,6 +146,11 @@ Use these steps to verify core functionality after deploy or before release:
 - **Frontend API timeout and recovery UX** — all API requests have a 15-second `AbortController` timeout. When the backend is cold-starting or unreachable, login stops loading and shows a human-friendly message with a cold-start hint instead of hanging forever on "Signing in…". Users can retry immediately.
 - **Workspace invite links are available end-to-end** — OWNER/ADMIN can create targeted email/username invites and public invite links with `maxUses` from the workspace page, copy the generated link, list/revoke active invites, and preview the invite at `/invites/:token` without authentication. Recipients can open the invite link, see workspace name and expiry, and accept the invite (authenticated users) or sign in first (unauthenticated users). `POST /invites/:token/accept` adds the user to the workspace; already-member users receive a safe current-membership response. Expired, revoked, or max-uses-reached links are rejected.
 - **Channel message search is available** — backend endpoint `GET /api/v1/workspaces/:workspaceId/channels/:channelId/messages/search` plus frontend UI with search panel, results list, load-more pagination, safe query highlighting, attachment-only fallback, and jump-to-message.
+- **Channel unread counters** — read-state tracking and realtime badge sync are implemented. Limitations:
+  - No push/browser notifications yet
+  - Realtime unread updates are scoped to the active workspace (channels in non-active workspaces update only on next refetch/focus)
+  - No per-thread unread counts (only channel-level)
+  - Cross-device read sync relies on the next channel-list refetch; other devices do not get immediate badge-clear events
   - Backend message context API is available for search-result jump support: `GET /api/v1/workspaces/:workspaceId/channels/:channelId/messages/:messageId/context` returns target message with configurable before/after surrounding messages.
   - **Search result context mode**: when a user clicks a search result that is not currently loaded in the timeline, the frontend fetches the message context via the backend API, temporarily replaces the message list with the context window (target + surrounding messages), and provides a "Back to latest messages" banner to return to the normal timeline. The target message is highlighted and scrolled into view automatically.
   - Limitations: channel-only search (no global/workspace-wide search via this endpoint), message content only (attachment filename search is not implemented), no DM search yet.
