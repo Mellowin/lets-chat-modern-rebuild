@@ -58,6 +58,7 @@ describe('AuthService', () => {
             consumeActiveToken: jest.fn(),
             revokeToken: jest.fn(),
             revokeAllForUser: jest.fn(),
+            revokeByIdForUser: jest.fn(),
             listSessionsForUser: jest.fn(),
           },
         },
@@ -390,6 +391,7 @@ describe('AuthService — email verification', () => {
             consumeActiveToken: jest.fn(),
             revokeToken: jest.fn(),
             revokeAllForUser: jest.fn(),
+            revokeByIdForUser: jest.fn(),
             listSessionsForUser: jest.fn(),
           },
         },
@@ -742,6 +744,7 @@ describe('AuthService — password reset', () => {
             consumeActiveToken: jest.fn(),
             revokeToken: jest.fn(),
             revokeAllForUser: jest.fn(),
+            revokeByIdForUser: jest.fn(),
             listSessionsForUser: jest.fn(),
           },
         },
@@ -1046,6 +1049,7 @@ describe('AuthService — change password', () => {
             consumeActiveToken: jest.fn(),
             revokeToken: jest.fn(),
             revokeAllForUser: jest.fn(),
+            revokeByIdForUser: jest.fn(),
             listSessionsForUser: jest.fn(),
           },
         },
@@ -1207,6 +1211,7 @@ describe('AuthService — sessions', () => {
             consumeActiveToken: jest.fn(),
             revokeToken: jest.fn(),
             revokeAllForUser: jest.fn(),
+            revokeByIdForUser: jest.fn(),
             listSessionsForUser: jest.fn(),
           },
         },
@@ -1288,6 +1293,28 @@ describe('AuthService — sessions', () => {
         'user-id',
       );
       expect(result).toEqual({ success: true, revokedCount: 3 });
+    });
+  });
+
+  describe('revokeSession', () => {
+    it('revokes own session and returns success', async () => {
+      refreshTokensRepository.revokeByIdForUser.mockResolvedValue(1);
+
+      const result = await service.revokeSession('user-id', 'session-1');
+
+      expect(refreshTokensRepository.revokeByIdForUser).toHaveBeenCalledWith(
+        'session-1',
+        'user-id',
+      );
+      expect(result).toEqual({ success: true });
+    });
+
+    it('throws NotFoundException when session does not exist or is not owned', async () => {
+      refreshTokensRepository.revokeByIdForUser.mockResolvedValue(0);
+
+      await expect(
+        service.revokeSession('user-id', 'session-1'),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });

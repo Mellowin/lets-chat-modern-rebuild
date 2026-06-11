@@ -322,6 +322,22 @@ export async function revokeAllSessions(accessToken: string): Promise<{ success:
   return res.json() as Promise<{ success: boolean; revokedCount: number }>;
 }
 
+export async function revokeSession(accessToken: string, sessionId: string): Promise<{ success: boolean }> {
+  const res = await fetchWithTimeout(`${API_BASE}/auth/sessions/${encodeURIComponent(sessionId)}/revoke`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to revoke session: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<{ success: boolean }>;
+}
+
 export async function updateInterfaceLanguage(accessToken: string, interfaceLanguage: "en" | "uk" | "ru"): Promise<AuthUser> {
   const res = await fetchWithTimeout(`${API_BASE}/auth/me/interface-language`, {
     method: "PATCH",

@@ -378,6 +378,11 @@ export type TranslationKey =
   | "profile.revokeAllConfirm"
   | "profile.revokeAllSuccess"
   | "profile.revokeAllFailed"
+  | "profile.revokeSession"
+  | "profile.revokingSession"
+  | "profile.revokeSessionSuccess"
+  | "profile.revokeSessionFailed"
+  | "profile.revokeSessionConfirm"
   | "profile.loadingSessions"
   | "profile.sessionActive"
   | "profile.sessionRevoked"
@@ -752,6 +757,11 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.revokeAllConfirm": "Are you sure? This will end all sessions, including the current one, and you will need to sign in again.",
     "profile.revokeAllSuccess": "All sessions revoked. Please sign in again.",
     "profile.revokeAllFailed": "Failed to revoke sessions",
+    "profile.revokeSession": "Revoke",
+    "profile.revokingSession": "Revoking…",
+    "profile.revokeSessionSuccess": "Session revoked",
+    "profile.revokeSessionFailed": "Failed to revoke session",
+    "profile.revokeSessionConfirm": "Revoke this session? It will be signed out on the next request.",
     "profile.loadingSessions": "Loading sessions…",
     "profile.sessionActive": "Active",
     "profile.sessionRevoked": "Revoked",
@@ -1136,6 +1146,11 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.revokeAllConfirm": "Ви впевнені? Це завершить усі сесії, включно з поточною, і вам доведеться увійти знову.",
     "profile.revokeAllSuccess": "Усі сесії відкликані. Будь ласка, увійдіть знову.",
     "profile.revokeAllFailed": "Не вдалося відкликати сесії",
+    "profile.revokeSession": "Відкликати",
+    "profile.revokingSession": "Відкликаємо…",
+    "profile.revokeSessionSuccess": "Сесію відкликано",
+    "profile.revokeSessionFailed": "Не вдалося відкликати сесію",
+    "profile.revokeSessionConfirm": "Відкликати цю сесію? Її буде завершено під час наступного запиту.",
     "profile.loadingSessions": "Завантажуємо сесії…",
     "profile.sessionActive": "Активна",
     "profile.sessionRevoked": "Відкликана",
@@ -1520,6 +1535,11 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.revokeAllConfirm": "Вы уверены? Это завершит все сессии, включая текущую, и вам придётся войти снова.",
     "profile.revokeAllSuccess": "Все сессии отозваны. Пожалуйста, войдите снова.",
     "profile.revokeAllFailed": "Не удалось отозвать сессии",
+    "profile.revokeSession": "Отозвать",
+    "profile.revokingSession": "Отзываем…",
+    "profile.revokeSessionSuccess": "Сессия отозвана",
+    "profile.revokeSessionFailed": "Не удалось отозвать сессию",
+    "profile.revokeSessionConfirm": "Отозвать эту сессию? Она будет завершена при следующем запросе.",
     "profile.loadingSessions": "Загружаем сессии…",
     "profile.sessionActive": "Активна",
     "profile.sessionRevoked": "Отозвана",

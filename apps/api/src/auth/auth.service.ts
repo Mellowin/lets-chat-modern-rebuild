@@ -478,6 +478,20 @@ export class AuthService {
     return { success: true, revokedCount };
   }
 
+  async revokeSession(
+    userId: string,
+    sessionId: string,
+  ): Promise<{ success: boolean }> {
+    const revokedCount = await this.refreshTokens.revokeByIdForUser(
+      sessionId,
+      userId,
+    );
+    if (revokedCount === 0) {
+      throw new NotFoundException('Session not found');
+    }
+    return { success: true };
+  }
+
   private toAuthUserResponse(user: User | SafeUser): AuthUserResponse {
     return {
       id: user.id,

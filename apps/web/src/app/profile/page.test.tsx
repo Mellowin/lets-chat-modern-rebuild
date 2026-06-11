@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import ProfilePage from "./page";
 import { useAuth } from "@/lib/auth-context";
-import { updateDisplayName, uploadAvatar, updateInterfaceLanguage, requestEmailChange, changePassword, listSessions, revokeAllSessions } from "@/lib/auth-api";
+import { updateDisplayName, uploadAvatar, updateInterfaceLanguage, requestEmailChange, changePassword, listSessions, revokeAllSessions, revokeSession } from "@/lib/auth-api";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -21,6 +21,7 @@ vi.mock("@/lib/auth-api", () => ({
   changePassword: vi.fn(),
   listSessions: vi.fn(),
   revokeAllSessions: vi.fn(),
+  revokeSession: vi.fn(),
 }));
 
 function mockAuth(userOverrides?: Partial<ReturnType<typeof useAuth>>) {
@@ -107,7 +108,7 @@ describe("ProfilePage — authenticated", () => {
       expect(screen.getByText(/Account information/i)).toBeInTheDocument();
     });
 
-    expect(screen.getAllByText("a@b.com")).toHaveLength(2);
+    expect(screen.getByText("a@b.com")).toBeInTheDocument();
     expect(screen.getByText("Alice")).toBeInTheDocument();
   });
 
@@ -488,6 +489,25 @@ describe("ProfilePage — authenticated", () => {
     });
   });
 
+  it("shows change email in Security tab, not Account tab", async () => {
+    mockAuth();
+    render(<ProfilePage />);
+
+    await openTab("Account");
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: /Account information/i })).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole("heading", { name: /Change email/i })).not.toBeInTheDocument();
+
+    await openTab("Security");
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: /Change email/i })).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole("heading", { name: /Change password/i })).toBeInTheDocument();
+  });
+
   describe("email change", () => {
     it("renders email change section with current email", async () => {
       mockAuth({
@@ -496,12 +516,12 @@ describe("ProfilePage — authenticated", () => {
 
       render(<ProfilePage />);
 
-      await openTab("Account");
+      await openTab("Security");
       await waitFor(() => {
         expect(screen.getByRole("heading", { name: /Change email/i })).toBeInTheDocument();
       });
 
-      expect(screen.getAllByText("old@example.com")).toHaveLength(2);
+      expect(screen.getByText("old@example.com")).toBeInTheDocument();
       expect(screen.getByPlaceholderText(/you@example.com/i)).toBeInTheDocument();
       expect(screen.getByRole("button", { name: /Request change/i })).toBeInTheDocument();
     });
@@ -512,7 +532,7 @@ describe("ProfilePage — authenticated", () => {
 
       render(<ProfilePage />);
 
-      await openTab("Account");
+      await openTab("Security");
       await waitFor(() => {
         expect(screen.getByPlaceholderText(/you@example.com/i)).toBeInTheDocument();
       });
@@ -533,7 +553,7 @@ describe("ProfilePage — authenticated", () => {
 
       render(<ProfilePage />);
 
-      await openTab("Account");
+      await openTab("Security");
       await waitFor(() => {
         expect(screen.getByPlaceholderText(/you@example.com/i)).toBeInTheDocument();
       });
@@ -621,10 +641,13 @@ describe("ProfilePage — change password", () => {
     const toggle = screen.getByTestId("current-password-field-toggle");
 
     expect(field).toHaveAttribute("type", "password");
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
     await userEvent.click(toggle);
     expect(field).toHaveAttribute("type", "text");
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
     await userEvent.click(toggle);
     expect(field).toHaveAttribute("type", "password");
+    expect(toggle).toHaveAttribute("aria-pressed", "false");
   });
 
   it("toggles password visibility for new password", async () => {
@@ -706,11 +729,14 @@ describe("ProfilePage — sessions", () => {
       expect(screen.getByRole("button", { name: /Show sessions/i })).toBeInTheDocument();
     });
 
-    await userEvent.click(screen.getByRole("button", { name: /Show sessions/i }));
+    const toggleButton = screen.getByRole("button", { name: /Show sessions/i });
+    expect(toggleButton).toHaveAttribute("aria-expanded", "false");
+    await userEvent.click(toggleButton);
 
     await waitFor(() => {
       expect(screen.getByTestId("session-item-s1")).toBeInTheDocument();
     });
+    expect(toggleButton).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByTestId("session-item-s2")).toBeInTheDocument();
     expect(screen.getByTestId("session-item-s3")).toBeInTheDocument();
   });
@@ -752,11 +778,10 @@ describe("ProfilePage — sessions", () => {
       expect(screen.getByRole("heading", { name: /Sessions/i })).toBeInTheDocument();
     });
 
-    await userEvent.click(screen.getByRole("button", { name: /Show sessions/i }));
-
     await waitFor(() => {
       expect(screen.getByText(/Network error/i)).toBeInTheDocument();
     });
+    expect(screen.queryByText(/Active sessions:/i)).not.toBeInTheDocument();
   });
 
   it("shows no sessions message when list is empty", async () => {
@@ -775,6 +800,86 @@ describe("ProfilePage — sessions", () => {
     await waitFor(() => {
       expect(screen.getByText(/No sessions found/i)).toBeInTheDocument();
     });
+  });
+
+  it("revokes an individual session after confirm and updates UI", async () => {
+    mockAuth();
+    vi.mocked(listSessions).mockResolvedValueOnce([
+      { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true },
+      { id: "s2", createdAt: "2024-01-02T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true },
+    ]);
+    vi.mocked(revokeSession).mockResolvedValueOnce({ success: true });
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(<ProfilePage />);
+
+    await openTab("Sessions");
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Show sessions/i })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Show sessions/i }));
+    await waitFor(() => {
+      expect(screen.getByTestId("session-item-s1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("revoke-session-s1"));
+
+    await waitFor(() => {
+      expect(revokeSession).toHaveBeenCalledWith("token", "s1");
+    });
+    expect(await screen.findByText(/Session revoked/i)).toBeInTheDocument();
+    expect(screen.getByTestId("revoke-session-s2")).toBeInTheDocument();
+    expect(screen.queryByTestId("revoke-session-s1")).not.toBeInTheDocument();
+  });
+
+  it("shows error when individual session revoke fails", async () => {
+    mockAuth();
+    vi.mocked(listSessions).mockResolvedValueOnce([
+      { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true },
+    ]);
+    vi.mocked(revokeSession).mockRejectedValueOnce(new Error("Session not found"));
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(<ProfilePage />);
+
+    await openTab("Sessions");
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Show sessions/i })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Show sessions/i }));
+    await waitFor(() => {
+      expect(screen.getByTestId("session-item-s1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("revoke-session-s1"));
+
+    expect(await screen.findByText(/Session not found/i)).toBeInTheDocument();
+  });
+
+  it("does not revoke individual session when confirm is cancelled", async () => {
+    mockAuth();
+    vi.mocked(listSessions).mockResolvedValueOnce([
+      { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true },
+    ]);
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+
+    render(<ProfilePage />);
+
+    await openTab("Sessions");
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Show sessions/i })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Show sessions/i }));
+    await waitFor(() => {
+      expect(screen.getByTestId("session-item-s1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("revoke-session-s1"));
+
+    expect(revokeSession).not.toHaveBeenCalled();
   });
 
   it("revokes all sessions after confirm and calls logout", async () => {

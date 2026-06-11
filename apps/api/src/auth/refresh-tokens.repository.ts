@@ -65,6 +65,19 @@ export class RefreshTokensRepository {
     return result.count;
   }
 
+  async revokeByIdForUser(sessionId: string, userId: string): Promise<number> {
+    const result = await this.prisma.refreshToken.updateMany({
+      where: {
+        id: sessionId,
+        userId,
+        revokedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      data: { revokedAt: new Date() },
+    });
+    return result.count;
+  }
+
   async listSessionsForUser(userId: string) {
     return this.prisma.refreshToken.findMany({
       where: { userId },

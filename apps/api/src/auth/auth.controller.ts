@@ -4,6 +4,8 @@ import {
   Post,
   Patch,
   Body,
+  Param,
+  ParseUUIDPipe,
   HttpCode,
   UseGuards,
   UseInterceptors,
@@ -186,6 +188,21 @@ export class AuthController {
     @CurrentUser() user: AuthUserResponse,
   ): Promise<{ success: boolean; revokedCount: number }> {
     return this.auth.revokeAllSessions(user.id);
+  }
+
+  @Post('sessions/:sessionId/revoke')
+  @UseGuards(JwtAccessGuard)
+  @HttpCode(200)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Revoke a single refresh session' })
+  @ApiOkResponse({ description: 'Session revoked successfully' })
+  @ApiNotFoundResponse({ description: 'Session not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async revokeSession(
+    @CurrentUser() user: AuthUserResponse,
+    @Param('sessionId', ParseUUIDPipe) sessionId: string,
+  ): Promise<{ success: boolean }> {
+    return this.auth.revokeSession(user.id, sessionId);
   }
 
   @Post('change-email/request')

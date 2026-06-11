@@ -4,7 +4,7 @@ import { useLayoutEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
-import { updateDisplayName, uploadAvatar, updateInterfaceLanguage, requestEmailChange, changePassword, listSessions, revokeAllSessions } from "@/lib/auth-api";
+import { updateDisplayName, uploadAvatar, updateInterfaceLanguage, requestEmailChange, changePassword, listSessions, revokeAllSessions, revokeSession } from "@/lib/auth-api";
 import { useLocale, type Locale, localeLabel } from "@/lib/locale";
 import { getAvatarUrl } from "@/lib/avatar-url";
 
@@ -69,6 +69,7 @@ function PasswordField({
         type="button"
         onClick={() => setShow((s) => !s)}
         aria-label={show ? t("profile.hidePassword") : t("profile.showPassword")}
+        aria-pressed={show}
         className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 transition-colors"
         data-testid={dataTestId ? `${dataTestId}-toggle` : undefined}
       >
@@ -106,6 +107,12 @@ export default function ProfilePage() {
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [sessionsError, setSessionsError] = useState("");
   const [revokeState, setRevokeState] = useState<FormState>({ kind: "idle" });
+  const [sessionRevokeState, setSessionRevokeState] = useState<
+    | { kind: "idle" }
+    | { kind: "loading"; sessionId: string }
+    | { kind: "success"; sessionId: string }
+    | { kind: "error"; sessionId: string; message: string }
+  >({ kind: "idle" });
   const [showSessionsList, setShowSessionsList] = useState(false);
 
   useLayoutEffect(() => {
@@ -149,6 +156,27 @@ export default function ProfilePage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : t("profile.revokeAllFailed");
       setRevokeState({ kind: "error", message });
+    }
+  }
+
+  async function handleRevokeSession(sessionId: string) {
+    if (!accessToken) return;
+    const confirmed = window.confirm(t("profile.revokeSessionConfirm"));
+    if (!confirmed) return;
+    setSessionRevokeState({ kind: "loading", sessionId });
+    try {
+      await revokeSession(accessToken, sessionId);
+      setSessions((prev) =>
+        prev.map((s) =>
+          s.id === sessionId
+            ? { ...s, revokedAt: new Date().toISOString(), isActive: false }
+            : s,
+        ),
+      );
+      setSessionRevokeState({ kind: "success", sessionId });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t("profile.revokeSessionFailed");
+      setSessionRevokeState({ kind: "error", sessionId, message });
     }
   }
 
@@ -266,7 +294,7 @@ export default function ProfilePage() {
 
       <h1 className="mt-6 text-2xl font-semibold tracking-tight">{t("profile.title")}</h1>
 
-      <nav className="mt-6 flex flex-wrap gap-2" aria-label={t("profile.profileSettings")}>
+      <nav className="mt-6 flex flex-nowrap gap-2 overflow-x-auto pb-1" aria-label={t("profile.profileSettings")}>
         {TAB_ITEMS.map((tab) => {
           const active = activeTab === tab.key;
           return (
@@ -303,63 +331,7 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          <div className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
-            <h2 className="text-sm font-semibold">{t("auth.changeEmailTitle")}</h2>
-            <div className="mt-3 grid grid-cols-1 sm:grid-cols-[12rem_1fr] gap-x-4 gap-y-2 text-sm">
-              <span className="text-zinc-500 dark:text-zinc-400">{t("auth.currentEmail")}</span>
-              <span className="min-w-0 font-medium break-words">{user?.email}</span>
-            </div>
-            <form
-              onSubmit={async (e) => {
-                e.preventDefault();
-                if (!accessToken || !newEmailInput.trim()) return;
-                setEmailChangeState({ kind: "loading" });
-                try {
-                  await requestEmailChange(accessToken, { newEmail: newEmailInput.trim() });
-                  setEmailChangeState({ kind: "success" });
-                  setNewEmailInput("");
-                } catch (err) {
-                  const message = err instanceof Error ? err.message : t("auth.emailChangeFailed");
-                  setEmailChangeState({ kind: "error", message });
-                }
-              }}
-              className="mt-3 flex flex-col sm:flex-row items-start gap-3"
-            >
-              <input
-                type="email"
-                placeholder={t("auth.emailPlaceholder")}
-                value={newEmailInput}
-                onChange={(e) => setNewEmailInput(e.target.value)}
-                disabled={emailChangeState.kind === "loading"}
-                className="flex-1 w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100 disabled:opacity-60"
-              />
-              <button
-                type="submit"
-                disabled={emailChangeState.kind === "loading"}
-                className="inline-flex w-full sm:w-auto items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors sm:shrink-0"
-              >
-                {emailChangeState.kind === "loading" ? t("profile.saving") : t("auth.requestChange")}
-              </button>
-            </form>
-            {emailChangeState.kind === "success" && (
-              <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
-                <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                  {t("auth.emailChangeRequested")}
-                </div>
-              </div>
-            )}
-            {emailChangeState.kind === "error" && (
-              <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-2.5 text-sm dark:border-red-900 dark:bg-red-950/30">
-                <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-                  <span className="h-2 w-2 rounded-full bg-red-500" />
-                  {emailChangeState.message}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
+<div className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
             <h2 className="text-sm font-semibold">{t("profile.avatar")}</h2>
             <div className="mt-3 flex items-center gap-4">
               <div className="relative h-16 w-16 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center overflow-hidden">
@@ -444,6 +416,64 @@ export default function ProfilePage() {
 
       {activeTab === "security" && (
         <div className="mt-6 space-y-6">
+          <div className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm" data-testid="change-email-section">
+            <h2 className="text-sm font-semibold">{t("auth.changeEmailTitle")}</h2>
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-[12rem_1fr] gap-x-4 gap-y-2 text-sm">
+              <span className="text-zinc-500 dark:text-zinc-400">{t("auth.currentEmail")}</span>
+              <span className="min-w-0 font-medium break-words">{user?.email}</span>
+            </div>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!accessToken || !newEmailInput.trim()) return;
+                setEmailChangeState({ kind: "loading" });
+                try {
+                  await requestEmailChange(accessToken, { newEmail: newEmailInput.trim() });
+                  setEmailChangeState({ kind: "success" });
+                  setNewEmailInput("");
+                } catch (err) {
+                  const message = err instanceof Error ? err.message : t("auth.emailChangeFailed");
+                  setEmailChangeState({ kind: "error", message });
+                }
+              }}
+              className="mt-3 flex flex-col sm:flex-row items-start gap-3"
+            >
+              <input
+                type="email"
+                placeholder={t("auth.emailPlaceholder")}
+                value={newEmailInput}
+                onChange={(e) => setNewEmailInput(e.target.value)}
+                disabled={emailChangeState.kind === "loading"}
+                className="flex-1 w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100 disabled:opacity-60"
+                data-testid="change-email-input"
+              />
+              <button
+                type="submit"
+                disabled={emailChangeState.kind === "loading"}
+                className="inline-flex w-full sm:w-auto items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors sm:shrink-0"
+                data-testid="change-email-submit"
+              >
+                {emailChangeState.kind === "loading" ? t("profile.saving") : t("auth.requestChange")}
+              </button>
+            </form>
+            {emailChangeState.kind === "success" && (
+              <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
+                <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                  {t("auth.emailChangeRequested")}
+                </div>
+              </div>
+            )}
+            {emailChangeState.kind === "error" && (
+              <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-2.5 text-sm dark:border-red-900 dark:bg-red-950/30">
+                <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+                  <span className="h-2 w-2 rounded-full bg-red-500" />
+                  {emailChangeState.message}
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
             <h2 className="text-sm font-semibold">{t("profile.changePassword")}</h2>
             <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
@@ -544,19 +574,31 @@ export default function ProfilePage() {
             <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
               {t("profile.sessionsExplanation")}
             </p>
-            <div className="mt-3 flex items-center gap-3">
-              <span className="text-sm text-zinc-700 dark:text-zinc-300">
-                {t("profile.activeSessionsCount", String(activeCount))}
-              </span>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              {!sessionsError && (
+                <span className="text-sm text-zinc-700 dark:text-zinc-300">
+                  {t("profile.activeSessionsCount", String(activeCount))}
+                </span>
+              )}
               <button
                 type="button"
                 onClick={() => setShowSessionsList((s) => !s)}
+                aria-expanded={showSessionsList}
                 className="inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                 data-testid="toggle-sessions-list"
               >
                 {showSessionsList ? t("profile.hideSessions") : t("profile.showSessions")}
               </button>
             </div>
+
+            {sessionsError && (
+              <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-2.5 text-sm dark:border-red-900 dark:bg-red-950/30">
+                <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+                  <span className="h-2 w-2 rounded-full bg-red-500" />
+                  {sessionsError}
+                </div>
+              </div>
+            )}
 
             {showSessionsList && (
               <div className="mt-4">
@@ -590,11 +632,13 @@ export default function ProfilePage() {
                         statusLabel = t("profile.sessionExpired");
                         statusClass = "text-amber-600 dark:text-amber-400";
                       }
+                      const canRevoke = !session.revokedAt && session.isActive;
+                      const isRevoking = sessionRevokeState.kind === "loading" && sessionRevokeState.sessionId === session.id;
                       return (
                         <div
                           key={session.id}
                           data-testid={`session-item-${session.id}`}
-                          className="flex items-center justify-between rounded-lg border border-zinc-200 dark:border-zinc-800 px-3 py-2 text-sm"
+                          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-lg border border-zinc-200 dark:border-zinc-800 px-3 py-2 text-sm"
                         >
                           <div className="flex flex-col gap-0.5">
                             <span className="text-zinc-700 dark:text-zinc-300">
@@ -604,7 +648,40 @@ export default function ProfilePage() {
                               {t("profile.expiresAt")}: {new Date(session.expiresAt).toLocaleString()}
                             </span>
                           </div>
-                          <span className={`font-medium ${statusClass}`}>{statusLabel}</span>
+                          <div className="flex items-center gap-3">
+                            <span className={`font-medium ${statusClass}`}>{statusLabel}</span>
+                            {canRevoke && (
+                              <button
+                                type="button"
+                                onClick={() => handleRevokeSession(session.id)}
+                                disabled={isRevoking}
+                                className="inline-flex items-center justify-center rounded-md border border-zinc-300 dark:border-zinc-700 px-2.5 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-60 transition-colors"
+                                data-testid={`revoke-session-${session.id}`}
+                              >
+                                {isRevoking ? t("profile.revokingSession") : t("profile.revokeSession")}
+                              </button>
+                            )}
+                          </div>
+                          {sessionRevokeState.kind === "success" && sessionRevokeState.sessionId === session.id && (
+                            <div className="sm:contents">
+                              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-xs dark:border-emerald-900 dark:bg-emerald-950/30">
+                                <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                  {t("profile.revokeSessionSuccess")}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          {sessionRevokeState.kind === "error" && sessionRevokeState.sessionId === session.id && (
+                            <div className="sm:contents">
+                              <div className="rounded-lg border border-red-200 bg-red-50 p-2 text-xs dark:border-red-900 dark:bg-red-950/30">
+                                <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                                  {sessionRevokeState.message}
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}

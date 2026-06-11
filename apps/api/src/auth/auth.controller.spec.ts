@@ -44,6 +44,7 @@ describe('AuthController', () => {
             updateInterfaceLanguage: jest.fn(),
             listSessions: jest.fn(),
             revokeAllSessions: jest.fn(),
+            revokeSession: jest.fn(),
           },
         },
         {
@@ -437,6 +438,20 @@ describe('AuthController', () => {
 
       expect(authService.revokeAllSessions).toHaveBeenCalledWith('user-id');
       expect(result).toEqual({ success: true, revokedCount: 2 });
+    });
+  });
+
+  describe('POST /auth/sessions/:sessionId/revoke', () => {
+    it('revokes a single session and returns success', async () => {
+      authService.revokeSession.mockResolvedValue({ success: true });
+
+      const result = await controller.revokeSession(user, 'session-1');
+
+      expect(authService.revokeSession).toHaveBeenCalledWith(
+        'user-id',
+        'session-1',
+      );
+      expect(result).toEqual({ success: true });
     });
   });
 });
