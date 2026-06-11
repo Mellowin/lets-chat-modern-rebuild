@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { getWorkspaces, getWorkspace, createWorkspace, leaveWorkspace, removeWorkspaceMember, restoreWorkspace, listArchivedWorkspaces, type Workspace } from "./workspaces-api";
+import { getWorkspaces, getWorkspace, createWorkspace, leaveWorkspace, removeWorkspaceMember, updateWorkspaceMemberRole, restoreWorkspace, listArchivedWorkspaces, type Workspace } from "./workspaces-api";
 
 const API_BASE = "http://localhost:3001/api/v1";
 
@@ -128,6 +128,36 @@ describe("workspaces-api", () => {
         new Response(JSON.stringify({ message: "Admin can only remove members" }), { status: 403 }),
       );
       await expect(removeWorkspaceMember("token", "ws1", "m1")).rejects.toThrow("Admin can only remove members");
+    });
+  });
+
+  describe("updateWorkspaceMemberRole", () => {
+    it("sends PATCH /workspaces/:id/members/:memberId/role with body", async () => {
+      const mock = { id: "m1", workspaceId: "ws1", role: "ADMIN", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u2", username: "bob" } };
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(mock), { status: 200 }));
+
+      const result = await updateWorkspaceMemberRole("token", "ws1", "m1", "ADMIN");
+
+      expect(fetch).toHaveBeenCalledWith(
+        `${API_BASE}/workspaces/ws1/members/m1/role`,
+        expect.objectContaining({
+          method: "PATCH",
+          headers: expect.objectContaining({
+            Accept: "application/json",
+            Authorization: "Bearer token",
+            "Content-Type": "application/json",
+          }),
+          body: JSON.stringify({ role: "ADMIN" }),
+        }),
+      );
+      expect(result).toEqual(mock);
+    });
+
+    it("throws with backend error message", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(
+        new Response(JSON.stringify({ message: "Only owner can update roles" }), { status: 403 }),
+      );
+      await expect(updateWorkspaceMemberRole("token", "ws1", "m1", "ADMIN")).rejects.toThrow("Only owner can update roles");
     });
   });
 

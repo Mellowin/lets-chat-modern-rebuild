@@ -1,4 +1,5 @@
 import { getApiBase } from "./env";
+import { fetchWithTimeout } from "./fetch-timeout";
 
 const API_BASE = getApiBase();
 
@@ -254,6 +255,32 @@ export async function removeWorkspaceMember(
   }
 
   return res.json() as Promise<{ success: boolean }>;
+}
+
+export async function updateWorkspaceMemberRole(
+  accessToken: string,
+  workspaceId: string,
+  memberId: string,
+  role: "ADMIN" | "MEMBER",
+): Promise<WorkspaceMember> {
+  const res = await fetchWithTimeout(
+    `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(memberId)}/role`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ role }),
+    },
+  );
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to update role: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<WorkspaceMember>;
 }
 
 export async function restoreWorkspace(

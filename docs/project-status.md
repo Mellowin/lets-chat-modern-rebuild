@@ -35,6 +35,7 @@ See [`docs/deployment-vercel.md`](deployment-vercel.md) for full deployment guid
 - Auto-generate slug from name via Russian/Ukrainian → Latin transliteration
 - List own workspaces
 - View workspace detail
+- Manage workspace members — OWNER can change roles (promote/demote between ADMIN and MEMBER) and remove members; ADMIN can remove MEMBERs
 
 ### Channels
 - Create channel inside workspace (name → auto-slug)
@@ -112,7 +113,7 @@ Use these steps to verify core functionality after deploy or before release:
 - **WebSocket typing access revalidation** added — `broadcastTyping` revalidates channel membership on every event; revoked access triggers `typing:error`, presence cleanup, and automatic room leave.
 - **Private channel E2E security smoke tests** added (`channels.e2e-spec.ts`) — 7 tests proving private channel access control through real HTTP endpoints.
 - **API tests count:** 536 unit tests (24 suites)
-- **Web tests count:** 504 unit tests (18 files) + 188 page tests (2 files)
+- **Web tests count:** 615 unit tests (18 files) + 232 page tests (2 files)
 - **E2E tests:** 7 passing locally (2 suites); requires Docker PostgreSQL
 - **CI:** green ✅ (unit tests, builds, lint, typecheck; e2e not yet in CI)
 - **Remaining known risks:**

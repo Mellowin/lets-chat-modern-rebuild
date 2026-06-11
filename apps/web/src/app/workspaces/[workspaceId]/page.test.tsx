@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import WorkspaceDetailPage from "./page";
-import { getWorkspace, getWorkspaceMembers, addWorkspaceMember, leaveWorkspace, removeWorkspaceMember } from "@/lib/workspaces-api";
+import { getWorkspace, getWorkspaceMembers, addWorkspaceMember, leaveWorkspace, removeWorkspaceMember, updateWorkspaceMemberRole } from "@/lib/workspaces-api";
 import { createWorkspaceInvite, listWorkspaceInvites } from "@/lib/invites-api";
 import { getChannels, getArchivedChannels, archiveChannel, restoreChannel } from "@/lib/channels-api";
 
@@ -31,6 +31,7 @@ vi.mock("@/lib/workspaces-api", () => ({
   addWorkspaceMember: vi.fn(),
   leaveWorkspace: vi.fn(),
   removeWorkspaceMember: vi.fn(),
+  updateWorkspaceMemberRole: vi.fn(),
 }));
 
 vi.mock("@/lib/invites-api", () => ({
@@ -488,7 +489,7 @@ describe("WorkspaceDetailPage — add member / invite", () => {
       expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
     });
 
-    const select = screen.getAllByDisplayValue("Member")[0];
+    const select = screen.getByLabelText("Role");
     expect(select).toBeInTheDocument();
   });
 
@@ -511,7 +512,7 @@ describe("WorkspaceDetailPage — add member / invite", () => {
       expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
     });
 
-    await userEvent.selectOptions(screen.getAllByDisplayValue("Member")[0], "ADMIN");
+    await userEvent.selectOptions(screen.getByLabelText("Role"), "ADMIN");
     await userEvent.type(screen.getByPlaceholderText(/Username or email/i), "bob@example.com");
     await userEvent.click(screen.getByRole("button", { name: /Add member/i }));
 
@@ -539,7 +540,7 @@ describe("WorkspaceDetailPage — add member / invite", () => {
       expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
     });
 
-    await userEvent.selectOptions(screen.getAllByDisplayValue("Member")[0], "ADMIN");
+    await userEvent.selectOptions(screen.getByLabelText("Role"), "ADMIN");
     await userEvent.type(screen.getByPlaceholderText(/Username or email/i), "bob");
     await userEvent.click(screen.getByRole("button", { name: /Add member/i }));
 
@@ -1018,6 +1019,178 @@ describe("WorkspaceDetailPage — remove member", () => {
 
     expect(await screen.findByText(/Cannot remove workspace owner/i)).toBeInTheDocument();
     expect(screen.getByText("Bob")).toBeInTheDocument();
+
+    confirmSpy.mockRestore();
+  });
+});
+
+describe("WorkspaceDetailPage — update member role", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockAuthUser.id = "u1";
+    mockAuthUser.email = "a@b.com";
+    mockAuthUser.username = "alice";
+  });
+
+  function mockWorkspaceWithMembers(members: unknown[]) {
+    mockWorkspaceData({ archived: [] });
+    vi.mocked(getWorkspaceMembers).mockResolvedValue(members as Awaited<ReturnType<typeof getWorkspaceMembers>>);
+  }
+
+  it("OWNER sees role select for MEMBER and can promote to ADMIN", async () => {
+    mockWorkspaceWithMembers([
+      { id: "wm1", workspaceId: "ws1", role: "OWNER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice", displayName: "Alice" } },
+      { id: "wm2", workspaceId: "ws1", role: "MEMBER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u2", username: "bob", displayName: "Bob" } },
+    ]);
+    vi.mocked(updateWorkspaceMemberRole).mockResolvedValue({
+      id: "wm2", workspaceId: "ws1", role: "ADMIN", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u2", username: "bob", displayName: "Bob" },
+    });
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Bob")).toBeInTheDocument();
+    });
+
+    const roleSelect = screen.getByLabelText("Change role");
+    expect(roleSelect).toHaveValue("MEMBER");
+
+    await userEvent.selectOptions(roleSelect, "ADMIN");
+
+    await waitFor(() => {
+      expect(updateWorkspaceMemberRole).toHaveBeenCalledWith("token", "ws1", "wm2", "ADMIN");
+    });
+
+    expect(screen.getByLabelText("Change role")).toHaveValue("ADMIN");
+    expect(screen.getByText("Role updated")).toBeInTheDocument();
+
+    confirmSpy.mockRestore();
+  });
+
+  it("OWNER sees role select for ADMIN and can demote to MEMBER", async () => {
+    mockWorkspaceWithMembers([
+      { id: "wm1", workspaceId: "ws1", role: "OWNER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice", displayName: "Alice" } },
+      { id: "wm2", workspaceId: "ws1", role: "ADMIN", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u2", username: "bob", displayName: "Bob" } },
+    ]);
+    vi.mocked(updateWorkspaceMemberRole).mockResolvedValue({
+      id: "wm2", workspaceId: "ws1", role: "MEMBER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u2", username: "bob", displayName: "Bob" },
+    });
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Bob")).toBeInTheDocument();
+    });
+
+    const roleSelect = screen.getByLabelText("Change role");
+    expect(roleSelect).toHaveValue("ADMIN");
+
+    await userEvent.selectOptions(roleSelect, "MEMBER");
+
+    await waitFor(() => {
+      expect(updateWorkspaceMemberRole).toHaveBeenCalledWith("token", "ws1", "wm2", "MEMBER");
+    });
+
+    expect(roleSelect).toHaveValue("MEMBER");
+    expect(screen.getByText("Role updated")).toBeInTheDocument();
+
+    confirmSpy.mockRestore();
+  });
+
+  it("OWNER does not see role select for self", async () => {
+    mockWorkspaceWithMembers([
+      { id: "wm1", workspaceId: "ws1", role: "OWNER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice", displayName: "Alice" } },
+    ]);
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Alice")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByLabelText("Change role")).not.toBeInTheDocument();
+  });
+
+  it("ADMIN does not see role select", async () => {
+    mockAuthUser.id = "u2";
+    mockAuthUser.email = "b@b.com";
+    mockAuthUser.username = "bob";
+    mockWorkspaceWithMembers([
+      { id: "wm1", workspaceId: "ws1", role: "OWNER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice", displayName: "Alice" } },
+      { id: "wm2", workspaceId: "ws1", role: "ADMIN", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u2", username: "bob", displayName: "Bob" } },
+      { id: "wm3", workspaceId: "ws1", role: "MEMBER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u3", username: "charlie", displayName: "Charlie" } },
+    ]);
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Charlie")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByLabelText("Change role")).not.toBeInTheDocument();
+  });
+
+  it("MEMBER does not see role select", async () => {
+    mockAuthUser.id = "u3";
+    mockAuthUser.email = "c@c.com";
+    mockAuthUser.username = "charlie";
+    mockWorkspaceWithMembers([
+      { id: "wm1", workspaceId: "ws1", role: "OWNER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice", displayName: "Alice" } },
+      { id: "wm3", workspaceId: "ws1", role: "MEMBER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u3", username: "charlie", displayName: "Charlie" } },
+    ]);
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Alice")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByLabelText("Change role")).not.toBeInTheDocument();
+  });
+
+  it("cancel confirm does not call API and keeps role", async () => {
+    mockWorkspaceWithMembers([
+      { id: "wm1", workspaceId: "ws1", role: "OWNER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice", displayName: "Alice" } },
+      { id: "wm2", workspaceId: "ws1", role: "MEMBER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u2", username: "bob", displayName: "Bob" } },
+    ]);
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Bob")).toBeInTheDocument();
+    });
+
+    const roleSelect = screen.getByLabelText("Change role");
+    await userEvent.selectOptions(roleSelect, "ADMIN");
+
+    expect(updateWorkspaceMemberRole).not.toHaveBeenCalled();
+    expect(roleSelect).toHaveValue("MEMBER");
+
+    confirmSpy.mockRestore();
+  });
+
+  it("backend error shows inline error and keeps original role", async () => {
+    mockWorkspaceWithMembers([
+      { id: "wm1", workspaceId: "ws1", role: "OWNER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice", displayName: "Alice" } },
+      { id: "wm2", workspaceId: "ws1", role: "MEMBER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u2", username: "bob", displayName: "Bob" } },
+    ]);
+    vi.mocked(updateWorkspaceMemberRole).mockRejectedValue(new Error("Cannot change role of workspace owner"));
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(<WorkspaceDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Bob")).toBeInTheDocument();
+    });
+
+    const roleSelect = screen.getByLabelText("Change role");
+    await userEvent.selectOptions(roleSelect, "ADMIN");
+
+    expect(await screen.findByText(/Cannot change role of workspace owner/i)).toBeInTheDocument();
+    expect(roleSelect).toHaveValue("MEMBER");
 
     confirmSpy.mockRestore();
   });

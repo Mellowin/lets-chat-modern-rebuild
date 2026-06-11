@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useLocale, translate, getLocale } from "@/lib/locale";
-import { getWorkspace, getWorkspaceMembers, leaveWorkspace, removeWorkspaceMember, type Workspace, type WorkspaceMember } from "@/lib/workspaces-api";
+import { getWorkspace, getWorkspaceMembers, leaveWorkspace, removeWorkspaceMember, updateWorkspaceMemberRole, type Workspace, type WorkspaceMember } from "@/lib/workspaces-api";
 import { MessageAuthor } from "@/components/MessageAuthor";
 import { createWorkspaceInvite } from "@/lib/invites-api";
 import WorkspaceInvitesSection from "@/components/WorkspaceInvitesSection";
@@ -63,6 +63,12 @@ export default function WorkspaceDetailPage() {
   const [leaveError, setLeaveError] = useState<string | null>(null);
   const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
   const [removeMemberState, setRemoveMemberState] = useState<
+    | { kind: "idle" }
+    | { kind: "success"; message: string }
+    | { kind: "error"; message: string }
+  >({ kind: "idle" });
+  const [updatingRoleMemberId, setUpdatingRoleMemberId] = useState<string | null>(null);
+  const [updateRoleState, setUpdateRoleState] = useState<
     | { kind: "idle" }
     | { kind: "success"; message: string }
     | { kind: "error"; message: string }
@@ -289,6 +295,27 @@ export default function WorkspaceDetailPage() {
       setRemoveMemberState({ kind: "error", message });
     } finally {
       setRemovingMemberId(null);
+    }
+  }
+
+  async function handleUpdateRole(memberId: string, newRole: "ADMIN" | "MEMBER", displayName: string) {
+    const roleLabel = newRole === "ADMIN" ? t("workspace.admin") : t("workspace.member");
+    if (!window.confirm(t("workspace.confirmChangeRole", displayName, roleLabel))) return;
+    if (!accessToken || !workspaceId) return;
+    setUpdatingRoleMemberId(memberId);
+    setUpdateRoleState({ kind: "idle" });
+    try {
+      const updated = await updateWorkspaceMemberRole(accessToken, workspaceId, memberId, newRole);
+      setMembers((prev) => {
+        if (prev.kind !== "success") return prev;
+        return { kind: "success", data: prev.data.map((m) => (m.id === memberId ? updated : m)) };
+      });
+      setUpdateRoleState({ kind: "success", message: t("workspace.roleUpdated") });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : t("workspace.errorUpdateRoleFailed");
+      setUpdateRoleState({ kind: "error", message });
+    } finally {
+      setUpdatingRoleMemberId(null);
     }
   }
 
@@ -519,9 +546,11 @@ export default function WorkspaceDetailPage() {
             return (
               <ul className="mt-3 divide-y divide-zinc-200 dark:divide-zinc-800">
                 {members.data.map((m) => {
+                  const isSelf = m.user.id === user?.id;
                   const canRemove =
-                    (myRole === "OWNER" && m.role !== "OWNER" && m.user.id !== user?.id) ||
-                    (myRole === "ADMIN" && m.role === "MEMBER" && m.user.id !== user?.id);
+                    (myRole === "OWNER" && m.role !== "OWNER" && !isSelf) ||
+                    (myRole === "ADMIN" && m.role === "MEMBER" && !isSelf);
+                  const canUpdateRole = myRole === "OWNER" && m.role !== "OWNER" && !isSelf;
                   return (
                     <li key={m.id} className="flex items-center justify-between py-2">
                       <div className="min-w-0">
@@ -537,17 +566,30 @@ export default function WorkspaceDetailPage() {
                             {removingMemberId === m.id ? t("workspace.removing") : t("workspace.remove")}
                           </button>
                         )}
-                        <span
-                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
-                            m.role === "OWNER"
-                              ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400"
-                              : m.role === "ADMIN"
-                                ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400"
-                                : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400"
-                          }`}
-                        >
-                          {m.role === "OWNER" ? t("workspace.owner") : m.role === "ADMIN" ? t("workspace.admin") : t("workspace.member")}
-                        </span>
+                        {canUpdateRole ? (
+                          <select
+                            value={m.role}
+                            onChange={(e) => handleUpdateRole(m.id, e.target.value as "ADMIN" | "MEMBER", m.user.displayName?.trim() || `@${m.user.username}`)}
+                            disabled={updatingRoleMemberId === m.id}
+                            aria-label={t("workspace.changeRole")}
+                            className="rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2 py-1 text-xs outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100 disabled:opacity-60 disabled:cursor-not-allowed"
+                          >
+                            <option value="MEMBER">{t("workspace.member")}</option>
+                            <option value="ADMIN">{t("workspace.admin")}</option>
+                          </select>
+                        ) : (
+                          <span
+                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
+                              m.role === "OWNER"
+                                ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400"
+                                : m.role === "ADMIN"
+                                  ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400"
+                                  : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400"
+                            }`}
+                          >
+                            {m.role === "OWNER" ? t("workspace.owner") : m.role === "ADMIN" ? t("workspace.admin") : t("workspace.member")}
+                          </span>
+                        )}
                       </div>
                     </li>
                   );
@@ -575,6 +617,7 @@ export default function WorkspaceDetailPage() {
                     <select
                       value={memberRole}
                       onChange={(e) => setMemberRole(e.target.value as "MEMBER" | "ADMIN")}
+                      aria-label={t("workspace.inviteRole")}
                       className="rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
                     >
                       <option value="MEMBER">{t("workspace.member")}</option>
@@ -626,6 +669,24 @@ export default function WorkspaceDetailPage() {
             <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
               <span className="h-2 w-2 rounded-full bg-red-500" />
               {removeMemberState.message}
+            </div>
+          </div>
+        )}
+
+        {members.kind === "success" && updateRoleState.kind === "success" && (
+          <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
+            <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              {updateRoleState.message}
+            </div>
+          </div>
+        )}
+
+        {members.kind === "success" && updateRoleState.kind === "error" && (
+          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
+            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
+              <span className="h-2 w-2 rounded-full bg-red-500" />
+              {updateRoleState.message}
             </div>
           </div>
         )}

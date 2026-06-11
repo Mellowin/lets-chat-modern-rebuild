@@ -180,6 +180,10 @@ export type TranslationKey =
   | "workspace.noMembers"
   | "workspace.remove"
   | "workspace.removing"
+  | "workspace.changeRole"
+  | "workspace.confirmChangeRole"
+  | "workspace.roleUpdated"
+  | "workspace.errorUpdateRoleFailed"
   | "workspace.invitePlaceholder"
   | "workspace.owner"
   | "workspace.admin"
@@ -601,6 +605,10 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "workspace.noMembers": "No members yet.",
     "workspace.remove": "Remove",
     "workspace.removing": "Removing…",
+    "workspace.changeRole": "Change role",
+    "workspace.confirmChangeRole": "Change role of \"{arg0}\" to {arg1}?",
+    "workspace.roleUpdated": "Role updated",
+    "workspace.errorUpdateRoleFailed": "Failed to update role",
     "workspace.invitePlaceholder": "Username or email",
     "workspace.owner": "Owner",
     "workspace.admin": "Admin",
@@ -1032,6 +1040,10 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "workspace.noMembers": "Учасників ще немає.",
     "workspace.remove": "Вилучити",
     "workspace.removing": "Вилучаємо…",
+    "workspace.changeRole": "Змінити роль",
+    "workspace.confirmChangeRole": "Змінити роль \"{arg0}\" на {arg1}?",
+    "workspace.roleUpdated": "Роль оновлено",
+    "workspace.errorUpdateRoleFailed": "Не вдалося оновити роль",
     "workspace.invitePlaceholder": "Імʼя користувача або email",
     "workspace.owner": "Власник",
     "workspace.admin": "Адмін",
@@ -1463,6 +1475,10 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "workspace.noMembers": "Участников пока нет.",
     "workspace.remove": "Удалить",
     "workspace.removing": "Удаляем…",
+    "workspace.changeRole": "Изменить роль",
+    "workspace.confirmChangeRole": "Изменить роль \"{arg0}\" на {arg1}?",
+    "workspace.roleUpdated": "Роль обновлена",
+    "workspace.errorUpdateRoleFailed": "Не удалось обновить роль",
     "workspace.invitePlaceholder": "Имя пользователя или email",
     "workspace.owner": "Владелец",
     "workspace.admin": "Админ",
