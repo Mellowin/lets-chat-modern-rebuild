@@ -8,10 +8,11 @@ export class InvitesRepository {
   async createInvite(data: {
     workspaceId: string;
     invitedById: string;
-    invitedEmail: string;
+    invitedEmail: string | null;
     role: WorkspaceRole;
     tokenHash: string;
     expiresAt: Date;
+    maxUses?: number | null;
   }) {
     return this.prisma.invitation.create({ data });
   }
@@ -19,6 +20,17 @@ export class InvitesRepository {
   async findByTokenHash(tokenHash: string) {
     return this.prisma.invitation.findUnique({
       where: { tokenHash },
+    });
+  }
+
+  async findByTokenHashWithWorkspace(tokenHash: string) {
+    return this.prisma.invitation.findUnique({
+      where: { tokenHash },
+      include: {
+        workspace: {
+          select: { id: true, name: true, slug: true },
+        },
+      },
     });
   }
 
@@ -51,6 +63,39 @@ export class InvitesRepository {
     });
   }
 
+  async acceptInviteLink(
+    inviteId: string,
+    userId: string,
+    workspaceId: string,
+    role: WorkspaceRole,
+    maxUses: number | null,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const invite = await tx.invitation.findUnique({
+        where: { id: inviteId },
+      });
+
+      if (!invite || invite.deletedAt) {
+        throw new Error('INVITE_ALREADY_USED_OR_REVOKED');
+      }
+
+      if (maxUses !== null && invite.usesCount >= maxUses) {
+        throw new Error('INVITE_MAX_USES_REACHED');
+      }
+
+      await tx.invitation.update({
+        where: { id: inviteId },
+        data: { usesCount: { increment: 1 } },
+      });
+
+      const member = await tx.workspaceMember.create({
+        data: { workspaceId, userId, role },
+      });
+
+      return member;
+    });
+  }
+
   async findById(id: string) {
     return this.prisma.invitation.findUnique({
       where: { id },
@@ -64,6 +109,17 @@ export class InvitesRepository {
         deletedAt: null,
         usedAt: null,
         usedById: null,
+      },
+      data: { deletedAt },
+    });
+    return result.count;
+  }
+
+  async softDeleteInviteLink(id: string, deletedAt: Date): Promise<number> {
+    const result = await this.prisma.invitation.updateMany({
+      where: {
+        id,
+        deletedAt: null,
       },
       data: { deletedAt },
     });

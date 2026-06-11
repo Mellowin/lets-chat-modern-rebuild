@@ -1,5 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsIn, IsOptional, IsString } from 'class-validator';
+import {
+  IsEmail,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class CreateInviteDto {
@@ -25,4 +33,19 @@ export class CreateInviteDto {
     typeof value === 'string' ? value.toUpperCase() : value,
   )
   role: 'ADMIN' | 'MEMBER';
+
+  @ApiProperty({
+    example: 10,
+    required: false,
+    description:
+      'Maximum uses for a public invite link. Leave empty for single-use targeted invite.',
+  })
+  @IsInt()
+  @Min(1)
+  @Max(1000)
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? parseInt(value, 10) : value,
+  )
+  maxUses?: number;
 }

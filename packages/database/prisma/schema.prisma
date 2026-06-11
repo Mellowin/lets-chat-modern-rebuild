@@ -310,6 +310,8 @@ model Invitation {
   invitedEmail String?
   tokenHash    String        @unique
   expiresAt    DateTime
+  maxUses      Int?
+  usesCount    Int           @default(0)
   usedById     String?       @db.Uuid
   usedAt       DateTime?
   createdAt    DateTime      @default(now())

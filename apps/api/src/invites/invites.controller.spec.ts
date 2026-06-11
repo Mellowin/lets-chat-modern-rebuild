@@ -55,6 +55,7 @@ describe('InvitesController', () => {
       role: 'MEMBER',
       token: 'token',
       expiresAt: new Date(),
+      maxUses: null,
       createdAt: new Date(),
     });
     await controller.create(

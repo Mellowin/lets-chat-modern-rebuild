@@ -30,6 +30,14 @@ import type { AuthUserResponse } from '../auth/auth.service';
 export class InvitesAcceptController {
   constructor(private readonly invites: InvitesService) {}
 
+  @Get(':token/preview')
+  @ApiOperation({ summary: 'Preview invite link without authentication' })
+  @ApiOkResponse({ description: 'Invite preview' })
+  @ApiNotFoundResponse({ description: 'Invite not found' })
+  async preview(@Param('token') token: string) {
+    return this.invites.preview(token);
+  }
+
   @Get('pending')
   @UseGuards(JwtAccessGuard)
   @ApiBearerAuth()

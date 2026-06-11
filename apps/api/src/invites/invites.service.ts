@@ -45,16 +45,22 @@ export class InvitesService {
       throw new ForbiddenException('Admin can only invite members');
     }
 
-    if (!dto.email && !dto.identifier) {
-      throw new BadRequestException('Email or identifier is required');
-    }
     if (dto.email && dto.identifier) {
       throw new BadRequestException(
         'Provide either email or identifier, not both',
       );
     }
 
-    let resolvedEmail: string;
+    const hasTarget = dto.email || dto.identifier;
+    const isPublicLink = !hasTarget;
+
+    if (isPublicLink && dto.maxUses === undefined) {
+      throw new BadRequestException(
+        'Public invite link requires maxUses to be set',
+      );
+    }
+
+    let resolvedEmail: string | null = null;
     let targetUserId: string | undefined;
 
     if (dto.email) {
@@ -64,8 +70,8 @@ export class InvitesService {
         throw new NotFoundException('User not found');
       }
       targetUserId = targetUser.id;
-    } else {
-      const identifier = dto.identifier!.replace(/^@/, '');
+    } else if (dto.identifier) {
+      const identifier = dto.identifier.replace(/^@/, '');
       const targetUser = await this.users.findByUsername(identifier);
       if (!targetUser) {
         throw new NotFoundException('User not found');
@@ -74,12 +80,14 @@ export class InvitesService {
       targetUserId = targetUser.id;
     }
 
-    const existingPending = await this.invites.findPendingByWorkspaceAndEmail(
-      workspaceId,
-      resolvedEmail,
-    );
-    if (existingPending) {
-      throw new ConflictException('Invitation already sent');
+    if (resolvedEmail) {
+      const existingPending = await this.invites.findPendingByWorkspaceAndEmail(
+        workspaceId,
+        resolvedEmail,
+      );
+      if (existingPending) {
+        throw new ConflictException('Invitation already sent');
+      }
     }
 
     if (targetUserId) {
@@ -103,6 +111,7 @@ export class InvitesService {
       role: dto.role,
       tokenHash,
       expiresAt,
+      maxUses: isPublicLink ? (dto.maxUses ?? null) : null,
     });
 
     await this.audit.record({
@@ -113,6 +122,8 @@ export class InvitesService {
       workspaceId,
       metadata: {
         role: invite.role,
+        isPublicLink,
+        maxUses: invite.maxUses,
         expiresAt: invite.expiresAt,
       },
     });
@@ -124,6 +135,7 @@ export class InvitesService {
       role: invite.role,
       token: rawToken,
       expiresAt: invite.expiresAt,
+      maxUses: invite.maxUses,
       createdAt: invite.createdAt,
     };
   }
@@ -134,10 +146,6 @@ export class InvitesService {
     const invite = await this.invites.findByTokenHash(tokenHash);
     if (!invite || invite.deletedAt) {
       throw new NotFoundException('Invite not found');
-    }
-
-    if (invite.usedAt || invite.usedById) {
-      throw new ConflictException('Invite already used');
     }
 
     if (invite.expiresAt < new Date()) {
@@ -165,16 +173,38 @@ export class InvitesService {
       userId,
     );
     if (existingRole) {
-      throw new ConflictException('Already a member of this workspace');
+      return {
+        workspaceId: invite.workspaceId,
+        role: existingRole,
+        joinedAt: null,
+      };
+    }
+
+    const isMultiUse = invite.maxUses !== null;
+
+    if (!isMultiUse && (invite.usedAt || invite.usedById)) {
+      throw new ConflictException('Invite already used');
+    }
+
+    if (isMultiUse && invite.usesCount >= invite.maxUses!) {
+      throw new GoneException('Invite max uses reached');
     }
 
     try {
-      const member = await this.invites.acceptInvite(
-        invite.id,
-        userId,
-        invite.workspaceId,
-        invite.role,
-      );
+      const member = isMultiUse
+        ? await this.invites.acceptInviteLink(
+            invite.id,
+            userId,
+            invite.workspaceId,
+            invite.role,
+            invite.maxUses,
+          )
+        : await this.invites.acceptInvite(
+            invite.id,
+            userId,
+            invite.workspaceId,
+            invite.role,
+          );
 
       await this.audit.record({
         actorId: userId,
@@ -201,11 +231,15 @@ export class InvitesService {
       }
       if (
         error instanceof Error &&
-        error.message === 'INVITE_ALREADY_USED_OR_REVOKED'
+        (error.message === 'INVITE_ALREADY_USED_OR_REVOKED' ||
+          error.message === 'INVITE_MAX_USES_REACHED')
       ) {
         const current = await this.invites.findById(invite.id);
         if (!current || current.deletedAt) {
           throw new NotFoundException('Invite not found');
+        }
+        if (current.maxUses !== null && current.usesCount >= current.maxUses) {
+          throw new GoneException('Invite max uses reached');
         }
         if (current.usedAt || current.usedById) {
           throw new ConflictException('Invite already used');
@@ -214,6 +248,25 @@ export class InvitesService {
       }
       throw error;
     }
+  }
+
+  async preview(token: string) {
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const invite = await this.invites.findByTokenHashWithWorkspace(tokenHash);
+
+    if (!invite || invite.deletedAt) {
+      throw new NotFoundException('Invite not found');
+    }
+
+    const isValid =
+      invite.expiresAt >= new Date() &&
+      (invite.maxUses === null || invite.usesCount < invite.maxUses);
+
+    return {
+      workspaceName: invite.workspace?.name ?? null,
+      expiresAt: invite.expiresAt,
+      valid: isValid,
+    };
   }
 
   async revoke(workspaceId: string, inviteId: string, userId: string) {
@@ -237,15 +290,18 @@ export class InvitesService {
     if (invite.workspaceId !== workspaceId) {
       throw new NotFoundException('Invite not found');
     }
-    if (invite.usedAt || invite.usedById) {
+
+    const isMultiUse = invite.maxUses !== null;
+    if (!isMultiUse && (invite.usedAt || invite.usedById)) {
       throw new ConflictException('Invite already used');
     }
 
     const revokedAt = new Date();
-    const deletedCount = await this.invites.softDeleteIfUnused(
-      inviteId,
-      revokedAt,
-    );
+    const deleteMethod = isMultiUse
+      ? this.invites.softDeleteInviteLink.bind(this.invites)
+      : this.invites.softDeleteIfUnused.bind(this.invites);
+    const deletedCount = await deleteMethod(inviteId, revokedAt);
+
     if (deletedCount === 0) {
       const current = await this.invites.findById(inviteId);
       if (!current || current.deletedAt) {
@@ -289,10 +345,6 @@ export class InvitesService {
       throw new NotFoundException('Invite not found');
     }
 
-    if (invite.usedAt || invite.usedById) {
-      throw new ConflictException('Invite already used');
-    }
-
     if (invite.expiresAt < new Date()) {
       throw new GoneException('Invite expired');
     }
@@ -318,16 +370,38 @@ export class InvitesService {
       userId,
     );
     if (existingRole) {
-      throw new ConflictException('Already a member of this workspace');
+      return {
+        workspaceId: invite.workspaceId,
+        role: existingRole,
+        joinedAt: null,
+      };
+    }
+
+    const isMultiUse = invite.maxUses !== null;
+
+    if (!isMultiUse && (invite.usedAt || invite.usedById)) {
+      throw new ConflictException('Invite already used');
+    }
+
+    if (isMultiUse && invite.usesCount >= invite.maxUses!) {
+      throw new GoneException('Invite max uses reached');
     }
 
     try {
-      const member = await this.invites.acceptInvite(
-        invite.id,
-        userId,
-        invite.workspaceId,
-        invite.role,
-      );
+      const member = isMultiUse
+        ? await this.invites.acceptInviteLink(
+            invite.id,
+            userId,
+            invite.workspaceId,
+            invite.role,
+            invite.maxUses,
+          )
+        : await this.invites.acceptInvite(
+            invite.id,
+            userId,
+            invite.workspaceId,
+            invite.role,
+          );
 
       await this.audit.record({
         actorId: userId,
@@ -354,11 +428,15 @@ export class InvitesService {
       }
       if (
         error instanceof Error &&
-        error.message === 'INVITE_ALREADY_USED_OR_REVOKED'
+        (error.message === 'INVITE_ALREADY_USED_OR_REVOKED' ||
+          error.message === 'INVITE_MAX_USES_REACHED')
       ) {
         const current = await this.invites.findById(invite.id);
         if (!current || current.deletedAt) {
           throw new NotFoundException('Invite not found');
+        }
+        if (current.maxUses !== null && current.usesCount >= current.maxUses) {
+          throw new GoneException('Invite max uses reached');
         }
         if (current.usedAt || current.usedById) {
           throw new ConflictException('Invite already used');
@@ -373,10 +451,6 @@ export class InvitesService {
     const invite = await this.invites.findPendingById(inviteId);
     if (!invite || invite.deletedAt) {
       throw new NotFoundException('Invite not found');
-    }
-
-    if (invite.usedAt || invite.usedById) {
-      throw new ConflictException('Invite already used');
     }
 
     if (invite.expiresAt < new Date()) {
@@ -444,6 +518,8 @@ export class InvitesService {
       expiresAt: invite.expiresAt,
       usedAt: invite.usedAt,
       deletedAt: invite.deletedAt,
+      maxUses: invite.maxUses,
+      usesCount: invite.usesCount,
       createdAt: invite.createdAt,
     }));
   }
@@ -453,8 +529,12 @@ export class InvitesService {
     usedAt: Date | null;
     usedById: string | null;
     expiresAt: Date;
+    maxUses: number | null;
+    usesCount: number;
   }): 'PENDING' | 'USED' | 'REVOKED' | 'EXPIRED' {
     if (invite.deletedAt) return 'REVOKED';
+    if (invite.maxUses !== null && invite.usesCount >= invite.maxUses)
+      return 'USED';
     if (invite.usedAt || invite.usedById) return 'USED';
     if (invite.expiresAt < new Date()) return 'EXPIRED';
     return 'PENDING';

@@ -30,6 +30,7 @@ describe('InvitesAcceptController', () => {
             acceptById: jest.fn(),
             decline: jest.fn(),
             accept: jest.fn(),
+            preview: jest.fn(),
           },
         },
       ],
@@ -90,5 +91,16 @@ describe('InvitesAcceptController', () => {
       'user-id',
       'u@test.com',
     );
+  });
+
+  it('should call preview service method', async () => {
+    invitesService.preview.mockResolvedValue({
+      workspaceName: 'Test Workspace',
+      expiresAt: new Date(Date.now() + 86400000),
+      valid: true,
+    });
+    const result = await controller.preview('token123');
+    expect(invitesService.preview).toHaveBeenCalledWith('token123');
+    expect(result.valid).toBe(true);
   });
 });

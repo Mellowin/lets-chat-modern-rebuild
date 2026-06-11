@@ -35,9 +35,12 @@ describe('InvitesService', () => {
           useValue: {
             createInvite: jest.fn(),
             findByTokenHash: jest.fn(),
+            findByTokenHashWithWorkspace: jest.fn(),
             acceptInvite: jest.fn(),
+            acceptInviteLink: jest.fn(),
             findById: jest.fn(),
             softDeleteIfUnused: jest.fn(),
+            softDeleteInviteLink: jest.fn(),
             listForWorkspace: jest.fn(),
             findPendingByEmail: jest.fn(),
             findPendingById: jest.fn(),
@@ -163,6 +166,8 @@ describe('InvitesService', () => {
       role: WorkspaceRole.MEMBER,
       tokenHash: 'hash',
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      maxUses: null,
+      usesCount: 0,
       usedAt: null,
       usedById: null,
       deletedAt: null,
@@ -189,6 +194,8 @@ describe('InvitesService', () => {
       role: WorkspaceRole.MEMBER,
       tokenHash: 'hash',
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      maxUses: null,
+      usesCount: 0,
       usedAt: null,
       usedById: null,
       deletedAt: null,
@@ -752,6 +759,113 @@ describe('InvitesService', () => {
     expectAuditNotCalled();
   });
 
+  it('should create public invite link with maxUses', async () => {
+    workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+    workspacesRepository.findMemberRole.mockResolvedValue(WorkspaceRole.OWNER);
+    invitesRepository.createInvite.mockImplementation((data) =>
+      Promise.resolve({
+        ...mockInvitation(),
+        workspaceId: data.workspaceId,
+        invitedEmail: data.invitedEmail,
+        role: data.role,
+        expiresAt: data.expiresAt,
+        maxUses: data.maxUses ?? null,
+      }),
+    );
+
+    const result = await service.create(
+      workspaceId,
+      { role: 'MEMBER', maxUses: 10 },
+      userId,
+    );
+
+    expect(result.token).toBeDefined();
+    expect(result.maxUses).toBe(10);
+    expect(result.email).toBeNull();
+    expect(invitesRepository.createInvite).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspaceId,
+        invitedById: userId,
+        invitedEmail: null,
+        role: 'MEMBER',
+        maxUses: 10,
+      }),
+    );
+  });
+
+  it('should reject public invite link without maxUses', async () => {
+    workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+    workspacesRepository.findMemberRole.mockResolvedValue(WorkspaceRole.OWNER);
+
+    await expect(
+      service.create(workspaceId, { role: 'MEMBER' }, userId),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expectAuditNotCalled();
+  });
+
+  describe('preview', () => {
+    const rawToken = 'preview-token-123';
+    const tokenHash = createHash('sha256').update(rawToken).digest('hex');
+
+    it('should return preview for valid invite link', async () => {
+      invitesRepository.findByTokenHashWithWorkspace.mockResolvedValue(
+        mockInvitation({
+          tokenHash,
+          invitedEmail: null,
+          maxUses: 10,
+          usesCount: 2,
+          workspace: { id: workspaceId, name: 'Test Workspace', slug: 'test' },
+        }),
+      );
+
+      const result = await service.preview(rawToken);
+
+      expect(result.workspaceName).toBe('Test Workspace');
+      expect(result.valid).toBe(true);
+    });
+
+    it('should return invalid for expired invite link', async () => {
+      invitesRepository.findByTokenHashWithWorkspace.mockResolvedValue(
+        mockInvitation({
+          tokenHash,
+          invitedEmail: null,
+          maxUses: 10,
+          usesCount: 2,
+          expiresAt: new Date(Date.now() - 1000),
+          workspace: { id: workspaceId, name: 'Test Workspace', slug: 'test' },
+        }),
+      );
+
+      const result = await service.preview(rawToken);
+
+      expect(result.valid).toBe(false);
+    });
+
+    it('should return invalid for max uses reached', async () => {
+      invitesRepository.findByTokenHashWithWorkspace.mockResolvedValue(
+        mockInvitation({
+          tokenHash,
+          invitedEmail: null,
+          maxUses: 5,
+          usesCount: 5,
+          workspace: { id: workspaceId, name: 'Test Workspace', slug: 'test' },
+        }),
+      );
+
+      const result = await service.preview(rawToken);
+
+      expect(result.valid).toBe(false);
+    });
+
+    it('should throw NotFoundException for unknown token', async () => {
+      invitesRepository.findByTokenHashWithWorkspace.mockResolvedValue(null);
+
+      await expect(service.preview(rawToken)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+  });
+
   describe('accept', () => {
     const rawToken = 'raw-token-123';
     const tokenHash = createHash('sha256').update(rawToken).digest('hex');
@@ -815,6 +929,8 @@ describe('InvitesService', () => {
       invitesRepository.findByTokenHash.mockResolvedValue(
         mockInvitation({ tokenHash, usedAt: new Date() }),
       );
+      workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+      workspacesRepository.findMemberRole.mockResolvedValue(null);
 
       await expect(
         service.accept(rawToken, userId, 'test@example.com'),
@@ -833,7 +949,7 @@ describe('InvitesService', () => {
       expectAuditNotCalled();
     });
 
-    it('should reject already workspace member', async () => {
+    it('should return current membership when already workspace member', async () => {
       invitesRepository.findByTokenHash.mockResolvedValue(
         mockInvitation({ tokenHash }),
       );
@@ -842,9 +958,62 @@ describe('InvitesService', () => {
         WorkspaceRole.MEMBER,
       );
 
+      const result = await service.accept(rawToken, userId, 'test@example.com');
+
+      expect(result.workspaceId).toBe(workspaceId);
+      expect(result.role).toBe('MEMBER');
+      expect(result.joinedAt).toBeNull();
+      expectAuditNotCalled();
+    });
+
+    it('should allow accepting a valid public invite link', async () => {
+      invitesRepository.findByTokenHash.mockResolvedValue(
+        mockInvitation({
+          tokenHash,
+          invitedEmail: null,
+          maxUses: 10,
+          usesCount: 2,
+        }),
+      );
+      workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+      workspacesRepository.findMemberRole.mockResolvedValue(null);
+      invitesRepository.acceptInviteLink.mockResolvedValue(
+        mockAcceptedMember({ createdAt: new Date('2026-01-01') }),
+      );
+
+      const result = await service.accept(rawToken, userId, 'any@example.com');
+
+      expect(result.workspaceId).toBe(workspaceId);
+      expect(result.role).toBe('MEMBER');
+      expect(invitesRepository.acceptInviteLink).toHaveBeenCalledWith(
+        'invite-id',
+        userId,
+        workspaceId,
+        'MEMBER',
+        10,
+      );
+      expect(auditService.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: AuditAction.WORKSPACE_INVITE_ACCEPTED,
+        }),
+      );
+    });
+
+    it('should reject public invite link when max uses reached', async () => {
+      invitesRepository.findByTokenHash.mockResolvedValue(
+        mockInvitation({
+          tokenHash,
+          invitedEmail: null,
+          maxUses: 3,
+          usesCount: 3,
+        }),
+      );
+      workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+      workspacesRepository.findMemberRole.mockResolvedValue(null);
+
       await expect(
-        service.accept(rawToken, userId, 'test@example.com'),
-      ).rejects.toBeInstanceOf(ConflictException);
+        service.accept(rawToken, userId, 'any@example.com'),
+      ).rejects.toBeInstanceOf(GoneException);
       expectAuditNotCalled();
     });
 
@@ -957,6 +1126,30 @@ describe('InvitesService', () => {
         expect.objectContaining({
           action: AuditAction.WORKSPACE_INVITE_REVOKED,
         }),
+      );
+    });
+
+    it('should allow OWNER to revoke public invite link even after some uses', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+      workspacesRepository.findMemberRole.mockResolvedValue(
+        WorkspaceRole.OWNER,
+      );
+      invitesRepository.findById.mockResolvedValue(
+        mockInvitation({
+          id: inviteId,
+          tokenHash: 'hash',
+          maxUses: 10,
+          usesCount: 3,
+        }),
+      );
+      invitesRepository.softDeleteInviteLink.mockResolvedValue(1);
+
+      const result = await service.revoke(workspaceId, inviteId, userId);
+
+      expect(result.id).toBe(inviteId);
+      expect(invitesRepository.softDeleteInviteLink).toHaveBeenCalledWith(
+        inviteId,
+        expect.any(Date),
       );
     });
 
@@ -1327,6 +1520,8 @@ describe('InvitesService', () => {
           usedAt: new Date(),
         }),
       );
+      workspacesRepository.findActiveById.mockResolvedValue(mockWorkspace());
+      workspacesRepository.findMemberRole.mockResolvedValue(null);
 
       await expect(
         service.acceptById(inviteId, userId, 'test@example.com'),
@@ -1345,7 +1540,7 @@ describe('InvitesService', () => {
       expectAuditNotCalled();
     });
 
-    it('should reject already workspace member', async () => {
+    it('should return current membership when already workspace member', async () => {
       invitesRepository.findPendingById.mockResolvedValue(
         mockPendingInvitationWithRelations({ id: inviteId }),
       );
@@ -1354,9 +1549,15 @@ describe('InvitesService', () => {
         WorkspaceRole.MEMBER,
       );
 
-      await expect(
-        service.acceptById(inviteId, userId, 'test@example.com'),
-      ).rejects.toBeInstanceOf(ConflictException);
+      const result = await service.acceptById(
+        inviteId,
+        userId,
+        'test@example.com',
+      );
+
+      expect(result.workspaceId).toBe(workspaceId);
+      expect(result.role).toBe('MEMBER');
+      expect(result.joinedAt).toBeNull();
       expectAuditNotCalled();
     });
 
