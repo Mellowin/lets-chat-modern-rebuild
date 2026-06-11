@@ -1,8 +1,8 @@
 # Project Status
 
 > Last updated: 2026-06-11  
-> Code checkpoint: `7c5d47b`  
-> Docs checkpoint: `7c5d47b`
+> Code checkpoint: `main`  
+> Docs checkpoint: `main`
 
 ---
 
@@ -135,7 +135,8 @@ Use these steps to verify core functionality after deploy or before release:
 - **Frontend API timeout and recovery UX** — all API requests have a 15-second `AbortController` timeout. When the backend is cold-starting or unreachable, login stops loading and shows a human-friendly message with a cold-start hint instead of hanging forever on "Signing in…". Users can retry immediately.
 - **Channel message search is available** — backend endpoint `GET /api/v1/workspaces/:workspaceId/channels/:channelId/messages/search` plus frontend UI with search panel, results list, load-more pagination, safe query highlighting, attachment-only fallback, and jump-to-message.
   - Backend message context API is available for search-result jump support: `GET /api/v1/workspaces/:workspaceId/channels/:channelId/messages/:messageId/context` returns target message with configurable before/after surrounding messages.
-  - Limitations: channel-only search (no global/workspace-wide search via this endpoint), message content only (attachment filename search is not implemented), no DM search yet, frontend full unloaded-message jump using context API remains in progress.
+  - **Search result context mode**: when a user clicks a search result that is not currently loaded in the timeline, the frontend fetches the message context via the backend API, temporarily replaces the message list with the context window (target + surrounding messages), and provides a "Back to latest messages" banner to return to the normal timeline. The target message is highlighted and scrolled into view automatically.
+  - Limitations: channel-only search (no global/workspace-wide search via this endpoint), message content only (attachment filename search is not implemented), no DM search yet.
 
 ---
 

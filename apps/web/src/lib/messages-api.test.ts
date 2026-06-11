@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { getMessages, createMessage, updateMessage, deleteMessage, presignAttachmentUpload, uploadAttachmentToPresignedUrl, getAttachmentDownloadUrl } from "./messages-api";
+import { getMessages, createMessage, updateMessage, deleteMessage, presignAttachmentUpload, uploadAttachmentToPresignedUrl, getAttachmentDownloadUrl, getMessageContext } from "./messages-api";
 
 const API_BASE = "http://localhost:3001/api/v1";
 
@@ -182,6 +182,51 @@ describe("messages-api", () => {
     it("throws with backend error message", async () => {
       vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ message: "Not found" }), { status: 404 }));
       await expect(getAttachmentDownloadUrl("token", "ws1", "ch1", "m1", "a1")).rejects.toThrow("Not found");
+    });
+  });
+
+  describe("getMessageContext", () => {
+    it("sends GET to context endpoint without query params", async () => {
+      const mock = {
+        target: { id: "m2", channelId: "ch1", content: "target", parentId: null, createdAt: "2024-01-01T00:00:02Z", updatedAt: "2024-01-01T00:00:02Z", editedAt: null, author },
+        before: [{ id: "m1", channelId: "ch1", content: "before", parentId: null, createdAt: "2024-01-01T00:00:01Z", updatedAt: "2024-01-01T00:00:01Z", editedAt: null, author }],
+        after: [],
+        hasMoreBefore: false,
+        hasMoreAfter: false,
+      };
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(mock), { status: 200 }));
+
+      const result = await getMessageContext("token", "ws1", "ch1", "m2");
+
+      expect(fetch).toHaveBeenCalledWith(
+        `${API_BASE}/workspaces/ws1/channels/ch1/messages/m2/context`,
+        expect.objectContaining({ method: "GET" }),
+      );
+      expect(result).toEqual(mock);
+    });
+
+    it("sends GET with before and after params", async () => {
+      const mock = {
+        target: { id: "m2", channelId: "ch1", content: "target", parentId: null, createdAt: "2024-01-01T00:00:02Z", updatedAt: "2024-01-01T00:00:02Z", editedAt: null, author },
+        before: [],
+        after: [{ id: "m3", channelId: "ch1", content: "after", parentId: null, createdAt: "2024-01-01T00:00:03Z", updatedAt: "2024-01-01T00:00:03Z", editedAt: null, author }],
+        hasMoreBefore: false,
+        hasMoreAfter: true,
+      };
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(mock), { status: 200 }));
+
+      const result = await getMessageContext("token", "ws1", "ch1", "m2", { before: 5, after: 5 });
+
+      expect(fetch).toHaveBeenCalledWith(
+        `${API_BASE}/workspaces/ws1/channels/ch1/messages/m2/context?before=5&after=5`,
+        expect.objectContaining({ method: "GET" }),
+      );
+      expect(result).toEqual(mock);
+    });
+
+    it("throws with backend error message", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ message: "Not found" }), { status: 404 }));
+      await expect(getMessageContext("token", "ws1", "ch1", "m2")).rejects.toThrow("Not found");
     });
   });
 });

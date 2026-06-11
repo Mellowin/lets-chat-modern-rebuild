@@ -8,6 +8,7 @@ vi.mock("@/lib/messages-api", async (importOriginal) => {
   return {
     ...actual,
     searchChannelMessages: vi.fn(),
+    getMessageContext: vi.fn(),
   };
 });
 
@@ -433,7 +434,7 @@ describe("ChannelMessageSearch", () => {
     expect(screen.queryByTestId("search-not-loaded-msg-1")).not.toBeInTheDocument();
   });
 
-  it("shows not-loaded warning when jump returns false", async () => {
+  it("shows not-loaded warning when jump returns false and no onLoadContext", async () => {
     const unloadedProps = { ...props, onJumpToMessage: vi.fn(() => false) };
     vi.mocked(messagesApi.searchChannelMessages).mockResolvedValue({
       items: [
@@ -460,5 +461,72 @@ describe("ChannelMessageSearch", () => {
     await waitFor(() => expect(screen.getByTestId("search-result-msg-1")).toBeInTheDocument());
     fireEvent.click(screen.getByTestId("search-result-msg-1"));
     expect(screen.getByTestId("search-not-loaded-msg-1")).toBeInTheDocument();
+  });
+
+  it("calls getMessageContext and onLoadContext when jump returns false", async () => {
+    const onLoadContext = vi.fn();
+    const unloadedProps = { ...props, onJumpToMessage: vi.fn(() => false), onLoadContext };
+    const contextResult = {
+      target: { id: "msg-1", channelId: "ch-1", content: "hello", parentId: null, createdAt: "2024-01-01T00:00:00.000Z", updatedAt: "2024-01-01T00:00:00.000Z", editedAt: null, author: { id: "u1", username: "alice", displayName: null, avatarUrl: null }, reactions: [], attachments: [] },
+      before: [],
+      after: [],
+      hasMoreBefore: false,
+      hasMoreAfter: false,
+    };
+    vi.mocked(messagesApi.searchChannelMessages).mockResolvedValue({
+      items: [contextResult.target],
+      nextCursor: null,
+    });
+    vi.mocked(messagesApi.getMessageContext).mockResolvedValue(contextResult);
+
+    render(<ChannelMessageSearch {...unloadedProps} />);
+    fireEvent.click(screen.getByTestId("search-toggle-button"));
+    fireEvent.change(screen.getByTestId("search-input"), { target: { value: "hello" } });
+    fireEvent.click(screen.getByTestId("search-submit"));
+
+    await waitFor(() => expect(screen.getByTestId("search-result-msg-1")).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId("search-result-msg-1"));
+
+    await waitFor(() => {
+      expect(messagesApi.getMessageContext).toHaveBeenCalledWith("token", "ws-1", "ch-1", "msg-1");
+    });
+    expect(onLoadContext).toHaveBeenCalledWith(expect.objectContaining({ targetId: "msg-1" }));
+    expect(screen.queryByTestId("search-not-loaded-msg-1")).not.toBeInTheDocument();
+  });
+
+  it("shows context load error when getMessageContext fails", async () => {
+    const onLoadContext = vi.fn();
+    const unloadedProps = { ...props, onJumpToMessage: vi.fn(() => false), onLoadContext };
+    vi.mocked(messagesApi.searchChannelMessages).mockResolvedValue({
+      items: [
+        {
+          id: "msg-1",
+          channelId: "ch-1",
+          content: "hello",
+          parentId: null,
+          createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-01T00:00:00.000Z",
+          editedAt: null,
+          author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+          reactions: [],
+          attachments: [],
+        },
+      ],
+      nextCursor: null,
+    });
+    vi.mocked(messagesApi.getMessageContext).mockRejectedValue(new Error("Network error"));
+
+    render(<ChannelMessageSearch {...unloadedProps} />);
+    fireEvent.click(screen.getByTestId("search-toggle-button"));
+    fireEvent.change(screen.getByTestId("search-input"), { target: { value: "hello" } });
+    fireEvent.click(screen.getByTestId("search-submit"));
+
+    await waitFor(() => expect(screen.getByTestId("search-result-msg-1")).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId("search-result-msg-1"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("search-context-error-msg-1")).toBeInTheDocument();
+    });
+    expect(onLoadContext).not.toHaveBeenCalled();
   });
 });

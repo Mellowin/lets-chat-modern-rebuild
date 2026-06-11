@@ -2,13 +2,14 @@
 
 import { useState, useCallback } from "react";
 import { useLocale } from "@/lib/locale";
-import { searchChannelMessages, type Message, type SearchChannelMessagesResult } from "@/lib/messages-api";
+import { searchChannelMessages, getMessageContext, type Message, type SearchChannelMessagesResult, type MessageContextResult } from "@/lib/messages-api";
 
 interface ChannelMessageSearchProps {
   workspaceId: string;
   channelId: string;
   accessToken: string;
   onJumpToMessage: (messageId: string) => boolean;
+  onLoadContext?: (result: MessageContextResult & { targetId: string }) => void;
 }
 
 function highlightText(text: string, query: string): React.ReactNode[] {
@@ -41,6 +42,7 @@ export default function ChannelMessageSearch({
   channelId,
   accessToken,
   onJumpToMessage,
+  onLoadContext,
 }: ChannelMessageSearchProps) {
   const { t } = useLocale();
   const [isOpen, setIsOpen] = useState(false);
@@ -51,6 +53,8 @@ export default function ChannelMessageSearch({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [notLoadedMessageId, setNotLoadedMessageId] = useState<string | null>(null);
+  const [contextLoadingId, setContextLoadingId] = useState<string | null>(null);
+  const [contextErrorId, setContextErrorId] = useState<string | null>(null);
 
   const performSearch = useCallback(
     async (q: string, cursor?: string) => {
@@ -111,10 +115,24 @@ export default function ChannelMessageSearch({
     void performSearch(query, nextCursor ?? undefined);
   }
 
-  function handleJump(msg: Message) {
+  async function handleJump(msg: Message) {
     setNotLoadedMessageId(null);
+    setContextLoadingId(null);
+    setContextErrorId(null);
     const found = onJumpToMessage(msg.id);
-    if (!found) {
+    if (found) return;
+
+    if (onLoadContext) {
+      setContextLoadingId(msg.id);
+      try {
+        const result = await getMessageContext(accessToken, workspaceId, channelId, msg.id);
+        onLoadContext({ ...result, targetId: msg.id });
+      } catch {
+        setContextErrorId(msg.id);
+      } finally {
+        setContextLoadingId((current) => (current === msg.id ? null : current));
+      }
+    } else {
       setNotLoadedMessageId(msg.id);
     }
   }
@@ -221,6 +239,16 @@ export default function ChannelMessageSearch({
                       {getSnippet(msg)}
                     </p>
                   </button>
+                  {contextLoadingId === msg.id && (
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400" data-testid={`search-context-loading-${msg.id}`}>
+                      {t("channel.loadingContext")}
+                    </p>
+                  )}
+                  {contextErrorId === msg.id && (
+                    <p className="text-xs text-red-600 dark:text-red-400" data-testid={`search-context-error-${msg.id}`}>
+                      {t("channel.contextLoadFailed")}
+                    </p>
+                  )}
                   {notLoadedMessageId === msg.id && (
                     <p className="text-xs text-amber-600 dark:text-amber-400" data-testid={`search-not-loaded-${msg.id}`}>
                       {t("channel.searchMessageNotLoaded")}

@@ -9,7 +9,7 @@ import { useLocale, translate, getLocale } from "@/lib/locale";
 import { getChannel, getChannelMembers, removeChannelMember, archiveChannel, leaveChannel, type Channel, type ChannelMember } from "@/lib/channels-api";
 import { createChannelInvite } from "@/lib/channel-invites-api";
 
-import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, presignAttachmentUpload, uploadAttachmentToPresignedUrlWithProgress, getAttachmentDownloadUrl, type Message, type CreateMessageInput, type UpdateMessageInput, type ReactionSummary, type Attachment, CreateMessageAttachmentInput } from "@/lib/messages-api";
+import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, presignAttachmentUpload, uploadAttachmentToPresignedUrlWithProgress, getAttachmentDownloadUrl, type Message, type CreateMessageInput, type UpdateMessageInput, type ReactionSummary, type Attachment, type MessageContextResult, CreateMessageAttachmentInput } from "@/lib/messages-api";
 import { sendDirectMessage, listDirectConversations, type DirectConversation } from "@/lib/direct-conversations-api";
 import { createSocket } from "@/lib/socket-client";
 import { getAvatarUrl } from "@/lib/avatar-url";
@@ -129,6 +129,10 @@ export default function ChannelDetailPage() {
   const [channel, setChannel] = useState<ChannelState>({ kind: "idle" });
   const [messages, setMessages] = useState<MessagesState>({ kind: "idle" });
   const [members, setMembers] = useState<MembersState>({ kind: "idle" });
+  const [contextMode, setContextMode] = useState<
+    | { kind: "idle" }
+    | { kind: "active"; messages: Message[]; targetId: string }
+  >({ kind: "idle" });
   const [content, setContent] = useState("");
   const [sendState, setSendState] = useState<
     { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string }
@@ -969,10 +973,14 @@ export default function ChannelDetailPage() {
         })
       : [];
 
-  const replyTarget =
-    messages.kind === "success"
-      ? messages.data.find((m) => m.id === replyTargetId)
-      : undefined;
+  const isContextMode = contextMode.kind === "active";
+  const displayMessages = isContextMode
+    ? contextMode.messages
+    : messages.kind === "success"
+      ? messages.data
+      : [];
+
+  const replyTarget = displayMessages.find((m) => m.id === replyTargetId);
 
   function getMessageAuthorName(msg: Message) {
     return msg.author.displayName || msg.author.username || t("messageAuthor.unknownUser");
@@ -993,6 +1001,20 @@ export default function ChannelDetailPage() {
       setHighlightedMessageId((current) => (current === messageId ? null : current));
     }, 1800);
     return true;
+  }
+
+  function handleLoadContext(result: MessageContextResult & { targetId: string }) {
+    const combined = [...result.before, result.target, ...result.after];
+    setContextMode({ kind: "active", messages: combined, targetId: result.targetId });
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        scrollToMessage(result.targetId);
+      });
+    });
+  }
+
+  function exitContextMode() {
+    setContextMode({ kind: "idle" });
   }
 
   function socketStatusLabel(status: typeof socketStatus) {
@@ -1334,6 +1356,7 @@ export default function ChannelDetailPage() {
                 channelId={channelId}
                 accessToken={accessToken}
                 onJumpToMessage={scrollToMessage}
+                onLoadContext={handleLoadContext}
               />
             </div>
           )}
@@ -1341,6 +1364,18 @@ export default function ChannelDetailPage() {
       )}
 
       <div className="mt-4 flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950">
+        {contextMode.kind === "active" && (
+          <div className="shrink-0 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900 px-4 py-2">
+            <button
+              onClick={exitContextMode}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
+              data-testid="back-to-latest-button"
+            >
+              <span aria-hidden="true">←</span>
+              {t("channel.backToLatestMessages")}
+            </button>
+          </div>
+        )}
         <div className="shrink-0 px-4 pt-3 pb-1">
           {Object.keys(typingUsers).length > 0 && (
             <div className="text-xs text-zinc-500 dark:text-zinc-400">
@@ -1357,14 +1392,14 @@ export default function ChannelDetailPage() {
 
         <div ref={messagesScrollRef} onScroll={() => { closeMenuAndPicker(); }} className="min-h-0 flex-1 overflow-y-auto bg-gradient-to-br from-[#e4efc4] via-[#c9e2bf] to-[#9cc7b2] px-4 py-3 dark:from-zinc-950 dark:via-emerald-950/40 dark:to-zinc-900">
           <div className="flex w-full max-w-3xl flex-col">
-            {messages.kind === "loading" && (
+            {messages.kind === "loading" && !isContextMode && (
               <div className="mt-4 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
                 <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
                 {t("channel.loadingMessages")}
               </div>
             )}
 
-            {messages.kind === "error" && (
+            {messages.kind === "error" && !isContextMode && (
               <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
                 <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
                   <span className="h-2 w-2 rounded-full bg-red-500" />
@@ -1373,15 +1408,15 @@ export default function ChannelDetailPage() {
               </div>
             )}
 
-            {messages.kind === "success" && messages.data.length === 0 && (
+            {messages.kind === "success" && messages.data.length === 0 && !isContextMode && (
               <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">
                 {t("channel.noMessages")}
               </p>
             )}
 
-            {messages.kind === "success" && messages.data.length > 0 && (
+            {displayMessages.length > 0 && (
               <ul className="mt-4 space-y-3">
-                {messages.data.map((msg) => {
+                {displayMessages.map((msg) => {
                   const isOwnMessage = user?.id === msg.author.id;
                   return (
                     <li
@@ -1451,7 +1486,7 @@ export default function ChannelDetailPage() {
                           {msg.parentId && (
                             <div className="mb-1.5">
                               {(() => {
-                                const parent = messages.kind === "success" ? messages.data.find((m) => m.id === msg.parentId) : undefined;
+                                const parent = displayMessages.find((m) => m.id === msg.parentId);
                                 if (parent) {
                                   return (
                                     <button
@@ -1849,10 +1884,7 @@ export default function ChannelDetailPage() {
           role="menu"
         >
           {(() => {
-            const activeMenuMessage =
-              messages.kind === "success"
-                ? messages.data.find((m) => m.id === messageMenuId) ?? null
-                : null;
+            const activeMenuMessage = displayMessages.find((m) => m.id === messageMenuId) ?? null;
             if (!activeMenuMessage) return null;
             const isOwn = activeMenuMessage.author.id === user?.id;
             return (
@@ -1944,10 +1976,7 @@ export default function ChannelDetailPage() {
             <button
               key={emoji}
               onClick={() => {
-                const msg =
-                  messages.kind === "success"
-                    ? messages.data.find((m) => m.id === reactionPickerMessageId)
-                    : undefined;
+                const msg = displayMessages.find((m) => m.id === reactionPickerMessageId);
                 if (msg) {
                   handleReactionClick(msg, emoji);
                 }

@@ -399,6 +399,51 @@ export interface SearchChannelMessagesResult {
   nextCursor: string | null;
 }
 
+export interface MessageContextResult {
+  target: Message;
+  before: Message[];
+  after: Message[];
+  hasMoreBefore: boolean;
+  hasMoreAfter: boolean;
+}
+
+export async function getMessageContext(
+  accessToken: string,
+  workspaceId: string,
+  channelId: string,
+  messageId: string,
+  options?: { before?: number; after?: number },
+): Promise<MessageContextResult> {
+  const params = new URLSearchParams();
+  if (options?.before !== undefined) params.set("before", String(options.before));
+  if (options?.after !== undefined) params.set("after", String(options.after));
+
+  const query = params.toString();
+  const url = `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(messageId)}/context${query ? `?${query}` : ""}`;
+
+  const res = await fetch(url, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!res.ok) {
+    let message = `Failed to load message context: ${res.status} ${res.statusText}`;
+    try {
+      const body = await res.json();
+      if (body?.message) message = body.message;
+      else if (body?.error) message = body.error;
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+
+  return res.json() as Promise<MessageContextResult>;
+}
+
 export async function searchChannelMessages(
   accessToken: string,
   workspaceId: string,

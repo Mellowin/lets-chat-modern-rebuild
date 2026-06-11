@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import ChannelDetailPage from "./page";
 import { getChannel, getChannelMembers, addChannelMember, removeChannelMember, leaveChannel, archiveChannel, type ChannelMember } from "@/lib/channels-api";
 import { createChannelInvite } from "@/lib/channel-invites-api";
-import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, presignAttachmentUpload, uploadAttachmentToPresignedUrlWithProgress, getAttachmentDownloadUrl, Message } from "@/lib/messages-api";
+import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, presignAttachmentUpload, uploadAttachmentToPresignedUrlWithProgress, getAttachmentDownloadUrl, getMessageContext, searchChannelMessages, Message } from "@/lib/messages-api";
 import { sendDirectMessage, listDirectConversations } from "@/lib/direct-conversations-api";
 
 const socketHandlers: Record<string, (...args: unknown[]) => void> = {};
@@ -58,6 +58,8 @@ vi.mock("@/lib/messages-api", () => ({
     return Promise.resolve();
   }),
   getAttachmentDownloadUrl: vi.fn(),
+  getMessageContext: vi.fn(),
+  searchChannelMessages: vi.fn(),
 }));
 
 vi.mock("@/lib/direct-conversations-api", () => ({
@@ -3797,5 +3799,109 @@ describe("ChannelDetailPage — forward", () => {
       const sendButton = screen.getByRole("button", { name: /send/i });
       expect(sendButton).toBeDisabled();
     });
+  });
+});
+
+describe("ChannelDetailPage — message context mode", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.setItem("accessToken", "token");
+    vi.clearAllMocks();
+    socketOnMock.mockReset();
+    socketEmitMock.mockReset();
+    socketDisconnectMock.mockReset();
+    Object.keys(socketHandlers).forEach((k) => delete socketHandlers[k]);
+  });
+
+  it("shows context messages and back button when search result not in DOM", async () => {
+    const existing = [
+      { id: "m1", channelId: "ch1", content: "first", parentId: null, createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", editedAt: null, author: { id: "u1", username: "alice", displayName: null, avatarUrl: null }, reactions: [] },
+      { id: "m2", channelId: "ch1", content: "second", parentId: null, createdAt: "2024-01-01T00:01:00Z", updatedAt: "2024-01-01T00:01:00Z", editedAt: null, author: { id: "u1", username: "alice", displayName: null, avatarUrl: null }, reactions: [] },
+    ];
+    const target = { id: "m-old", channelId: "ch1", content: "old message", parentId: null, createdAt: "2024-01-01T00:02:00Z", updatedAt: "2024-01-01T00:02:00Z", editedAt: null, author: { id: "u2", username: "bob", displayName: null, avatarUrl: null }, reactions: [] };
+    mockChannelAndMessages(existing, []);
+
+    vi.mocked(searchChannelMessages).mockResolvedValueOnce({
+      items: [target],
+      nextCursor: null,
+    });
+    vi.mocked(getMessageContext).mockResolvedValueOnce({
+      target,
+      before: [existing[0]],
+      after: [],
+      hasMoreBefore: false,
+      hasMoreAfter: false,
+    });
+
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("first")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId("search-toggle-button"));
+    fireEvent.change(screen.getByTestId("search-input"), { target: { value: "old" } });
+    fireEvent.click(screen.getByTestId("search-submit"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("search-result-m-old")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId("search-result-m-old"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("back-to-latest-button")).toBeInTheDocument();
+    });
+    expect(screen.getByText("old message")).toBeInTheDocument();
+    expect(screen.getByText("first")).toBeInTheDocument();
+    expect(screen.queryByText("second")).not.toBeInTheDocument();
+  });
+
+  it("restores original messages when back to latest is clicked", async () => {
+    const existing = [
+      { id: "m1", channelId: "ch1", content: "first", parentId: null, createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", editedAt: null, author: { id: "u1", username: "alice", displayName: null, avatarUrl: null }, reactions: [] },
+      { id: "m2", channelId: "ch1", content: "second", parentId: null, createdAt: "2024-01-01T00:01:00Z", updatedAt: "2024-01-01T00:01:00Z", editedAt: null, author: { id: "u1", username: "alice", displayName: null, avatarUrl: null }, reactions: [] },
+    ];
+    const target = { id: "m-old", channelId: "ch1", content: "old message", parentId: null, createdAt: "2024-01-01T00:02:00Z", updatedAt: "2024-01-01T00:02:00Z", editedAt: null, author: { id: "u2", username: "bob", displayName: null, avatarUrl: null }, reactions: [] };
+    mockChannelAndMessages(existing, []);
+
+    vi.mocked(searchChannelMessages).mockResolvedValueOnce({
+      items: [target],
+      nextCursor: null,
+    });
+    vi.mocked(getMessageContext).mockResolvedValueOnce({
+      target,
+      before: [existing[0]],
+      after: [],
+      hasMoreBefore: false,
+      hasMoreAfter: false,
+    });
+
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("first")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId("search-toggle-button"));
+    fireEvent.change(screen.getByTestId("search-input"), { target: { value: "old" } });
+    fireEvent.click(screen.getByTestId("search-submit"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("search-result-m-old")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId("search-result-m-old"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("back-to-latest-button")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId("back-to-latest-button"));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("back-to-latest-button")).not.toBeInTheDocument();
+    });
+    expect(screen.getByText("first")).toBeInTheDocument();
+    expect(screen.getByText("second")).toBeInTheDocument();
+    expect(screen.queryByText("old message")).not.toBeInTheDocument();
   });
 });

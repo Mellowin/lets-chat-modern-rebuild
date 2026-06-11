@@ -385,7 +385,10 @@ export type TranslationKey =
   | "channel.typeSearchQuery"
   | "channel.jumpToMessage"
   | "channel.searchAttachmentMessage"
-  | "channel.searchMessageNotLoaded";
+  | "channel.searchMessageNotLoaded"
+  | "channel.loadingContext"
+  | "channel.backToLatestMessages"
+  | "channel.contextLoadFailed";
 
 const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string) => string)>> = {
   en: {
@@ -757,6 +760,9 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.jumpToMessage": "Jump to message",
     "channel.searchAttachmentMessage": "Attachment message",
     "channel.searchMessageNotLoaded": "Message is not currently loaded in the timeline.",
+    "channel.loadingContext": "Loading message context…",
+    "channel.backToLatestMessages": "Back to latest messages",
+    "channel.contextLoadFailed": "Failed to load message context.",
   },
   uk: {
     "header.profile": "Профіль",
@@ -1127,6 +1133,9 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.jumpToMessage": "Перейти до повідомлення",
     "channel.searchAttachmentMessage": "Повідомлення з вкладенням",
     "channel.searchMessageNotLoaded": "Повідомлення зараз не завантажене в стрічці.",
+    "channel.loadingContext": "Завантаження контексту повідомлення…",
+    "channel.backToLatestMessages": "Назад до останніх повідомлень",
+    "channel.contextLoadFailed": "Не вдалося завантажити контекст повідомлення.",
   },
   ru: {
     "header.profile": "Профиль",
@@ -1497,6 +1506,9 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.jumpToMessage": "Перейти к сообщению",
     "channel.searchAttachmentMessage": "Сообщение с вложением",
     "channel.searchMessageNotLoaded": "Сообщение сейчас не загружено в ленте.",
+    "channel.loadingContext": "Загрузка контекста сообщения…",
+    "channel.backToLatestMessages": "Назад к последним сообщениям",
+    "channel.contextLoadFailed": "Не удалось загрузить контекст сообщения.",
   },
 };
 
