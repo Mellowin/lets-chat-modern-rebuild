@@ -15,8 +15,10 @@
     "db:studio": "pnpm --filter @lets-chat/database studio",
     "db:seed": "pnpm --filter @lets-chat/database seed"
   },
+  "dependencies": {
+    "@types/node": "^20.14.0"
+  },
   "devDependencies": {
-    "@types/node": "^20.14.0",
     "typescript": "^5.4.5"
   },
   "packageManager": "pnpm@9.1.0",
