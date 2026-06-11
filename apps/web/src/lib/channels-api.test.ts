@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { getChannels, getChannel, getArchivedChannels, createChannel, addChannelMember, removeChannelMember, restoreChannel, leaveChannel } from "./channels-api";
+import { getChannels, getChannel, getArchivedChannels, createChannel, addChannelMember, removeChannelMember, restoreChannel, leaveChannel, markChannelRead } from "./channels-api";
 
 const API_BASE = "http://localhost:3001/api/v1";
 
@@ -69,6 +69,26 @@ describe("channels-api", () => {
       await expect(createChannel("token", "ws1", { name: "x" })).rejects.toThrow(
         "Failed to create channel: 500 Internal Server Error",
       );
+    });
+  });
+
+  describe("markChannelRead", () => {
+    it("sends POST /workspaces/:wsId/channels/:chId/read", async () => {
+      const mock = { success: true, lastReadAt: "2024-01-01T00:00:00Z" };
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(mock), { status: 200 }));
+
+      const result = await markChannelRead("token", "ws1", "ch1");
+
+      expect(fetch).toHaveBeenCalledWith(
+        `${API_BASE}/workspaces/ws1/channels/ch1/read`,
+        expect.objectContaining({ method: "POST" }),
+      );
+      expect(result).toEqual(mock);
+    });
+
+    it("throws with backend error message", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ message: "Channel not found" }), { status: 404 }));
+      await expect(markChannelRead("token", "ws1", "ch1")).rejects.toThrow("Channel not found");
     });
   });
 

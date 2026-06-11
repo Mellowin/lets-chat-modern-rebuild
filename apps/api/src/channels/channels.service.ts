@@ -67,7 +67,7 @@ export class ChannelsService {
     if (!role) {
       throw new NotFoundException('Workspace not found');
     }
-    return this.channels.listForWorkspace(workspaceId, userId);
+    return this.channels.listForWorkspaceWithUnread(workspaceId, userId);
   }
 
   async listArchived(workspaceId: string, userId: string) {
@@ -95,6 +95,36 @@ export class ChannelsService {
     }
 
     return channel;
+  }
+
+  async markChannelRead(
+    workspaceId: string,
+    channelId: string,
+    userId: string,
+  ) {
+    const wsRole = await this.workspaces.findMemberRole(workspaceId, userId);
+    if (!wsRole) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const channel = await this.channels.findActiveById(channelId);
+    if (!channel || channel.workspaceId !== workspaceId) {
+      throw new NotFoundException('Channel not found');
+    }
+
+    const chRole = await this.channels.findChannelMemberRole(channelId, userId);
+    if (!chRole) {
+      throw new NotFoundException('Channel not found');
+    }
+
+    const lastReadAt = new Date();
+    await this.channels.upsertChannelReadState(
+      workspaceId,
+      channelId,
+      userId,
+      lastReadAt,
+    );
+    return { success: true, lastReadAt };
   }
 
   async update(

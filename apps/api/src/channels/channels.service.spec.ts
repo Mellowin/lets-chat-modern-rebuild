@@ -73,7 +73,10 @@ describe('ChannelsService', () => {
             createChannelMember: jest.fn(),
             listActiveChannelMembers: jest.fn(),
             listForWorkspace: jest.fn(),
+            listForWorkspaceWithUnread: jest.fn(),
             listArchivedForWorkspace: jest.fn(),
+            upsertChannelReadState: jest.fn(),
+            findChannelReadState: jest.fn(),
             updateChannel: jest.fn(),
             findByIdIncludingArchived: jest.fn(),
             archiveChannel: jest.fn(),
@@ -564,9 +567,17 @@ describe('ChannelsService', () => {
         id: channelId,
         deletedAt: null,
       } as RestoredChannel);
-      channelsRepository.listForWorkspace.mockResolvedValue([
-        { id: channelId, workspaceId, name: 'general', deletedAt: null },
-      ] as ListedChannel[]);
+      channelsRepository.listForWorkspaceWithUnread.mockResolvedValue([
+        {
+          id: channelId,
+          workspaceId,
+          name: 'general',
+          deletedAt: null,
+          unreadCount: 0,
+          hasUnread: false,
+          lastReadAt: null,
+        },
+      ] as unknown as ListedChannel[]);
 
       const restoreResult = await service.restore(
         workspaceId,
@@ -578,6 +589,74 @@ describe('ChannelsService', () => {
       const listResult = await service.list(workspaceId, userId);
       expect(listResult).toHaveLength(1);
       expect(listResult[0].id).toBe(channelId);
+    });
+  });
+
+  describe('markChannelRead', () => {
+    it('should mark channel as read for member', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.upsertChannelReadState.mockResolvedValue({
+        id: 'rs1',
+        workspaceId,
+        channelId,
+        userId,
+        lastReadAt: new Date('2026-06-11T10:00:00Z'),
+      });
+
+      const result = await service.markChannelRead(
+        workspaceId,
+        channelId,
+        userId,
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.lastReadAt).toBeInstanceOf(Date);
+      expect(channelsRepository.upsertChannelReadState).toHaveBeenCalledWith(
+        workspaceId,
+        channelId,
+        userId,
+        expect.any(Date) as Date,
+      );
+    });
+
+    it('should reject non-workspace member', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue(null);
+
+      await expect(
+        service.markChannelRead(workspaceId, channelId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(channelsRepository.upsertChannelReadState).not.toHaveBeenCalled();
+    });
+
+    it('should reject inaccessible channel', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue(null);
+
+      await expect(
+        service.markChannelRead(workspaceId, channelId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(channelsRepository.upsertChannelReadState).not.toHaveBeenCalled();
+    });
+
+    it('should reject non-channel-member', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue(null);
+
+      await expect(
+        service.markChannelRead(workspaceId, channelId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(channelsRepository.upsertChannelReadState).not.toHaveBeenCalled();
     });
   });
 
@@ -1517,7 +1596,7 @@ describe('ChannelsService', () => {
         user: { id: userId, username: 'alice' },
       } as FoundChannelMember);
       channelsRepository.softDeleteChannelMember.mockResolvedValue(1);
-      channelsRepository.listForWorkspace.mockResolvedValue([]);
+      channelsRepository.listForWorkspaceWithUnread.mockResolvedValue([]);
 
       const leaveResult = await service.leaveChannel(
         workspaceId,

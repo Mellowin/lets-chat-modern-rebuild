@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useLocale, translate, getLocale } from "@/lib/locale";
-import { getChannel, getChannelMembers, removeChannelMember, archiveChannel, leaveChannel, type Channel, type ChannelMember } from "@/lib/channels-api";
+import { getChannel, getChannelMembers, removeChannelMember, archiveChannel, leaveChannel, markChannelRead, type Channel, type ChannelMember } from "@/lib/channels-api";
 import { createChannelInvite } from "@/lib/channel-invites-api";
 
 import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, presignAttachmentUpload, uploadAttachmentToPresignedUrlWithProgress, getAttachmentDownloadUrl, type Message, type CreateMessageInput, type UpdateMessageInput, type ReactionSummary, type Attachment, type MessageContextResult, CreateMessageAttachmentInput } from "@/lib/messages-api";
@@ -318,6 +318,13 @@ export default function ChannelDetailPage() {
         if (!cancelled) {
           setChannel({ kind: "success", data: chData });
           setMessages({ kind: "success", data: msgData });
+          // mark channel as read after successful load
+          try {
+            await markChannelRead(token, ws, ch);
+            window.dispatchEvent(new Event("channels:changed"));
+          } catch {
+            // ignore mark-read failures silently
+          }
         }
       } catch (err) {
         const message =

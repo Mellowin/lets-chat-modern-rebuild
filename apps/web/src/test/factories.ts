@@ -44,6 +44,9 @@ export function createChannel(overrides?: Partial<Channel>): Channel {
     createdAt: "2024-01-01T00:00:00Z",
     updatedAt: "2024-01-01T00:00:00Z",
     deletedAt: null,
+    unreadCount: 0,
+    hasUnread: false,
+    lastReadAt: null,
     ...overrides,
   };
 }

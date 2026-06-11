@@ -13,6 +13,9 @@ export interface Channel {
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
+  unreadCount?: number;
+  hasUnread?: boolean;
+  lastReadAt?: string | null;
 }
 
 export interface CreateChannelInput {
@@ -220,6 +223,37 @@ export async function addChannelMember(
   }
 
   return res.json() as Promise<ChannelMember>;
+}
+
+export async function markChannelRead(
+  accessToken: string,
+  workspaceId: string,
+  channelId: string,
+): Promise<{ success: boolean; lastReadAt: string }> {
+  const res = await fetch(
+    `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/read`,
+    {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
+
+  if (!res.ok) {
+    let message = `Failed to mark channel as read: ${res.status} ${res.statusText}`;
+    try {
+      const body = await res.json();
+      if (body?.message) message = body.message;
+      else if (body?.error) message = body.error;
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+
+  return res.json() as Promise<{ success: boolean; lastReadAt: string }>;
 }
 
 export async function restoreChannel(

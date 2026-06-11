@@ -2,7 +2,7 @@ import { render, screen, waitFor, fireEvent, act } from "@testing-library/react"
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import ChannelDetailPage from "./page";
-import { getChannel, getChannelMembers, addChannelMember, removeChannelMember, leaveChannel, archiveChannel, type ChannelMember } from "@/lib/channels-api";
+import { getChannel, getChannelMembers, addChannelMember, removeChannelMember, leaveChannel, archiveChannel, markChannelRead, type ChannelMember } from "@/lib/channels-api";
 import { createChannelInvite } from "@/lib/channel-invites-api";
 import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, presignAttachmentUpload, uploadAttachmentToPresignedUrlWithProgress, getAttachmentDownloadUrl, getMessageContext, searchChannelMessages, Message } from "@/lib/messages-api";
 import { sendDirectMessage, listDirectConversations } from "@/lib/direct-conversations-api";
@@ -38,6 +38,7 @@ vi.mock("@/lib/channels-api", () => ({
   removeChannelMember: vi.fn(),
   leaveChannel: vi.fn(),
   archiveChannel: vi.fn(),
+  markChannelRead: vi.fn(),
 }));
 
 vi.mock("@/lib/channel-invites-api", () => ({
@@ -472,6 +473,21 @@ describe("ChannelDetailPage — composer focus", () => {
     await waitFor(() => {
       expect(textarea).toHaveFocus();
     });
+  });
+
+  it("marks channel as read after messages load", async () => {
+    mockChannelAndMessages([]);
+    vi.mocked(markChannelRead).mockResolvedValueOnce({ success: true, lastReadAt: "2024-01-01T00:00:00Z" });
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent").mockImplementation(() => true);
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(markChannelRead).toHaveBeenCalledWith("token", "ws1", "ch1");
+    });
+    expect(dispatchSpy).toHaveBeenCalledWith(expect.any(Event));
+
+    dispatchSpy.mockRestore();
   });
 
   it("keeps composer focused after sending a message", async () => {

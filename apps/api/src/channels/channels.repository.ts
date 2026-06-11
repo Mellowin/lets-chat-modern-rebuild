@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { ChannelRole, PrismaService } from '@lets-chat/database';
+import { ChannelRole, Prisma, PrismaService } from '@lets-chat/database';
 
 interface CreateChannelInput {
   workspaceId: string;
@@ -8,6 +8,22 @@ interface CreateChannelInput {
   description?: string;
   type: 'PUBLIC' | 'PRIVATE';
   createdById: string;
+}
+
+export interface ChannelWithUnread {
+  id: string;
+  workspaceId: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  type: 'PUBLIC' | 'PRIVATE';
+  createdById: string;
+  createdAt: Date;
+  updatedAt: Date;
+  deletedAt: Date | null;
+  unreadCount: number;
+  hasUnread: boolean;
+  lastReadAt: Date | null;
 }
 
 @Injectable()
@@ -61,6 +77,68 @@ export class ChannelsRepository {
       },
       orderBy: { createdAt: 'asc' },
     });
+  }
+
+  async listForWorkspaceWithUnread(
+    workspaceId: string,
+    userId: string,
+  ): Promise<ChannelWithUnread[]> {
+    const channels = await this.prisma.channel.findMany({
+      where: {
+        workspaceId,
+        deletedAt: null,
+        members: {
+          some: {
+            userId,
+            deletedAt: null,
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    if (channels.length === 0) {
+      return [];
+    }
+
+    const channelIds = channels.map((c) => c.id);
+
+    const readStates = await this.prisma.channelReadState.findMany({
+      where: {
+        workspaceId,
+        userId,
+        channelId: { in: channelIds },
+      },
+      select: { channelId: true, lastReadAt: true },
+    });
+
+    const readStateMap = new Map(
+      readStates.map((rs) => [rs.channelId, rs.lastReadAt]),
+    );
+
+    const unreadCounts = await this.prisma.$queryRaw<
+      { channelId: string; unreadCount: number }[]
+    >`
+      SELECT m."channelId", COUNT(*)::int as "unreadCount"
+      FROM "Message" m
+      LEFT JOIN "ChannelReadState" crs ON crs."channelId" = m."channelId" AND crs."userId" = ${userId}
+      WHERE m."channelId" IN (${Prisma.join(channelIds)})
+        AND m."deletedAt" IS NULL
+        AND m."authorId" != ${userId}
+        AND m."createdAt" > COALESCE(crs."lastReadAt", '1970-01-01'::timestamp)
+      GROUP BY m."channelId"
+    `;
+
+    const unreadCountMap = new Map(
+      unreadCounts.map((u) => [u.channelId, u.unreadCount]),
+    );
+
+    return channels.map((ch) => ({
+      ...ch,
+      unreadCount: unreadCountMap.get(ch.id) ?? 0,
+      hasUnread: (unreadCountMap.get(ch.id) ?? 0) > 0,
+      lastReadAt: readStateMap.get(ch.id) ?? null,
+    }));
   }
 
   async listArchivedForWorkspace(workspaceId: string, userId: string) {
@@ -236,5 +314,41 @@ export class ChannelsRepository {
       data: { deletedAt: new Date() },
     });
     return result.count;
+  }
+
+  async upsertChannelReadState(
+    workspaceId: string,
+    channelId: string,
+    userId: string,
+    lastReadAt: Date,
+  ) {
+    return this.prisma.channelReadState.upsert({
+      where: {
+        channelId_userId: {
+          channelId,
+          userId,
+        },
+      },
+      create: {
+        workspaceId,
+        channelId,
+        userId,
+        lastReadAt,
+      },
+      update: {
+        lastReadAt,
+      },
+    });
+  }
+
+  async findChannelReadState(channelId: string, userId: string) {
+    return this.prisma.channelReadState.findUnique({
+      where: {
+        channelId_userId: {
+          channelId,
+          userId,
+        },
+      },
+    });
   }
 }

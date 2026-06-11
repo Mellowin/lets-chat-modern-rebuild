@@ -465,18 +465,27 @@ export default function Sidebar() {
                                     className={`flex items-center justify-between rounded-md px-2 py-1 text-sm transition-colors ${
                                       isChActive
                                         ? "bg-zinc-200 dark:bg-zinc-800 font-medium text-zinc-900 dark:text-zinc-100"
-                                        : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
+                                        : ch.hasUnread
+                                          ? "font-medium text-zinc-900 dark:text-zinc-100 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
+                                          : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
                                     }`}
                                   >
                                     <span className="truncate"># {ch.name}</span>
-                                    <span
-                                      className={`shrink-0 ml-1.5 inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide ${
-                                        ch.type === "PUBLIC"
-                                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400"
-                                          : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
-                                      }`}
-                                    >
-                                      {ch.type === "PUBLIC" ? t("sidebar.publicShort") : t("sidebar.privateShort")}
+                                    <span className="flex items-center gap-1 shrink-0 ml-1">
+                                      {(ch.unreadCount ?? 0) > 0 && (
+                                        <span data-testid={`sidebar-channel-unread-${ch.id}`} className="inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-zinc-900 px-1 text-[9px] font-bold text-white dark:bg-zinc-100 dark:text-zinc-900">
+                                          {(ch.unreadCount ?? 0) > 99 ? "99+" : ch.unreadCount}
+                                        </span>
+                                      )}
+                                      <span
+                                        className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide ${
+                                          ch.type === "PUBLIC"
+                                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400"
+                                            : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
+                                        }`}
+                                      >
+                                        {ch.type === "PUBLIC" ? t("sidebar.publicShort") : t("sidebar.privateShort")}
+                                      </span>
                                     </span>
                                   </Link>
                                 </li>

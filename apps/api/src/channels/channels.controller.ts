@@ -77,6 +77,19 @@ export class ChannelsController {
     return this.channels.listArchived(workspaceId, user.id);
   }
 
+  @Post(':channelId/read')
+  @ApiOperation({ summary: 'Mark channel as read' })
+  @ApiOkResponse({ description: 'Channel marked as read' })
+  @ApiNotFoundResponse({ description: 'Workspace or channel not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async markRead(
+    @Param('workspaceId') workspaceId: string,
+    @Param('channelId') channelId: string,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.channels.markChannelRead(workspaceId, channelId, user.id);
+  }
+
   @Get(':channelId')
   @ApiOperation({ summary: 'Get channel by id' })
   @ApiOkResponse({ description: 'Channel found' })

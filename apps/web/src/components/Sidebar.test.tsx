@@ -240,6 +240,42 @@ describe("Sidebar — Workspaces section", () => {
     expect(screen.getByTestId("sidebar-channel-link-ch1")).toHaveClass("bg-zinc-200");
   });
 
+  it("shows unread badge on channel with unread messages", async () => {
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    vi.mocked(getChannels).mockImplementation(async (_token, wsId) => {
+      if (wsId === "ws1") {
+        return [
+          createChannel({ id: "ch1", name: "Boboski", workspaceId: "ws1", type: "PUBLIC" as const, unreadCount: 5, hasUnread: true }),
+          createChannel({ id: "ch2", name: "ПОПА", workspaceId: "ws1", type: "PRIVATE" as const, unreadCount: 0, hasUnread: false }),
+        ];
+      }
+      return [];
+    });
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-channel-unread-ch1")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("sidebar-channel-unread-ch1")).toHaveTextContent("5");
+    expect(screen.queryByTestId("sidebar-channel-unread-ch2")).not.toBeInTheDocument();
+  });
+
+  it("does not show unread badge when unreadCount is 0", async () => {
+    setupDefaultMocks("/workspaces/ws1/channels/ch1");
+    vi.mocked(getChannels).mockImplementation(async (_token, wsId) => {
+      if (wsId === "ws1") {
+        return [
+          createChannel({ id: "ch1", name: "Boboski", workspaceId: "ws1", type: "PUBLIC" as const, unreadCount: 0, hasUnread: false }),
+        ];
+      }
+      return [];
+    });
+    render(<Sidebar />);
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-channel-link-ch1")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("sidebar-channel-unread-ch1")).not.toBeInTheDocument();
+  });
+
   it("nests channels under their workspace", async () => {
     setupDefaultMocks("/workspaces/ws1/channels/ch1");
     render(<Sidebar />);
