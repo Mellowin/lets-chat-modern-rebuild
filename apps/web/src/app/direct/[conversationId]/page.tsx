@@ -83,10 +83,26 @@ export default function DirectConversationPage() {
   const didInitialScroll = useRef(false);
   const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const socketRef = useRef<ReturnType<typeof createSocket> | null>(null);
+  const markReadInFlightRef = useRef<Promise<unknown> | null>(null);
   const messageRefs = useRef<Record<string, HTMLLIElement | null>>({});
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoHideTypingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTypingEmittedRef = useRef(false);
+
+  function safeMarkDirectConversationRead(token: string, convId: string) {
+    if (markReadInFlightRef.current) return;
+    markReadInFlightRef.current = markDirectConversationRead(token, convId)
+      .then(() => {
+        notifyDirectConversationsChanged();
+        markAllReadInState();
+      })
+      .catch(() => {
+        // non-blocking
+      })
+      .finally(() => {
+        markReadInFlightRef.current = null;
+      });
+  }
 
   function notifyDirectConversationsChanged() {
     window.dispatchEvent(new CustomEvent("direct-conversations:changed"));
@@ -428,18 +444,12 @@ export default function DirectConversationPage() {
     }
     load(accessToken, conversationId).then(() => {
       if (cancelled) return;
-      markDirectConversationRead(accessToken, conversationId)
-        .then(() => {
-          notifyDirectConversationsChanged();
-          markAllReadInState();
-        })
-        .catch(() => {
-          // non-blocking
-        });
+      safeMarkDirectConversationRead(accessToken, conversationId);
     });
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, conversationId, accessToken, t, markAllReadInState]);
 
   useEffect(() => {
@@ -466,14 +476,7 @@ export default function DirectConversationPage() {
       }
       // Mark as read when receiving message while in open conversation
       if (accessToken) {
-        markDirectConversationRead(accessToken, conversationId)
-          .then(() => {
-            notifyDirectConversationsChanged();
-            markAllReadInState();
-          })
-          .catch(() => {
-            // non-blocking
-          });
+        safeMarkDirectConversationRead(accessToken, conversationId);
       }
     }
 

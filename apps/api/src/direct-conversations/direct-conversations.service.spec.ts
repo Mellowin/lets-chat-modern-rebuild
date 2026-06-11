@@ -992,7 +992,10 @@ describe('DirectConversationsService', () => {
       });
 
       const result = await service.markAsRead(conversationId, userId);
-      expect(result).toEqual({ ok: true });
+      expect(result).toEqual({
+        success: true,
+        lastReadAt: expect.any(String) as string,
+      });
       expect(repository.updateParticipantLastRead).toHaveBeenCalledWith(
         conversationId,
         userId,

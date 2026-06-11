@@ -43,7 +43,7 @@ vi.mock("@/lib/auth-context", () => ({
 vi.mock("@/lib/direct-conversations-api", () => ({
   listDirectMessages: vi.fn(),
   sendDirectMessage: vi.fn(),
-  markDirectConversationRead: vi.fn().mockResolvedValue({ ok: true }),
+  markDirectConversationRead: vi.fn().mockResolvedValue({ success: true, lastReadAt: "2024-01-01T00:00:00Z" }),
   listDirectConversations: vi.fn(),
   reactToDirectMessage: vi.fn(),
   removeDirectMessageReaction: vi.fn(),
@@ -614,7 +614,7 @@ describe("DirectConversationPage — socket", () => {
     });
 
     expect(screen.getAllByText("Original").length).toBe(1);
-    vi.mocked(markDirectConversationRead).mockResolvedValue({ ok: true });
+    vi.mocked(markDirectConversationRead).mockResolvedValue({ success: true, lastReadAt: "2024-01-01T00:00:00Z" });
   });
 
   it("ignores socket message for another conversation", async () => {
@@ -7284,7 +7284,7 @@ describe("DirectConversationPage — unread separator", () => {
     vi.mocked(markDirectConversationRead).mockImplementation(
       () =>
         new Promise((resolve) => {
-          resolvers.push(() => resolve({ ok: true }));
+          resolvers.push(() => resolve({ success: true, lastReadAt: "2024-01-01T00:00:00Z" }));
         }),
     );
     mockMessages([
@@ -7324,7 +7324,7 @@ describe("DirectConversationPage — unread separator", () => {
     vi.mocked(markDirectConversationRead).mockImplementation(
       () =>
         new Promise((resolve) => {
-          resolvers.push(() => resolve({ ok: true }));
+          resolvers.push(() => resolve({ success: true, lastReadAt: "2024-01-01T00:00:00Z" }));
         }),
     );
     mockMessages([
@@ -7347,6 +7347,15 @@ describe("DirectConversationPage — unread separator", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("direct-unread-separator")).toBeInTheDocument();
+    });
+
+    // Resolve initial load mark-read so dedupe doesn't skip the next one
+    await waitFor(() => {
+      expect(resolvers.length).toBe(1);
+    });
+    resolvers[0]();
+    await act(async () => {
+      await Promise.resolve();
     });
 
     const handler = socketHandlers["direct:message:created"];
@@ -7373,7 +7382,7 @@ describe("DirectConversationPage — unread separator", () => {
     await waitFor(() => {
       expect(resolvers.length).toBe(2);
     });
-    resolvers[1]();
+    resolvers[1]()
 
     // Auto-mark-read removes the separator; verify no duplicate ever appeared
     await waitFor(() => {

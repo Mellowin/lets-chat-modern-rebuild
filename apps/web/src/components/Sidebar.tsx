@@ -208,8 +208,10 @@ export default function Sidebar() {
     }
     function handleConnect() {
       const activeWs = activeWorkspaceIdRef.current;
-      if (!activeWs) return;
-      loadChannelsForWorkspaceRef.current(token, activeWs, true);
+      if (activeWs) {
+        loadChannelsForWorkspaceRef.current(token, activeWs, true);
+      }
+      load(token);
     }
     socket.on("connect", handleConnect);
     socket.on("direct:conversation:updated", handleDirectConversationUpdated);
@@ -333,8 +335,17 @@ export default function Sidebar() {
       if (document.visibilityState !== "visible") return;
       const wsId = activeWorkspaceIdRef.current;
       const token = accessTokenRef.current;
-      if (!wsId || !token) return;
-      loadChannelsForWorkspaceRef.current(token, wsId, true);
+      if (!token) return;
+      if (wsId) {
+        loadChannelsForWorkspaceRef.current(token, wsId, true);
+      }
+      listDirectConversations(token)
+        .then((data) => {
+          setDirectConversations({ kind: "success", data });
+        })
+        .catch(() => {
+          // ignore
+        });
     }
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
@@ -482,7 +493,9 @@ export default function Sidebar() {
                       className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
                         isActive
                           ? "bg-zinc-200 dark:bg-zinc-800 font-medium text-zinc-900 dark:text-zinc-100"
-                          : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
+                          : conv.hasUnread
+                            ? "font-medium text-zinc-900 dark:text-zinc-100 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
+                            : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
                       }`}
                     >
                       <span

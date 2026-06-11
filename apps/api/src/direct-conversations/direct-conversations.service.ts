@@ -69,6 +69,7 @@ export class DirectConversationsService {
           }
         : null,
       unreadCount,
+      hasUnread: unreadCount > 0,
       isOnline: otherParticipant
         ? this.presence.isUserTracked(otherParticipant.id)
         : false,
@@ -453,7 +454,7 @@ export class DirectConversationsService {
       readAt: readAt.toISOString(),
     });
 
-    return { ok: true };
+    return { success: true, lastReadAt: readAt.toISOString() };
   }
 
   async addReaction(

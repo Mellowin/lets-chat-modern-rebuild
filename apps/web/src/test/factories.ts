@@ -59,6 +59,7 @@ export function createDirectConversation(overrides?: Partial<DirectConversation>
     otherParticipant: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
     lastMessage: null,
     unreadCount: 0,
+    hasUnread: false,
     isOnline: false,
     ...overrides,
   };
