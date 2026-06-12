@@ -2387,6 +2387,69 @@ describe("ChannelDetailPage — members drawer", () => {
     expect(screen.queryByText("Alice")).not.toBeInTheDocument();
     expect(screen.getByText("Bob")).toBeInTheDocument();
   });
+
+  it("shows channel roles info and a link to workspace roles", async () => {
+    mockChannelAndMessages([], [ownerMember]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Members/i })).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole("button", { name: /Members/i }));
+    expect(
+      screen.getByText(/Channel roles control who can manage this channel/i)
+    ).toBeInTheDocument();
+    const link = screen.getByRole("link", { name: /Manage workspace roles/i });
+    expect(link).toHaveAttribute("href", "/workspaces/ws1");
+  });
+
+  it("shows invite acceptance note when owner can add members", async () => {
+    mockChannelAndMessages([], [ownerMember]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Members/i })).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole("button", { name: /Members/i }));
+    expect(
+      screen.getByText(/Invited users must accept before they appear here/i)
+    ).toBeInTheDocument();
+  });
+
+  it("shows public channel note for public channels", async () => {
+    mockChannelAndMessages([], [ownerMember]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Members/i })).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole("button", { name: /Members/i }));
+    expect(
+      screen.getByText(/Public channels are visible to all workspace members/i)
+    ).toBeInTheDocument();
+  });
+
+  it("shows private channel note for private channels", async () => {
+    vi.mocked(getChannel).mockResolvedValueOnce({
+      id: "ch1",
+      workspaceId: "ws1",
+      name: "secret",
+      slug: "secret",
+      description: null,
+      type: "PRIVATE",
+      createdById: "u1",
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      deletedAt: null,
+    });
+    vi.mocked(getMessages).mockResolvedValueOnce([]);
+    vi.mocked(getChannelMembers).mockResolvedValueOnce([ownerMember]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Members/i })).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole("button", { name: /Members/i }));
+    expect(
+      screen.getByText(/Private channels are invitation-only/i)
+    ).toBeInTheDocument();
+  });
 });
 
 describe("ChannelDetailPage — replies", () => {

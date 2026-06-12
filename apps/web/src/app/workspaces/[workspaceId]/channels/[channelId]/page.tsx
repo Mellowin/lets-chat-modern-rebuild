@@ -2121,6 +2121,18 @@ export default function ChannelDetailPage() {
           </div>
 
           <div className="px-5 pt-4 shrink-0">
+            <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 p-3 text-xs text-zinc-600 dark:text-zinc-300">
+              <p>{t("channel.membersPanelInfo")}</p>
+              <Link
+                href={`/workspaces/${workspaceId}`}
+                className="mt-1 inline-block font-medium text-zinc-900 dark:text-zinc-100 hover:underline"
+              >
+                {t("channel.manageWorkspaceRoles")} →
+              </Link>
+            </div>
+          </div>
+
+          <div className="px-5 pt-4 shrink-0">
             <input
               type="text"
               placeholder={t("channel.searchMembers")}
@@ -2179,9 +2191,27 @@ export default function ChannelDetailPage() {
                     <span className="h-2 w-2 rounded-full bg-emerald-500" />
                     {t("channel.invitationSent")}
                   </div>
+                  <p className="mt-1 text-emerald-700 dark:text-emerald-300/90">
+                    {t("channel.inviteAcceptanceNote")}
+                  </p>
                 </div>
               )}
+              {addMemberState.kind === "idle" && (
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  {t("channel.inviteAcceptanceNote")}
+                </p>
+              )}
             </form>
+          )}
+
+          {channel.kind === "success" && (
+            <div className="px-5 pt-2 shrink-0">
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                {channel.data.type === "PUBLIC"
+                  ? t("channel.publicChannelNote")
+                  : t("channel.privateChannelNote")}
+              </p>
+            </div>
           )}
 
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-2">

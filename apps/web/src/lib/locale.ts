@@ -231,6 +231,11 @@ export type TranslationKey =
   | "channel.publicChannel"
   | "channel.privateChannel"
   | "channel.invitationSent"
+  | "channel.membersPanelInfo"
+  | "channel.manageWorkspaceRoles"
+  | "channel.inviteAcceptanceNote"
+  | "channel.publicChannelNote"
+  | "channel.privateChannelNote"
   | "channel.loadingMembers"
   | "channel.noMembers"
   | "channel.searchMembers"
@@ -666,6 +671,11 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.publicChannel": "Public",
     "channel.privateChannel": "Private",
     "channel.invitationSent": "Channel invitation sent",
+    "channel.membersPanelInfo": "Channel roles control who can manage this channel. They are separate from workspace roles.",
+    "channel.manageWorkspaceRoles": "Manage workspace roles",
+    "channel.inviteAcceptanceNote": "Invited users must accept before they appear here.",
+    "channel.publicChannelNote": "Public channels are visible to all workspace members. Inviting adds a user with channel permissions.",
+    "channel.privateChannelNote": "Private channels are invitation-only.",
     "channel.loadingMembers": "Loading members…",
     "channel.noMembers": "No members yet.",
     "channel.searchMembers": "Search members…",
@@ -1111,6 +1121,11 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.publicChannel": "Публічний",
     "channel.privateChannel": "Приватний",
     "channel.invitationSent": "Запрошення до каналу надіслано",
+    "channel.membersPanelInfo": "Ролі каналу визначають, хто може керувати каналом. Вони не збігаються з ролями робочого простору.",
+    "channel.manageWorkspaceRoles": "Керувати ролями робочого простору",
+    "channel.inviteAcceptanceNote": "Запрошені користувачі повинні прийняти запрошення, перш ніж з’явитися тут.",
+    "channel.publicChannelNote": "Публічні канали видимі всім учасникам робочого простору. Запрошення додає користувача з правами каналу.",
+    "channel.privateChannelNote": "Приватні канали — лише за запрошенням.",
     "channel.loadingMembers": "Завантажуємо учасників…",
     "channel.noMembers": "Учасників ще немає.",
     "channel.searchMembers": "Пошук учасників…",
@@ -1556,6 +1571,11 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.publicChannel": "Публичный",
     "channel.privateChannel": "Приватный",
     "channel.invitationSent": "Приглашение в канал отправлено",
+    "channel.membersPanelInfo": "Роли канала определяют, кто может управлять каналом. Они отличаются от ролей рабочего пространства.",
+    "channel.manageWorkspaceRoles": "Управлять ролями рабочего пространства",
+    "channel.inviteAcceptanceNote": "Приглашённые пользователи должны принять приглашение, прежде чем появиться здесь.",
+    "channel.publicChannelNote": "Публичные каналы видны всем участникам рабочего пространства. Приглашение добавляет пользователя с правами канала.",
+    "channel.privateChannelNote": "Приватные каналы — только по приглашению.",
     "channel.loadingMembers": "Загружаем участников…",
     "channel.noMembers": "Участников пока нет.",
     "channel.searchMembers": "Поиск участников…",

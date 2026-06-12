@@ -42,6 +42,11 @@ See [`docs/deployment-vercel.md`](deployment-vercel.md) for full deployment guid
 - List workspace channels
 - View channel detail
 - Archive/restore channels (OWNER only)
+- Channel member management via Members drawer:
+  - Channel roles (OWNER/ADMIN/MEMBER) are separate from workspace roles
+  - OWNER/ADMIN can invite workspace members to the channel; ADMIN cannot create ADMIN invites
+  - OWNER/ADMIN can remove members with role-aware rules (OWNER cannot be removed; ADMIN cannot remove another ADMIN)
+  - Drawer shows explanatory copy and a link to manage workspace roles
 
 ### Messages
 - Send message (text, max 4000 chars)
@@ -102,6 +107,8 @@ Use these steps to verify core functionality after deploy or before release:
 - [ ] **Create workspace** with Cyrillic name (e.g., `Моя Команда`) → slug auto-generated as `moya-komanda`
 - [ ] **Create invalid workspace** with name like `!!!` → expect rejection (`Invalid workspace slug`)
 - [ ] **Create channel** with Cyrillic name (e.g., `Загальний`) → slug auto-generated
+- [ ] **Invite workspace member to channel** — invitation sent, accept flow adds user with channel role
+- [ ] **Remove channel member** — OWNER/ADMIN can remove lower-role members; OWNER cannot be removed
 - [ ] **Send message** by pressing Enter
 - [ ] **Shift+Enter** in composer inserts newline instead of sending
 - [ ] **Reply to message** — reply appears in thread
