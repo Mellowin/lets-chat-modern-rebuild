@@ -140,7 +140,7 @@ Use these steps to verify core functionality after deploy or before release:
 - **WebSocket typing access revalidation** added — `broadcastTyping` revalidates channel membership on every event; revoked access triggers `typing:error`, presence cleanup, and automatic room leave.
 - **Private channel E2E security smoke tests** added (`channels.e2e-spec.ts`) — 7 tests proving private channel access control through real HTTP endpoints.
 - **API tests count:** 695 unit tests (31 suites)
-- **Web tests count:** 629 unit tests (18 files) + 235 page tests (2 files)
+- **Web tests count:** 649 unit tests (28 files) + 239 page tests (2 files)
 - **E2E tests:** 7 passing locally (2 suites); requires Docker PostgreSQL
 - **CI:** green ✅ (unit tests, builds, lint, typecheck; e2e not yet in CI)
 - **Remaining known risks:**
