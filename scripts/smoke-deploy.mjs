@@ -142,6 +142,27 @@ async function checkProtected(label, method, path) {
   }
 }
 
+async function checkMissingAvatarFallback() {
+  const label = "GET /uploads/missing-avatar.png returns 200 transparent PNG";
+  try {
+    const apiUrl = new URL(API_URL);
+    const fallbackUrl = `${apiUrl.origin}/uploads/missing-avatar.png`;
+    const res = await fetch(fallbackUrl, { method: "GET" });
+    const contentType = res.headers.get("content-type") || "";
+    if (res.status !== 200) {
+      fail(label, `status ${res.status}`);
+      return;
+    }
+    if (!contentType.includes("image/png")) {
+      fail(label, `content-type ${contentType}`);
+      return;
+    }
+    pass(label);
+  } catch (err) {
+    fail(label, err instanceof Error ? err.message : String(err));
+  }
+}
+
 async function main() {
   console.log("=== Deployment Smoke Check ===\n");
 
@@ -176,6 +197,7 @@ async function main() {
   await checkHealth();
   await checkForgotPassword();
   await checkResendVerification();
+  await checkMissingAvatarFallback();
 
   console.log("\n--- Protected endpoints (no token) ---");
   await checkProtected(

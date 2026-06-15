@@ -4,8 +4,8 @@ import { ConfigService } from '@nestjs/config';
 import { ValidationPipe, ConsoleLogger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { join } from 'path';
-import type { Request, Response, NextFunction } from 'express';
 import { AppModule } from './app.module';
+import { uploadsFallbackMiddleware } from './common/uploads-fallback.middleware';
 
 class FilteredLogger extends ConsoleLogger {
   warn(message: unknown, context?: string): void {
@@ -26,17 +26,7 @@ async function bootstrap() {
   // Fallback for missing static uploads (e.g. deleted avatars). Express's default
   // 404 response is JSON, which triggers CORB when loaded via <img>. Return a tiny
   // transparent PNG instead so the browser sees a valid image response.
-  const transparentPixel = Buffer.from(
-    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
-    'base64',
-  );
-  app.use('/uploads', (req: Request, res: Response, next: NextFunction) => {
-    if (req.method !== 'GET' && req.method !== 'HEAD') {
-      return next();
-    }
-    res.setHeader('Content-Type', 'image/png');
-    res.status(404).send(transparentPixel);
-  });
+  app.use('/uploads', uploadsFallbackMiddleware);
 
   const configService = app.get(ConfigService);
 
