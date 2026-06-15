@@ -10,7 +10,7 @@
 - **Backend:** https://lets-chat-api-v2.onrender.com/api/v1
 - **WebSocket:** wss://lets-chat-api-v2.onrender.com
 
-See [`docs/portfolio-demo.md`](docs/portfolio-demo.md) for a step-by-step demo guide and a screenshots checklist.
+See [`docs/portfolio-demo.md`](docs/portfolio-demo.md) for a step-by-step demo guide and [`docs/portfolio-summary.md`](docs/portfolio-summary.md) for a resume-ready summary, screenshots, and interview talking points.
 
 ---
 
