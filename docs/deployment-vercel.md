@@ -191,18 +191,19 @@ node scripts/smoke-deploy.mjs
 
 ### What the script checks (automated)
 
-**Public endpoints**
+**Public endpoints (6 checks)**
 1. Frontend returns `200 OK` with HTML
 2. `GET /project-status` returns `200` and contains expected content
 3. Backend `/health` returns `status: ok`
 4. `POST /auth/forgot-password` returns generic success (no email enumeration)
 5. `POST /auth/resend-verification` returns generic success
-6. `API_URL` does not contain the deprecated Render host `lets-chat-api-wa43.onrender.com` or the typo `lets-chat-api-w43.onrender.com`
+6. `GET /uploads/missing-avatar.png` returns a 200 transparent PNG
 
-**Protected endpoints (no token)**
-6. `GET /auth/sessions` returns `401 Unauthorized`
-7. `POST /auth/sessions/revoke-all` returns `401 Unauthorized`
-8. `POST /auth/change-password` returns `401 Unauthorized`
+**Protected endpoints (no token) — 4 checks**
+7. `GET /auth/sessions` returns `401 Unauthorized`
+8. `POST /auth/sessions/revoke-all` returns `401 Unauthorized`
+9. `POST /auth/sessions/revoke-others` returns `401 Unauthorized`
+10. `POST /auth/change-password` returns `401 Unauthorized`
 
 ### What still requires manual verification
 
@@ -243,7 +244,7 @@ These are the dashboard settings for the active backend service `lets-chat-api-v
 | Build Command | `pnpm install --prod=false && pnpm run build:api:prod` | Installs dev deps needed for build; `--include=dev` previously failed on Render |
 | Start Command | `pnpm --filter api start:prod` | Runs compiled NestJS app |
 | Health Check Path | `/api/v1/health` | Render uses this for liveness |
-| Auto-deploy | `Off` (recommended) | Deploy is now triggered by GitHub Actions via Render Deploy Hook after green CI |
+| Auto-deploy | `Off` | Verified: deploys are triggered only by the GitHub Actions Render Deploy Hook |
 | Plan | `Free` | Cold start ~1 min after sleep |
 
 ### Deploy strategy (B190)
@@ -256,14 +257,14 @@ GitHub Actions is the source of truth for deploying `lets-chat-api-v2`:
 4. Render starts a new deploy for the latest commit.
 5. If the secret is not set, the deploy job skips with a warning and Render auto-deploy must be enabled as a fallback.
 
-This avoids the unreliable Render dashboard auto-deploy and guarantees deploys only happen after CI is green.
+This has been verified end-to-end (B190): pushes to `main` no longer trigger Render auto-deploy, and the service deploys only after the GitHub Actions hook is called.
 
 ### One-time setup: Render Deploy Hook
 
 1. Open the Render dashboard for `lets-chat-api-v2`.
 2. Go to **Settings** → **Deploy Hook**.
 3. Create a deploy hook and copy the URL (it looks like `https://api.render.com/deploy/srv-...?key=...`).
-4. (Recommended) Set **Auto-Deploy** to **No** so the GitHub Actions hook is the only automatic deploy path.
+4. Set **Auto-Deploy** to **No** so the GitHub Actions hook is the only automatic deploy path.
 
 ### One-time setup: GitHub secret
 

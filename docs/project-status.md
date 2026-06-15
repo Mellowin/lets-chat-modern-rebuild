@@ -1,8 +1,10 @@
 # Project Status
 
-> Last updated: 2026-06-15 (B190 final verification)  
+> Last updated: 2026-06-15 (B191 portfolio readiness)  
 > Code checkpoint: `main`  
 > Docs checkpoint: `main`
+>
+> 🎓 **Portfolio status:** ready for presentation. See [`docs/portfolio-demo.md`](portfolio-demo.md) for demo flow and screenshots checklist.
 
 ---
 
@@ -11,7 +13,7 @@
 | Component | Status | Notes |
 |-----------|--------|-------|
 | **Frontend (Vercel-ready)** | ✅ Prepared | `NEXT_PUBLIC_API_URL` / `NEXT_PUBLIC_WS_URL` env wiring, production fallback guards, build docs |
-| **Backend (external host)** | ✅ Migrated / B188 verified | Active service `lets-chat-api-v2` on Render; persistent Node.js + Socket.io; CORS via `CORS_ORIGIN` env; health endpoint. Old `lets-chat-api-wa43` returns 404 and is fully decommissioned. |
+| **Backend (external host)** | ✅ Migrated / B190 verified | Active service `lets-chat-api-v2` on Render; persistent Node.js + Socket.io; CORS via `CORS_ORIGIN` env; health endpoint. Auto-Deploy disabled; deploys only via GitHub Actions Render Deploy Hook. Old `lets-chat-api-wa43` returns 404 and is fully decommissioned. |
 | **Database** | ✅ Ready | Prisma migrations; PostgreSQL 15+ |
 | **Email** | ✅ Ready | Resend or console dev mode; `APP_WEB_URL` for link generation |
 
@@ -147,8 +149,8 @@ Use these steps to verify core functionality after deploy or before release:
 - **Messages authorization unit tests** added (`messages.service.spec.ts`) — workspace/PRIVATE access, author-only edit with 15-min window, role-based delete permissions.
 - **WebSocket typing access revalidation** added — `broadcastTyping` revalidates channel membership on every event; revoked access triggers `typing:error`, presence cleanup, and automatic room leave.
 - **Private channel E2E security smoke tests** added (`channels.e2e-spec.ts`) — 7 tests proving private channel access control through real HTTP endpoints.
-- **API tests count:** 700 unit tests (32 suites)
-- **Web tests count:** 659 unit tests (29 files) + 239 page tests (2 files)
+- **API tests count:** 716 unit tests (32 suites)
+- **Web tests count:** 677 unit tests (29 files) + 239 page tests (2 files)
 - **E2E tests:** 7 passing locally (2 suites); requires Docker PostgreSQL
 - **CI:** green ✅ (unit tests, builds, lint, typecheck; e2e not yet in CI)
 - **Remaining known risks:**
@@ -181,16 +183,33 @@ Use these steps to verify core functionality after deploy or before release:
 ## 7. B190 Render Deploy Hook
 
 - **Deployment strategy** — GitHub Actions is the source of truth for `lets-chat-api-v2` deploys. After CI is green on `main`, the workflow POSTs to a Render Deploy Hook stored in the GitHub secret `RENDER_API_V2_DEPLOY_HOOK_URL`.
-- **Render Auto-Deploy** — disabled via `render.yaml` (`autoDeploy: false`). The GitHub Actions hook is now the only automatic deploy path.
-- **Fallback** — if the secret is not configured, the workflow skips the hook with a warning; Render auto-deploy can act as a fallback until the secret is set.
+- **Render Auto-Deploy** — disabled via `render.yaml` (`autoDeploy: false`). Verified end-to-end: pushes to `main` do **not** trigger Render auto-deploy; the service deploys only after the GitHub Actions hook is called.
 - **One-time setup required:**
   - Render dashboard → `lets-chat-api-v2` → **Settings** → **Deploy Hook** → create and copy URL.
   - GitHub repo → **Settings** → **Secrets and variables** → **Actions** → add `RENDER_API_V2_DEPLOY_HOOK_URL`.
-- **Verification** — future pushes to `main` should show the `deploy` job in GitHub Actions, Render Events tab should show a deploy for the latest commit, and `GET /api/v1/health` should return `ok` after the service is Live. *E2E hook verification run started 2026-06-15.*
+- **Verification** — confirmed: CI green → `Deploy API v2 to Render` job runs → Render deploys latest commit → `GET /api/v1/health` returns `ok`.
 
 ---
 
-## 8. Known Limitations
+## 8. B191 Portfolio Readiness Checkpoint
+
+- **Goal** — prepare the project for portfolio/resume presentation without adding new product features.
+- **Docs updated:**
+  - `README.md` — refreshed description, stack, production links, features, test counts, deployment flow, known limitations, and roadmap.
+  - `docs/portfolio-demo.md` — new step-by-step demo guide, suggested demo flow, and screenshots checklist.
+  - `docs/deployment-vercel.md` — updated smoke check counts (10 automated checks) and confirmed Auto-Deploy is off.
+- **Production links:**
+  - Frontend: `https://lets-chat-web.vercel.app`
+  - Backend: `https://lets-chat-api-v2.onrender.com/api/v1`
+  - WebSocket: `wss://lets-chat-api-v2.onrender.com`
+- **Demo highlights:** auth (Cyrillic support), workspaces/channels, DMs, global search, real-time messaging, reactions, replies/forwarding, session management, attachments, localization.
+- **Known limitations documented honestly:** no silent token refresh, free Render cold start, API-domain favicon 404 harmless, disposable QA account, E2E local-only, no push notifications, in-memory presence.
+- **Smoke check:** `node scripts/smoke-deploy.mjs` passes 10/10.
+- **Status:** project is ready for portfolio showcase.
+
+---
+
+## 9. Known Limitations
 
 - **Invite link QA is manual** — email delivery of targeted invites and end-to-end invite accept flow are not covered by automated E2E tests; manual verification in production (or a local environment with SMTP) is required. Targeted email invites require the recipient's account email to match the invite email exactly.
 - **No slug-based URLs** — routing is strictly UUID-based; slugs are cosmetic only.

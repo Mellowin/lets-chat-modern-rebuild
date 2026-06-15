@@ -4,9 +4,15 @@
 
 ---
 
-## Demo / Screenshots
+## 🚀 Production Demo
 
-Screenshots and demo video coming soon.
+- **Frontend:** https://lets-chat-web.vercel.app
+- **Backend:** https://lets-chat-api-v2.onrender.com/api/v1
+- **WebSocket:** wss://lets-chat-api-v2.onrender.com
+
+See [`docs/portfolio-demo.md`](docs/portfolio-demo.md) for a step-by-step demo guide and a screenshots checklist.
+
+---
 
 ---
 
@@ -19,7 +25,7 @@ Screenshots and demo video coming soon.
 | **Real-Time** | Socket.io 4, in-memory presence |
 | **Storage** | MinIO / S3-style storage module (presigned URLs) |
 | **Testing** | Jest (API), Vitest + Testing Library (Web), Supertest (E2E) |
-| **CI** | GitHub Actions — unit tests, builds, lint |
+| **CI/CD** | GitHub Actions — lint, typecheck, tests, builds; Render Deploy Hook after green CI |
 
 ---
 
@@ -39,21 +45,25 @@ Screenshots and demo video coming soon.
 - 🔤 **Localization** — English, Ukrainian, Russian
 - 🔒 **WebSocket Security** — typing revalidates channel access; revoked access triggers auto-leave
 - 📋 **Audit Log** — immutable trail for member/invite/ownership actions
-- 📨 **Invites** — token-based invites with SHA-256 hash and email match
-- 📎 **Storage Module** — presigned upload/download URLs (backend ready; UI integration pending)
-- 🔍 **Search Module** — FTS backend stub (UI integration pending)
+- 📨 **Invites** — token-based email/username invites and public invite links with `maxUses`
+- 📎 **Attachments** — file picker / drag-and-drop, upload progress, retry, presigned URLs, inline image previews, secure downloads
+- 🔍 **Search** — global, workspace, and channel message search with highlighting and jump-to-message
+- 🖥️ **Session Management** — list active sessions, revoke others, current-session protection
 
 ### Frontend
 
 - 🔐 **Auth Flow** — login, register, logout with sessionStorage isolation
-- 🏢 **Workspaces** — list, create, detail views
-- 💬 **Channels** — list, create, real-time message view
+- 🏢 **Workspaces** — create, list, manage members and roles
+- 💬 **Channels** — public/private, create, archive/restore, role-aware member management
 - ✏️ **Messages** — send (Enter), edit within 15 min, soft delete, reply, forward
 - ⚡ **Live Updates** — message created/updated/deleted/reaction changes via WebSocket
 - 💬 **Direct Messages** — 1-to-1 chat with real-time delivery
+- 🔍 **Search** — global, workspace, and channel message search
+- 📎 **Attachments** — upload images/files with previews, progress, retry
 - 🌍 **Localization** — switch between EN / UK / RU
 - ⌨️ **Typing Indicators** — live typing status in channels and DMs
 - 👁️ **Read Receipts** — message seen status
+- 🖥️ **Session Management** — Profile → Sessions, revoke others, current-session badge
 - 🌐 **Cyrillic Support** — usernames and workspace names with auto-transliteration
 
 ---
@@ -73,9 +83,9 @@ Screenshots and demo video coming soon.
 
 | Suite | Count | Status |
 |-------|-------|--------|
-| API Unit Tests | 536 (24 suites) | ✅ passing |
-| Web Unit Tests | 504 (18 files) | ✅ passing |
-| Web Page Tests | 188 (2 files) | ✅ passing |
+| API Unit Tests | 716 (32 suites) | ✅ passing |
+| Web Unit Tests | 677 (29 files) | ✅ passing |
+| Web Page Tests | 239 (2 files) | ✅ passing |
 | E2E Security Smoke Tests | 7 (2 suites) | ✅ passing locally |
 
 - **CI:** GitHub Actions green for unit tests, builds, and lint
@@ -96,6 +106,7 @@ secure-collab-platform/
 ├── docker-compose.yml       # PostgreSQL, Redis, MinIO
 ├── docs/
 │   ├── project-status.md    # Current state & QA results
+│   ├── portfolio-demo.md    # Portfolio demo guide & screenshots checklist
 │   └── ...
 └── README.md
 ```
@@ -166,7 +177,7 @@ export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/letschat?sche
 
 **Verify:**
 
-- Health: `GET http://localhost:3001/health`
+- Health: `GET http://localhost:3001/api/v1/health`
 - Swagger: `http://localhost:3001/api/docs`
 - Web app: `http://localhost:3000`
 
@@ -206,22 +217,38 @@ pnpm --filter web build
 
 > This is a **portfolio-grade rebuild**, not production-ready software.
 
+- **No silent token refresh** — expired access token leads to logout
+- **Free Render instance may cold-start** — first request after sleep can take ~1 min
 - **E2E tests are local-only** — CI workflow lacks a PostgreSQL service
 - **No broad E2E coverage** beyond private-channel authorization smoke tests
-- **No frontend file upload integration** — storage backend exists, UI does not
-- **No message search UI** — search backend exists, UI does not
 - **Presence is in-memory** — no Redis Socket.io adapter yet
-- **Email invite delivery** not implemented — tokens are shared manually
+- **No push/browser notifications** yet
 - **No cursor pagination** — limit-based pagination for messages and logs
+- **Email delivery depends on a verified Resend domain** — otherwise auth flows use console/dev mode
+- **API-domain favicon 404** is harmless
+- **Disposable QA test account** (`b188-session-test-1781544153@web-library.net`) remains in production but has no workspaces, DMs, or channel memberships
 
 ---
 
 ## Deployment
 
-See [`docs/deployment-vercel.md`](docs/deployment-vercel.md) for Vercel deployment instructions.
+See [`docs/deployment-vercel.md`](docs/deployment-vercel.md) for full instructions.
 
-- **Frontend** (`apps/web`) → Vercel
-- **Backend** (`apps/api`) → External host with persistent Node.js (Render, Fly.io, Railway, VPS)
+```text
+push main
+    ↓
+GitHub Actions CI (lint, typecheck, tests, builds)
+    ↓
+Deploy API v2 to Render job → POST Render Deploy Hook
+    ↓
+Render deploys lets-chat-api-v2
+    ↓
+GET /api/v1/health → ok
+```
+
+- **Frontend** (`apps/web`) → Vercel (auto-deploys on `main`)
+- **Backend** (`apps/api`) → Render `lets-chat-api-v2` via GitHub Actions hook only (Auto-Deploy disabled)
+- **Old service** `lets-chat-api-wa43` is decommissioned and returns 404
 - **Database** → External PostgreSQL 15+
 
 ---
@@ -230,9 +257,10 @@ See [`docs/deployment-vercel.md`](docs/deployment-vercel.md) for Vercel deployme
 
 - [ ] Add screenshots and short demo video
 - [ ] Integrate E2E tests into CI with PostgreSQL service
-- [ ] Frontend polish: file upload, search, pagination
 - [ ] Redis Socket.io adapter for multi-server presence
 - [ ] Cursor-based pagination for messages and audit logs
+- [ ] Silent token refresh for expired access tokens
+- [ ] Push/browser notifications
 
 ---
 
