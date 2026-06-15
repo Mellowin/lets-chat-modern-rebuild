@@ -33,7 +33,11 @@ function mockAuth(overrides?: Partial<ReturnType<typeof useAuth>>) {
   } as ReturnType<typeof useAuth>);
 }
 
-function makeChannelResult(id: string, content: string) {
+function makeChannelResult(
+  id: string,
+  content: string,
+  channelType: "PUBLIC" | "PRIVATE" = "PUBLIC",
+) {
   return {
     id,
     content,
@@ -46,6 +50,7 @@ function makeChannelResult(id: string, content: string) {
       channelId: "ch-1",
       channelName: "general",
       channelSlug: "general",
+      channelType,
     },
   };
 }
@@ -99,7 +104,62 @@ describe("GlobalMessageSearch", () => {
     });
     expect(screen.getByTestId("global-search-result-dm-1")).toBeInTheDocument();
     expect(screen.getByText("Workspace A / general")).toBeInTheDocument();
+    expect(screen.getByText("Public channel")).toBeInTheDocument();
+    expect(screen.getByText("DM")).toBeInTheDocument();
     expect(screen.getAllByText("Bob").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("renders public channel label for public channel results", async () => {
+    vi.mocked(searchGlobalMessages).mockResolvedValueOnce({
+      items: [makeChannelResult("msg-1", "hello", "PUBLIC")],
+      nextCursor: null,
+    });
+
+    render(<GlobalMessageSearch />);
+    await userEvent.click(screen.getByTestId("global-search-open-button"));
+    await userEvent.type(screen.getByTestId("global-search-input"), "hello");
+    await userEvent.click(screen.getByTestId("global-search-submit"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("global-search-result-msg-1")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Public channel")).toBeInTheDocument();
+    expect(screen.getByText("Workspace A / general")).toBeInTheDocument();
+  });
+
+  it("renders private channel label for private channel results", async () => {
+    vi.mocked(searchGlobalMessages).mockResolvedValueOnce({
+      items: [makeChannelResult("msg-1", "secret", "PRIVATE")],
+      nextCursor: null,
+    });
+
+    render(<GlobalMessageSearch />);
+    await userEvent.click(screen.getByTestId("global-search-open-button"));
+    await userEvent.type(screen.getByTestId("global-search-input"), "secret");
+    await userEvent.click(screen.getByTestId("global-search-submit"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("global-search-result-msg-1")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Private channel")).toBeInTheDocument();
+    expect(screen.getByText("Workspace A / general")).toBeInTheDocument();
+  });
+
+  it("renders DM badge for direct message results", async () => {
+    vi.mocked(searchGlobalMessages).mockResolvedValueOnce({
+      items: [makeDirectResult("dm-1", "hello")],
+      nextCursor: null,
+    });
+
+    render(<GlobalMessageSearch />);
+    await userEvent.click(screen.getByTestId("global-search-open-button"));
+    await userEvent.type(screen.getByTestId("global-search-input"), "hello");
+    await userEvent.click(screen.getByTestId("global-search-submit"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("global-search-result-dm-1")).toBeInTheDocument();
+    });
+    expect(screen.getByText("DM")).toBeInTheDocument();
   });
 
   it("navigates to channel message on channel result click", async () => {

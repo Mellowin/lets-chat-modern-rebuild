@@ -50,7 +50,10 @@ describe('MessagesSearchService', () => {
     jest.clearAllMocks();
   });
 
-  function makeChannelResult(overrides?: Partial<NonNullable<unknown>>) {
+  function makeChannelResult(
+    overrides?: Partial<NonNullable<unknown>>,
+    channelType: 'PUBLIC' | 'PRIVATE' = 'PUBLIC',
+  ) {
     return {
       id: 'msg-1',
       content: 'куку',
@@ -69,6 +72,7 @@ describe('MessagesSearchService', () => {
         channelId: 'ch-1',
         channelName: 'general',
         channelSlug: 'general',
+        channelType,
       },
       ...overrides,
     };
@@ -259,5 +263,61 @@ describe('MessagesSearchService', () => {
 
     expect(result.items).toHaveLength(1);
     expect(result.nextCursor).toBeNull();
+  });
+
+  it('includes channel visibility metadata for public channel results', async () => {
+    (prisma.$queryRaw as jest.Mock).mockResolvedValue([
+      makeChannelResult({}, 'PUBLIC'),
+    ]);
+
+    const result = await service.searchGlobal(userId, { q: 'к' });
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].source.type).toBe('CHANNEL');
+    if (result.items[0].source.type === 'CHANNEL') {
+      expect(result.items[0].source.channelType).toBe('PUBLIC');
+    }
+  });
+
+  it('includes channel visibility metadata for private channel results', async () => {
+    (prisma.$queryRaw as jest.Mock).mockResolvedValue([
+      makeChannelResult({}, 'PRIVATE'),
+    ]);
+
+    const result = await service.searchGlobal(userId, { q: 'к' });
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].source.type).toBe('CHANNEL');
+    if (result.items[0].source.type === 'CHANNEL') {
+      expect(result.items[0].source.channelType).toBe('PRIVATE');
+    }
+  });
+
+  it('returns private channel result only to users with access', async () => {
+    (prisma.$queryRaw as jest.Mock).mockResolvedValue([
+      makeChannelResult({ id: 'private-msg' }, 'PRIVATE'),
+    ]);
+
+    const result = await service.searchGlobal(userId, { q: 'к' });
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].id).toBe('private-msg');
+  });
+
+  it('does not leak private channel results to non-members', async () => {
+    (prisma.$queryRaw as jest.Mock).mockImplementation(() => []);
+
+    const result = await service.searchGlobal(userId, { q: 'к' });
+
+    expect(result.items).toEqual([]);
+    const calls = (prisma.$queryRaw as jest.Mock).mock.calls as unknown[][];
+    const queryArg = calls[0][0];
+    const sqlText =
+      typeof queryArg === 'string'
+        ? queryArg
+        : ((queryArg as { sql?: string }).sql ?? String(queryArg));
+    expect(sqlText).toContain('accessible_channels');
+    expect(sqlText).toContain('"ChannelMember"');
+    expect(sqlText).toContain('channel_type');
   });
 });

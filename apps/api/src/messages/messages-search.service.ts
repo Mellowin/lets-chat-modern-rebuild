@@ -36,6 +36,7 @@ export interface GlobalSearchChannelSource {
   channelId: string;
   channelName: string;
   channelSlug: string;
+  channelType: 'PUBLIC' | 'PRIVATE';
 }
 
 export interface GlobalSearchDirectSource {
@@ -150,6 +151,7 @@ export class MessagesSearchService {
           c."workspaceId",
           c.name,
           c.slug,
+          c.type AS channel_type,
           w.name AS workspace_name
         FROM "Channel" c
         JOIN "Workspace" w ON w.id = c."workspaceId"
@@ -192,7 +194,8 @@ export class MessagesSearchService {
           'workspaceName', ac.workspace_name,
           'channelId', ac.channel_id,
           'channelName', ac.name,
-          'channelSlug', ac.slug
+          'channelSlug', ac.slug,
+          'channelType', ac.channel_type
         ) AS source
       FROM "Message" m
       JOIN "User" u ON u.id = m."authorId"

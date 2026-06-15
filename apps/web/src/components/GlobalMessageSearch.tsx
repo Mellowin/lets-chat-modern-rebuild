@@ -138,6 +138,16 @@ export default function GlobalMessageSearch() {
     return other?.displayName || other?.username || t("globalSearch.directConversation");
   }
 
+  function getSourceBadge(result: GlobalSearchResult): string {
+    if (result.source.type === "DIRECT") {
+      return t("globalSearch.directLabel");
+    }
+    if (result.source.channelType === "PRIVATE") {
+      return t("globalSearch.privateChannelLabel");
+    }
+    return t("globalSearch.publicChannelLabel");
+  }
+
   function getSnippet(result: GlobalSearchResult): React.ReactNode {
     const text = result.content.trim();
     if (text.length > 0) {
@@ -251,9 +261,7 @@ export default function GlobalMessageSearch() {
                             {formatDate(result.createdAt)}
                           </span>
                           <span className="text-[10px] rounded-full bg-zinc-200 dark:bg-zinc-800 px-1.5 py-0.5 text-zinc-600 dark:text-zinc-300">
-                            {result.source.type === "CHANNEL"
-                              ? t("globalSearch.channelLabel")
-                              : t("globalSearch.directLabel")}
+                            {getSourceBadge(result)}
                           </span>
                         </div>
                         <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">

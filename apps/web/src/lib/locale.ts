@@ -31,7 +31,8 @@ export type TranslationKey =
   | "globalSearch.empty"
   | "globalSearch.error"
   | "globalSearch.loadMore"
-  | "globalSearch.channelLabel"
+  | "globalSearch.publicChannelLabel"
+  | "globalSearch.privateChannelLabel"
   | "globalSearch.directLabel"
   | "globalSearch.directConversation"
   | "profile.title"
@@ -493,7 +494,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "globalSearch.empty": "No messages found.",
     "globalSearch.error": "Search failed",
     "globalSearch.loadMore": "Load more",
-    "globalSearch.channelLabel": "Channel",
+    "globalSearch.publicChannelLabel": "Public channel",
+    "globalSearch.privateChannelLabel": "Private channel",
     "globalSearch.directLabel": "DM",
     "globalSearch.directConversation": "Direct conversation",
     "profile.title": "Profile",
@@ -954,7 +956,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "globalSearch.empty": "Повідомлень не знайдено.",
     "globalSearch.error": "Пошук не вдався",
     "globalSearch.loadMore": "Завантажити ще",
-    "globalSearch.channelLabel": "Канал",
+    "globalSearch.publicChannelLabel": "Публічний канал",
+    "globalSearch.privateChannelLabel": "Приватний канал",
     "globalSearch.directLabel": "Особисте",
     "globalSearch.directConversation": "Особисте листування",
     "profile.title": "Профіль",
@@ -1415,7 +1418,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "globalSearch.empty": "Сообщений не найдено.",
     "globalSearch.error": "Поиск не удался",
     "globalSearch.loadMore": "Загрузить ещё",
-    "globalSearch.channelLabel": "Канал",
+    "globalSearch.publicChannelLabel": "Публичный канал",
+    "globalSearch.privateChannelLabel": "Приватный канал",
     "globalSearch.directLabel": "ЛС",
     "globalSearch.directConversation": "Личная переписка",
     "profile.title": "Профиль",

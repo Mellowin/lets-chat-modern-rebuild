@@ -506,6 +506,7 @@ export interface GlobalSearchChannelSource {
   channelId: string;
   channelName: string;
   channelSlug: string;
+  channelType: "PUBLIC" | "PRIVATE";
 }
 
 export interface GlobalSearchDirectSource {
