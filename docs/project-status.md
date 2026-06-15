@@ -1,7 +1,7 @@
 # Project Status
 
 > Last updated: 2026-06-15  
-> Code checkpoint: `5c8b12627eef3c9aa6dd5448e5deaaa03e0bb633`  
+> Code checkpoint: `f8fd8fbbf5a52838988cdcda6cc9600ba1043fc1`  
 > Docs checkpoint: `main`
 
 ---
@@ -11,7 +11,7 @@
 | Component | Status | Notes |
 |-----------|--------|-------|
 | **Frontend (Vercel-ready)** | ✅ Prepared | `NEXT_PUBLIC_API_URL` / `NEXT_PUBLIC_WS_URL` env wiring, production fallback guards, build docs |
-| **Backend (external host)** | ✅ Ready | Persistent Node.js + Socket.io; CORS via `CORS_ORIGIN` env; health endpoint |
+| **Backend (external host)** | ✅ Ready | Active service `lets-chat-api-v2` on Render; persistent Node.js + Socket.io; CORS via `CORS_ORIGIN` env; health endpoint. Old `lets-chat-api-wa43` is backup only. |
 | **Database** | ✅ Ready | Prisma migrations; PostgreSQL 15+ |
 | **Email** | ✅ Ready | Resend or console dev mode; `APP_WEB_URL` for link generation |
 
@@ -164,6 +164,7 @@ Use these steps to verify core functionality after deploy or before release:
 - **Production smoke verifies protected auth/session endpoints reject anonymous requests** — `GET /auth/sessions`, `POST /auth/sessions/revoke-all`, `POST /auth/change-password` checked for `401` without token.
 - **Public `/project-status` page added for portfolio/employer review** — honest overview of implemented and planned features, tech stack, and production links.
 - **Production smoke verifies public `/project-status` page** — checked for `200` and expected content.
+- **B183 cleanup** — `AuthProvider` now skips the `/auth/me` request when the stored access token is expired or malformed, eliminating expected `401 Unauthorized` console noise on app reload. The token expiry helper is unit-tested. Render deployment docs updated to point to the active `lets-chat-api-v2` service and document exact dashboard settings for auto-deploy troubleshooting.
 - **Channel attachments support file picker, drag-and-drop, image previews, upload progress, retry, presigned upload, message rendering, authenticated download URLs, and orphaned upload cleanup** — frontend composer supports selecting up to 5 files (validated MIME/size), drag-and-drop into the composer, thumbnail previews for images before send, upload progress per file with retry on failure, inline image previews in the message list, file cards for non-image attachments, presigned upload to storage, secure download via backend download-url endpoint, and a cleanup script that removes orphaned storage objects older than a configurable threshold by comparing against the Attachment table; gallery/lightbox is still in progress.
 - **Frontend API timeout and recovery UX** — all API requests have a 15-second `AbortController` timeout. When the backend is cold-starting or unreachable, login stops loading and shows a human-friendly message with a cold-start hint instead of hanging forever on "Signing in…". Users can retry immediately.
 - **Workspace invite links are available end-to-end** — OWNER/ADMIN can create targeted email/username invites and public invite links with `maxUses` from the workspace page, copy the generated link, list/revoke active invites, and preview the invite at `/invites/:token` without authentication. Recipients can open the invite link, see workspace name and expiry, and accept the invite (authenticated users) or sign in first (unauthenticated users). `POST /invites/:token/accept` adds the user to the workspace; already-member users receive a safe current-membership response. Expired, revoked, or max-uses-reached links are rejected.

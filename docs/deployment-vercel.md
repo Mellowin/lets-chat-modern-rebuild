@@ -155,10 +155,10 @@ If `CORS_ORIGIN` is not set, the API falls back to `http://localhost:3000` for l
 | Service | URL |
 |---------|-----|
 | Web (Vercel) | `https://lets-chat-web.vercel.app` |
-| API base | `https://lets-chat-api-wa43.onrender.com/api/v1` |
-| API origin | `https://lets-chat-api-wa43.onrender.com` |
+| API base | `https://lets-chat-api-v2.onrender.com/api/v1` |
+| API origin | `https://lets-chat-api-v2.onrender.com` |
 
-> ⚠️ **Do not use** `lets-chat-api-w43.onrender.com`; the correct host is `lets-chat-api-wa43.onrender.com`.
+> ⚠️ **Active backend is `lets-chat-api-v2`.** The old `lets-chat-api-wa43` service is a backup only; do not point new Vercel deploys to it.
 
 ---
 
@@ -169,21 +169,21 @@ After both backend and frontend are deployed, run the smoke script to verify the
 **Bash:**
 ```bash
 WEB_URL=https://lets-chat-web.vercel.app \
-API_URL=https://lets-chat-api-wa43.onrender.com/api/v1 \
+API_URL=https://lets-chat-api-v2.onrender.com/api/v1 \
 node scripts/smoke-deploy.mjs
 ```
 
 **PowerShell:**
 ```powershell
 $env:WEB_URL="https://lets-chat-web.vercel.app"
-$env:API_URL="https://lets-chat-api-wa43.onrender.com/api/v1"
+$env:API_URL="https://lets-chat-api-v2.onrender.com/api/v1"
 node scripts/smoke-deploy.mjs
 ```
 
 ### Required values
 
 - `WEB_URL` — full Vercel production URL (e.g. `https://lets-chat-web.vercel.app`)
-- `API_URL` — must include `/api/v1` (e.g. `https://lets-chat-api-wa43.onrender.com/api/v1`)
+- `API_URL` — must include `/api/v1` (e.g. `https://lets-chat-api-v2.onrender.com/api/v1`)
 
 ### What the script checks (automated)
 
@@ -193,7 +193,7 @@ node scripts/smoke-deploy.mjs
 3. Backend `/health` returns `status: ok`
 4. `POST /auth/forgot-password` returns generic success (no email enumeration)
 5. `POST /auth/resend-verification` returns generic success
-6. `API_URL` does not contain the wrong Render host `lets-chat-api-w43.onrender.com`
+6. `API_URL` does not contain the old backup Render host `lets-chat-api-wa43.onrender.com` or the typo `lets-chat-api-w43.onrender.com`
 
 **Protected endpoints (no token)**
 6. `GET /auth/sessions` returns `401 Unauthorized`
@@ -222,6 +222,51 @@ node scripts/smoke-deploy.mjs
 | `API health returns status ok: status 403/404` | Wrong `API_URL` path (missing `/api/v1`) |
 | `POST /auth/forgot-password returns generic success: fetch failed` | CORS blocked — `CORS_ORIGIN` on backend does not include Vercel domain |
 | `API health: body.status = degraded` | Database connection failing — migrations not applied or wrong `DATABASE_URL` |
+
+---
+
+## Render API v2 service settings
+
+These are the dashboard settings for the active backend service `lets-chat-api-v2`. If auto-deploy is not working, verify each value in the Render dashboard:
+
+| Setting | Value | Notes |
+|---------|-------|-------|
+| Service name | `lets-chat-api-v2` | Active backend; do not confuse with backup `lets-chat-api-wa43` |
+| Region | `Frankfurt (EU Central)` | Closest to primary users |
+| Runtime | `Node` | Required for persistent Socket.io process |
+| Branch | `main` | Auto-deploy watches this branch |
+| Root Directory | `.` (repo root) | Monorepo build runs from root |
+| Build Command | `pnpm install --prod=false && pnpm run build:api:prod` | Installs dev deps needed for build; `--include=dev` previously failed on Render |
+| Start Command | `pnpm --filter api start:prod` | Runs compiled NestJS app |
+| Health Check Path | `/api/v1/health` | Render uses this for liveness |
+| Auto-deploy | `On Commit` (enabled) | Should deploy on every push to `main` |
+| Plan | `Free` | Cold start ~1 min after sleep |
+
+### If auto-deploy does not trigger
+
+1. Open the Render dashboard for `lets-chat-api-v2`.
+2. Go to **Settings** → confirm **Auto-Deploy** is set to **Yes** (or **On Commit**).
+3. Check the **Events** tab for failed syncs or webhook errors.
+4. If auto-deploy is enabled but still not firing, click **Manual Deploy** → **Deploy latest commit**.
+5. After manual deploy, monitor the **Logs** tab for build/start errors and verify `GET /api/v1/health` returns `ok`.
+
+### Environment variables required on Render
+
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `JWT_ACCESS_SECRET` | Min 32 characters |
+| `JWT_REFRESH_SECRET` | Min 32 characters |
+| `CORS_ORIGIN` | Include `https://lets-chat-web.vercel.app` and any preview domains |
+| `APP_WEB_URL` | `https://lets-chat-web.vercel.app` |
+| `MAIL_PROVIDER` | `resend` or `console` |
+| `MAIL_FROM` | Verified sender address |
+| `RESEND_API_KEY` | Resend API key |
+| `S3_ENDPOINT` | S3/MinIO endpoint |
+| `S3_ACCESS_KEY` | S3 access key |
+| `S3_SECRET_KEY` | S3 secret key |
+| `S3_BUCKET` | Bucket name |
+| `PORT` | `3001` (matches start command) |
 
 ---
 

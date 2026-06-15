@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { login, register, getMe, logout, updateDisplayName, uploadAvatar } from "./auth-api";
+import { login, register, getMe, logout, updateDisplayName, uploadAvatar, isTokenExpired } from "./auth-api";
 
 const API_BASE = "http://localhost:3001/api/v1";
 
@@ -10,6 +10,34 @@ describe("auth-api", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  function makeToken(exp: number): string {
+    const header = btoa(JSON.stringify({ alg: "none", typ: "JWT" }));
+    const payload = btoa(JSON.stringify({ sub: "u1", exp }));
+    return `${header}.${payload}.signature`;
+  }
+
+  describe("isTokenExpired", () => {
+    it("returns false for a token expiring in the future", () => {
+      const token = makeToken(Math.floor(Date.now() / 1000) + 3600);
+      expect(isTokenExpired(token)).toBe(false);
+    });
+
+    it("returns true for an expired token", () => {
+      const token = makeToken(Math.floor(Date.now() / 1000) - 3600);
+      expect(isTokenExpired(token)).toBe(true);
+    });
+
+    it("returns true for a malformed token", () => {
+      expect(isTokenExpired("not-a-jwt")).toBe(true);
+    });
+
+    it("uses buffer seconds when checking expiry", () => {
+      const token = makeToken(Math.floor(Date.now() / 1000) + 30);
+      expect(isTokenExpired(token, 60)).toBe(true);
+      expect(isTokenExpired(token, 0)).toBe(false);
+    });
   });
 
   describe("login", () => {

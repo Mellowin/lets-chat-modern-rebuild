@@ -276,13 +276,25 @@ export interface SessionResponse {
   isActive: boolean;
 }
 
-export function getCurrentSessionId(accessToken: string): string | null {
+function decodeTokenPayload(accessToken: string): Record<string, unknown> | null {
   try {
-    const payload = JSON.parse(atob(accessToken.split(".")[1])) as { jti?: string } | undefined;
-    return payload?.jti ?? null;
+    return JSON.parse(atob(accessToken.split(".")[1])) as Record<string, unknown>;
   } catch {
     return null;
   }
+}
+
+export function getCurrentSessionId(accessToken: string): string | null {
+  const payload = decodeTokenPayload(accessToken);
+  return typeof payload?.jti === "string" ? payload.jti : null;
+}
+
+export function isTokenExpired(accessToken: string, bufferSeconds = 60): boolean {
+  const payload = decodeTokenPayload(accessToken);
+  if (!payload || typeof payload.exp !== "number") {
+    return true;
+  }
+  return payload.exp * 1000 <= Date.now() + bufferSeconds * 1000;
 }
 
 export async function confirmEmailChange(input: ConfirmEmailChangeInput): Promise<{ success: boolean }> {

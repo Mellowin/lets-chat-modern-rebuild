@@ -159,9 +159,15 @@ async function main() {
 
   if (API_URL.includes("lets-chat-api-w43.onrender.com")) {
     console.error(
-      "Wrong Render host: use lets-chat-api-wa43.onrender.com, not lets-chat-api-w43.onrender.com",
+      "Wrong Render host: use lets-chat-api-v2.onrender.com, not lets-chat-api-w43.onrender.com",
     );
     process.exit(1);
+  }
+
+  if (API_URL.includes("lets-chat-api-wa43.onrender.com")) {
+    console.warn(
+      "Warning: API_URL points to the old backup Render host lets-chat-api-wa43.onrender.com. Active backend is lets-chat-api-v2.onrender.com.",
+    );
   }
 
   console.log("\n--- Public endpoints ---");

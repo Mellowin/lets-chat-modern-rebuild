@@ -8,7 +8,7 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
-import { getMe, logout as apiLogout, type AuthUser, type AuthResult } from "@/lib/auth-api";
+import { getMe, logout as apiLogout, isTokenExpired, type AuthUser, type AuthResult } from "@/lib/auth-api";
 import { syncLocale } from "@/lib/locale";
 
 interface AuthContextValue {
@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async function init() {
       const storedAccess = sessionStorage.getItem("accessToken");
       const storedRefresh = sessionStorage.getItem("refreshToken");
-      if (storedAccess) {
+      if (storedAccess && !isTokenExpired(storedAccess)) {
         try {
           const me = await getMe(storedAccess);
           if (!cancelled) {
@@ -56,6 +56,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           sessionStorage.removeItem("accessToken");
           sessionStorage.removeItem("refreshToken");
         }
+      } else if (storedAccess) {
+        // Token is expired or malformed; clear it without firing a request
+        // that would produce a 401 in the browser console.
+        sessionStorage.removeItem("accessToken");
+        sessionStorage.removeItem("refreshToken");
       }
       if (!cancelled) setIsLoading(false);
     }

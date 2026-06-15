@@ -5,9 +5,27 @@ import { AuthProvider, useAuth } from "./auth-context";
 import { getMe, logout as apiLogout } from "./auth-api";
 import { useLocale } from "./locale";
 
+function makeToken(exp: number): string {
+  const header = btoa(JSON.stringify({ alg: "none", typ: "JWT" }));
+  const payload = btoa(JSON.stringify({ sub: "u1", exp }));
+  return `${header}.${payload}.signature`;
+}
+
+const validAccessToken = makeToken(Math.floor(Date.now() / 1000) + 3600);
+const expiredAccessToken = makeToken(Math.floor(Date.now() / 1000) - 3600);
+
 vi.mock("@/lib/auth-api", () => ({
   getMe: vi.fn(),
   logout: vi.fn(),
+  isTokenExpired: (token: string, bufferSeconds = 60) => {
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1])) as { exp?: number } | undefined;
+      if (!payload || typeof payload.exp !== "number") return true;
+      return payload.exp * 1000 <= Date.now() + bufferSeconds * 1000;
+    } catch {
+      return true;
+    }
+  },
 }));
 
 function TestConsumer() {
@@ -72,7 +90,7 @@ describe("AuthProvider", () => {
   });
 
   it("initializes from valid accessToken in sessionStorage", async () => {
-    sessionStorage.setItem("accessToken", "valid-token");
+    sessionStorage.setItem("accessToken", validAccessToken);
     sessionStorage.setItem("refreshToken", "refresh-token");
     vi.mocked(getMe).mockResolvedValueOnce({
       id: "u1",
@@ -95,13 +113,13 @@ describe("AuthProvider", () => {
       expect(screen.getByTestId("loading")).toHaveTextContent("done");
     });
 
-    expect(getMe).toHaveBeenCalledWith("valid-token");
+    expect(getMe).toHaveBeenCalledWith(validAccessToken);
     expect(screen.getByTestId("auth")).toHaveTextContent("yes");
     expect(screen.getByTestId("user")).toHaveTextContent("alice (a@b.com)");
   });
 
   it("clears tokens and stays unauthenticated when getMe throws", async () => {
-    sessionStorage.setItem("accessToken", "bad-token");
+    sessionStorage.setItem("accessToken", validAccessToken);
     sessionStorage.setItem("refreshToken", "refresh-token");
     vi.mocked(getMe).mockRejectedValueOnce(new Error("Unauthorized"));
 
@@ -117,6 +135,26 @@ describe("AuthProvider", () => {
 
     expect(screen.getByTestId("auth")).toHaveTextContent("no");
     expect(screen.getByTestId("user")).toHaveTextContent("null");
+    expect(sessionStorage.getItem("accessToken")).toBeNull();
+    expect(sessionStorage.getItem("refreshToken")).toBeNull();
+  });
+
+  it("does not call getMe and clears tokens when accessToken is expired", async () => {
+    sessionStorage.setItem("accessToken", expiredAccessToken);
+    sessionStorage.setItem("refreshToken", "refresh-token");
+
+    render(
+      <AuthProvider>
+        <TestConsumer />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("loading")).toHaveTextContent("done");
+    });
+
+    expect(getMe).not.toHaveBeenCalled();
+    expect(screen.getByTestId("auth")).toHaveTextContent("no");
     expect(sessionStorage.getItem("accessToken")).toBeNull();
     expect(sessionStorage.getItem("refreshToken")).toBeNull();
   });
@@ -141,7 +179,7 @@ describe("AuthProvider", () => {
   });
 
   it("logout clears tokens and unauthenticates", async () => {
-    sessionStorage.setItem("accessToken", "at");
+    sessionStorage.setItem("accessToken", validAccessToken);
     sessionStorage.setItem("refreshToken", "rt");
     vi.mocked(getMe).mockResolvedValueOnce({
       id: "u1",
@@ -178,7 +216,7 @@ describe("AuthProvider", () => {
   });
 
   it("logout still clears local state even if backend logout fails", async () => {
-    sessionStorage.setItem("accessToken", "at");
+    sessionStorage.setItem("accessToken", validAccessToken);
     sessionStorage.setItem("refreshToken", "rt");
     vi.mocked(getMe).mockResolvedValueOnce({
       id: "u1",
@@ -214,7 +252,7 @@ describe("AuthProvider", () => {
   });
 
   it("setUser updates user without touching tokens", async () => {
-    sessionStorage.setItem("accessToken", "at");
+    sessionStorage.setItem("accessToken", validAccessToken);
     sessionStorage.setItem("refreshToken", "rt");
     vi.mocked(getMe).mockResolvedValueOnce({
       id: "u1",
@@ -242,11 +280,11 @@ describe("AuthProvider", () => {
     await waitFor(() => {
       expect(screen.getByTestId("user")).toHaveTextContent("alice (a@b.com)");
     });
-    expect(sessionStorage.getItem("accessToken")).toBe("at");
+    expect(sessionStorage.getItem("accessToken")).toBe(validAccessToken);
   });
 
   it("syncs locale from getMe interfaceLanguage to mounted useLocale consumer", async () => {
-    sessionStorage.setItem("accessToken", "valid-token");
+    sessionStorage.setItem("accessToken", validAccessToken);
     vi.mocked(getMe).mockResolvedValueOnce({
       id: "u1",
       email: "a@b.com",
