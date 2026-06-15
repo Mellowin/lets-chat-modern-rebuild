@@ -186,7 +186,7 @@ Use these steps to verify core functionality after deploy or before release:
 - **One-time setup required:**
   - Render dashboard → `lets-chat-api-v2` → **Settings** → **Deploy Hook** → create and copy URL.
   - GitHub repo → **Settings** → **Secrets and variables** → **Actions** → add `RENDER_API_V2_DEPLOY_HOOK_URL`.
-- **Verification** — future pushes to `main` should show the `deploy` job in GitHub Actions, Render Events tab should show a deploy for the latest commit, and `GET /api/v1/health` should return `ok` after the service is Live.
+- **Verification** — future pushes to `main` should show the `deploy` job in GitHub Actions, Render Events tab should show a deploy for the latest commit, and `GET /api/v1/health` should return `ok` after the service is Live. *E2E hook verification run started 2026-06-15.*
 
 ---
 
