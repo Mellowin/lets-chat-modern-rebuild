@@ -21,6 +21,7 @@ import type { AuthUserResponse } from '../auth/auth.service';
 @UseGuards(JwtAccessGuard)
 @ApiBearerAuth()
 export class UserSearchController {
+  // Global user message search entry point
   constructor(private readonly search: MessagesSearchService) {}
 
   @Get('messages')
