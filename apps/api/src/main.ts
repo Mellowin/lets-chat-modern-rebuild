@@ -24,8 +24,8 @@ async function bootstrap() {
   });
 
   // Fallback for missing static uploads (e.g. deleted avatars). Express's default
-  // 404 response is JSON, which triggers CORB when loaded via <img>. Return a tiny
-  // transparent PNG instead so the browser sees a valid image response.
+  // 404 response is JSON, which triggers CORB when loaded via <img>. Mount a tiny
+  // transparent PNG fallback that returns HTTP 200 with Content-Type: image/png.
   app.use('/uploads', uploadsFallbackMiddleware);
 
   const configService = app.get(ConfigService);
