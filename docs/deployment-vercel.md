@@ -162,7 +162,7 @@ If `CORS_ORIGIN` is not set, the API falls back to `http://localhost:3000` for l
 | API base | `https://lets-chat-api-v2.onrender.com/api/v1` |
 | API origin | `https://lets-chat-api-v2.onrender.com` |
 
-> ⚠️ **Active backend is `lets-chat-api-v2`.** The old `lets-chat-api-wa43` service is deprecated and queued for decommission; do not point any Vercel deploys to it.
+> ⚠️ **Active backend is `lets-chat-api-v2`.** The old `lets-chat-api-wa43` service is decommissioned and safe to delete; do not point any Vercel deploys to it.
 
 ---
 
@@ -235,7 +235,7 @@ These are the dashboard settings for the active backend service `lets-chat-api-v
 
 | Setting | Value | Notes |
 |---------|-------|-------|
-| Service name | `lets-chat-api-v2` | Active backend; old `lets-chat-api-wa43` is deprecated |
+| Service name | `lets-chat-api-v2` | Active backend; old `lets-chat-api-wa43` is decommissioned |
 | Region | `Frankfurt (EU Central)` | Closest to primary users |
 | Runtime | `Node` | Required for persistent Socket.io process |
 | Branch | `main` | Auto-deploy watches this branch |
@@ -277,8 +277,13 @@ These are the dashboard settings for the active backend service `lets-chat-api-v
 ## Decommissioning the old Render backup service
 
 The `lets-chat-api-wa43` Render service was created as a temporary emergency
-fallback during the API v2 migration. Now that `lets-chat-api-v2` is stable and
-production-verified, `lets-chat-api-wa43` can be decommissioned.
+fallback during the API v2 migration. As of B187 the migration is finalized:
+`lets-chat-api-v2` is the only active backend for both HTTP and WebSocket traffic,
+and `lets-chat-api-wa43` can be deleted.
+
+> ✅ **Migration status (B187):** production verified on `lets-chat-api-v2`;
+> no HTTP, WebSocket, code, or env references to `lets-chat-api-wa43` remain;
+> old service is safe to delete.
 
 ### Pre-decommission checklist
 

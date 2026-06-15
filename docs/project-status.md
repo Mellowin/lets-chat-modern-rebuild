@@ -1,7 +1,7 @@
 # Project Status
 
 > Last updated: 2026-06-15  
-> Code checkpoint: `f8fd8fbbf5a52838988cdcda6cc9600ba1043fc1`  
+> Code checkpoint: `main`  
 > Docs checkpoint: `main`
 
 ---
@@ -11,7 +11,7 @@
 | Component | Status | Notes |
 |-----------|--------|-------|
 | **Frontend (Vercel-ready)** | ✅ Prepared | `NEXT_PUBLIC_API_URL` / `NEXT_PUBLIC_WS_URL` env wiring, production fallback guards, build docs |
-| **Backend (external host)** | ✅ Ready | Active service `lets-chat-api-v2` on Render; persistent Node.js + Socket.io; CORS via `CORS_ORIGIN` env; health endpoint. Old `lets-chat-api-wa43` is deprecated and queued for decommission. |
+| **Backend (external host)** | ✅ Migrated | Active service `lets-chat-api-v2` on Render; persistent Node.js + Socket.io; CORS via `CORS_ORIGIN` env; health endpoint. Old `lets-chat-api-wa43` is decommissioned and safe to delete. |
 | **Database** | ✅ Ready | Prisma migrations; PostgreSQL 15+ |
 | **Email** | ✅ Ready | Resend or console dev mode; `APP_WEB_URL` for link generation |
 
