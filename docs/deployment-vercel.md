@@ -38,9 +38,13 @@ Only `apps/web` is deployed to Vercel. The monorepo root is used for dependency 
 | Variable | Example | Description |
 |----------|---------|-------------|
 | `NEXT_PUBLIC_API_URL` | `https://api.example.com/api/v1` | Public API base URL (must include `/api/v1`) |
-| `NEXT_PUBLIC_WS_URL` | `https://api.example.com` | Public WebSocket base URL (same origin as API, no path) |
+| `NEXT_PUBLIC_WS_URL` | `https://api.example.com` | Optional public WebSocket base URL (same origin as API, no path). If omitted or if it points to the deprecated `lets-chat-api-wa43` host, the app derives the socket URL from `NEXT_PUBLIC_API_URL` by stripping `/api/v1`. |
 
 > **Important:** `NEXT_PUBLIC_*` variables are embedded at build time. Changing them requires a rebuild.
+>
+> For `lets-chat-api-v2` the correct values are:
+> - `NEXT_PUBLIC_API_URL=https://lets-chat-api-v2.onrender.com/api/v1`
+> - `NEXT_PUBLIC_WS_URL=https://lets-chat-api-v2.onrender.com` (or leave unset to auto-derive)
 
 ---
 
@@ -279,10 +283,12 @@ production-verified, `lets-chat-api-wa43` can be decommissioned.
 ### Pre-decommission checklist
 
 - [ ] Vercel production/preview env vars point to `https://lets-chat-api-v2.onrender.com/api/v1`.
+- [ ] Vercel `NEXT_PUBLIC_WS_URL` is unset, or points to `https://lets-chat-api-v2.onrender.com`, and does **not** reference `lets-chat-api-wa43.onrender.com`.
 - [ ] No code, docs, or scripts reference `lets-chat-api-wa43.onrender.com` as an active URL.
 - [ ] Smoke script passes against `lets-chat-api-v2`.
 - [ ] `GET https://lets-chat-api-v2.onrender.com/api/v1/health` returns `status: ok`.
 - [ ] Normal logged-in usage (login, workspaces, channels, DMs, search) works on production.
+- [ ] Browser DevTools shows no WebSocket connection attempts to `lets-chat-api-wa43.onrender.com`.
 
 ### Safe decommission path
 
