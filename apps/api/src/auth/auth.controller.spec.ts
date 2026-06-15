@@ -44,6 +44,7 @@ describe('AuthController', () => {
             updateInterfaceLanguage: jest.fn(),
             listSessions: jest.fn(),
             revokeAllSessions: jest.fn(),
+            revokeOtherSessions: jest.fn(),
             revokeSession: jest.fn(),
           },
         },
@@ -415,12 +416,18 @@ describe('AuthController', () => {
           expiresAt: new Date(now.getTime() + 3600_000),
           revokedAt: null,
           isActive: true,
+          isCurrent: false,
+          ipAddress: '127.0.0.1',
+          userAgent: 'Mozilla/5.0',
         },
       ]);
 
-      const result = await controller.listSessions(user);
+      const result = await controller.listSessions(user, 'session-2');
 
-      expect(authService.listSessions).toHaveBeenCalledWith('user-id');
+      expect(authService.listSessions).toHaveBeenCalledWith(
+        'user-id',
+        'session-2',
+      );
       expect(result).toHaveLength(1);
       expect(result[0]).toMatchObject({ id: 'session-1', isActive: true });
       expect(result[0]).not.toHaveProperty('tokenHash');
@@ -437,6 +444,23 @@ describe('AuthController', () => {
       const result = await controller.revokeAllSessions(user);
 
       expect(authService.revokeAllSessions).toHaveBeenCalledWith('user-id');
+      expect(result).toEqual({ success: true, revokedCount: 2 });
+    });
+  });
+
+  describe('POST /auth/sessions/revoke-others', () => {
+    it('revokes other sessions and returns revokedCount', async () => {
+      authService.revokeOtherSessions.mockResolvedValue({
+        success: true,
+        revokedCount: 2,
+      });
+
+      const result = await controller.revokeOtherSessions(user, 'session-1');
+
+      expect(authService.revokeOtherSessions).toHaveBeenCalledWith(
+        'user-id',
+        'session-1',
+      );
       expect(result).toEqual({ success: true, revokedCount: 2 });
     });
   });

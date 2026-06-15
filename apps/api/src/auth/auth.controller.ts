@@ -49,6 +49,7 @@ import { UpdateInterfaceLanguageDto } from './dto/update-interface-language.dto'
 
 import { JwtAccessGuard } from './guards/jwt-access.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
+import { CurrentSessionId } from './decorators/current-session-id.decorator';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -173,8 +174,9 @@ export class AuthController {
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   async listSessions(
     @CurrentUser() user: AuthUserResponse,
+    @CurrentSessionId() sessionId: string | undefined,
   ): Promise<SessionResponse[]> {
-    return this.auth.listSessions(user.id);
+    return this.auth.listSessions(user.id, sessionId);
   }
 
   @Post('sessions/revoke-all')
@@ -203,6 +205,23 @@ export class AuthController {
     @Param('sessionId', ParseUUIDPipe) sessionId: string,
   ): Promise<{ success: boolean }> {
     return this.auth.revokeSession(user.id, sessionId);
+  }
+
+  @Post('sessions/revoke-others')
+  @UseGuards(JwtAccessGuard)
+  @HttpCode(200)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Revoke all other active refresh sessions' })
+  @ApiOkResponse({ description: 'Other sessions revoked successfully' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async revokeOtherSessions(
+    @CurrentUser() user: AuthUserResponse,
+    @CurrentSessionId() sessionId: string | undefined,
+  ): Promise<{ success: boolean; revokedCount: number }> {
+    if (!sessionId) {
+      throw new ConflictException('Current session not available');
+    }
+    return this.auth.revokeOtherSessions(user.id, sessionId);
   }
 
   @Post('change-email/request')

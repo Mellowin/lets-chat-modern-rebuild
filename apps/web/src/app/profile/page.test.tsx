@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import ProfilePage from "./page";
 import { useAuth } from "@/lib/auth-context";
-import { updateDisplayName, uploadAvatar, updateInterfaceLanguage, requestEmailChange, changePassword, listSessions, revokeAllSessions, revokeSession, getCurrentSessionId } from "@/lib/auth-api";
+import { updateDisplayName, uploadAvatar, updateInterfaceLanguage, requestEmailChange, changePassword, listSessions, revokeOtherSessions, revokeSession } from "@/lib/auth-api";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -20,9 +20,8 @@ vi.mock("@/lib/auth-api", () => ({
   requestEmailChange: vi.fn(),
   changePassword: vi.fn(),
   listSessions: vi.fn(),
-  revokeAllSessions: vi.fn(),
+  revokeOtherSessions: vi.fn(),
   revokeSession: vi.fn(),
-  getCurrentSessionId: vi.fn(),
 }));
 
 function mockAuth(userOverrides?: Partial<ReturnType<typeof useAuth>>) {
@@ -86,7 +85,6 @@ describe("ProfilePage — authenticated", () => {
     vi.clearAllMocks();
     localStorage.clear();
     vi.mocked(listSessions).mockResolvedValue([]);
-    vi.mocked(getCurrentSessionId).mockReturnValue(null);
   });
 
   it("renders tab navigation", async () => {
@@ -700,8 +698,8 @@ describe("ProfilePage — sessions", () => {
   it("renders sessions summary but hides list by default", async () => {
     mockAuth();
     vi.mocked(listSessions).mockResolvedValueOnce([
-      { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true },
-      { id: "s2", createdAt: "2024-01-02T00:00:00Z", expiresAt: "2024-02-01T00:00:00Z", revokedAt: null, isActive: false },
+      { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true, isCurrent: false, ipAddress: null, userAgent: null },
+      { id: "s2", createdAt: "2024-01-02T00:00:00Z", expiresAt: "2024-02-01T00:00:00Z", revokedAt: null, isActive: false, isCurrent: false, ipAddress: null, userAgent: null },
     ]);
 
     render(<ProfilePage />);
@@ -717,12 +715,12 @@ describe("ProfilePage — sessions", () => {
     expect(listSessions).toHaveBeenCalledWith("token");
   });
 
-  it("shows session list after clicking show sessions", async () => {
+  it("shows active sessions by default and inactive after toggle", async () => {
     mockAuth();
     vi.mocked(listSessions).mockResolvedValueOnce([
-      { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true },
-      { id: "s2", createdAt: "2024-01-02T00:00:00Z", expiresAt: "2024-02-01T00:00:00Z", revokedAt: null, isActive: false },
-      { id: "s3", createdAt: "2024-01-03T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: "2024-01-04T00:00:00Z", isActive: false },
+      { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true, isCurrent: false, ipAddress: null, userAgent: null },
+      { id: "s2", createdAt: "2024-01-02T00:00:00Z", expiresAt: "2024-02-01T00:00:00Z", revokedAt: null, isActive: false, isCurrent: false, ipAddress: null, userAgent: null },
+      { id: "s3", createdAt: "2024-01-03T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: "2024-01-04T00:00:00Z", isActive: false, isCurrent: false, ipAddress: null, userAgent: null },
     ]);
 
     render(<ProfilePage />);
@@ -740,14 +738,22 @@ describe("ProfilePage — sessions", () => {
       expect(screen.getByTestId("session-item-s1")).toBeInTheDocument();
     });
     expect(toggleButton).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByTestId("session-item-s2")).toBeInTheDocument();
-    expect(screen.getByTestId("session-item-s3")).toBeInTheDocument();
+    expect(screen.queryByTestId("session-item-s2")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("session-item-s3")).not.toBeInTheDocument();
+
+    const inactiveToggle = screen.getByRole("checkbox", { name: /Show revoked and expired sessions/i });
+    await userEvent.click(inactiveToggle);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("session-item-s2")).toBeInTheDocument();
+      expect(screen.getByTestId("session-item-s3")).toBeInTheDocument();
+    });
   });
 
   it("hides session list after clicking hide sessions", async () => {
     mockAuth();
     vi.mocked(listSessions).mockResolvedValueOnce([
-      { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true },
+      { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true, isCurrent: false, ipAddress: null, userAgent: null },
     ]);
 
     render(<ProfilePage />);
@@ -808,13 +814,13 @@ describe("ProfilePage — sessions", () => {
   it("revokes an individual session after confirm and updates UI", async () => {
     mockAuth();
     vi.mocked(listSessions).mockResolvedValueOnce([
-      { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true },
-      { id: "s2", createdAt: "2024-01-02T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true },
+      { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true, isCurrent: false, ipAddress: null, userAgent: null },
+      { id: "s2", createdAt: "2024-01-02T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true, isCurrent: false, ipAddress: null, userAgent: null },
     ]);
     vi.mocked(revokeSession).mockResolvedValueOnce({ success: true });
     vi.mocked(listSessions).mockResolvedValueOnce([
-      { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: new Date().toISOString(), isActive: false },
-      { id: "s2", createdAt: "2024-01-02T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true },
+      { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: new Date().toISOString(), isActive: false, isCurrent: false, ipAddress: null, userAgent: null },
+      { id: "s2", createdAt: "2024-01-02T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true, isCurrent: false, ipAddress: null, userAgent: null },
     ]);
     vi.spyOn(window, "confirm").mockReturnValue(true);
 
@@ -843,10 +849,10 @@ describe("ProfilePage — sessions", () => {
   it("shows error when individual session revoke fails", async () => {
     mockAuth();
     vi.mocked(listSessions).mockResolvedValueOnce([
-      { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true },
+      { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true, isCurrent: false, ipAddress: null, userAgent: null },
     ]);
     vi.mocked(listSessions).mockResolvedValueOnce([
-      { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true },
+      { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true, isCurrent: false, ipAddress: null, userAgent: null },
     ]);
     vi.mocked(revokeSession).mockRejectedValueOnce(new Error("Failed to revoke session"));
     vi.spyOn(window, "confirm").mockReturnValue(true);
@@ -871,7 +877,7 @@ describe("ProfilePage — sessions", () => {
   it("does not revoke individual session when confirm is cancelled", async () => {
     mockAuth();
     vi.mocked(listSessions).mockResolvedValueOnce([
-      { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true },
+      { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true, isCurrent: false, ipAddress: null, userAgent: null },
     ]);
     vi.spyOn(window, "confirm").mockReturnValue(false);
 
@@ -892,35 +898,37 @@ describe("ProfilePage — sessions", () => {
     expect(revokeSession).not.toHaveBeenCalled();
   });
 
-  it("revokes all sessions after confirm and calls logout", async () => {
+  it("revokes other sessions after confirm and refreshes list", async () => {
     const logoutMock = vi.fn();
     mockAuth({ logout: logoutMock });
     vi.mocked(listSessions).mockResolvedValueOnce([
-      { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true },
+      { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true, isCurrent: true, ipAddress: null, userAgent: null },
+      { id: "s2", createdAt: "2024-01-02T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true, isCurrent: false, ipAddress: null, userAgent: null },
     ]);
-    vi.mocked(revokeAllSessions).mockResolvedValueOnce({ success: true, revokedCount: 1 });
+    vi.mocked(revokeOtherSessions).mockResolvedValueOnce({ success: true, revokedCount: 1 });
     vi.spyOn(window, "confirm").mockReturnValue(true);
 
     render(<ProfilePage />);
 
     await openTab("Sessions");
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /Revoke all sessions/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Revoke all other sessions/i })).toBeInTheDocument();
     });
 
-    await userEvent.click(screen.getByRole("button", { name: /Revoke all sessions/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Revoke all other sessions/i }));
 
     await waitFor(() => {
-      expect(revokeAllSessions).toHaveBeenCalledWith("token");
+      expect(revokeOtherSessions).toHaveBeenCalledWith("token");
     });
-    expect(await screen.findByText(/All sessions revoked/i)).toBeInTheDocument();
-    expect(logoutMock).toHaveBeenCalled();
+    expect(await screen.findByText(/Other sessions revoked/i)).toBeInTheDocument();
+    expect(logoutMock).not.toHaveBeenCalled();
   });
 
-  it("does not revoke when confirm is cancelled", async () => {
+  it("does not revoke others when confirm is cancelled", async () => {
     mockAuth();
     vi.mocked(listSessions).mockResolvedValueOnce([
-      { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true },
+      { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true, isCurrent: true, ipAddress: null, userAgent: null },
+      { id: "s2", createdAt: "2024-01-02T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true, isCurrent: false, ipAddress: null, userAgent: null },
     ]);
     vi.spyOn(window, "confirm").mockReturnValue(false);
 
@@ -928,31 +936,58 @@ describe("ProfilePage — sessions", () => {
 
     await openTab("Sessions");
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /Revoke all sessions/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Revoke all other sessions/i })).toBeInTheDocument();
     });
 
-    await userEvent.click(screen.getByRole("button", { name: /Revoke all sessions/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Revoke all other sessions/i }));
 
-    expect(revokeAllSessions).not.toHaveBeenCalled();
+    expect(revokeOtherSessions).not.toHaveBeenCalled();
   });
 
-  it("shows error when revoke fails", async () => {
+  it("shows error when revoke others fails", async () => {
     mockAuth();
     vi.mocked(listSessions).mockResolvedValueOnce([
-      { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true },
+      { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true, isCurrent: true, ipAddress: null, userAgent: null },
+      { id: "s2", createdAt: "2024-01-02T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true, isCurrent: false, ipAddress: null, userAgent: null },
     ]);
-    vi.mocked(revokeAllSessions).mockRejectedValueOnce(new Error("Server error"));
+    vi.mocked(revokeOtherSessions).mockRejectedValueOnce(new Error("Server error"));
     vi.spyOn(window, "confirm").mockReturnValue(true);
 
     render(<ProfilePage />);
 
     await openTab("Sessions");
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /Revoke all sessions/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Revoke all other sessions/i })).toBeInTheDocument();
     });
 
-    await userEvent.click(screen.getByRole("button", { name: /Revoke all sessions/i }));
+    await userEvent.click(screen.getByRole("button", { name: /Revoke all other sessions/i }));
 
     expect(await screen.findByText(/Server error/i)).toBeInTheDocument();
+  });
+
+  it("disables revoke button for current session and shows badge", async () => {
+    mockAuth();
+    vi.mocked(listSessions).mockResolvedValueOnce([
+      { id: "s1", createdAt: "2024-01-01T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true, isCurrent: true, ipAddress: null, userAgent: null },
+      { id: "s2", createdAt: "2024-01-02T00:00:00Z", expiresAt: "2025-01-01T00:00:00Z", revokedAt: null, isActive: true, isCurrent: false, ipAddress: null, userAgent: null },
+    ]);
+    vi.spyOn(window, "alert").mockReturnValue(undefined);
+
+    render(<ProfilePage />);
+
+    await openTab("Sessions");
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Show sessions/i })).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Show sessions/i }));
+    await waitFor(() => {
+      expect(screen.getByTestId("session-item-s1")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/Current session/i)).toBeInTheDocument();
+    expect(screen.queryByTestId("revoke-session-s1")).not.toBeInTheDocument();
+    expect(screen.getByTestId("revoke-session-disabled-s1")).toBeInTheDocument();
+    expect(screen.getByTestId("revoke-session-s2")).toBeInTheDocument();
   });
 });

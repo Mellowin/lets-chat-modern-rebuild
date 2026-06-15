@@ -438,24 +438,27 @@ export type TranslationKey =
   | "sidebar.signInToSeeWorkspaces"
   | "sidebar.unread"
   | "profile.sessions"
-  | "profile.revokeAllSessions"
-  | "profile.revokeAllConfirm"
-  | "profile.revokeAllSuccess"
-  | "profile.revokeAllFailed"
+  | "profile.revokeOtherSessions"
+  | "profile.revokeOthersConfirm"
+  | "profile.revokeOthersSuccess"
+  | "profile.revokeOthersFailed"
   | "profile.revokeSession"
   | "profile.revokingSession"
   | "profile.revokeSessionSuccess"
   | "profile.revokeSessionFailed"
   | "profile.revokeSessionConfirm"
   | "profile.currentSession"
-  | "profile.revokeCurrentSessionConfirm"
-  | "profile.revokeCurrentSessionWarning"
+  | "profile.revokeCurrentSessionDisabled"
   | "profile.sessionNotFoundRefreshed"
   | "profile.loadingSessions"
+  | "profile.loadingSessionsFailed"
   | "profile.sessionActive"
   | "profile.sessionRevoked"
   | "profile.sessionExpired"
   | "profile.noSessions"
+  | "profile.noInactiveSessions"
+  | "profile.showInactiveSessions"
+  | "profile.sessionDevice"
   | "profile.createdAt"
   | "profile.expiresAt"
   | "api.timeoutError"
@@ -890,24 +893,27 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "dashboard.confirmDeclineChannelInvitation": "Decline this channel invitation?",
     "dashboard.confirmRestoreWorkspacePrefix": "Restore workspace",
     "profile.sessions": "Sessions",
-    "profile.revokeAllSessions": "Revoke all sessions",
-    "profile.revokeAllConfirm": "Are you sure? This will end all sessions, including the current one, and you will need to sign in again.",
-    "profile.revokeAllSuccess": "All sessions revoked. Please sign in again.",
-    "profile.revokeAllFailed": "Failed to revoke sessions",
+    "profile.revokeOtherSessions": "Revoke all other sessions",
+    "profile.revokeOthersConfirm": "Are you sure? This will end all other active sessions. Your current session will stay signed in.",
+    "profile.revokeOthersSuccess": "Other sessions revoked.",
+    "profile.revokeOthersFailed": "Failed to revoke other sessions",
     "profile.revokeSession": "Revoke",
     "profile.revokingSession": "Revoking…",
     "profile.revokeSessionSuccess": "Session revoked",
     "profile.revokeSessionFailed": "Failed to revoke session",
     "profile.revokeSessionConfirm": "Revoke this session? It will be signed out on the next request.",
     "profile.currentSession": "Current session",
-    "profile.revokeCurrentSessionConfirm": "This is your current session. Revoking it will sign you out immediately.",
-    "profile.revokeCurrentSessionWarning": "You will need to sign in again.",
+    "profile.revokeCurrentSessionDisabled": "You cannot revoke your current session here. Use Sign out instead.",
     "profile.sessionNotFoundRefreshed": "Session was already revoked or expired. The list has been refreshed.",
     "profile.loadingSessions": "Loading sessions…",
+    "profile.loadingSessionsFailed": "Failed to load sessions",
     "profile.sessionActive": "Active",
     "profile.sessionRevoked": "Revoked",
     "profile.sessionExpired": "Expired",
     "profile.noSessions": "No sessions found",
+    "profile.noInactiveSessions": "No revoked or expired sessions",
+    "profile.showInactiveSessions": "Show revoked and expired sessions",
+    "profile.sessionDevice": "Device",
     "profile.createdAt": "Created",
     "profile.expiresAt": "Expires",
     "profile.account": "Account",
@@ -916,7 +922,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.showSessions": "Show sessions",
     "profile.hideSessions": "Hide sessions",
     "profile.activeSessionsCount": "Active sessions: {arg0}",
-    "profile.sessionsExplanation": "Sessions are devices or browsers where your account is currently signed in.",
+    "profile.sessionsExplanation": "Sessions are devices or browsers where your account is currently signed in. You can stay signed in on multiple devices at the same time.",
     "profile.showPassword": "Show password",
     "profile.hidePassword": "Hide password",
     "profile.accountSettings": "Account settings",
@@ -1352,24 +1358,27 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "dashboard.confirmDeclineChannelInvitation": "Відхилити це запрошення до каналу?",
     "dashboard.confirmRestoreWorkspacePrefix": "Відновити робочий простір",
     "profile.sessions": "Сесії",
-    "profile.revokeAllSessions": "Відкликати всі сесії",
-    "profile.revokeAllConfirm": "Ви впевнені? Це завершить усі сесії, включно з поточною, і вам доведеться увійти знову.",
-    "profile.revokeAllSuccess": "Усі сесії відкликані. Будь ласка, увійдіть знову.",
-    "profile.revokeAllFailed": "Не вдалося відкликати сесії",
+    "profile.revokeOtherSessions": "Відкликати всі інші сесії",
+    "profile.revokeOthersConfirm": "Ви впевнені? Це завершить усі інші активні сесії. Поточна сесія залишиться активною.",
+    "profile.revokeOthersSuccess": "Інші сесії відкликані.",
+    "profile.revokeOthersFailed": "Не вдалося відкликати інші сесії",
     "profile.revokeSession": "Відкликати",
     "profile.revokingSession": "Відкликаємо…",
     "profile.revokeSessionSuccess": "Сесію відкликано",
     "profile.revokeSessionFailed": "Не вдалося відкликати сесію",
     "profile.revokeSessionConfirm": "Відкликати цю сесію? Її буде завершено під час наступного запиту.",
     "profile.currentSession": "Поточна сесія",
-    "profile.revokeCurrentSessionConfirm": "Це ваша поточна сесія. Відкликання одразу завершить вашу авторизацію.",
-    "profile.revokeCurrentSessionWarning": "Вам доведеться увійти знову.",
+    "profile.revokeCurrentSessionDisabled": "Ви не можете відкликати поточну сесію тут. Натомість скористайтеся Виходом.",
     "profile.sessionNotFoundRefreshed": "Сесію вже відкликано або термін її дії закінчився. Список оновлено.",
     "profile.loadingSessions": "Завантажуємо сесії…",
+    "profile.loadingSessionsFailed": "Не вдалося завантажити сесії",
     "profile.sessionActive": "Активна",
     "profile.sessionRevoked": "Відкликана",
     "profile.sessionExpired": "Протермінована",
     "profile.noSessions": "Сесій не знайдено",
+    "profile.noInactiveSessions": "Немає відкликаних або протермінованих сесій",
+    "profile.showInactiveSessions": "Показати відкликані та протерміновані сесії",
+    "profile.sessionDevice": "Пристрій",
     "profile.createdAt": "Створено",
     "profile.expiresAt": "Завершується",
     "profile.account": "Обліковий запис",
@@ -1378,7 +1387,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.showSessions": "Показати сесії",
     "profile.hideSessions": "Приховати сесії",
     "profile.activeSessionsCount": "Активні сесії: {arg0}",
-    "profile.sessionsExplanation": "Сесії — це пристрої або браузери, де зараз виконано вхід у ваш акаунт.",
+    "profile.sessionsExplanation": "Сесії — це пристрої або браузери, де зараз виконано вхід у ваш акаунт. Ви можете залишатися авторизованими на кількох пристроях одночасно.",
     "profile.showPassword": "Показати пароль",
     "profile.hidePassword": "Приховати пароль",
     "profile.accountSettings": "Налаштування облікового запису",
@@ -1814,24 +1823,27 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "dashboard.confirmDeclineChannelInvitation": "Отклонить это приглашение в канал?",
     "dashboard.confirmRestoreWorkspacePrefix": "Восстановить рабочее пространство",
     "profile.sessions": "Сессии",
-    "profile.revokeAllSessions": "Отозвать все сессии",
-    "profile.revokeAllConfirm": "Вы уверены? Это завершит все сессии, включая текущую, и вам придётся войти снова.",
-    "profile.revokeAllSuccess": "Все сессии отозваны. Пожалуйста, войдите снова.",
-    "profile.revokeAllFailed": "Не удалось отозвать сессии",
+    "profile.revokeOtherSessions": "Отозвать все другие сессии",
+    "profile.revokeOthersConfirm": "Вы уверены? Это завершит все другие активные сессии. Текущая сессия останется активной.",
+    "profile.revokeOthersSuccess": "Другие сессии отозваны.",
+    "profile.revokeOthersFailed": "Не удалось отозвать другие сессии",
     "profile.revokeSession": "Отозвать",
     "profile.revokingSession": "Отзываем…",
     "profile.revokeSessionSuccess": "Сессия отозвана",
     "profile.revokeSessionFailed": "Не удалось отозвать сессию",
     "profile.revokeSessionConfirm": "Отозвать эту сессию? Она будет завершена при следующем запросе.",
     "profile.currentSession": "Текущая сессия",
-    "profile.revokeCurrentSessionConfirm": "Это ваша текущая сессия. Отзыв немедленно завершит вашу авторизацию.",
-    "profile.revokeCurrentSessionWarning": "Вам нужно будет войти снова.",
+    "profile.revokeCurrentSessionDisabled": "Нельзя отозвать текущую сессию здесь. Вместо этого используйте Выход.",
     "profile.sessionNotFoundRefreshed": "Сессия уже отозвана или срок её действия истёк. Список обновлён.",
     "profile.loadingSessions": "Загружаем сессии…",
+    "profile.loadingSessionsFailed": "Не удалось загрузить сессии",
     "profile.sessionActive": "Активна",
     "profile.sessionRevoked": "Отозвана",
     "profile.sessionExpired": "Истекла",
     "profile.noSessions": "Сессии не найдены",
+    "profile.noInactiveSessions": "Нет отозванных или истёкших сессий",
+    "profile.showInactiveSessions": "Показать отозванные и истёкшие сессии",
+    "profile.sessionDevice": "Устройство",
     "profile.createdAt": "Создана",
     "profile.expiresAt": "Истекает",
     "profile.account": "Аккаунт",
@@ -1840,7 +1852,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.showSessions": "Показать сессии",
     "profile.hideSessions": "Скрыть сессии",
     "profile.activeSessionsCount": "Активные сессии: {arg0}",
-    "profile.sessionsExplanation": "Сессии — это устройства или браузеры, где сейчас выполнен вход в ваш аккаунт.",
+    "profile.sessionsExplanation": "Сессии — это устройства или браузеры, где сейчас выполнен вход в ваш аккаунт. Вы можете оставаться авторизованными на нескольких устройствах одновременно.",
     "profile.showPassword": "Показать пароль",
     "profile.hidePassword": "Скрыть пароль",
     "profile.accountSettings": "Настройки аккаунта",

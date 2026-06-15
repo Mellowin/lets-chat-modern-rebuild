@@ -58,6 +58,7 @@ describe('AuthService', () => {
             consumeActiveToken: jest.fn(),
             revokeToken: jest.fn(),
             revokeAllForUser: jest.fn(),
+            revokeAllForUserExcept: jest.fn(),
             revokeByIdForUser: jest.fn(),
             listSessionsForUser: jest.fn(),
           },
@@ -391,6 +392,7 @@ describe('AuthService — email verification', () => {
             consumeActiveToken: jest.fn(),
             revokeToken: jest.fn(),
             revokeAllForUser: jest.fn(),
+            revokeAllForUserExcept: jest.fn(),
             revokeByIdForUser: jest.fn(),
             listSessionsForUser: jest.fn(),
           },
@@ -1239,6 +1241,7 @@ describe('AuthService — sessions', () => {
             consumeActiveToken: jest.fn(),
             revokeToken: jest.fn(),
             revokeAllForUser: jest.fn(),
+            revokeAllForUserExcept: jest.fn(),
             revokeByIdForUser: jest.fn(),
             listSessionsForUser: jest.fn(),
           },
@@ -1274,22 +1277,28 @@ describe('AuthService — sessions', () => {
           createdAt: now,
           expiresAt: new Date(now.getTime() + 3600_000),
           revokedAt: null,
+          ipAddress: '127.0.0.1',
+          userAgent: 'Mozilla/5.0',
         },
         {
           id: 'session-2',
           createdAt: now,
           expiresAt: new Date(now.getTime() - 3600_000),
           revokedAt: null,
+          ipAddress: null,
+          userAgent: null,
         },
         {
           id: 'session-3',
           createdAt: now,
           expiresAt: new Date(now.getTime() + 3600_000),
           revokedAt: now,
+          ipAddress: null,
+          userAgent: null,
         },
       ]);
 
-      const result = await service.listSessions('user-id');
+      const result = await service.listSessions('user-id', 'session-1');
 
       expect(refreshTokensRepository.listSessionsForUser).toHaveBeenCalledWith(
         'user-id',
@@ -1298,16 +1307,43 @@ describe('AuthService — sessions', () => {
       expect(result[0]).toMatchObject({
         id: 'session-1',
         isActive: true,
+        isCurrent: true,
+        ipAddress: '127.0.0.1',
+        userAgent: 'Mozilla/5.0',
       });
       expect(result[1]).toMatchObject({
         id: 'session-2',
         isActive: false,
+        isCurrent: false,
       });
       expect(result[2]).toMatchObject({
         id: 'session-3',
         isActive: false,
+        isCurrent: false,
       });
       expect(result[0]).not.toHaveProperty('tokenHash');
+    });
+
+    it('marks isCurrent false when current session id is not provided', async () => {
+      const now = new Date();
+      refreshTokensRepository.listSessionsForUser.mockResolvedValue([
+        {
+          id: 'session-1',
+          createdAt: now,
+          expiresAt: new Date(now.getTime() + 3600_000),
+          revokedAt: null,
+          ipAddress: null,
+          userAgent: null,
+        },
+      ]);
+
+      const result = await service.listSessions('user-id');
+
+      expect(result[0]).toMatchObject({
+        id: 'session-1',
+        isActive: true,
+        isCurrent: false,
+      });
     });
   });
 
@@ -1321,6 +1357,19 @@ describe('AuthService — sessions', () => {
         'user-id',
       );
       expect(result).toEqual({ success: true, revokedCount: 3 });
+    });
+  });
+
+  describe('revokeOtherSessions', () => {
+    it('returns success and revokedCount excluding current session', async () => {
+      refreshTokensRepository.revokeAllForUserExcept.mockResolvedValue(2);
+
+      const result = await service.revokeOtherSessions('user-id', 'session-1');
+
+      expect(
+        refreshTokensRepository.revokeAllForUserExcept,
+      ).toHaveBeenCalledWith('user-id', 'session-1');
+      expect(result).toEqual({ success: true, revokedCount: 2 });
     });
   });
 

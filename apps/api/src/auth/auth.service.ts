@@ -58,6 +58,9 @@ export interface SessionResponse {
   expiresAt: Date;
   revokedAt: Date | null;
   isActive: boolean;
+  isCurrent: boolean;
+  ipAddress: string | null;
+  userAgent: string | null;
 }
 
 @Injectable()
@@ -141,7 +144,7 @@ export class AuthService {
       this.token.signRefreshToken(payload),
     ]);
 
-    await this.persistRefreshToken(user.id, refreshToken);
+    await this.persistRefreshToken(user.id, refreshToken, payload.jti);
 
     const authUser = this.toAuthUserResponse(user);
     return { user: authUser, accessToken, refreshToken };
@@ -176,7 +179,7 @@ export class AuthService {
       this.token.signRefreshToken(newPayload),
     ]);
 
-    await this.persistRefreshToken(user.id, newRefreshToken);
+    await this.persistRefreshToken(user.id, newRefreshToken, newPayload.jti);
 
     const authUser = this.toAuthUserResponse(user);
     return { user: authUser, accessToken, refreshToken: newRefreshToken };
@@ -471,7 +474,10 @@ export class AuthService {
     return { success: true };
   }
 
-  async listSessions(userId: string): Promise<SessionResponse[]> {
+  async listSessions(
+    userId: string,
+    currentSessionId?: string,
+  ): Promise<SessionResponse[]> {
     const sessions = await this.refreshTokens.listSessionsForUser(userId);
     return sessions.map((session) => ({
       id: session.id,
@@ -479,6 +485,9 @@ export class AuthService {
       expiresAt: session.expiresAt,
       revokedAt: session.revokedAt,
       isActive: session.revokedAt === null && session.expiresAt > new Date(),
+      isCurrent: currentSessionId === session.id,
+      ipAddress: session.ipAddress ?? null,
+      userAgent: session.userAgent ?? null,
     }));
   }
 
@@ -486,6 +495,17 @@ export class AuthService {
     userId: string,
   ): Promise<{ success: boolean; revokedCount: number }> {
     const revokedCount = await this.refreshTokens.revokeAllForUser(userId);
+    return { success: true, revokedCount };
+  }
+
+  async revokeOtherSessions(
+    userId: string,
+    currentSessionId: string,
+  ): Promise<{ success: boolean; revokedCount: number }> {
+    const revokedCount = await this.refreshTokens.revokeAllForUserExcept(
+      userId,
+      currentSessionId,
+    );
     return { success: true, revokedCount };
   }
 
@@ -566,9 +586,15 @@ export class AuthService {
   private async persistRefreshToken(
     userId: string,
     token: string,
+    sessionId: string,
   ): Promise<void> {
     const tokenHash = this.hashRefreshToken(token);
     const expiresAt = this.getRefreshExpiryDate();
-    await this.refreshTokens.createToken({ userId, tokenHash, expiresAt });
+    await this.refreshTokens.createToken({
+      id: sessionId,
+      userId,
+      tokenHash,
+      expiresAt,
+    });
   }
 }

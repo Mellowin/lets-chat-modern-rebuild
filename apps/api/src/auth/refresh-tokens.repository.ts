@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@lets-chat/database';
 
 interface CreateRefreshTokenInput {
+  id?: string;
   userId: string;
   tokenHash: string;
   expiresAt: Date;
@@ -16,6 +17,7 @@ export class RefreshTokensRepository {
   async createToken(input: CreateRefreshTokenInput) {
     return this.prisma.refreshToken.create({
       data: {
+        id: input.id,
         userId: input.userId,
         tokenHash: input.tokenHash,
         expiresAt: input.expiresAt,
@@ -65,6 +67,21 @@ export class RefreshTokensRepository {
     return result.count;
   }
 
+  async revokeAllForUserExcept(
+    userId: string,
+    sessionId: string,
+  ): Promise<number> {
+    const result = await this.prisma.refreshToken.updateMany({
+      where: {
+        userId,
+        id: { not: sessionId },
+        revokedAt: null,
+      },
+      data: { revokedAt: new Date() },
+    });
+    return result.count;
+  }
+
   async revokeByIdForUser(sessionId: string, userId: string): Promise<number> {
     const result = await this.prisma.refreshToken.updateMany({
       where: {
@@ -87,6 +104,8 @@ export class RefreshTokensRepository {
         createdAt: true,
         expiresAt: true,
         revokedAt: true,
+        ipAddress: true,
+        userAgent: true,
       },
     });
   }

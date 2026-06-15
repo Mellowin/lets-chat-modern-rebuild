@@ -36,8 +36,9 @@ export class JwtAccessGuard implements CanActivate {
       throw new UnauthorizedException('User not found');
     }
 
-    (request as Request & { user: AuthUserResponse }).user =
+    (request as Request & { user: AuthUserResponse; sessionId?: string }).user =
       this.toAuthUserResponse(user);
+    (request as Request & { sessionId?: string }).sessionId = payload.jti;
 
     return true;
   }

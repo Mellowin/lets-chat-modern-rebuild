@@ -27,6 +27,12 @@ See [`docs/deployment-vercel.md`](deployment-vercel.md) for full deployment guid
 - Logout (clears sessionStorage)
 - Access/refresh token rotation
 - **sessionStorage** isolates sessions per browser tab (no cross-tab logout collisions)
+- **Session management** in Profile → Sessions:
+  - Lists all refresh-token sessions with `isCurrent` flag, status (active/revoked/expired), creation/expiration timestamps, and device metadata when available.
+  - Current session is clearly marked and cannot be revoked from the list (use Sign out instead).
+  - "Revoke all other sessions" ends every active session except the current one.
+  - Revoked/expired sessions are hidden by default and can be shown via a toggle.
+  - Multi-session login is intentional: users can stay signed in on multiple devices/browsers.
 - Cyrillic usernames supported (frontend regex + backend `RegisterDto` validation)
 - Username case preserved on creation; lookup is case-insensitive
 
@@ -119,6 +125,7 @@ Use these steps to verify core functionality after deploy or before release:
 - [ ] **Delete message** — message disappears for all connected clients
 - [ ] **Direct message** — start 1-to-1 conversation, messages appear in real time
 - [x] **Two tabs / two users** — realtime events propagate correctly across sessions
+- [ ] **Session management** — sign in on two browsers; Profile → Sessions shows both, marks the current session, disables revoking the current session, and "Revoke all other sessions" signs out only the other browser.
 - [ ] **Reset password with same current password** → expect rejection
 - [ ] **Resend domain verified** — sender domain is active in Resend dashboard
 - [ ] **Verify email real Gmail delivery** — registration email arrives in inbox
@@ -156,11 +163,12 @@ Use these steps to verify core functionality after deploy or before release:
 - **No slug-based URLs** — routing is strictly UUID-based; slugs are cosmetic only.
 - **No auto-dedupe** — duplicate slugs return `409 Conflict`; user must pick a different name.
 - **Password reset and authenticated password change revoke existing refresh sessions** — old devices must re-login after password change.
-- **Authenticated users can list their refresh sessions and revoke active sessions** — via `GET /auth/sessions` and `POST /auth/sessions/revoke-all`.
+- **Authenticated users can list their refresh sessions and revoke active sessions** — via `GET /auth/sessions`, `POST /auth/sessions/:sessionId/revoke`, and `POST /auth/sessions/revoke-others` (keeps the current session active). `POST /auth/sessions/revoke-all` still revokes every session including the current one.
 - **Profile page includes grouped settings layout** — Account (info, email change, avatar, display name), Security (change password with show/hide toggles), Sessions (collapsed by default with explanation and active count, expandable list with revoke-all), and Language (interface language selector).
 - **Email change flow invalidates older pending requests** — when a user requests a new email change, any previous pending email-change token is overwritten and becomes invalid. Only the latest confirmation link works. Requests to change to the current email are rejected.
   - Password fields have eye icon show/hide toggles per field.
   - Sessions are hidden behind a "Show sessions" toggle with a short explanation of what sessions are.
+  - Device/IP metadata is displayed when captured; it may be unavailable for sessions created before this improvement or when requests pass through proxies/CDNs that strip the headers.
 - **Production smoke verifies protected auth/session endpoints reject anonymous requests** — `GET /auth/sessions`, `POST /auth/sessions/revoke-all`, `POST /auth/change-password` checked for `401` without token.
 - **Public `/project-status` page added for portfolio/employer review** — honest overview of implemented and planned features, tech stack, and production links.
 - **Production smoke verifies public `/project-status` page** — checked for `200` and expected content.

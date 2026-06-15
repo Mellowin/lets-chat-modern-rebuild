@@ -3,9 +3,9 @@
 import { useLayoutEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+
 import { useAuth } from "@/lib/auth-context";
-import { updateDisplayName, uploadAvatar, updateInterfaceLanguage, requestEmailChange, changePassword, listSessions, revokeAllSessions, revokeSession, getCurrentSessionId } from "@/lib/auth-api";
+import { updateDisplayName, uploadAvatar, updateInterfaceLanguage, requestEmailChange, changePassword, listSessions, revokeOtherSessions, revokeSession } from "@/lib/auth-api";
 import { useLocale, type Locale, localeLabel } from "@/lib/locale";
 import { getAvatarUrl } from "@/lib/avatar-url";
 
@@ -90,10 +90,8 @@ function PasswordField({
 }
 
 export default function ProfilePage() {
-  const { user, accessToken, isLoading: authLoading, isAuthenticated, setUser, logout } = useAuth();
-  const router = useRouter();
+  const { user, accessToken, isLoading: authLoading, isAuthenticated, setUser } = useAuth();
   const { locale, setLocale: setLocaleState, t } = useLocale();
-  const currentSessionId = accessToken ? getCurrentSessionId(accessToken) : null;
 
   const [activeTab, setActiveTab] = useState<TabKey>("account");
 
@@ -126,6 +124,7 @@ export default function ProfilePage() {
     | { kind: "error"; sessionId: string; message: string }
   >({ kind: "idle" });
   const [showSessionsList, setShowSessionsList] = useState(false);
+  const [showInactiveSessions, setShowInactiveSessions] = useState(false);
 
   useLayoutEffect(() => {
     if (user?.displayName) {
@@ -142,7 +141,7 @@ export default function ProfilePage() {
       const data = await listSessions(accessToken);
       setSessions(data);
     } catch (err) {
-      setSessionsError(err instanceof Error ? err.message : t("profile.revokeAllFailed"));
+      setSessionsError(err instanceof Error ? err.message : t("profile.loadingSessionsFailed"));
     } finally {
       setSessionsLoading(false);
     }
@@ -158,40 +157,35 @@ export default function ProfilePage() {
     return name.slice(0, 2).toUpperCase();
   }, [user?.displayName, user?.username]);
 
-  async function handleRevokeAllSessions() {
+  async function handleRevokeOtherSessions() {
     if (!accessToken) return;
-    const confirmed = window.confirm(t("profile.revokeAllConfirm"));
+    const confirmed = window.confirm(t("profile.revokeOthersConfirm"));
     if (!confirmed) return;
     setRevokeState({ kind: "loading" });
     try {
-      await revokeAllSessions(accessToken);
+      await revokeOtherSessions(accessToken);
       setRevokeState({ kind: "success" });
-      await logout();
-      router.push("/login");
+      await loadSessions();
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("profile.revokeAllFailed");
+      const message = err instanceof Error ? err.message : t("profile.revokeOthersFailed");
       setRevokeState({ kind: "error", message });
       await loadSessions();
     }
   }
 
-  async function handleRevokeSession(sessionId: string) {
+  async function handleRevokeSession(sessionId: string, isCurrent: boolean) {
     if (!accessToken) return;
-    const isCurrent = sessionId === currentSessionId;
-    const confirmMessage = isCurrent
-      ? `${t("profile.revokeCurrentSessionConfirm")}\n${t("profile.revokeCurrentSessionWarning")}`
-      : t("profile.revokeSessionConfirm");
-    if (!window.confirm(confirmMessage)) return;
+    if (isCurrent) {
+      window.alert(t("profile.revokeCurrentSessionDisabled"));
+      return;
+    }
+    if (!window.confirm(t("profile.revokeSessionConfirm"))) return;
 
     setSessionRevokeState({ kind: "loading", sessionId });
     try {
       await revokeSession(accessToken, sessionId);
       setSessionRevokeState({ kind: "success", sessionId });
       await loadSessions();
-      if (isCurrent) {
-        await logout();
-        router.push("/login");
-      }
     } catch (err) {
       const raw = err instanceof Error ? err.message : "";
       const isNotFound = raw.toLowerCase().includes("not found") || raw.includes("404");
@@ -303,6 +297,9 @@ export default function ProfilePage() {
   ];
 
   const activeCount = sessions.filter((s) => s.isActive && !s.revokedAt).length;
+  const visibleSessions = showInactiveSessions
+    ? sessions
+    : sessions.filter((s) => s.isActive && !s.revokedAt);
 
   return (
     <div className="flex flex-col p-6 sm:p-10 max-w-3xl">
@@ -663,8 +660,25 @@ export default function ProfilePage() {
                   </div>
                 )}
                 {!sessionsLoading && !sessionsError && sessions.length > 0 && (
-                  <div className="space-y-2">
-                    {sessions.map((session) => {
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <input
+                        id="show-inactive-sessions"
+                        type="checkbox"
+                        checked={showInactiveSessions}
+                        onChange={(e) => setShowInactiveSessions(e.target.checked)}
+                        className="h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:checked:bg-zinc-100 dark:checked:text-zinc-900"
+                      />
+                      <label htmlFor="show-inactive-sessions" className="text-xs text-zinc-600 dark:text-zinc-400">
+                        {t("profile.showInactiveSessions")}
+                      </label>
+                    </div>
+                    {visibleSessions.length === 0 && (
+                      <div className="text-sm text-zinc-500 dark:text-zinc-400">
+                        {t("profile.noInactiveSessions")}
+                      </div>
+                    )}
+                    {visibleSessions.map((session) => {
                       let statusLabel = t("profile.sessionActive");
                       let statusClass = "text-emerald-600 dark:text-emerald-400";
                       if (session.revokedAt) {
@@ -674,8 +688,7 @@ export default function ProfilePage() {
                         statusLabel = t("profile.sessionExpired");
                         statusClass = "text-amber-600 dark:text-amber-400";
                       }
-                      const isCurrent = session.id === currentSessionId;
-                      const canRevoke = !session.revokedAt && session.isActive;
+                      const canRevoke = !session.revokedAt && session.isActive && !session.isCurrent;
                       const isRevoking = sessionRevokeState.kind === "loading" && sessionRevokeState.sessionId === session.id;
                       return (
                         <div
@@ -683,32 +696,50 @@ export default function ProfilePage() {
                           data-testid={`session-item-${session.id}`}
                           className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-lg border border-zinc-200 dark:border-zinc-800 px-3 py-2 text-sm"
                         >
-                          <div className="flex flex-col gap-0.5">
+                          <div className="flex flex-col gap-0.5 min-w-0">
                             <span className="text-zinc-700 dark:text-zinc-300">
                               {t("profile.createdAt")}: {new Date(session.createdAt).toLocaleString()}
                             </span>
                             <span className="text-zinc-500 dark:text-zinc-400">
                               {t("profile.expiresAt")}: {new Date(session.expiresAt).toLocaleString()}
                             </span>
+                            {session.userAgent && (
+                              <span className="truncate text-zinc-500 dark:text-zinc-400" title={session.userAgent}>
+                                {t("profile.sessionDevice")}: {session.userAgent}
+                              </span>
+                            )}
+                            {session.ipAddress && (
+                              <span className="text-zinc-500 dark:text-zinc-400">
+                                IP: {session.ipAddress}
+                              </span>
+                            )}
                           </div>
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 shrink-0">
                             <span className={`font-medium ${statusClass}`}>{statusLabel}</span>
-                            {isCurrent && (
+                            {session.isCurrent && (
                               <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/40 dark:text-blue-400">
                                 {t("profile.currentSession")}
                               </span>
                             )}
-                            {canRevoke && (
+                            {session.isCurrent ? (
+                              <span
+                                className="inline-flex items-center justify-center rounded-md border border-zinc-200 dark:border-zinc-700 px-2.5 py-1 text-xs font-medium text-zinc-400 dark:text-zinc-500 cursor-not-allowed"
+                                title={t("profile.revokeCurrentSessionDisabled")}
+                                data-testid={`revoke-session-disabled-${session.id}`}
+                              >
+                                {t("profile.revokeSession")}
+                              </span>
+                            ) : canRevoke ? (
                               <button
                                 type="button"
-                                onClick={() => handleRevokeSession(session.id)}
+                                onClick={() => handleRevokeSession(session.id, session.isCurrent)}
                                 disabled={isRevoking}
                                 className="inline-flex items-center justify-center rounded-md border border-zinc-300 dark:border-zinc-700 px-2.5 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-60 transition-colors"
                                 data-testid={`revoke-session-${session.id}`}
                               >
                                 {isRevoking ? t("profile.revokingSession") : t("profile.revokeSession")}
                               </button>
-                            )}
+                            ) : null}
                           </div>
                           {sessionRevokeState.kind === "success" && sessionRevokeState.sessionId === session.id && (
                             <div className="sm:contents">
@@ -733,6 +764,14 @@ export default function ProfilePage() {
                         </div>
                       );
                     })}
+                    {sessionRevokeState.kind === "success" && (
+                      <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-xs dark:border-emerald-900 dark:bg-emerald-950/30">
+                        <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                          {t("profile.revokeSessionSuccess")}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -741,19 +780,19 @@ export default function ProfilePage() {
             <div className="mt-4">
               <button
                 type="button"
-                onClick={handleRevokeAllSessions}
-                disabled={revokeState.kind === "loading" || sessionsLoading}
+                onClick={handleRevokeOtherSessions}
+                disabled={revokeState.kind === "loading" || sessionsLoading || activeCount <= 1}
                 className="inline-flex w-full sm:w-auto items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors sm:shrink-0"
-                data-testid="revoke-all-sessions-button"
+                data-testid="revoke-other-sessions-button"
               >
-                {revokeState.kind === "loading" ? t("profile.saving") : t("profile.revokeAllSessions")}
+                {revokeState.kind === "loading" ? t("profile.saving") : t("profile.revokeOtherSessions")}
               </button>
             </div>
             {revokeState.kind === "success" && (
               <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
                 <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
                   <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                  {t("profile.revokeAllSuccess")}
+                  {t("profile.revokeOthersSuccess")}
                 </div>
               </div>
             )}

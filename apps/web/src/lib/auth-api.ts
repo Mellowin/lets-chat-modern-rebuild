@@ -274,6 +274,9 @@ export interface SessionResponse {
   expiresAt: string;
   revokedAt: string | null;
   isActive: boolean;
+  isCurrent: boolean;
+  ipAddress: string | null;
+  userAgent: string | null;
 }
 
 function decodeTokenPayload(accessToken: string): Record<string, unknown> | null {
@@ -338,6 +341,22 @@ export async function revokeAllSessions(accessToken: string): Promise<{ success:
 
   if (!res.ok) {
     throw new Error(await parseErrorMessage(res, `Failed to revoke sessions: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<{ success: boolean; revokedCount: number }>;
+}
+
+export async function revokeOtherSessions(accessToken: string): Promise<{ success: boolean; revokedCount: number }> {
+  const res = await fetchWithTimeout(`${API_BASE}/auth/sessions/revoke-others`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to revoke other sessions: ${res.status} ${res.statusText}`));
   }
 
   return res.json() as Promise<{ success: boolean; revokedCount: number }>;
