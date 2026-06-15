@@ -109,6 +109,7 @@ Use these steps to verify core functionality after deploy or before release:
 - [ ] **Create channel** with Cyrillic name (e.g., `Загальний`) → slug auto-generated
 - [ ] **Invite workspace member to channel** — invitation sent, accept flow adds user with channel role
 - [ ] **Remove channel member** — OWNER/ADMIN can remove lower-role members; OWNER cannot be removed
+- [ ] **Global search** — search `к` from header finds messages across workspaces, channels and DMs; clicking result opens correct channel/DM and scrolls to message
 - [ ] **Send message** by pressing Enter
 - [ ] **Shift+Enter** in composer inserts newline instead of sending
 - [ ] **Reply to message** — reply appears in thread
@@ -139,8 +140,8 @@ Use these steps to verify core functionality after deploy or before release:
 - **Messages authorization unit tests** added (`messages.service.spec.ts`) — workspace/PRIVATE access, author-only edit with 15-min window, role-based delete permissions.
 - **WebSocket typing access revalidation** added — `broadcastTyping` revalidates channel membership on every event; revoked access triggers `typing:error`, presence cleanup, and automatic room leave.
 - **Private channel E2E security smoke tests** added (`channels.e2e-spec.ts`) — 7 tests proving private channel access control through real HTTP endpoints.
-- **API tests count:** 695 unit tests (31 suites)
-- **Web tests count:** 649 unit tests (28 files) + 239 page tests (2 files)
+- **API tests count:** 700 unit tests (32 suites)
+- **Web tests count:** 659 unit tests (29 files) + 239 page tests (2 files)
 - **E2E tests:** 7 passing locally (2 suites); requires Docker PostgreSQL
 - **CI:** green ✅ (unit tests, builds, lint, typecheck; e2e not yet in CI)
 - **Remaining known risks:**
@@ -166,6 +167,8 @@ Use these steps to verify core functionality after deploy or before release:
 - **Channel attachments support file picker, drag-and-drop, image previews, upload progress, retry, presigned upload, message rendering, authenticated download URLs, and orphaned upload cleanup** — frontend composer supports selecting up to 5 files (validated MIME/size), drag-and-drop into the composer, thumbnail previews for images before send, upload progress per file with retry on failure, inline image previews in the message list, file cards for non-image attachments, presigned upload to storage, secure download via backend download-url endpoint, and a cleanup script that removes orphaned storage objects older than a configurable threshold by comparing against the Attachment table; gallery/lightbox is still in progress.
 - **Frontend API timeout and recovery UX** — all API requests have a 15-second `AbortController` timeout. When the backend is cold-starting or unreachable, login stops loading and shows a human-friendly message with a cold-start hint instead of hanging forever on "Signing in…". Users can retry immediately.
 - **Workspace invite links are available end-to-end** — OWNER/ADMIN can create targeted email/username invites and public invite links with `maxUses` from the workspace page, copy the generated link, list/revoke active invites, and preview the invite at `/invites/:token` without authentication. Recipients can open the invite link, see workspace name and expiry, and accept the invite (authenticated users) or sign in first (unauthenticated users). `POST /invites/:token/accept` adds the user to the workspace; already-member users receive a safe current-membership response. Expired, revoked, or max-uses-reached links are rejected.
+- **Global message search is available** — backend endpoint `GET /api/v1/me/search/messages` searches all messages the current user can access across workspaces (public channels + private channels they are a member of) and direct messages; supports 1-character substring queries, newest-first sorting, cursor pagination; frontend modal reachable from the header shows mixed results with source labels and navigates to the correct channel or DM message.
+- **Workspace message search is available** — backend endpoint `GET /api/v1/workspaces/:workspaceId/search/messages` plus frontend UI with search panel, results list, load-more pagination, safe query highlighting, attachment-only fallback, and jump-to-message.
 - **Channel message search is available** — backend endpoint `GET /api/v1/workspaces/:workspaceId/channels/:channelId/messages/search` plus frontend UI with search panel, results list, load-more pagination, safe query highlighting, attachment-only fallback, and jump-to-message.
 - **Channel unread counters** — read-state tracking and realtime badge sync are implemented. Limitations:
   - No push/browser notifications yet

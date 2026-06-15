@@ -499,6 +499,46 @@ export interface WorkspaceSearchResult {
   };
 }
 
+export interface GlobalSearchChannelSource {
+  type: "CHANNEL";
+  workspaceId: string;
+  workspaceName: string;
+  channelId: string;
+  channelName: string;
+  channelSlug: string;
+}
+
+export interface GlobalSearchDirectSource {
+  type: "DIRECT";
+  conversationId: string;
+  otherParticipant: {
+    id: string;
+    username: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+  } | null;
+}
+
+export type GlobalSearchSource = GlobalSearchChannelSource | GlobalSearchDirectSource;
+
+export interface GlobalSearchResult {
+  id: string;
+  content: string;
+  createdAt: string;
+  author: {
+    id: string;
+    username: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+  };
+  source: GlobalSearchSource;
+}
+
+export interface GlobalSearchResponse {
+  items: GlobalSearchResult[];
+  nextCursor: string | null;
+}
+
 export async function searchWorkspaceMessages(
   accessToken: string,
   workspaceId: string,
@@ -534,4 +574,37 @@ export async function searchWorkspaceMessages(
   }
 
   return res.json() as Promise<WorkspaceSearchResult[]>;
+}
+
+export async function searchGlobalMessages(
+  accessToken: string,
+  q: string,
+  options?: { limit?: number; cursor?: string },
+): Promise<GlobalSearchResponse> {
+  const params = new URLSearchParams();
+  params.set("q", q.trim());
+  if (options?.limit) params.set("limit", String(options.limit));
+  if (options?.cursor) params.set("cursor", options.cursor);
+
+  const res = await fetch(`${API_BASE}/me/search/messages?${params.toString()}`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!res.ok) {
+    let message = `Search failed: ${res.status} ${res.statusText}`;
+    try {
+      const body = await res.json();
+      if (body?.message) message = body.message;
+      else if (body?.error) message = body.error;
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+
+  return res.json() as Promise<GlobalSearchResponse>;
 }

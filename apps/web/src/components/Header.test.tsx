@@ -7,6 +7,10 @@ vi.mock("@/lib/auth-context", () => ({
   useAuth: vi.fn(),
 }));
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}));
+
 function mockAuth(overrides?: Partial<ReturnType<typeof useAuth>>) {
   vi.mocked(useAuth).mockReturnValue({
     user: null,
@@ -62,6 +66,32 @@ describe("Header — global unread", () => {
       window.dispatchEvent(new CustomEvent("global-unread:changed", { detail: { total: 0 } }));
     });
     expect(screen.queryByTestId("header-global-unread")).not.toBeInTheDocument();
+  });
+});
+
+describe("Header — global search", () => {
+  it("shows global search button for authenticated user", () => {
+    mockAuth({
+      isAuthenticated: true,
+      user: {
+        id: "u1",
+        email: "a@b.com",
+        username: "alice",
+        displayName: null,
+        avatarUrl: null,
+        avatarUpdatedAt: null,
+        interfaceLanguage: "en",
+        createdAt: "2024-01-01T00:00:00Z",
+      },
+    });
+    render(<Header />);
+    expect(screen.getByTestId("global-search-open-button")).toBeInTheDocument();
+  });
+
+  it("does not show global search button for unauthenticated user", () => {
+    mockAuth({ isAuthenticated: false });
+    render(<Header />);
+    expect(screen.queryByTestId("global-search-open-button")).not.toBeInTheDocument();
   });
 });
 

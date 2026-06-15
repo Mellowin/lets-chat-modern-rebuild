@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useLocale } from "@/lib/locale";
 import { getAvatarUrl } from "@/lib/avatar-url";
 import { GLOBAL_UNREAD_CHANGED_EVENT, type GlobalUnreadPayload } from "@/lib/global-unread";
+import GlobalMessageSearch from "./GlobalMessageSearch";
 
 export default function Header() {
   const { user, isAuthenticated, isLoading, logout } = useAuth();
@@ -39,6 +40,7 @@ export default function Header() {
       </Link>
 
       <div className="flex items-center gap-3">
+        {isAuthenticated && <GlobalMessageSearch />}
         {isLoading ? (
           <span className="text-xs text-zinc-400">{t("header.loading")}</span>
         ) : isAuthenticated && user ? (

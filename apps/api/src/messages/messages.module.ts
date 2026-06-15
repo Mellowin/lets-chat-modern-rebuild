@@ -14,6 +14,7 @@ import { ReadReceiptsRepository } from './read-receipts.repository';
 import { ReadReceiptsController } from './read-receipts.controller';
 import { MessagesSearchService } from './messages-search.service';
 import { SearchController } from './search.controller';
+import { UserSearchController } from './user-search.controller';
 import { StorageModule } from '../storage/storage.module';
 import { WebsocketModule } from '../websocket/websocket.module';
 import { AttachmentsService } from './attachments.service';
@@ -34,6 +35,7 @@ import { AttachmentsController } from './attachments.controller';
     ReactionsController,
     ReadReceiptsController,
     SearchController,
+    UserSearchController,
     AttachmentsController,
   ],
   providers: [

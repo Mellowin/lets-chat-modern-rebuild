@@ -23,6 +23,17 @@ export type TranslationKey =
   | "header.signIn"
   | "header.createAccount"
   | "header.loading"
+  | "header.searchAllMessages"
+  | "globalSearch.title"
+  | "globalSearch.placeholder"
+  | "globalSearch.search"
+  | "globalSearch.loading"
+  | "globalSearch.empty"
+  | "globalSearch.error"
+  | "globalSearch.loadMore"
+  | "globalSearch.channelLabel"
+  | "globalSearch.directLabel"
+  | "globalSearch.directConversation"
   | "profile.title"
   | "profile.back"
   | "profile.accountInfo"
@@ -474,6 +485,17 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "header.signIn": "Sign in",
     "header.createAccount": "Create account",
     "header.loading": "Loading…",
+    "header.searchAllMessages": "Search all messages",
+    "globalSearch.title": "Search all messages",
+    "globalSearch.placeholder": "Search across workspaces, channels and DMs…",
+    "globalSearch.search": "Search",
+    "globalSearch.loading": "Searching…",
+    "globalSearch.empty": "No messages found.",
+    "globalSearch.error": "Search failed",
+    "globalSearch.loadMore": "Load more",
+    "globalSearch.channelLabel": "Channel",
+    "globalSearch.directLabel": "DM",
+    "globalSearch.directConversation": "Direct conversation",
     "profile.title": "Profile",
     "profile.back": "← Back to dashboard",
     "profile.accountInfo": "Account information",
@@ -924,6 +946,17 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "header.signIn": "Увійти",
     "header.createAccount": "Створити акаунт",
     "header.loading": "Завантаження…",
+    "header.searchAllMessages": "Пошук по всіх повідомленнях",
+    "globalSearch.title": "Пошук по всіх повідомленнях",
+    "globalSearch.placeholder": "Шукати в робочих просторах, каналах та особистих листуваннях…",
+    "globalSearch.search": "Пошук",
+    "globalSearch.loading": "Шукаємо…",
+    "globalSearch.empty": "Повідомлень не знайдено.",
+    "globalSearch.error": "Пошук не вдався",
+    "globalSearch.loadMore": "Завантажити ще",
+    "globalSearch.channelLabel": "Канал",
+    "globalSearch.directLabel": "Особисте",
+    "globalSearch.directConversation": "Особисте листування",
     "profile.title": "Профіль",
     "profile.back": "← Назад до панелі",
     "profile.accountInfo": "Інформація акаунта",
@@ -1374,6 +1407,17 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "header.signIn": "Войти",
     "header.createAccount": "Создать аккаунт",
     "header.loading": "Загрузка…",
+    "header.searchAllMessages": "Поиск по всем сообщениям",
+    "globalSearch.title": "Поиск по всем сообщениям",
+    "globalSearch.placeholder": "Искать в рабочих пространствах, каналах и личных сообщениях…",
+    "globalSearch.search": "Поиск",
+    "globalSearch.loading": "Ищем…",
+    "globalSearch.empty": "Сообщений не найдено.",
+    "globalSearch.error": "Поиск не удался",
+    "globalSearch.loadMore": "Загрузить ещё",
+    "globalSearch.channelLabel": "Канал",
+    "globalSearch.directLabel": "ЛС",
+    "globalSearch.directConversation": "Личная переписка",
     "profile.title": "Профиль",
     "profile.back": "← Назад к панели",
     "profile.accountInfo": "Информация аккаунта",

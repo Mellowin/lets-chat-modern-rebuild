@@ -29,6 +29,7 @@ const routerPushMock = vi.hoisted(() => vi.fn());
 vi.mock("next/navigation", () => ({
   useParams: () => ({ conversationId: "dc1" }),
   useRouter: () => ({ push: routerPushMock }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 vi.mock("@/lib/auth-context", () => ({

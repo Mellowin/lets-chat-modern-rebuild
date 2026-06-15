@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useLocale } from "@/lib/locale";
 import { getAvatarUrl } from "@/lib/avatar-url";
@@ -45,6 +45,8 @@ export default function DirectConversationPage() {
   const { isLoading: authLoading, isAuthenticated, user, accessToken } = useAuth();
   const { t } = useLocale();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const handledQueryMessageIdRef = useRef<string | null>(null);
   const [messages, setMessages] = useState<MessagesState>({ kind: "idle" });
   const [conversation, setConversation] = useState<ConversationState>({ kind: "idle" });
   const conversationRef = useRef<ConversationState>(conversation);
@@ -88,6 +90,22 @@ export default function DirectConversationPage() {
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoHideTypingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTypingEmittedRef = useRef(false);
+
+  useEffect(() => {
+    if (!isAuthenticated || !conversationId || !accessToken) return;
+    const targetMessageId = searchParams?.get("message");
+    if (
+      targetMessageId &&
+      messages.kind === "success" &&
+      handledQueryMessageIdRef.current !== targetMessageId
+    ) {
+      handledQueryMessageIdRef.current = targetMessageId;
+      const loaded = messages.data.find((m) => m.id === targetMessageId);
+      if (loaded) {
+        scrollToMessage(targetMessageId);
+      }
+    }
+  }, [isAuthenticated, conversationId, accessToken, searchParams, messages]);
 
   function safeMarkDirectConversationRead(token: string, convId: string) {
     if (markReadInFlightRef.current) return;
