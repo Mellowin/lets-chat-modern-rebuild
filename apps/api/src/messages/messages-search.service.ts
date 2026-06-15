@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '@lets-chat/database';
+import { PrismaService, Prisma } from '@lets-chat/database';
 import { ChannelsService } from '../channels/channels.service';
 import { WorkspacesRepository } from '../workspaces/workspaces.repository';
 import { SearchMessagesQueryDto } from './dto/search-messages-query.dto';
@@ -136,7 +136,14 @@ export class MessagesSearchService {
       ? await this.resolveCursorCreatedAt(query.cursor)
       : null;
 
-    const rows = await this.prisma.$queryRaw<GlobalSearchResult[]>`
+    const cursorClause = cursorCreatedAt
+      ? Prisma.sql`AND m."createdAt" < ${cursorCreatedAt}::timestamptz`
+      : Prisma.sql``;
+    const dmCursorClause = cursorCreatedAt
+      ? Prisma.sql`AND dm."createdAt" < ${cursorCreatedAt}::timestamptz`
+      : Prisma.sql``;
+
+    const rows = await this.prisma.$queryRaw<GlobalSearchResult[]>(Prisma.sql`
       WITH accessible_channels AS (
         SELECT
           c.id AS channel_id,
@@ -166,7 +173,7 @@ export class MessagesSearchService {
         FROM "DirectConversation" dc
         JOIN "DirectConversationParticipant" dcp
           ON dcp."conversationId" = dc.id
-          AND dcp."userId" = ${userId}
+          AND dcp."userId" = ${userId}::uuid
       )
       SELECT
         m.id,
@@ -192,10 +199,7 @@ export class MessagesSearchService {
       JOIN accessible_channels ac ON ac.channel_id = m."channelId"
       WHERE m."deletedAt" IS NULL
         AND m.content ILIKE ${pattern}
-        AND (
-          ${cursorCreatedAt}::timestamptz IS NULL
-          OR m."createdAt" < ${cursorCreatedAt}::timestamptz
-        )
+        ${cursorClause}
       UNION ALL
       SELECT
         dm.id,
@@ -221,7 +225,7 @@ export class MessagesSearchService {
             FROM "DirectConversationParticipant" dcp2
             JOIN "User" ou ON ou.id = dcp2."userId"
             WHERE dcp2."conversationId" = dm."conversationId"
-              AND dcp2."userId" != ${userId}
+              AND dcp2."userId" != ${userId}::uuid
             LIMIT 1
           )
         ) AS source
@@ -230,13 +234,10 @@ export class MessagesSearchService {
       JOIN accessible_conversations aconv ON aconv.conversation_id = dm."conversationId"
       WHERE dm."deletedAt" IS NULL
         AND dm.content ILIKE ${pattern}
-        AND (
-          ${cursorCreatedAt}::timestamptz IS NULL
-          OR dm."createdAt" < ${cursorCreatedAt}::timestamptz
-        )
+        ${dmCursorClause}
       ORDER BY "createdAt" DESC
       LIMIT ${limit + 1}
-    `;
+    `);
 
     const hasMore = rows.length > limit;
     const items = hasMore ? rows.slice(0, limit) : rows;

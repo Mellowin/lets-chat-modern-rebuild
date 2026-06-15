@@ -176,4 +176,88 @@ describe('MessagesSearchService', () => {
     expect(result.items).toEqual([]);
     expect(result.nextCursor).toBeNull();
   });
+
+  it('handles Cyrillic query "ку" without crashing', async () => {
+    (prisma.$queryRaw as jest.Mock).mockResolvedValue([
+      makeChannelResult({ content: 'куку' }),
+    ]);
+
+    const result = await service.searchGlobal(userId, { q: 'ку' });
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].content).toBe('куку');
+    expect(result.nextCursor).toBeNull();
+  });
+
+  it('maps mixed channel and direct sources correctly', async () => {
+    (prisma.$queryRaw as jest.Mock).mockResolvedValue([
+      makeChannelResult({
+        id: 'msg-a',
+        source: {
+          type: 'CHANNEL',
+          workspaceId: 'ws-1',
+          workspaceName: 'Workspace A',
+          channelId: 'ch-1',
+          channelName: 'general',
+          channelSlug: 'general',
+        },
+      }),
+      makeDirectResult({
+        id: 'dm-a',
+        source: {
+          type: 'DIRECT',
+          conversationId: 'conv-1',
+          otherParticipant: {
+            id: 'u2',
+            username: 'bob',
+            displayName: 'Bob',
+            avatarUrl: null,
+          },
+        },
+      }),
+    ]);
+
+    const result = await service.searchGlobal(userId, { q: 'к' });
+
+    expect(result.items[0].source.type).toBe('CHANNEL');
+    expect(result.items[1].source.type).toBe('DIRECT');
+    if (result.items[1].source.type === 'DIRECT') {
+      expect(result.items[1].source.conversationId).toBe('conv-1');
+      expect(result.items[1].source.otherParticipant?.username).toBe('bob');
+    }
+  });
+
+  it('handles direct result with null otherParticipant', async () => {
+    (prisma.$queryRaw as jest.Mock).mockResolvedValue([
+      makeDirectResult({
+        source: {
+          type: 'DIRECT',
+          conversationId: 'conv-self',
+          otherParticipant: null,
+        },
+      }),
+    ]);
+
+    const result = await service.searchGlobal(userId, { q: 'к' });
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].source.type).toBe('DIRECT');
+    if (result.items[0].source.type === 'DIRECT') {
+      expect(result.items[0].source.otherParticipant).toBeNull();
+    }
+  });
+
+  it('ignores invalid cursor and returns first page', async () => {
+    (prisma.message.findUnique as jest.Mock).mockResolvedValue(null);
+    (prisma.directMessage.findUnique as jest.Mock).mockResolvedValue(null);
+    (prisma.$queryRaw as jest.Mock).mockResolvedValue([makeChannelResult()]);
+
+    const result = await service.searchGlobal(userId, {
+      q: 'к',
+      cursor: 'missing-id',
+    });
+
+    expect(result.items).toHaveLength(1);
+    expect(result.nextCursor).toBeNull();
+  });
 });
