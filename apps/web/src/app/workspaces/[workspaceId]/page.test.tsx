@@ -489,7 +489,7 @@ describe("WorkspaceDetailPage — add member / invite", () => {
       expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
     });
 
-    const select = screen.getByLabelText("Role");
+    const select = screen.getByTestId("workspace-invite-role");
     expect(select).toBeInTheDocument();
   });
 
@@ -512,7 +512,7 @@ describe("WorkspaceDetailPage — add member / invite", () => {
       expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
     });
 
-    await userEvent.selectOptions(screen.getByLabelText("Role"), "ADMIN");
+    await userEvent.selectOptions(screen.getByTestId("workspace-invite-role"), "ADMIN");
     await userEvent.type(screen.getByPlaceholderText(/Username or email/i), "bob@example.com");
     await userEvent.click(screen.getByRole("button", { name: /Add member/i }));
 
@@ -540,7 +540,7 @@ describe("WorkspaceDetailPage — add member / invite", () => {
       expect(screen.getByPlaceholderText(/Username or email/i)).toBeInTheDocument();
     });
 
-    await userEvent.selectOptions(screen.getByLabelText("Role"), "ADMIN");
+    await userEvent.selectOptions(screen.getByTestId("workspace-invite-role"), "ADMIN");
     await userEvent.type(screen.getByPlaceholderText(/Username or email/i), "bob");
     await userEvent.click(screen.getByRole("button", { name: /Add member/i }));
 

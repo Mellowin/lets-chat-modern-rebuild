@@ -73,11 +73,12 @@ export function ResetPasswordContent() {
         ) : (
           <form onSubmit={handleSubmit} className="mt-5 space-y-4">
             <div>
-              <label htmlFor="password" className="block text-sm font-medium">
+              <label htmlFor="reset-password-password" className="block text-sm font-medium">
                 {t("auth.newPassword")}
               </label>
               <input
-                id="password"
+                id="reset-password-password"
+                name="reset-password-password"
                 type="password"
                 autoComplete="new-password"
                 required
@@ -89,11 +90,12 @@ export function ResetPasswordContent() {
             </div>
 
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium">
+              <label htmlFor="reset-password-confirm-password" className="block text-sm font-medium">
                 {t("auth.confirmPassword")}
               </label>
               <input
-                id="confirmPassword"
+                id="reset-password-confirm-password"
+                name="reset-password-confirm-password"
                 type="password"
                 autoComplete="new-password"
                 required

@@ -261,6 +261,9 @@ export default function DirectMessagesPage() {
       <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
         <form onSubmit={handleStart} className="flex flex-col sm:flex-row items-start gap-3">
           <input
+            id="direct-recipient-input"
+            name="direct-recipient-input"
+            aria-label={t("direct.usernameOrEmail")}
             type="text"
             placeholder={t("direct.usernameOrEmail")}
             value={identifier}

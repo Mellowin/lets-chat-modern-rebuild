@@ -397,23 +397,32 @@ export default function WorkspaceDetailPage() {
         <h2 className="text-sm font-semibold">{t("workspace.createChannel")}</h2>
         <form onSubmit={handleCreateChannel} className="mt-4 flex flex-col gap-3">
           <input
+            id="channel-name"
+            name="channel-name"
             type="text"
             placeholder={t("workspace.channelName")}
             value={channelName}
             onChange={(e) => setChannelName(e.target.value)}
+            aria-label={t("workspace.channelName")}
             className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
           />
           <input
+            id="channel-description"
+            name="channel-description"
             type="text"
             placeholder={t("workspace.channelDescription")}
             value={channelDescription}
             onChange={(e) => setChannelDescription(e.target.value)}
+            aria-label={t("workspace.channelDescription")}
             className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
           />
           <div className="flex items-center gap-3">
             <select
+              id="channel-type"
+              name="channel-type"
               value={channelType}
               onChange={(e) => setChannelType(e.target.value as "PUBLIC" | "PRIVATE")}
+              aria-label="Channel type"
               className="rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
             >
               <option value="PUBLIC">{t("workspace.publicChannel")}</option>
@@ -575,6 +584,8 @@ export default function WorkspaceDetailPage() {
                         )}
                         {canUpdateRole ? (
                           <select
+                            id={`workspace-member-role-${m.id}`}
+                            name="workspace-member-role"
                             value={m.role}
                             onChange={(e) => handleUpdateRole(m.id, e.target.value as "ADMIN" | "MEMBER", m.user.displayName?.trim() || `@${m.user.username}`)}
                             disabled={updatingRoleMemberId === m.id}
@@ -614,14 +625,20 @@ export default function WorkspaceDetailPage() {
               <>
                 <form onSubmit={handleAddMember} className="mt-4 flex items-center gap-2">
                   <input
+                    id="invite-username-or-email"
+                    name="invite-username-or-email"
                     type="text"
                     placeholder={t("workspace.invitePlaceholder")}
                     value={memberIdentifier}
                     onChange={(e) => setMemberIdentifier(e.target.value)}
+                    aria-label={t("workspace.invitePlaceholder")}
                     className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
                   />
                   {myRole === "OWNER" && (
                     <select
+                      id="workspace-invite-role"
+                      name="workspace-invite-role"
+                      data-testid="workspace-invite-role"
                       value={memberRole}
                       onChange={(e) => setMemberRole(e.target.value as "MEMBER" | "ADMIN")}
                       aria-label={t("workspace.inviteRole")}

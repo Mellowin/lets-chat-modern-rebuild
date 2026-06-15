@@ -46,18 +46,27 @@ function PasswordField({
   disabled,
   placeholder,
   "data-testid": dataTestId,
+  id,
+  name,
+  "aria-label": ariaLabel,
 }: {
   value: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   disabled?: boolean;
   placeholder?: string;
   "data-testid"?: string;
+  id?: string;
+  name?: string;
+  "aria-label"?: string;
 }) {
   const [show, setShow] = useState(false);
   const { t } = useLocale();
   return (
     <div className="relative">
       <input
+        id={id}
+        name={name}
+        aria-label={ariaLabel}
         data-testid={dataTestId}
         type={show ? "text" : "password"}
         placeholder={placeholder}
@@ -359,6 +368,9 @@ export default function ProfilePage() {
               </div>
               <div className="flex flex-col gap-2">
                 <input
+                  id="profile-avatar-upload"
+                  name="profile-avatar-upload"
+                  aria-label={t("profile.avatar")}
                   ref={fileInputRef}
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
@@ -391,6 +403,9 @@ export default function ProfilePage() {
             <h2 className="text-sm font-semibold">{t("profile.editDisplayName")}</h2>
             <form onSubmit={handleUpdateDisplayName} className="mt-3 flex flex-col sm:flex-row items-start gap-3">
               <input
+                id="profile-display-name"
+                name="profile-display-name"
+                aria-label={t("profile.displayName")}
                 type="text"
                 placeholder={t("profile.displayNamePlaceholder")}
                 value={displayNameInput}
@@ -451,6 +466,9 @@ export default function ProfilePage() {
               className="mt-3 flex flex-col sm:flex-row items-start gap-3"
             >
               <input
+                id="profile-new-email"
+                name="profile-new-email"
+                aria-label={t("auth.changeEmailTitle")}
                 type="email"
                 placeholder={t("auth.emailPlaceholder")}
                 value={newEmailInput}
@@ -525,6 +543,9 @@ export default function ProfilePage() {
               className="mt-3 flex flex-col gap-3"
             >
               <PasswordField
+                id="profile-current-password"
+                name="profile-current-password"
+                aria-label={t("profile.currentPassword")}
                 placeholder={t("profile.currentPassword")}
                 value={currentPasswordInput}
                 onChange={(e) => setCurrentPasswordInput(e.target.value)}
@@ -532,6 +553,9 @@ export default function ProfilePage() {
                 data-testid="current-password-field"
               />
               <PasswordField
+                id="profile-new-password"
+                name="profile-new-password"
+                aria-label={t("profile.newPassword")}
                 placeholder={t("profile.newPassword")}
                 value={newPasswordInput}
                 onChange={(e) => setNewPasswordInput(e.target.value)}
@@ -539,6 +563,9 @@ export default function ProfilePage() {
                 data-testid="new-password-field"
               />
               <PasswordField
+                id="profile-confirm-password"
+                name="profile-confirm-password"
+                aria-label={t("profile.confirmNewPassword")}
                 placeholder={t("profile.confirmNewPassword")}
                 value={confirmPasswordInput}
                 onChange={(e) => setConfirmPasswordInput(e.target.value)}

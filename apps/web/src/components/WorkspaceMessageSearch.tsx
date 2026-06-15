@@ -99,11 +99,14 @@ export default function WorkspaceMessageSearch({ workspaceId, accessToken }: Wor
           <form onSubmit={handleSubmit} className="flex items-center gap-2">
             <input
               type="text"
+              id="workspace-search-input"
+              name="workspace-search-input"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t("workspace.searchInWorkspace")}
               className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600"
               data-testid="workspace-search-input"
+              aria-label={t("workspace.searchInWorkspace")}
             />
             <button
               type="submit"

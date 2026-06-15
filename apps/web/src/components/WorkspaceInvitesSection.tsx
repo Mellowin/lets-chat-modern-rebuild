@@ -174,9 +174,12 @@ export default function WorkspaceInvitesSection({
 
         <div className="flex items-center gap-2">
           <select
+            id="invite-role"
+            name="invite-role"
             value={role}
             onChange={(e) => setRole(e.target.value as "MEMBER" | "ADMIN")}
             className="rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
+            aria-label={t("workspace.inviteRole")}
           >
             <option value="MEMBER">{t("workspace.member")}</option>
             <option value="ADMIN">{t("workspace.admin")}</option>
@@ -185,20 +188,26 @@ export default function WorkspaceInvitesSection({
           {inviteType === "public" ? (
             <input
               type="number"
+              id="invite-max-uses"
+              name="invite-max-uses"
               min={1}
               max={1000}
               value={maxUses}
               onChange={(e) => setMaxUses(Number(e.target.value))}
               className="w-24 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
               placeholder={t("workspace.maxUses")}
+              aria-label={t("workspace.maxUses")}
             />
           ) : (
             <input
               type="text"
+              id="invite-email"
+              name="invite-email"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
               placeholder={t("workspace.inviteByEmail")}
               className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
+              aria-label={t("workspace.inviteByEmail")}
             />
           )}
 
@@ -224,9 +233,12 @@ export default function WorkspaceInvitesSection({
           </div>
           <div className="mt-2 flex items-center gap-2">
             <input
+              id="invite-link"
+              name="invite-link"
               readOnly
               value={`${typeof window !== "undefined" ? window.location.origin : ""}/invites/${createState.token}`}
               className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm"
+              aria-label={t("workspace.copyInviteLink")}
             />
             <button
               type="button"

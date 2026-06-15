@@ -1573,10 +1573,13 @@ export default function ChannelDetailPage() {
                           {editingMessageId === msg.id ? (
                             <form onSubmit={handleEditSubmit} className="flex flex-col gap-2">
                               <textarea
+                                id="channel-edit-message"
+                                name="channel-edit-message"
                                 rows={2}
                                 value={editContent}
                                 onChange={(e) => setEditContent(e.target.value)}
                                 disabled={editState.kind === "loading"}
+                                aria-label={t("channel.edit")}
                                 className="w-full resize-none rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100 disabled:opacity-60"
                               />
                               <div className="flex items-center gap-2">
@@ -1714,9 +1717,12 @@ export default function ChannelDetailPage() {
               </div>
             )}
             <textarea
+              id="channel-message-input"
+              name="channel-message-input"
               ref={composerTextareaRef}
               rows={2}
               placeholder={t("channel.messagePlaceholder")}
+              aria-label={t("channel.messagePlaceholder")}
               value={content}
               onChange={(e) => {
                 setContent(e.target.value);
@@ -1894,6 +1900,8 @@ export default function ChannelDetailPage() {
                   📎
                 </button>
                 <input
+                  id="file-input"
+                  name="file-input"
                   ref={fileInputRef}
                   type="file"
                   multiple
@@ -1901,6 +1909,7 @@ export default function ChannelDetailPage() {
                   onChange={handleFileSelect}
                   className="hidden"
                   data-testid="composer-file-input"
+                  aria-label={t("channel.attachFile")}
                 />
                 <span className="text-xs text-zinc-400 dark:text-zinc-500">
                   {content.length}/4000
@@ -2134,10 +2143,13 @@ export default function ChannelDetailPage() {
 
           <div className="px-5 pt-4 shrink-0">
             <input
+              id="channel-search-input"
+              name="channel-search-input"
               type="text"
               placeholder={t("channel.searchMembers")}
               value={memberSearch}
               onChange={(e) => setMemberSearch(e.target.value)}
+              aria-label={t("channel.searchMembers")}
               className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
             />
           </div>
@@ -2146,6 +2158,8 @@ export default function ChannelDetailPage() {
             <form onSubmit={handleAddMember} className="px-5 pt-3 flex flex-col gap-2 shrink-0">
               <div className="flex items-center gap-2">
                 <input
+                  id="channel-invite-username"
+                  name="channel-invite-username"
                   type="text"
                   placeholder={t("channel.invitePlaceholder")}
                   value={addMemberIdentifier}
@@ -2156,6 +2170,7 @@ export default function ChannelDetailPage() {
                     }
                   }}
                   disabled={addMemberState.kind === "loading"}
+                  aria-label={t("channel.invitePlaceholder")}
                   className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100 disabled:opacity-60"
                 />
                 <button
@@ -2168,9 +2183,12 @@ export default function ChannelDetailPage() {
               </div>
               {myChannelRole === "OWNER" && (
                 <select
+                  id="channel-invite-role"
+                  name="channel-invite-role"
                   value={addMemberRole}
                   onChange={(e) => setAddMemberRole(e.target.value as "MEMBER" | "ADMIN")}
                   disabled={addMemberState.kind === "loading"}
+                  aria-label={t("workspace.inviteRole")}
                   className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100 disabled:opacity-60"
                 >
                   <option value="MEMBER">{t("channel.member")}</option>

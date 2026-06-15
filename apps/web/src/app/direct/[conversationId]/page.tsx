@@ -1164,6 +1164,9 @@ export default function DirectConversationPage() {
               </div>
             )}
             <textarea
+              id="direct-message-input"
+              name="direct-message-input"
+              aria-label={t("direct.typeMessage")}
               ref={composerTextareaRef}
               rows={2}
               placeholder={t("direct.typeMessage")}

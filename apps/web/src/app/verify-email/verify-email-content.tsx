@@ -127,10 +127,13 @@ export default function VerifyEmailPage() {
                   {t("auth.resendVerification")}
                 </p>
                 <input
+                  id="verify-email-email"
+                  name="verify-email-email"
                   type="email"
                   value={emailInput}
                   onChange={(e) => setEmailInput(e.target.value)}
                   placeholder={t("auth.emailPlaceholder")}
+                  aria-label={t("auth.email")}
                   className="block w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
                 />
                 <button

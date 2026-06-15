@@ -297,17 +297,23 @@ export default function DashboardPage() {
         <h2 className="text-sm font-semibold">{t("dashboard.createWorkspace")}</h2>
         <form onSubmit={handleCreate} className="mt-4 flex flex-col sm:flex-row items-start gap-3">
           <input
+            id="create-workspace-name"
+            name="create-workspace-name"
             type="text"
             placeholder={t("dashboard.workspaceName")}
             value={name}
             onChange={(e) => setName(e.target.value)}
+            aria-label={t("dashboard.workspaceName")}
             className="flex-1 w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
           />
           <input
+            id="create-workspace-slug"
+            name="create-workspace-slug"
             type="text"
             placeholder={t("dashboard.workspaceSlug")}
             value={slug}
             onChange={(e) => setSlug(e.target.value)}
+            aria-label={t("dashboard.workspaceSlug")}
             className="flex-1 w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
           />
           <button

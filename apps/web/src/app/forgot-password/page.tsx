@@ -39,11 +39,12 @@ export default function ForgotPasswordPage() {
 
         <form onSubmit={handleSubmit} className="mt-5 space-y-4">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium">
+            <label htmlFor="forgot-password-email" className="block text-sm font-medium">
               {t("auth.email")}
             </label>
             <input
-              id="email"
+              id="forgot-password-email"
+              name="forgot-password-email"
               type="email"
               autoComplete="email"
               required

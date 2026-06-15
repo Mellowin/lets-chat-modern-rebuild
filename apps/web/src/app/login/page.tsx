@@ -73,11 +73,12 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="mt-5 space-y-4">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium">
+            <label htmlFor="login-email" className="block text-sm font-medium">
               {t("auth.email")}
             </label>
             <input
-              id="email"
+              id="login-email"
+              name="login-email"
               type="email"
               autoComplete="email"
               required
@@ -89,11 +90,12 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium">
+            <label htmlFor="login-password" className="block text-sm font-medium">
               {t("auth.password")}
             </label>
             <input
-              id="password"
+              id="login-password"
+              name="login-password"
               type="password"
               autoComplete="current-password"
               required

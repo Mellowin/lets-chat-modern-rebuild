@@ -113,11 +113,12 @@ export default function RegisterPage() {
         ) : (
           <form onSubmit={handleSubmit} className="mt-5 space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium">
+              <label htmlFor="register-email" className="block text-sm font-medium">
                 {t("auth.email")}
               </label>
               <input
-                id="email"
+                id="register-email"
+                name="register-email"
                 type="email"
                 autoComplete="email"
                 required
@@ -129,11 +130,12 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label htmlFor="username" className="block text-sm font-medium">
+              <label htmlFor="register-username" className="block text-sm font-medium">
                 {t("auth.username")}
               </label>
               <input
-                id="username"
+                id="register-username"
+                name="register-username"
                 type="text"
                 autoComplete="username"
                 required
@@ -150,11 +152,12 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium">
+              <label htmlFor="register-password" className="block text-sm font-medium">
                 {t("auth.password")}
               </label>
               <input
-                id="password"
+                id="register-password"
+                name="register-password"
                 type="password"
                 autoComplete="new-password"
                 required
