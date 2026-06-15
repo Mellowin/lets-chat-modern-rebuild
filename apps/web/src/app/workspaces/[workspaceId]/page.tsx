@@ -11,6 +11,14 @@ import { createWorkspaceInvite } from "@/lib/invites-api";
 import WorkspaceInvitesSection from "@/components/WorkspaceInvitesSection";
 import WorkspaceMessageSearch from "@/components/WorkspaceMessageSearch";
 import { getChannels, getArchivedChannels, createChannel, archiveChannel, restoreChannel, type Channel, type CreateChannelInput } from "@/lib/channels-api";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Users, FolderArchive, MessageSquare } from "lucide-react";
 
 type DetailState =
   | { kind: "idle" }
@@ -367,23 +375,16 @@ export default function WorkspaceDetailPage() {
       )}
 
       {detail.kind === "error" && (
-        <div className="mt-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm dark:border-red-900 dark:bg-red-950/30">
-          <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-            <span className="h-2 w-2 rounded-full bg-red-500" />
+        <div className="mt-6 rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm">
+          <div className="flex items-center gap-2 font-medium text-destructive">
+            <span className="h-2 w-2 rounded-full bg-destructive" />
             {detail.message}
           </div>
         </div>
       )}
 
       {detail.kind === "success" && (
-        <>
-          <h1 className="mt-6 text-2xl font-semibold tracking-tight">
-            {detail.data.name}
-          </h1>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            {detail.data.slug}
-          </p>
-        </>
+        <PageHeader title={detail.data.name} subtitle={detail.data.slug} className="mt-6" />
       )}
 
       {accessToken && (
@@ -393,353 +394,341 @@ export default function WorkspaceDetailPage() {
       )}
 
       {/* Create channel */}
-      <div className="mt-8 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
-        <h2 className="text-sm font-semibold">{t("workspace.createChannel")}</h2>
-        <form onSubmit={handleCreateChannel} className="mt-4 flex flex-col gap-3">
-          <input
-            id="channel-name"
-            name="channel-name"
-            type="text"
-            placeholder={t("workspace.channelName")}
-            value={channelName}
-            onChange={(e) => setChannelName(e.target.value)}
-            aria-label={t("workspace.channelName")}
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
-          />
-          <input
-            id="channel-description"
-            name="channel-description"
-            type="text"
-            placeholder={t("workspace.channelDescription")}
-            value={channelDescription}
-            onChange={(e) => setChannelDescription(e.target.value)}
-            aria-label={t("workspace.channelDescription")}
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
-          />
-          <div className="flex items-center gap-3">
-            <select
-              id="channel-type"
-              name="channel-type"
-              value={channelType}
-              onChange={(e) => setChannelType(e.target.value as "PUBLIC" | "PRIVATE")}
-              aria-label="Channel type"
-              className="rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
-            >
-              <option value="PUBLIC">{t("workspace.publicChannel")}</option>
-              <option value="PRIVATE">{t("workspace.privateChannel")}</option>
-            </select>
-            <button
-              type="submit"
-              disabled={createChannelState.kind === "loading"}
-              className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
-            >
-              {createChannelState.kind === "loading" ? t("workspace.creating") : t("workspace.create")}
-            </button>
-          </div>
-        </form>
-        {createChannelState.kind === "error" && (
-          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-              <span className="h-2 w-2 rounded-full bg-red-500" />
-              {createChannelState.message}
+      <Card className="mt-8">
+        <CardHeader>
+          <CardTitle>{t("workspace.createChannel")}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleCreateChannel} className="flex flex-col gap-3">
+            <Input
+              id="channel-name"
+              name="channel-name"
+              type="text"
+              placeholder={t("workspace.channelName")}
+              value={channelName}
+              onChange={(e) => setChannelName(e.target.value)}
+              aria-label={t("workspace.channelName")}
+            />
+            <Input
+              id="channel-description"
+              name="channel-description"
+              type="text"
+              placeholder={t("workspace.channelDescription")}
+              value={channelDescription}
+              onChange={(e) => setChannelDescription(e.target.value)}
+              aria-label={t("workspace.channelDescription")}
+            />
+            <div className="flex items-center gap-3">
+              <Select
+                id="channel-type"
+                name="channel-type"
+                value={channelType}
+                onChange={(e) => setChannelType(e.target.value as "PUBLIC" | "PRIVATE")}
+                aria-label="Channel type"
+                className="w-40"
+              >
+                <option value="PUBLIC">{t("workspace.publicChannel")}</option>
+                <option value="PRIVATE">{t("workspace.privateChannel")}</option>
+              </Select>
+              <Button type="submit" disabled={createChannelState.kind === "loading"}>
+                {createChannelState.kind === "loading" ? t("workspace.creating") : t("workspace.create")}
+              </Button>
             </div>
-          </div>
-        )}
-      </div>
+          </form>
+          {createChannelState.kind === "error" && (
+            <div className="mt-3 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm">
+              <div className="flex items-center gap-2 font-medium text-destructive">
+                <span className="h-2 w-2 rounded-full bg-destructive" />
+                {createChannelState.message}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Channel list */}
-      <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 p-5">
-        <h2 className="text-sm font-semibold">{t("workspace.channels")}</h2>
-
-        {channels.kind === "loading" && (
-          <div className="mt-3 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
-            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
-            {t("workspace.loadingChannels")}
-          </div>
-        )}
-
-        {channels.kind === "error" && (
-          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-              <span className="h-2 w-2 rounded-full bg-red-500" />
-              {channels.message}
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>{t("workspace.channels")}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {channels.kind === "loading" && (
+            <div className="mt-3 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
+              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
+              {t("workspace.loadingChannels")}
             </div>
-          </div>
-        )}
+          )}
 
-        {channels.kind === "success" && channels.data.length === 0 && (
-          <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
-            {t("workspace.noChannels")}
-          </p>
-        )}
-
-        {archiveError && (
-          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-              <span className="h-2 w-2 rounded-full bg-red-500" />
-              {archiveError}
+          {channels.kind === "error" && (
+            <div className="mt-3 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm">
+              <div className="flex items-center gap-2 font-medium text-destructive">
+                <span className="h-2 w-2 rounded-full bg-destructive" />
+                {channels.message}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {channels.kind === "success" && channels.data.length > 0 && (
-          <ul className="mt-3 divide-y divide-zinc-200 dark:divide-zinc-800">
-            {channels.data.map((ch) => (
-              <li
-                key={ch.id}
-                className="flex items-center justify-between py-3 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 -mx-2 px-2 rounded-md transition-colors"
-              >
-                <Link
-                  href={`/workspaces/${workspaceId}/channels/${ch.id}`}
-                  className="flex-1 min-w-0"
+          {channels.kind === "success" && channels.data.length === 0 && (
+            <EmptyState icon={MessageSquare} title={t("workspace.noChannels")} />
+          )}
+
+          {archiveError && (
+            <div className="mt-3 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm">
+              <div className="flex items-center gap-2 font-medium text-destructive">
+                <span className="h-2 w-2 rounded-full bg-destructive" />
+                {archiveError}
+              </div>
+            </div>
+          )}
+
+          {channels.kind === "success" && channels.data.length > 0 && (
+            <ul className="mt-3 divide-y divide-zinc-200 dark:divide-zinc-800">
+              {channels.data.map((ch) => (
+                <li
+                  key={ch.id}
+                  className="flex items-center justify-between py-3 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 -mx-2 px-2 rounded-md transition-colors"
                 >
-                  <div>
-                    <p className="text-sm font-medium">{ch.name}</p>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                      {ch.slug}
-                    </p>
-                  </div>
-                </Link>
-                <div className="flex items-center gap-2 shrink-0 ml-2">
-                  {ch.description && (
-                    <span className="text-xs text-zinc-400 dark:text-zinc-500 truncate max-w-[12rem]">
-                      {ch.description}
-                    </span>
-                  )}
-                  {ch.createdById === user?.id && (
-                    <button
-                      onClick={(e) => handleArchiveChannel(e, ch.id, ch.name)}
-                      className="text-[10px] text-red-600 dark:text-red-400 hover:underline"
-                    >
-                      {t("workspace.archive")}
-                    </button>
-                  )}
-                  <span
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
-                      ch.type === "PUBLIC"
-                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400"
-                        : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
-                    }`}
+                  <Link
+                    href={`/workspaces/${workspaceId}/channels/${ch.id}`}
+                    className="flex-1 min-w-0"
                   >
-                    {ch.type === "PUBLIC" ? t("workspace.publicChannel") : t("workspace.privateChannel")}
-                  </span>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+                    <div>
+                      <p className="text-sm font-medium">{ch.name}</p>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                        {ch.slug}
+                      </p>
+                    </div>
+                  </Link>
+                  <div className="flex items-center gap-2 shrink-0 ml-2">
+                    {ch.description && (
+                      <span className="text-xs text-zinc-400 dark:text-zinc-500 truncate max-w-[12rem]">
+                        {ch.description}
+                      </span>
+                    )}
+                    {ch.createdById === user?.id && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => handleArchiveChannel(e, ch.id, ch.name)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        {t("workspace.archive")}
+                      </Button>
+                    )}
+                    <Badge variant={ch.type === "PUBLIC" ? "success" : "warning"}>
+                      {ch.type === "PUBLIC" ? t("workspace.publicChannel") : t("workspace.privateChannel")}
+                    </Badge>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Members */}
-      <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
-        <h2 className="text-sm font-semibold">{t("workspace.members")}</h2>
-
-        {members.kind === "loading" && (
-          <div className="mt-3 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
-            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
-            {t("workspace.loadingMembers")}
-          </div>
-        )}
-
-        {members.kind === "error" && (
-          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-              <span className="h-2 w-2 rounded-full bg-red-500" />
-              {members.message}
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>{t("workspace.members")}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {members.kind === "loading" && (
+            <div className="mt-3 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
+              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
+              {t("workspace.loadingMembers")}
             </div>
-          </div>
-        )}
+          )}
 
-        {members.kind === "success" && members.data.length === 0 && (
-          <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
-            {t("workspace.noMembers")}
-          </p>
-        )}
-
-        {members.kind === "success" && members.data.length > 0 && (
-          (() => {
-            const myRole = members.data.find((m) => m.user.id === user?.id)?.role;
-            return (
-              <ul className="mt-3 divide-y divide-zinc-200 dark:divide-zinc-800">
-                {members.data.map((m) => {
-                  const isSelf = m.user.id === user?.id;
-                  const canRemove =
-                    (myRole === "OWNER" && m.role !== "OWNER" && !isSelf) ||
-                    (myRole === "ADMIN" && m.role === "MEMBER" && !isSelf);
-                  const canUpdateRole = myRole === "OWNER" && m.role !== "OWNER" && !isSelf;
-                  return (
-                    <li key={m.id} className="flex items-center justify-between py-2">
-                      <div className="min-w-0">
-                        <MessageAuthor author={m.user} />
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0 ml-2">
-                        {canRemove && (
-                          <button
-                            onClick={() => handleRemoveMember(m.id, m.user.displayName?.trim() || `@${m.user.username}`)}
-                            disabled={removingMemberId === m.id}
-                            className="text-[10px] text-red-600 dark:text-red-400 hover:underline disabled:opacity-60 disabled:cursor-not-allowed"
-                          >
-                            {removingMemberId === m.id ? t("workspace.removing") : t("workspace.remove")}
-                          </button>
-                        )}
-                        {canUpdateRole ? (
-                          <select
-                            id={`workspace-member-role-${m.id}`}
-                            name="workspace-member-role"
-                            value={m.role}
-                            onChange={(e) => handleUpdateRole(m.id, e.target.value as "ADMIN" | "MEMBER", m.user.displayName?.trim() || `@${m.user.username}`)}
-                            disabled={updatingRoleMemberId === m.id}
-                            aria-label={t("workspace.changeRole")}
-                            className="rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2 py-1 text-xs outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100 disabled:opacity-60 disabled:cursor-not-allowed"
-                          >
-                            <option value="MEMBER">{t("workspace.member")}</option>
-                            <option value="ADMIN">{t("workspace.admin")}</option>
-                          </select>
-                        ) : (
-                          <span
-                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
-                              m.role === "OWNER"
-                                ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400"
-                                : m.role === "ADMIN"
-                                  ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400"
-                                  : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400"
-                            }`}
-                          >
-                            {m.role === "OWNER" ? t("workspace.owner") : m.role === "ADMIN" ? t("workspace.admin") : t("workspace.member")}
-                          </span>
-                        )}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            );
-          })()
-        )}
-
-        {members.kind === "success" && (
-          (() => {
-            const myRole = members.data.find((m) => m.user.id === user?.id)?.role;
-            const canManageMembers = myRole === "OWNER" || myRole === "ADMIN";
-            return canManageMembers ? (
-              <>
-                <form onSubmit={handleAddMember} className="mt-4 flex items-center gap-2">
-                  <input
-                    id="invite-username-or-email"
-                    name="invite-username-or-email"
-                    type="text"
-                    placeholder={t("workspace.invitePlaceholder")}
-                    value={memberIdentifier}
-                    onChange={(e) => setMemberIdentifier(e.target.value)}
-                    aria-label={t("workspace.invitePlaceholder")}
-                    className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
-                  />
-                  {myRole === "OWNER" && (
-                    <select
-                      id="workspace-invite-role"
-                      name="workspace-invite-role"
-                      data-testid="workspace-invite-role"
-                      value={memberRole}
-                      onChange={(e) => setMemberRole(e.target.value as "MEMBER" | "ADMIN")}
-                      aria-label={t("workspace.inviteRole")}
-                      className="rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
-                    >
-                      <option value="MEMBER">{t("workspace.member")}</option>
-                      <option value="ADMIN">{t("workspace.admin")}</option>
-                    </select>
-                  )}
-                  <button
-                    type="submit"
-                    disabled={addMemberState.kind === "loading"}
-                    className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
-                  >
-                    {addMemberState.kind === "loading" ? t("workspace.addingMember") : t("workspace.addMember")}
-                  </button>
-                </form>
-
-                {addMemberState.kind === "success" && (
-                  <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
-                    <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
-                      <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                      {addMemberState.message}
-                    </div>
-                  </div>
-                )}
-
-                {addMemberState.kind === "error" && (
-                  <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-                    <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-                      <span className="h-2 w-2 rounded-full bg-red-500" />
-                      {addMemberState.message}
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : null;
-          })()
-        )}
-
-        {members.kind === "success" && removeMemberState.kind === "success" && (
-          <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
-            <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              {removeMemberState.message}
-            </div>
-          </div>
-        )}
-
-        {members.kind === "success" && removeMemberState.kind === "error" && (
-          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-              <span className="h-2 w-2 rounded-full bg-red-500" />
-              {removeMemberState.message}
-            </div>
-          </div>
-        )}
-
-        {members.kind === "success" && updateRoleState.kind === "success" && (
-          <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
-            <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              {updateRoleState.message}
-            </div>
-          </div>
-        )}
-
-        {members.kind === "success" && updateRoleState.kind === "error" && (
-          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-              <span className="h-2 w-2 rounded-full bg-red-500" />
-              {updateRoleState.message}
-            </div>
-          </div>
-        )}
-
-        {members.kind === "success" && (
-          (() => {
-            const myRole = members.data.find((m) => m.user.id === user?.id)?.role;
-            const canLeave = myRole === "MEMBER" || myRole === "ADMIN";
-            return canLeave ? (
-              <div className="mt-4">
-                <button
-                  onClick={handleLeaveWorkspace}
-                  className="text-[10px] text-red-600 dark:text-red-400 hover:underline"
-                >
-                  {t("workspace.leaveWorkspace")}
-                </button>
-                {leaveError && (
-                  <div className="mt-2 rounded-lg border border-red-200 bg-red-50 p-2 text-[10px] dark:border-red-900 dark:bg-red-950/30">
-                    <div className="flex items-center gap-1 font-medium text-red-800 dark:text-red-400">
-                      <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-                      {leaveError}
-                    </div>
-                  </div>
-                )}
+          {members.kind === "error" && (
+            <div className="mt-3 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm">
+              <div className="flex items-center gap-2 font-medium text-destructive">
+                <span className="h-2 w-2 rounded-full bg-destructive" />
+                {members.message}
               </div>
-            ) : null;
-          })()
-        )}
-      </div>
+            </div>
+          )}
+
+          {members.kind === "success" && members.data.length === 0 && (
+            <EmptyState icon={Users} title={t("workspace.noMembers")} />
+          )}
+
+          {members.kind === "success" && members.data.length > 0 && (
+            (() => {
+              const myRole = members.data.find((m) => m.user.id === user?.id)?.role;
+              return (
+                <ul className="mt-3 divide-y divide-zinc-200 dark:divide-zinc-800">
+                  {members.data.map((m) => {
+                    const isSelf = m.user.id === user?.id;
+                    const canRemove =
+                      (myRole === "OWNER" && m.role !== "OWNER" && !isSelf) ||
+                      (myRole === "ADMIN" && m.role === "MEMBER" && !isSelf);
+                    const canUpdateRole = myRole === "OWNER" && m.role !== "OWNER" && !isSelf;
+                    return (
+                      <li key={m.id} className="flex items-center justify-between py-2">
+                        <div className="min-w-0">
+                          <MessageAuthor author={m.user} />
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0 ml-2">
+                          {canRemove && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveMember(m.id, m.user.displayName?.trim() || `@${m.user.username}`)}
+                              disabled={removingMemberId === m.id}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              {removingMemberId === m.id ? t("workspace.removing") : t("workspace.remove")}
+                            </Button>
+                          )}
+                          {canUpdateRole ? (
+                            <Select
+                              id={`workspace-member-role-${m.id}`}
+                              name="workspace-member-role"
+                              value={m.role}
+                              onChange={(e) => handleUpdateRole(m.id, e.target.value as "ADMIN" | "MEMBER", m.user.displayName?.trim() || `@${m.user.username}`)}
+                              disabled={updatingRoleMemberId === m.id}
+                              aria-label={t("workspace.changeRole")}
+                              className="w-28"
+                            >
+                              <option value="MEMBER">{t("workspace.member")}</option>
+                              <option value="ADMIN">{t("workspace.admin")}</option>
+                            </Select>
+                          ) : (
+                            <Badge variant={m.role === "OWNER" ? "default" : m.role === "ADMIN" ? "info" : "muted"}>
+                              {m.role === "OWNER" ? t("workspace.owner") : m.role === "ADMIN" ? t("workspace.admin") : t("workspace.member")}
+                            </Badge>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              );
+            })()
+          )}
+
+          {members.kind === "success" && (
+            (() => {
+              const myRole = members.data.find((m) => m.user.id === user?.id)?.role;
+              const canManageMembers = myRole === "OWNER" || myRole === "ADMIN";
+              return canManageMembers ? (
+                <>
+                  <form onSubmit={handleAddMember} className="mt-4 flex items-center gap-2">
+                    <Input
+                      id="invite-username-or-email"
+                      name="invite-username-or-email"
+                      type="text"
+                      placeholder={t("workspace.invitePlaceholder")}
+                      value={memberIdentifier}
+                      onChange={(e) => setMemberIdentifier(e.target.value)}
+                      aria-label={t("workspace.invitePlaceholder")}
+                      className="flex-1"
+                    />
+                    {myRole === "OWNER" && (
+                      <Select
+                        id="workspace-invite-role"
+                        name="workspace-invite-role"
+                        data-testid="workspace-invite-role"
+                        value={memberRole}
+                        onChange={(e) => setMemberRole(e.target.value as "MEMBER" | "ADMIN")}
+                        aria-label={t("workspace.inviteRole")}
+                        className="w-28"
+                      >
+                        <option value="MEMBER">{t("workspace.member")}</option>
+                        <option value="ADMIN">{t("workspace.admin")}</option>
+                      </Select>
+                    )}
+                    <Button type="submit" disabled={addMemberState.kind === "loading"}>
+                      {addMemberState.kind === "loading" ? t("workspace.addingMember") : t("workspace.addMember")}
+                    </Button>
+                  </form>
+
+                  {addMemberState.kind === "success" && (
+                    <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
+                      <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
+                        <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                        {addMemberState.message}
+                      </div>
+                    </div>
+                  )}
+
+                  {addMemberState.kind === "error" && (
+                    <div className="mt-3 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm">
+                      <div className="flex items-center gap-2 font-medium text-destructive">
+                        <span className="h-2 w-2 rounded-full bg-destructive" />
+                        {addMemberState.message}
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : null;
+            })()
+          )}
+
+          {members.kind === "success" && removeMemberState.kind === "success" && (
+            <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
+              <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                {removeMemberState.message}
+              </div>
+            </div>
+          )}
+
+          {members.kind === "success" && removeMemberState.kind === "error" && (
+            <div className="mt-3 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm">
+              <div className="flex items-center gap-2 font-medium text-destructive">
+                <span className="h-2 w-2 rounded-full bg-destructive" />
+                {removeMemberState.message}
+              </div>
+            </div>
+          )}
+
+          {members.kind === "success" && updateRoleState.kind === "success" && (
+            <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
+              <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                {updateRoleState.message}
+              </div>
+            </div>
+          )}
+
+          {members.kind === "success" && updateRoleState.kind === "error" && (
+            <div className="mt-3 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm">
+              <div className="flex items-center gap-2 font-medium text-destructive">
+                <span className="h-2 w-2 rounded-full bg-destructive" />
+                {updateRoleState.message}
+              </div>
+            </div>
+          )}
+
+          {members.kind === "success" && (
+            (() => {
+              const myRole = members.data.find((m) => m.user.id === user?.id)?.role;
+              const canLeave = myRole === "MEMBER" || myRole === "ADMIN";
+              return canLeave ? (
+                <div className="mt-4">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleLeaveWorkspace}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    {t("workspace.leaveWorkspace")}
+                  </Button>
+                  {leaveError && (
+                    <div className="mt-2 rounded-lg border border-destructive/20 bg-destructive/10 p-2 text-[10px]">
+                      <div className="flex items-center gap-1 font-medium text-destructive">
+                        <span className="h-1.5 w-1.5 rounded-full bg-destructive" />
+                        {leaveError}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : null;
+            })()
+          )}
+        </CardContent>
+      </Card>
 
       {accessToken && (
         <WorkspaceInvitesSection
@@ -750,67 +739,70 @@ export default function WorkspaceDetailPage() {
       )}
 
       {/* Archived channels */}
-      <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 p-5">
-        <h2 className="text-sm font-semibold">{t("workspace.archivedChannels")}</h2>
-
-        {archivedChannels.kind === "loading" && (
-          <div className="mt-3 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
-            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
-            {t("workspace.loadingArchived")}
-          </div>
-        )}
-
-        {archivedChannels.kind === "error" && (
-          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-              <span className="h-2 w-2 rounded-full bg-red-500" />
-              {archivedChannels.message}
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>{t("workspace.archivedChannels")}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {archivedChannels.kind === "loading" && (
+            <div className="mt-3 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
+              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
+              {t("workspace.loadingArchived")}
             </div>
-          </div>
-        )}
+          )}
 
-        {archivedChannels.kind === "success" && archivedChannels.data.length === 0 && (
-          <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
-            {t("workspace.noArchivedChannels")}
-          </p>
-        )}
-
-        {restoreError && (
-          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-              <span className="h-2 w-2 rounded-full bg-red-500" />
-              {restoreError}
+          {archivedChannels.kind === "error" && (
+            <div className="mt-3 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm">
+              <div className="flex items-center gap-2 font-medium text-destructive">
+                <span className="h-2 w-2 rounded-full bg-destructive" />
+                {archivedChannels.message}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {archivedChannels.kind === "success" && archivedChannels.data.length > 0 && (
-          <ul className="mt-3 divide-y divide-zinc-200 dark:divide-zinc-800">
-            {archivedChannels.data.map((ch) => (
-              <li key={ch.id} className="flex items-center justify-between py-3 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 -mx-2 px-2 rounded-md transition-colors">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">{ch.name}</p>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">{ch.slug}</p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0 ml-2">
-                  {ch.createdById === user?.id && (
-                    <button
-                      onClick={() => handleRestoreChannel(ch.id, ch.name)}
-                      disabled={restoringChannelId === ch.id}
-                      className="text-[10px] text-emerald-600 dark:text-emerald-400 hover:underline disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                      {restoringChannelId === ch.id ? t("workspace.restoring") : t("workspace.restore")}
-                    </button>
-                  )}
-                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${ch.type === "PUBLIC" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400" : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"}`}>
-                    {ch.type === "PUBLIC" ? t("workspace.publicChannel") : t("workspace.privateChannel")}
-                  </span>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+          {archivedChannels.kind === "success" && archivedChannels.data.length === 0 && (
+            <EmptyState icon={FolderArchive} title={t("workspace.noArchivedChannels")} />
+          )}
+
+          {restoreError && (
+            <div className="mt-3 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm">
+              <div className="flex items-center gap-2 font-medium text-destructive">
+                <span className="h-2 w-2 rounded-full bg-destructive" />
+                {restoreError}
+              </div>
+            </div>
+          )}
+
+          {archivedChannels.kind === "success" && archivedChannels.data.length > 0 && (
+            <ul className="mt-3 divide-y divide-zinc-200 dark:divide-zinc-800">
+              {archivedChannels.data.map((ch) => (
+                <li key={ch.id} className="flex items-center justify-between py-3 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 -mx-2 px-2 rounded-md transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{ch.name}</p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">{ch.slug}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 ml-2">
+                    {ch.createdById === user?.id && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRestoreChannel(ch.id, ch.name)}
+                        disabled={restoringChannelId === ch.id}
+                        className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
+                      >
+                        {restoringChannelId === ch.id ? t("workspace.restoring") : t("workspace.restore")}
+                      </Button>
+                    )}
+                    <Badge variant={ch.type === "PUBLIC" ? "success" : "warning"}>
+                      {ch.type === "PUBLIC" ? t("workspace.publicChannel") : t("workspace.privateChannel")}
+                    </Badge>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

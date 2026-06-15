@@ -2204,8 +2204,8 @@ describe("ChannelDetailPage — message alignment", () => {
     expect(row).toHaveClass("items-start");
     expect(row).not.toHaveClass("ml-10");
     expect(screen.getByTestId("message-body-m1")).not.toHaveClass("ml-8");
-    expect(screen.getByTestId("message-bubble-wrap-m1")).toHaveClass("ml-28");
-    expect(screen.getByTestId("message-bubble-wrap-m1")).toHaveClass("sm:ml-44");
+    expect(screen.getByTestId("message-bubble-wrap-m1")).not.toHaveClass("ml-28");
+    expect(screen.getByTestId("message-bubble-wrap-m1")).not.toHaveClass("sm:ml-44");
   });
 
   it("renders other user messages left-aligned", async () => {
@@ -2237,8 +2237,8 @@ describe("ChannelDetailPage — message alignment", () => {
     expect(screen.getByTestId("message-row-m1")).toHaveClass("items-start");
     expect(screen.getByTestId("message-row-m1")).not.toHaveClass("ml-10");
     expect(screen.getByTestId("message-body-m1")).not.toHaveClass("ml-8");
-    expect(screen.getByTestId("message-bubble-wrap-m1")).toHaveClass("ml-28");
-    expect(screen.getByTestId("message-bubble-wrap-m1")).toHaveClass("sm:ml-44");
+    expect(screen.getByTestId("message-bubble-wrap-m1")).not.toHaveClass("ml-28");
+    expect(screen.getByTestId("message-bubble-wrap-m1")).not.toHaveClass("sm:ml-44");
     expect(screen.getByTestId("message-avatar-m2")).toHaveClass("sticky");
     expect(screen.getByTestId("message-avatar-m2")).toHaveClass("bottom-3");
     expect(screen.getByTestId("message-avatar-m2")).toHaveClass("self-end");

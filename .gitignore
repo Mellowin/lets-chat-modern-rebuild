@@ -43,3 +43,8 @@ scan_report.txt
 
 # Uploads
 uploads/
+
+# Visual QA throwaway runner artifacts
+visual-qa/node_modules/
+visual-qa/screenshots/
+visual-qa/package-lock.json

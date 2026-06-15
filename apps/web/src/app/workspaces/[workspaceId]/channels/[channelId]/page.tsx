@@ -1555,7 +1555,7 @@ export default function ChannelDetailPage() {
                             </Button>
                           )}
                         </div>
-                        <div data-testid={`message-bubble-wrap-${msg.id}`} className={isOwnMessage ? "ml-28 sm:ml-44" : ""}>
+                        <div data-testid={`message-bubble-wrap-${msg.id}`}>
                           <div
                             data-testid={`message-bubble-${msg.id}`}
                             onContextMenu={(e) => {

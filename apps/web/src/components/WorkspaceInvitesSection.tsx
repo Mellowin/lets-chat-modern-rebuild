@@ -300,7 +300,7 @@ export default function WorkspaceInvitesSection({
               />
             )}
 
-            <Button type="submit" disabled={createState.kind === "loading"}>
+            <Button type="submit" disabled={createState.kind === "loading"} className="shrink-0 whitespace-nowrap">
               {createState.kind === "loading"
                 ? t("workspace.addingMember")
                 : inviteType === "public"
