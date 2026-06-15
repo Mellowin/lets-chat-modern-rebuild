@@ -1,7 +1,7 @@
 # Project Status
 
 > Last updated: 2026-06-15  
-> Code checkpoint: `main`  
+> Code checkpoint: `ee20486d09953a1eb151b22253a61a93da55d8c8`  
 > Docs checkpoint: `main`
 
 ---
@@ -11,7 +11,7 @@
 | Component | Status | Notes |
 |-----------|--------|-------|
 | **Frontend (Vercel-ready)** | ✅ Prepared | `NEXT_PUBLIC_API_URL` / `NEXT_PUBLIC_WS_URL` env wiring, production fallback guards, build docs |
-| **Backend (external host)** | ✅ Migrated | Active service `lets-chat-api-v2` on Render; persistent Node.js + Socket.io; CORS via `CORS_ORIGIN` env; health endpoint. Old `lets-chat-api-wa43` is decommissioned and safe to delete. |
+| **Backend (external host)** | ✅ Migrated / B188 verified | Active service `lets-chat-api-v2` on Render; persistent Node.js + Socket.io; CORS via `CORS_ORIGIN` env; health endpoint. Old `lets-chat-api-wa43` returns 404 and is fully decommissioned. |
 | **Database** | ✅ Ready | Prisma migrations; PostgreSQL 15+ |
 | **Email** | ✅ Ready | Resend or console dev mode; `APP_WEB_URL` for link generation |
 
@@ -157,7 +157,28 @@ Use these steps to verify core functionality after deploy or before release:
 
 ---
 
-## 6. Known Limitations
+## 6. B189 QA Cleanup Checkpoint
+
+- **B188 production verified** — session list returns `isCurrent`, current session is protected from accidental revoke, "Revoke all other sessions" works and keeps the current session active, API and frontend smoke passed in production.
+- **Old Render service** — `lets-chat-api-wa43.onrender.com` returns `404`; fully decommissioned. Active backend remains `lets-chat-api-v2.onrender.com`.
+- **Disposable B188 test account** — `b188-session-test-1781544153@web-library.net` was created for production QA. The API has no user self-deletion endpoint, so the account cannot be safely removed without DB/admin access. It was verified harmless:
+  - email is verified;
+  - 0 visible workspaces;
+  - 0 direct conversations;
+  - no channel memberships;
+  - 1 archived smoke workspace (`B189 Smoke Workspace`) created and archived during testing, hidden from normal UI.
+- **Production smoke summary**:
+  - login/logout via API works;
+  - dashboard, workspace, channel, direct page, profile, sessions tab load;
+  - "Current session" badge and "Revoke all other sessions" button render;
+  - global search opens;
+  - WebSocket connects to `wss://lets-chat-api-v2.onrender.com/socket.io/` only;
+  - health endpoint `ok`;
+  - `node scripts/smoke-deploy.mjs` passes 10/10.
+
+---
+
+## 7. Known Limitations
 
 - **Invite link QA is manual** — email delivery of targeted invites and end-to-end invite accept flow are not covered by automated E2E tests; manual verification in production (or a local environment with SMTP) is required. Targeted email invites require the recipient's account email to match the invite email exactly.
 - **No slug-based URLs** — routing is strictly UUID-based; slugs are cosmetic only.
@@ -169,7 +190,7 @@ Use these steps to verify core functionality after deploy or before release:
   - Password fields have eye icon show/hide toggles per field.
   - Sessions are hidden behind a "Show sessions" toggle with a short explanation of what sessions are.
   - Device/IP metadata is displayed when captured; it may be unavailable for sessions created before this improvement or when requests pass through proxies/CDNs that strip the headers.
-- **Production smoke verifies protected auth/session endpoints reject anonymous requests** — `GET /auth/sessions`, `POST /auth/sessions/revoke-all`, `POST /auth/change-password` checked for `401` without token.
+- **Production smoke verifies protected auth/session endpoints reject anonymous requests** — `GET /auth/sessions`, `POST /auth/sessions/revoke-all`, `POST /auth/sessions/revoke-others`, `POST /auth/change-password` checked for `401` without token.
 - **Public `/project-status` page added for portfolio/employer review** — honest overview of implemented and planned features, tech stack, and production links.
 - **Production smoke verifies public `/project-status` page** — checked for `200` and expected content.
 - **B183 cleanup** — `AuthProvider` now skips the `/auth/me` request when the stored access token is expired or malformed, eliminating expected `401 Unauthorized` console noise on app reload. The token expiry helper is unit-tested. Render deployment docs updated to point to the active `lets-chat-api-v2` service and document exact dashboard settings for auto-deploy troubleshooting.
@@ -190,7 +211,7 @@ Use these steps to verify core functionality after deploy or before release:
 
 ---
 
-## 7. Orphaned Attachment Cleanup
+## 8. Orphaned Attachment Cleanup
 
 A cleanup script removes storage objects that were uploaded but never attached to a message.
 

@@ -211,6 +211,11 @@ async function main() {
     "/auth/sessions/revoke-all",
   );
   await checkProtected(
+    "POST /auth/sessions/revoke-others rejects anonymous with 401",
+    "POST",
+    "/auth/sessions/revoke-others",
+  );
+  await checkProtected(
     "POST /auth/change-password rejects anonymous with 401",
     "POST",
     "/auth/change-password",
