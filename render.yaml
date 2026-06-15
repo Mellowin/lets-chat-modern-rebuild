@@ -17,3 +17,4 @@ services:
         value: https://lets-chat-api-v2.onrender.com/api/v1
     healthCheckPath: /api/v1/health
     autoDeploy: true
+    # B181: force re-deploy trigger
