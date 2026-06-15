@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-06-15  
+> Last updated: 2026-06-15 (B190 final verification)  
 > Code checkpoint: `main`  
 > Docs checkpoint: `main`
 
@@ -181,7 +181,7 @@ Use these steps to verify core functionality after deploy or before release:
 ## 7. B190 Render Deploy Hook
 
 - **Deployment strategy** — GitHub Actions is the source of truth for `lets-chat-api-v2` deploys. After CI is green on `main`, the workflow POSTs to a Render Deploy Hook stored in the GitHub secret `RENDER_API_V2_DEPLOY_HOOK_URL`.
-- **Recommended Render setting** — disable dashboard **Auto-Deploy** and rely on the GitHub Actions hook. This guarantees deploys only happen after successful CI.
+- **Render Auto-Deploy** — disabled via `render.yaml` (`autoDeploy: false`). The GitHub Actions hook is now the only automatic deploy path.
 - **Fallback** — if the secret is not configured, the workflow skips the hook with a warning; Render auto-deploy can act as a fallback until the secret is set.
 - **One-time setup required:**
   - Render dashboard → `lets-chat-api-v2` → **Settings** → **Deploy Hook** → create and copy URL.
