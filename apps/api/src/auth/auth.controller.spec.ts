@@ -1,4 +1,5 @@
 import { Test, type TestingModule } from '@nestjs/testing';
+import { ConflictException } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import type { AuthUserResponse } from './auth.service';
@@ -462,6 +463,13 @@ describe('AuthController', () => {
         'session-1',
       );
       expect(result).toEqual({ success: true, revokedCount: 2 });
+    });
+
+    it('throws ConflictException when current session id is unavailable', async () => {
+      await expect(
+        controller.revokeOtherSessions(user, undefined as unknown as string),
+      ).rejects.toThrow(ConflictException);
+      expect(authService.revokeOtherSessions).not.toHaveBeenCalled();
     });
   });
 
