@@ -940,8 +940,8 @@ describe("Sidebar — realtime unread sync", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("sidebar-channel-unread-ch2")).toHaveTextContent("1");
+      expect(screen.getByTestId("sidebar-channel-link-ch2")).toHaveClass("font-medium");
     });
-    expect(screen.getByTestId("sidebar-channel-link-ch2")).toHaveClass("font-medium");
   });
 
   it("does not increment unread badge when message arrives in current channel", async () => {
