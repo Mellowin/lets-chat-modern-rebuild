@@ -243,16 +243,53 @@ These are the dashboard settings for the active backend service `lets-chat-api-v
 | Build Command | `pnpm install --prod=false && pnpm run build:api:prod` | Installs dev deps needed for build; `--include=dev` previously failed on Render |
 | Start Command | `pnpm --filter api start:prod` | Runs compiled NestJS app |
 | Health Check Path | `/api/v1/health` | Render uses this for liveness |
-| Auto-deploy | `On Commit` (enabled) | Should deploy on every push to `main` |
+| Auto-deploy | `Off` (recommended) | Deploy is now triggered by GitHub Actions via Render Deploy Hook after green CI |
 | Plan | `Free` | Cold start ~1 min after sleep |
 
-### If auto-deploy does not trigger
+### Deploy strategy (B190)
+
+GitHub Actions is the source of truth for deploying `lets-chat-api-v2`:
+
+1. Push to `main` triggers the `CI` workflow.
+2. After lint, typecheck, tests, and builds pass, the `deploy` job runs.
+3. The deploy job POSTs to a Render Deploy Hook URL stored in the GitHub secret `RENDER_API_V2_DEPLOY_HOOK_URL`.
+4. Render starts a new deploy for the latest commit.
+5. If the secret is not set, the deploy job skips with a warning and Render auto-deploy must be enabled as a fallback.
+
+This avoids the unreliable Render dashboard auto-deploy and guarantees deploys only happen after CI is green.
+
+### One-time setup: Render Deploy Hook
 
 1. Open the Render dashboard for `lets-chat-api-v2`.
-2. Go to **Settings** → confirm **Auto-Deploy** is set to **Yes** (or **On Commit**).
-3. Check the **Events** tab for failed syncs or webhook errors.
-4. If auto-deploy is enabled but still not firing, click **Manual Deploy** → **Deploy latest commit**.
-5. After manual deploy, monitor the **Logs** tab for build/start errors and verify `GET /api/v1/health` returns `ok`.
+2. Go to **Settings** → **Deploy Hook**.
+3. Create a deploy hook and copy the URL (it looks like `https://api.render.com/deploy/srv-...?key=...`).
+4. (Recommended) Set **Auto-Deploy** to **No** so the GitHub Actions hook is the only automatic deploy path.
+
+### One-time setup: GitHub secret
+
+1. In the GitHub repo, go to **Settings** → **Secrets and variables** → **Actions**.
+2. Click **New repository secret**.
+3. Name: `RENDER_API_V2_DEPLOY_HOOK_URL`
+4. Value: the Render Deploy Hook URL copied above.
+5. Save.
+
+### Verification
+
+After the secret is set:
+
+1. Push any commit to `main` (or use workflow dispatch if enabled).
+2. Open the GitHub Actions run and confirm the `deploy` job ran and reported `✅ Render deploy hook accepted`.
+3. Open the Render dashboard **Events** tab and confirm a deploy started for the latest commit.
+4. Wait for the service to show **Live**.
+5. Verify `GET https://lets-chat-api-v2.onrender.com/api/v1/health` returns `status: ok`.
+
+### Fallback if the hook is not configured
+
+If `RENDER_API_V2_DEPLOY_HOOK_URL` is missing, the workflow skips the hook trigger and prints a warning. In that case:
+
+1. Keep Render **Auto-Deploy** enabled as a fallback.
+2. Set the secret as soon as possible and disable Render auto-deploy.
+3. If auto-deploy still does not fire, click **Manual Deploy** → **Deploy latest commit** as a last resort.
 
 ### Environment variables required on Render
 

@@ -65,3 +65,30 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: 'https://api.example.com/api/v1'
           NEXT_PUBLIC_WS_URL: 'https://api.example.com'
+
+  deploy:
+    name: Deploy API v2 to Render
+    needs: ci
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Trigger Render deploy hook
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_API_V2_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "⚠️  RENDER_API_V2_DEPLOY_HOOK_URL is not configured."
+            echo "    Render auto-deploy must be enabled in the dashboard, or the secret must be set."
+            echo "    Skipping deploy hook trigger."
+            exit 0
+          fi
+
+          echo "🚀 Triggering Render deploy hook for lets-chat-api-v2..."
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$RENDER_DEPLOY_HOOK_URL")
+
+          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
+            echo "❌ Render deploy hook failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
+
+          echo "✅ Render deploy hook accepted (HTTP $HTTP_CODE)"

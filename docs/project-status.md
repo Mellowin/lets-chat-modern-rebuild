@@ -1,7 +1,7 @@
 # Project Status
 
 > Last updated: 2026-06-15  
-> Code checkpoint: `ee20486d09953a1eb151b22253a61a93da55d8c8`  
+> Code checkpoint: `main`  
 > Docs checkpoint: `main`
 
 ---
@@ -178,7 +178,19 @@ Use these steps to verify core functionality after deploy or before release:
 
 ---
 
-## 7. Known Limitations
+## 7. B190 Render Deploy Hook
+
+- **Deployment strategy** — GitHub Actions is the source of truth for `lets-chat-api-v2` deploys. After CI is green on `main`, the workflow POSTs to a Render Deploy Hook stored in the GitHub secret `RENDER_API_V2_DEPLOY_HOOK_URL`.
+- **Recommended Render setting** — disable dashboard **Auto-Deploy** and rely on the GitHub Actions hook. This guarantees deploys only happen after successful CI.
+- **Fallback** — if the secret is not configured, the workflow skips the hook with a warning; Render auto-deploy can act as a fallback until the secret is set.
+- **One-time setup required:**
+  - Render dashboard → `lets-chat-api-v2` → **Settings** → **Deploy Hook** → create and copy URL.
+  - GitHub repo → **Settings** → **Secrets and variables** → **Actions** → add `RENDER_API_V2_DEPLOY_HOOK_URL`.
+- **Verification** — future pushes to `main` should show the `deploy` job in GitHub Actions, Render Events tab should show a deploy for the latest commit, and `GET /api/v1/health` should return `ok` after the service is Live.
+
+---
+
+## 8. Known Limitations
 
 - **Invite link QA is manual** — email delivery of targeted invites and end-to-end invite accept flow are not covered by automated E2E tests; manual verification in production (or a local environment with SMTP) is required. Targeted email invites require the recipient's account email to match the invite email exactly.
 - **No slug-based URLs** — routing is strictly UUID-based; slugs are cosmetic only.
@@ -211,7 +223,7 @@ Use these steps to verify core functionality after deploy or before release:
 
 ---
 
-## 8. Orphaned Attachment Cleanup
+## 9. Orphaned Attachment Cleanup
 
 A cleanup script removes storage objects that were uploaded but never attached to a message.
 
