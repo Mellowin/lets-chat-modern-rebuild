@@ -11,7 +11,7 @@
 | Component | Status | Notes |
 |-----------|--------|-------|
 | **Frontend (Vercel-ready)** | ✅ Prepared | `NEXT_PUBLIC_API_URL` / `NEXT_PUBLIC_WS_URL` env wiring, production fallback guards, build docs |
-| **Backend (external host)** | ✅ Ready | Active service `lets-chat-api-v2` on Render; persistent Node.js + Socket.io; CORS via `CORS_ORIGIN` env; health endpoint. Old `lets-chat-api-wa43` is backup only. |
+| **Backend (external host)** | ✅ Ready | Active service `lets-chat-api-v2` on Render; persistent Node.js + Socket.io; CORS via `CORS_ORIGIN` env; health endpoint. Old `lets-chat-api-wa43` is deprecated and queued for decommission. |
 | **Database** | ✅ Ready | Prisma migrations; PostgreSQL 15+ |
 | **Email** | ✅ Ready | Resend or console dev mode; `APP_WEB_URL` for link generation |
 

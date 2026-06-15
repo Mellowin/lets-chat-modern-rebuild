@@ -146,7 +146,7 @@ export default function ProjectStatusPage() {
           <li>
             <span className="text-zinc-500 dark:text-zinc-400">API health:</span>{" "}
             <a
-              href="https://lets-chat-api-wa43.onrender.com/api/v1/health"
+              href="https://lets-chat-api-v2.onrender.com/api/v1/health"
               target="_blank"
               rel="noopener noreferrer"
               className="text-zinc-700 dark:text-zinc-300 hover:underline"
@@ -159,7 +159,7 @@ export default function ProjectStatusPage() {
               API docs (Swagger):
             </span>{" "}
             <a
-              href="https://lets-chat-api-wa43.onrender.com/api/docs"
+              href="https://lets-chat-api-v2.onrender.com/api/docs"
               target="_blank"
               rel="noopener noreferrer"
               className="text-zinc-700 dark:text-zinc-300 hover:underline"

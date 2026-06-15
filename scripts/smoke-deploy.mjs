@@ -187,7 +187,7 @@ async function main() {
 
   if (API_URL.includes("lets-chat-api-wa43.onrender.com")) {
     console.warn(
-      "Warning: API_URL points to the old backup Render host lets-chat-api-wa43.onrender.com. Active backend is lets-chat-api-v2.onrender.com.",
+      "Warning: API_URL points to the deprecated Render host lets-chat-api-wa43.onrender.com. Active backend is lets-chat-api-v2.onrender.com.",
     );
   }
 

@@ -158,7 +158,7 @@ If `CORS_ORIGIN` is not set, the API falls back to `http://localhost:3000` for l
 | API base | `https://lets-chat-api-v2.onrender.com/api/v1` |
 | API origin | `https://lets-chat-api-v2.onrender.com` |
 
-> ⚠️ **Active backend is `lets-chat-api-v2`.** The old `lets-chat-api-wa43` service is a backup only; do not point new Vercel deploys to it.
+> ⚠️ **Active backend is `lets-chat-api-v2`.** The old `lets-chat-api-wa43` service is deprecated and queued for decommission; do not point any Vercel deploys to it.
 
 ---
 
@@ -193,7 +193,7 @@ node scripts/smoke-deploy.mjs
 3. Backend `/health` returns `status: ok`
 4. `POST /auth/forgot-password` returns generic success (no email enumeration)
 5. `POST /auth/resend-verification` returns generic success
-6. `API_URL` does not contain the old backup Render host `lets-chat-api-wa43.onrender.com` or the typo `lets-chat-api-w43.onrender.com`
+6. `API_URL` does not contain the deprecated Render host `lets-chat-api-wa43.onrender.com` or the typo `lets-chat-api-w43.onrender.com`
 
 **Protected endpoints (no token)**
 6. `GET /auth/sessions` returns `401 Unauthorized`
@@ -231,7 +231,7 @@ These are the dashboard settings for the active backend service `lets-chat-api-v
 
 | Setting | Value | Notes |
 |---------|-------|-------|
-| Service name | `lets-chat-api-v2` | Active backend; do not confuse with backup `lets-chat-api-wa43` |
+| Service name | `lets-chat-api-v2` | Active backend; old `lets-chat-api-wa43` is deprecated |
 | Region | `Frankfurt (EU Central)` | Closest to primary users |
 | Runtime | `Node` | Required for persistent Socket.io process |
 | Branch | `main` | Auto-deploy watches this branch |
@@ -267,6 +267,41 @@ These are the dashboard settings for the active backend service `lets-chat-api-v
 | `S3_SECRET_KEY` | S3 secret key |
 | `S3_BUCKET` | Bucket name |
 | `PORT` | `3001` (matches start command) |
+
+---
+
+## Decommissioning the old Render backup service
+
+The `lets-chat-api-wa43` Render service was created as a temporary emergency
+fallback during the API v2 migration. Now that `lets-chat-api-v2` is stable and
+production-verified, `lets-chat-api-wa43` can be decommissioned.
+
+### Pre-decommission checklist
+
+- [ ] Vercel production/preview env vars point to `https://lets-chat-api-v2.onrender.com/api/v1`.
+- [ ] No code, docs, or scripts reference `lets-chat-api-wa43.onrender.com` as an active URL.
+- [ ] Smoke script passes against `lets-chat-api-v2`.
+- [ ] `GET https://lets-chat-api-v2.onrender.com/api/v1/health` returns `status: ok`.
+- [ ] Normal logged-in usage (login, workspaces, channels, DMs, search) works on production.
+
+### Safe decommission path
+
+1. Open the Render dashboard for `lets-chat-api-wa43`.
+2. Choose **Suspend** (or **Pause service**) instead of immediate delete.
+3. Monitor production for 24–48 hours.
+4. If everything is stable, return to the dashboard and **Delete** the service.
+
+### Immediate delete path
+
+Only use this if the pre-decommission checklist is fully green and you accept
+the small risk of losing the rollback option:
+
+1. Confirm all checklist items above.
+2. Open the Render dashboard for `lets-chat-api-wa43`.
+3. Click **Delete** and confirm.
+
+> ⚠️ Do **not** suspend or delete `lets-chat-api-v2`. That is the active
+> production backend.
 
 ---
 
