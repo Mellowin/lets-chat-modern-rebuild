@@ -3,8 +3,23 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Loader2,
+  Mail,
+  XCircle,
+} from "lucide-react";
 import { verifyEmail, resendVerification } from "@/lib/auth-api";
 import { useLocale } from "@/lib/locale";
+import { Button } from "@/components/ui/Button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
 
 type VerifyState =
   | { kind: "idle" }
@@ -15,6 +30,37 @@ type VerifyState =
   | { kind: "resend-loading" }
   | { kind: "resend-success"; message: string };
 
+function Alert({
+  variant,
+  children,
+}: {
+  variant: "success" | "error" | "warning";
+  children: React.ReactNode;
+}) {
+  const variants = {
+    success:
+      "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-400",
+    error:
+      "border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-400",
+    warning:
+      "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-400",
+  };
+  const icons = {
+    success: <CheckCircle2 className="h-4 w-4 shrink-0" />,
+    error: <XCircle className="h-4 w-4 shrink-0" />,
+    warning: <AlertTriangle className="h-4 w-4 shrink-0" />,
+  };
+  return (
+    <div
+      className={`flex items-start gap-2 rounded-lg border p-3 text-sm ${variants[variant]}`}
+      role="alert"
+    >
+      {icons[variant]}
+      <div className="flex-1">{children}</div>
+    </div>
+  );
+}
+
 export default function VerifyEmailPage() {
   const { t } = useLocale();
   const searchParams = useSearchParams();
@@ -22,19 +68,22 @@ export default function VerifyEmailPage() {
   const [verifyState, setVerifyState] = useState<VerifyState>({ kind: "idle" });
   const [emailInput, setEmailInput] = useState("");
 
-  const doVerify = useCallback(async (verifyToken: string) => {
-    setVerifyState({ kind: "verifying" });
-    try {
-      await verifyEmail({ token: verifyToken });
-      setVerifyState({ kind: "success" });
-    } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : t("auth.emailVerificationFailed");
-      setVerifyState({ kind: "error", message });
-    }
-  }, [t]);
+  const doVerify = useCallback(
+    async (verifyToken: string) => {
+      setVerifyState({ kind: "verifying" });
+      try {
+        await verifyEmail({ token: verifyToken });
+        setVerifyState({ kind: "success" });
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : t("auth.emailVerificationFailed");
+        setVerifyState({ kind: "error", message });
+      }
+    },
+    [t],
+  );
 
   useEffect(() => {
     if (!token) {
@@ -63,107 +112,92 @@ export default function VerifyEmailPage() {
 
   return (
     <div className="flex flex-1 items-center justify-center p-6">
-      <div className="w-full max-w-sm rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 shadow-sm">
-        <h1 className="text-xl font-semibold tracking-tight">
-          {t("auth.verifyEmailTitle")}
-        </h1>
+      <Card className="w-full max-w-sm">
+        <CardHeader className="text-center">
+          <CardTitle>{t("auth.verifyEmailTitle")}</CardTitle>
 
-        <div className="mt-5 space-y-4">
+        </CardHeader>
+        <CardContent className="space-y-4">
           {verifyState.kind === "verifying" && (
-            <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
-              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
               {t("auth.verifyingEmail")}
             </div>
           )}
 
           {verifyState.kind === "success" && (
             <>
-              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
-                <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                  {t("auth.emailVerified")}
-                </div>
-              </div>
-              <p className="text-sm text-zinc-600 dark:text-zinc-300">
+              <Alert variant="success">
+                <span className="font-medium">{t("auth.emailVerified")}</span>
+              </Alert>
+              <p className="text-center text-sm text-muted-foreground">
                 {t("auth.signInAfterVerification")}
               </p>
-              <Link
-                href="/login"
-                className="inline-flex w-full items-center justify-center rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
-              >
-                {t("auth.signIn")}
-              </Link>
+              <Button asChild className="w-full">
+                <Link href="/login">{t("auth.signIn")}</Link>
+              </Button>
             </>
           )}
 
           {verifyState.kind === "missing-token" && (
             <>
-              <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-                <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-                  <span className="h-2 w-2 rounded-full bg-red-500" />
+              <Alert variant="error">
+                <span className="font-medium">
                   {t("auth.emailVerificationMissingToken")}
-                </div>
-              </div>
-              <Link
-                href="/login"
-                className="inline-flex w-full items-center justify-center rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
-              >
-                {t("auth.backToSignIn")}
-              </Link>
+                </span>
+              </Alert>
+              <Button asChild className="w-full">
+                <Link href="/login">{t("auth.backToSignIn")}</Link>
+              </Button>
             </>
           )}
 
           {verifyState.kind === "error" && (
             <>
-              <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-                <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-                  <span className="h-2 w-2 rounded-full bg-red-500" />
-                  {verifyState.message}
-                </div>
-              </div>
+              <Alert variant="error">
+                <span className="font-medium">{verifyState.message}</span>
+              </Alert>
 
               <div className="space-y-2">
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                <p className="text-sm text-muted-foreground">
                   {t("auth.resendVerification")}
                 </p>
-                <input
-                  id="verify-email-email"
-                  name="verify-email-email"
-                  type="email"
-                  value={emailInput}
-                  onChange={(e) => setEmailInput(e.target.value)}
-                  placeholder={t("auth.emailPlaceholder")}
-                  aria-label={t("auth.email")}
-                  className="block w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
-                />
-                <button
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="verify-email-email"
+                    name="verify-email-email"
+                    type="email"
+                    value={emailInput}
+                    onChange={(e) => setEmailInput(e.target.value)}
+                    placeholder={t("auth.emailPlaceholder")}
+                    aria-label={t("auth.email")}
+                    className="pl-9"
+                  />
+                </div>
+                <Button
                   type="button"
+                  variant="secondary"
+                  className="w-full"
                   onClick={handleResend}
-                  className="inline-flex w-full items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-4 py-2.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                 >
                   {t("auth.resendVerification")}
-                </button>
+                </Button>
               </div>
 
-              <Link
-                href="/login"
-                className="inline-flex w-full items-center justify-center rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
-              >
-                {t("auth.backToSignIn")}
-              </Link>
+              <Button asChild className="w-full">
+                <Link href="/login">{t("auth.backToSignIn")}</Link>
+              </Button>
             </>
           )}
 
           {verifyState.kind === "resend-success" && (
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
-              <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                {verifyState.message}
-              </div>
-            </div>
+            <Alert variant="success">
+              <span className="font-medium">{verifyState.message}</span>
+            </Alert>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

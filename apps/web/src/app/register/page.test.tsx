@@ -34,7 +34,7 @@ describe("RegisterPage", () => {
     expect(screen.getByPlaceholderText("you@example.com")).toBeInTheDocument();
     expect(screen.getByLabelText(/Username/i)).toBeInTheDocument();
     expect(screen.getByPlaceholderText("john_doe")).toBeInTheDocument();
-    expect(screen.getByLabelText(/Password/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Password$/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Create account/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Sign in/i })).toHaveAttribute("href", "/login");
   });
@@ -76,7 +76,7 @@ describe("RegisterPage", () => {
 
     await userEvent.type(screen.getByLabelText(/Email/i), "test@example.com");
     await userEvent.type(screen.getByLabelText(/Імʼя користувача/i), "invalid user!");
-    await userEvent.type(screen.getByLabelText(/Пароль/i), "password123");
+    await userEvent.type(screen.getByLabelText(/^Пароль$/i), "password123");
     await userEvent.click(screen.getByRole("button", { name: "Створити акаунт" }));
 
     expect(await screen.findByText("Імʼя користувача може містити лише літери, цифри та підкреслення")).toBeInTheDocument();
@@ -98,7 +98,7 @@ describe("RegisterPage", () => {
 
     await userEvent.type(screen.getByLabelText(/Email/i), "test@example.com");
     await userEvent.type(screen.getByLabelText(/Username/i), "invalid user!");
-    await userEvent.type(screen.getByLabelText(/Password/i), "password123");
+    await userEvent.type(screen.getByLabelText(/^Password$/i), "password123");
     await userEvent.click(screen.getByRole("button", { name: /Create account/i }));
 
     expect(await screen.findByText(/Username can only contain letters, numbers and underscores/i)).toBeInTheDocument();
@@ -112,7 +112,7 @@ describe("RegisterPage", () => {
 
     await userEvent.type(screen.getByLabelText(/Email/i), "  new@example.com  ");
     await userEvent.type(screen.getByLabelText(/Username/i), "  bob  ");
-    await userEvent.type(screen.getByLabelText(/Password/i), "securepass");
+    await userEvent.type(screen.getByLabelText(/^Password$/i), "securepass");
     await userEvent.click(screen.getByRole("button", { name: /Create account/i }));
 
     await waitFor(() => {
@@ -136,7 +136,7 @@ describe("RegisterPage", () => {
 
     await userEvent.type(screen.getByLabelText(/Email/i), "cyr@example.com");
     await userEvent.type(screen.getByLabelText(/Username/i), "Валера");
-    await userEvent.type(screen.getByLabelText(/Password/i), "securepass");
+    await userEvent.type(screen.getByLabelText(/^Password$/i), "securepass");
     await userEvent.click(screen.getByRole("button", { name: /Create account/i }));
 
     await waitFor(() => {
@@ -159,7 +159,7 @@ describe("RegisterPage", () => {
 
     await userEvent.type(screen.getByLabelText(/Email/i), "taken@example.com");
     await userEvent.type(screen.getByLabelText(/Username/i), "alice");
-    await userEvent.type(screen.getByLabelText(/Password/i), "password123");
+    await userEvent.type(screen.getByLabelText(/^Password$/i), "password123");
     await userEvent.click(screen.getByRole("button", { name: /Create account/i }));
 
     expect(await screen.findByText(/Email already in use/i)).toBeInTheDocument();
@@ -178,11 +178,11 @@ describe("RegisterPage", () => {
 
     await userEvent.type(screen.getByLabelText(/Email/i), "a@b.com");
     await userEvent.type(screen.getByLabelText(/Username/i), "alice");
-    await userEvent.type(screen.getByLabelText(/Password/i), "password123");
+    await userEvent.type(screen.getByLabelText(/^Password$/i), "password123");
     await userEvent.click(screen.getByRole("button", { name: /Create account/i }));
 
-    expect(screen.getByRole("button")).toHaveTextContent(/Creating account…/i);
-    expect(screen.getByRole("button")).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Creating account…/i })).toHaveTextContent(/Creating account…/i);
+    expect(screen.getByRole("button", { name: /Creating account…/i })).toBeDisabled();
 
     resolveRegister!({ requiresEmailVerification: true, email: "a@b.com" });
 
@@ -201,7 +201,7 @@ describe("RegisterPage", () => {
 
     await userEvent.type(screen.getByLabelText(/Email/i), "new@example.com");
     await userEvent.type(screen.getByLabelText(/Username/i), "bob");
-    await userEvent.type(screen.getByLabelText(/Password/i), "securepass");
+    await userEvent.type(screen.getByLabelText(/^Password$/i), "securepass");
     await userEvent.click(screen.getByRole("button", { name: /Create account/i }));
 
     await waitFor(() => {

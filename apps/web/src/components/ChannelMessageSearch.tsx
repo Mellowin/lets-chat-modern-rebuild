@@ -1,7 +1,12 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { Search, X, Loader2 } from "lucide-react";
 import { useLocale } from "@/lib/locale";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Badge } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { searchChannelMessages, getMessageContext, type Message, type SearchChannelMessagesResult, type MessageContextResult } from "@/lib/messages-api";
 
 interface ChannelMessageSearchProps {
@@ -28,7 +33,10 @@ function highlightText(text: string, query: string): React.ReactNode[] {
       parts.push(text.slice(i, idx));
     }
     parts.push(
-      <mark key={`${idx}-${query}`} className="rounded-sm bg-yellow-200 px-0.5 text-zinc-900 dark:bg-yellow-700 dark:text-zinc-100">
+      <mark
+        key={`${idx}-${query}`}
+        className="rounded-sm bg-primary/20 px-0.5 text-foreground dark:bg-primary/30"
+      >
         {text.slice(idx, idx + query.length)}
       </mark>,
     );
@@ -115,6 +123,15 @@ export default function ChannelMessageSearch({
     void performSearch(query, nextCursor ?? undefined);
   }
 
+  function handleClear() {
+    setQuery("");
+    setResults([]);
+    setNextCursor(null);
+    setStatus("idle");
+    setErrorMessage(null);
+    setNotLoadedMessageId(null);
+  }
+
   async function handleJump(msg: Message) {
     setNotLoadedMessageId(null);
     setContextLoadingId(null);
@@ -149,111 +166,147 @@ export default function ChannelMessageSearch({
     }
     if (msg.attachments && msg.attachments.length > 0) {
       return (
-        <span className="italic text-zinc-500 dark:text-zinc-400">
+        <span className="italic text-muted-foreground">
           {t("channel.searchAttachmentMessage")}
         </span>
       );
     }
-    return <span className="text-zinc-400 dark:text-zinc-500">—</span>;
+    return <span className="text-muted-foreground">—</span>;
   }
 
   return (
     <div className="w-full">
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => setIsOpen((prev) => !prev)}
-          className="inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-          data-testid="search-toggle-button"
-        >
-          {t("channel.searchMessages")}
-        </button>
-      </div>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setIsOpen((prev) => !prev)}
+        data-testid="search-toggle-button"
+      >
+        <Search size={16} />
+        {t("channel.searchMessages")}
+      </Button>
 
       {isOpen && (
-        <div className="mt-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3 shadow-sm">
+        <div className="mt-3 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm">
           <form onSubmit={handleSubmit} className="flex items-center gap-2">
-            <input
-              type="text"
-              id="channel-search-input"
-              name="channel-search-input"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={t("channel.searchInThisChannel")}
-              className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600"
-              data-testid="search-input"
-              aria-label={t("channel.searchInThisChannel")}
-            />
-            <button
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="text"
+                id="channel-search-input"
+                name="channel-search-input"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={t("channel.searchInThisChannel")}
+                className="pl-9 pr-9"
+                data-testid="search-input"
+                aria-label={t("channel.searchInThisChannel")}
+              />
+              {query && (
+                <button
+                  type="button"
+                  onClick={handleClear}
+                  className="absolute right-2 top-1/2 inline-flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label={t("channel.cancel")}
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            <Button
               type="submit"
               disabled={status === "loading" || !query.trim()}
-              className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
               data-testid="search-submit"
             >
-              {status === "loading" ? t("channel.searching") : t("channel.searchMessages")}
-            </button>
+              {status === "loading" ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  {t("channel.searching")}
+                </>
+              ) : (
+                t("channel.searchMessages")
+              )}
+            </Button>
           </form>
 
           {status === "error" && errorMessage && (
-            <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-              <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-                <span className="h-2 w-2 rounded-full bg-red-500" />
+            <div className="mt-3 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm">
+              <div className="flex items-center gap-2 font-medium text-destructive">
+                <span className="h-2 w-2 rounded-full bg-destructive" />
                 {errorMessage}
               </div>
             </div>
           )}
 
+          {status === "loading" && (
+            <div className="mt-6 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <Loader2 size={16} className="animate-spin" />
+              {t("channel.searching")}
+            </div>
+          )}
+
           {status === "success" && results.length === 0 && query.trim().length > 0 && (
-            <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400" data-testid="search-empty">
-              {t("channel.noMessagesFound")}
-            </p>
+            <div data-testid="search-empty">
+              <EmptyState
+                icon={Search}
+                title={t("channel.noMessagesFound")}
+                description={t("channel.searchInThisChannel")}
+              />
+            </div>
           )}
 
           {results.length > 0 && (
-            <ul className="mt-3 space-y-2 max-h-80 overflow-y-auto">
+            <ul className="mt-3 max-h-80 space-y-2 overflow-y-auto">
               {results.map((msg) => (
                 <li
                   key={msg.id}
-                  className="flex flex-col gap-1 rounded-lg border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/60 p-2.5 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
+                  className="rounded-lg border border-border bg-background p-3 transition-colors hover:bg-accent/50"
                 >
                   <button
                     onClick={() => handleJump(msg)}
-                    className="text-left"
+                    className="w-full text-left focus-visible:outline-none"
                     data-testid={`search-result-${msg.id}`}
                   >
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
-                        {msg.author.displayName || msg.author.username}
-                      </span>
-                      <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-semibold text-foreground">
+                          {msg.author.displayName || msg.author.username}
+                        </span>
+                        {msg.editedAt && (
+                          <Badge variant="muted">{t("channel.edited")}</Badge>
+                        )}
+                        {msg.attachments && msg.attachments.length > 0 && (
+                          <Badge variant="muted">📎 {msg.attachments.length}</Badge>
+                        )}
+                      </div>
+                      <span className="shrink-0 text-xs text-muted-foreground">
                         {formatDate(msg.createdAt)}
                       </span>
-                      {msg.editedAt && (
-                        <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
-                          ({t("channel.edited")})
-                        </span>
-                      )}
-                      {msg.attachments && msg.attachments.length > 0 && (
-                        <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
-                          📎 {msg.attachments.length}
-                        </span>
-                      )}
                     </div>
-                    <p className="mt-0.5 text-sm text-zinc-700 dark:text-zinc-300">
-                      {getSnippet(msg)}
-                    </p>
+                    <p className="mt-1 text-sm text-foreground">{getSnippet(msg)}</p>
                   </button>
                   {contextLoadingId === msg.id && (
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400" data-testid={`search-context-loading-${msg.id}`}>
+                    <p
+                      className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground"
+                      data-testid={`search-context-loading-${msg.id}`}
+                    >
+                      <Loader2 size={12} className="animate-spin" />
                       {t("channel.loadingContext")}
                     </p>
                   )}
                   {contextErrorId === msg.id && (
-                    <p className="text-xs text-red-600 dark:text-red-400" data-testid={`search-context-error-${msg.id}`}>
+                    <p
+                      className="mt-2 text-xs text-destructive"
+                      data-testid={`search-context-error-${msg.id}`}
+                    >
                       {t("channel.contextLoadFailed")}
                     </p>
                   )}
                   {notLoadedMessageId === msg.id && (
-                    <p className="text-xs text-amber-600 dark:text-amber-400" data-testid={`search-not-loaded-${msg.id}`}>
+                    <p
+                      className="mt-2 text-xs text-amber-600 dark:text-amber-400"
+                      data-testid={`search-not-loaded-${msg.id}`}
+                    >
                       {t("channel.searchMessageNotLoaded")}
                     </p>
                   )}
@@ -263,14 +316,23 @@ export default function ChannelMessageSearch({
           )}
 
           {nextCursor && (
-            <button
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={handleLoadMore}
               disabled={loadingMore}
-              className="mt-3 w-full inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+              className="mt-3 w-full"
               data-testid="search-load-more"
             >
-              {loadingMore ? t("channel.searching") : t("channel.loadMoreResults")}
-            </button>
+              {loadingMore ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" />
+                  {t("channel.searching")}
+                </>
+              ) : (
+                t("channel.loadMoreResults")
+              )}
+            </Button>
           )}
         </div>
       )}

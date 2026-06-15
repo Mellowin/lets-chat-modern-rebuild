@@ -2,6 +2,8 @@
 
 This guide helps present the project to recruiters, hiring managers, or in a portfolio. It focuses on the live production deployment and the features that are stable enough to demonstrate.
 
+> **B192 UI Polish:** The app received a visual redesign pass — cleaner layout, improved cards/buttons/inputs, polished message bubbles, search modals, and auth/profile screens. Screenshots taken after this pass should look portfolio-ready.
+
 ---
 
 ## Production Links

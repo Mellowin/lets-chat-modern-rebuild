@@ -1,5 +1,22 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Clock,
+  ExternalLink,
+  Globe,
+  Layers,
+  Server,
+} from "lucide-react";
+import { Badge } from "@/components/ui/Badge";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/Card";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 export const metadata: Metadata = {
   title: "Lets Chat Project Status",
@@ -12,174 +29,228 @@ export const metadata: Metadata = {
   },
 };
 
+function StatusItem({ children }: { children: React.ReactNode }) {
+  return (
+    <li className="flex items-start gap-2 text-sm text-card-foreground">
+      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+      <span>{children}</span>
+    </li>
+  );
+}
+
+function TechItem({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="text-sm">
+      <span className="text-muted-foreground">{label}:</span>{" "}
+      <span className="text-card-foreground">{children}</span>
+    </div>
+  );
+}
+
 export default function ProjectStatusPage() {
   return (
-    <div className="flex flex-col p-6 sm:p-10 max-w-3xl">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6 sm:p-10">
       <Link
         href="/"
-        className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
-        ← Back to home
+        <ArrowLeft size={16} />
+        Back to home
       </Link>
 
-      <h1 className="mt-6 text-2xl sm:text-3xl font-semibold tracking-tight">
-        Project Status
-      </h1>
-      <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-        lets-chat — a modern, secure team collaboration platform.
-      </p>
-      <p className="mt-1 text-sm font-medium text-amber-700 dark:text-amber-400">
+      <PageHeader
+        title="Project Status"
+        subtitle="lets-chat — a modern, secure team collaboration platform."
+        actions={
+          <Badge variant="warning">
+            <Clock className="mr-1 h-3 w-3" />
+            Active development
+          </Badge>
+        }
+      />
+
+      <p className="text-sm text-muted-foreground">
         This project is actively in development. Not all planned features are
         implemented yet.
       </p>
 
-      <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
-        <h2 className="text-sm font-semibold">Best viewed as</h2>
-        <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
-          Portfolio piece / active development project demonstrating full-stack
-          engineering, real-time systems, auth security, and production
-          deployment practices.
-        </p>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Globe className="h-5 w-5 text-primary" />
+            Best viewed as
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-card-foreground">
+            Portfolio piece / active development project demonstrating
+            full-stack engineering, real-time systems, auth security, and
+            production deployment practices.
+          </p>
+        </CardContent>
+      </Card>
 
-      <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
-        <h2 className="text-sm font-semibold">Current production status</h2>
-        <ul className="mt-3 space-y-2 text-sm text-zinc-700 dark:text-zinc-300 list-disc list-inside">
-          <li>Web deployed on Vercel</li>
-          <li>API deployed on Render</li>
-          <li>Emails delivered via Resend</li>
-          <li>Database running on PostgreSQL</li>
-        </ul>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Server className="h-5 w-5 text-primary" />
+            Current production status
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul className="space-y-2">
+            <StatusItem>Web deployed on Vercel</StatusItem>
+            <StatusItem>API deployed on Render</StatusItem>
+            <StatusItem>Emails delivered via Resend</StatusItem>
+            <StatusItem>Database running on PostgreSQL</StatusItem>
+          </ul>
+        </CardContent>
+      </Card>
 
-      <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
-        <h2 className="text-sm font-semibold">What already works</h2>
-        <ul className="mt-3 space-y-2 text-sm text-zinc-700 dark:text-zinc-300 list-disc list-inside">
-          <li>User registration with email verification</li>
-          <li>Login, logout, and access/refresh token rotation</li>
-          <li>Password reset and authenticated password change</li>
-          <li>
-            Profile management: display name, avatar, interface language, email
-            change
-          </li>
-          <li>
-            Session management: list active sessions and revoke all sessions
-          </li>
-          <li>Workspaces and channels with auto-generated slugs</li>
-          <li>Real-time messaging via Socket.io</li>
-          <li>
-            Message editing, deletion, replies, forwarding, and reactions
-          </li>
-          <li>Direct messages between users</li>
-          <li>Resend email delivery for auth flows</li>
-          <li>Post-deploy production smoke checks</li>
-        </ul>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            What already works
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul className="space-y-2">
+            <StatusItem>User registration with email verification</StatusItem>
+            <StatusItem>
+              Login, logout, and access/refresh token rotation
+            </StatusItem>
+            <StatusItem>Password reset and authenticated password change</StatusItem>
+            <StatusItem>
+              Profile management: display name, avatar, interface language, email
+              change
+            </StatusItem>
+            <StatusItem>
+              Session management: list active sessions and revoke all sessions
+            </StatusItem>
+            <StatusItem>Workspaces and channels with auto-generated slugs</StatusItem>
+            <StatusItem>Real-time messaging via Socket.io</StatusItem>
+            <StatusItem>
+              Message editing, deletion, replies, forwarding, and reactions
+            </StatusItem>
+            <StatusItem>Direct messages between users</StatusItem>
+            <StatusItem>Resend email delivery for auth flows</StatusItem>
+            <StatusItem>Post-deploy production smoke checks</StatusItem>
+          </ul>
+        </CardContent>
+      </Card>
 
-      <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
-        <h2 className="text-sm font-semibold">In progress / planned</h2>
-        <ul className="mt-3 space-y-2 text-sm text-zinc-700 dark:text-zinc-300 list-disc list-inside">
-          <li>File attachments in messages</li>
-          <li>Message search</li>
-          <li>Slug-based public URLs</li>
-          <li>Expanded E2E test coverage</li>
-          <li>UI polish and accessibility improvements</li>
-        </ul>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+            In progress / planned
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul className="space-y-2">
+            <StatusItem>File attachments in messages</StatusItem>
+            <StatusItem>Message search</StatusItem>
+            <StatusItem>Slug-based public URLs</StatusItem>
+            <StatusItem>Expanded E2E test coverage</StatusItem>
+            <StatusItem>UI polish and accessibility improvements</StatusItem>
+          </ul>
+        </CardContent>
+      </Card>
 
-      <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
-        <h2 className="text-sm font-semibold">Tech stack</h2>
-        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-          <div>
-            <span className="text-zinc-500 dark:text-zinc-400">Frontend:</span>{" "}
-            <span className="text-zinc-700 dark:text-zinc-300">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Layers className="h-5 w-5 text-primary" />
+            Tech stack
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <TechItem label="Frontend">
               Next.js 16, React 19, Tailwind CSS, TypeScript
-            </span>
-          </div>
-          <div>
-            <span className="text-zinc-500 dark:text-zinc-400">Backend:</span>{" "}
-            <span className="text-zinc-700 dark:text-zinc-300">
+            </TechItem>
+            <TechItem label="Backend">
               NestJS, Prisma, PostgreSQL, Socket.io
-            </span>
-          </div>
-          <div>
-            <span className="text-zinc-500 dark:text-zinc-400">Email:</span>{" "}
-            <span className="text-zinc-700 dark:text-zinc-300">Resend</span>
-          </div>
-          <div>
-            <span className="text-zinc-500 dark:text-zinc-400">Storage:</span>{" "}
-            <span className="text-zinc-700 dark:text-zinc-300">
-              S3-compatible (MinIO)
-            </span>
-          </div>
-          <div>
-            <span className="text-zinc-500 dark:text-zinc-400">Auth:</span>{" "}
-            <span className="text-zinc-700 dark:text-zinc-300">
+            </TechItem>
+            <TechItem label="Email">Resend</TechItem>
+            <TechItem label="Storage">S3-compatible (MinIO)</TechItem>
+            <TechItem label="Auth">
               JWT access + refresh tokens, sessionStorage
-            </span>
+            </TechItem>
+            <TechItem label="Deployment">Vercel (web), Render (API)</TechItem>
           </div>
-          <div>
-            <span className="text-zinc-500 dark:text-zinc-400">
-              Deployment:
-            </span>{" "}
-            <span className="text-zinc-700 dark:text-zinc-300">
-              Vercel (web), Render (API)
-            </span>
-          </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
-        <h2 className="text-sm font-semibold">Production links</h2>
-        <ul className="mt-3 space-y-2 text-sm">
-          <li>
-            <span className="text-zinc-500 dark:text-zinc-400">App:</span>{" "}
-            <a
-              href="https://lets-chat-web.vercel.app"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-zinc-700 dark:text-zinc-300 hover:underline"
-            >
-              https://lets-chat-web.vercel.app
-            </a>
-          </li>
-          <li>
-            <span className="text-zinc-500 dark:text-zinc-400">API health:</span>{" "}
-            <a
-              href="https://lets-chat-api-v2.onrender.com/api/v1/health"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-zinc-700 dark:text-zinc-300 hover:underline"
-            >
-              /health
-            </a>
-          </li>
-          <li>
-            <span className="text-zinc-500 dark:text-zinc-400">
-              API docs (Swagger):
-            </span>{" "}
-            <a
-              href="https://lets-chat-api-v2.onrender.com/api/docs"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-zinc-700 dark:text-zinc-300 hover:underline"
-            >
-              /docs
-            </a>
-          </li>
-          <li>
-            <span className="text-zinc-500 dark:text-zinc-400">Source:</span>{" "}
-            <a
-              href="https://github.com/Mellowin/lets-chat-modern-rebuild"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-zinc-700 dark:text-zinc-300 hover:underline"
-            >
-              GitHub
-            </a>
-          </li>
-        </ul>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ExternalLink className="h-5 w-5 text-primary" />
+            Production links
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul className="space-y-2 text-sm">
+            <li>
+              <span className="text-muted-foreground">App:</span>{" "}
+              <a
+                href="https://lets-chat-web.vercel.app"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-card-foreground hover:text-primary hover:underline"
+              >
+                https://lets-chat-web.vercel.app
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            </li>
+            <li>
+              <span className="text-muted-foreground">API health:</span>{" "}
+              <a
+                href="https://lets-chat-api-v2.onrender.com/api/v1/health"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-card-foreground hover:text-primary hover:underline"
+              >
+                /health
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            </li>
+            <li>
+              <span className="text-muted-foreground">
+                API docs (Swagger):
+              </span>{" "}
+              <a
+                href="https://lets-chat-api-v2.onrender.com/api/docs"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-card-foreground hover:text-primary hover:underline"
+              >
+                /docs
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            </li>
+            <li>
+              <span className="text-muted-foreground">Source:</span>{" "}
+              <a
+                href="https://github.com/Mellowin/lets-chat-modern-rebuild"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-card-foreground hover:text-primary hover:underline"
+              >
+                GitHub
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            </li>
+          </ul>
+        </CardContent>
+      </Card>
     </div>
   );
 }

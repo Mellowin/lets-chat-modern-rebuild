@@ -1,17 +1,46 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { getWorkspaces, createWorkspace, archiveWorkspace, listArchivedWorkspaces, restoreWorkspace, type Workspace } from "@/lib/workspaces-api";
-
-import { getPendingInvites, acceptInvite, declineInvite, type PendingInvite } from "@/lib/invites-api";
-import { getPendingChannelInvites, acceptChannelInvite, declineChannelInvite, type PendingChannelInvite } from "@/lib/channel-invites-api";
+import {
+  getWorkspaces,
+  createWorkspace,
+  archiveWorkspace,
+  listArchivedWorkspaces,
+  restoreWorkspace,
+  type Workspace,
+} from "@/lib/workspaces-api";
+import {
+  getPendingInvites,
+  acceptInvite,
+  declineInvite,
+  type PendingInvite,
+} from "@/lib/invites-api";
+import {
+  getPendingChannelInvites,
+  acceptChannelInvite,
+  declineChannelInvite,
+  type PendingChannelInvite,
+} from "@/lib/channel-invites-api";
 import { slugify } from "@/lib/transliterate";
 import { useLocale, translate, getLocale } from "@/lib/locale";
-import { getAvatarUrl } from "@/lib/avatar-url";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { Avatar } from "@/components/ui/Avatar";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { EmptyState } from "@/components/ui/EmptyState";
+import {
+  Loader2,
+  Plus,
+  Inbox,
+  Mail,
+  Building2,
+  Archive,
+  Settings,
+} from "lucide-react";
 
 type WorkspacesState =
   | { kind: "idle" }
@@ -42,6 +71,34 @@ type ArchivedWorkspacesState =
   | { kind: "success"; data: Workspace[] }
   | { kind: "error"; message: string };
 
+function ErrorAlert({
+  message,
+  className = "",
+}: {
+  message: string;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm ${className}`}
+    >
+      <div className="flex items-center gap-2 font-medium text-destructive">
+        <span className="h-2 w-2 rounded-full bg-destructive" />
+        {message}
+      </div>
+    </div>
+  );
+}
+
+function Spinner({ text }: { text: string }) {
+  return (
+    <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+      <Loader2 className="h-4 w-4 animate-spin" />
+      {text}
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const { user, accessToken, isLoading: authLoading, isAuthenticated } = useAuth();
   const { t } = useLocale();
@@ -53,9 +110,15 @@ export default function DashboardPage() {
   const router = useRouter();
   const [invites, setInvites] = useState<InvitesState>({ kind: "idle" });
   const [inviteActionError, setInviteActionError] = useState<string | null>(null);
-  const [channelInvites, setChannelInvites] = useState<ChannelInvitesState>({ kind: "idle" });
-  const [channelInviteActionError, setChannelInviteActionError] = useState<string | null>(null);
-  const [archivedWorkspaces, setArchivedWorkspaces] = useState<ArchivedWorkspacesState>({ kind: "idle" });
+  const [channelInvites, setChannelInvites] = useState<ChannelInvitesState>({
+    kind: "idle",
+  });
+  const [channelInviteActionError, setChannelInviteActionError] = useState<string | null>(
+    null
+  );
+  const [archivedWorkspaces, setArchivedWorkspaces] = useState<ArchivedWorkspacesState>({
+    kind: "idle",
+  });
   const [restoreError, setRestoreError] = useState<string | null>(null);
 
   const loadWorkspaces = useCallback(async (token: string) => {
@@ -64,7 +127,10 @@ export default function DashboardPage() {
       const data = await getWorkspaces(token);
       setWorkspaces({ kind: "success", data });
     } catch (err) {
-      const message = err instanceof Error ? err.message : translate(getLocale(), "dashboard.errorLoadWorkspacesFailed");
+      const message =
+        err instanceof Error
+          ? err.message
+          : translate(getLocale(), "dashboard.errorLoadWorkspacesFailed");
       setWorkspaces({ kind: "error", message });
     }
   }, []);
@@ -75,7 +141,10 @@ export default function DashboardPage() {
       const data = await getPendingInvites(token);
       setInvites({ kind: "success", data });
     } catch (err) {
-      const message = err instanceof Error ? err.message : translate(getLocale(), "dashboard.errorLoadInvitesFailed");
+      const message =
+        err instanceof Error
+          ? err.message
+          : translate(getLocale(), "dashboard.errorLoadInvitesFailed");
       setInvites({ kind: "error", message });
     }
   }, []);
@@ -86,7 +155,10 @@ export default function DashboardPage() {
       const data = await getPendingChannelInvites(token);
       setChannelInvites({ kind: "success", data });
     } catch (err) {
-      const message = err instanceof Error ? err.message : translate(getLocale(), "dashboard.errorLoadChannelInvitesFailed");
+      const message =
+        err instanceof Error
+          ? err.message
+          : translate(getLocale(), "dashboard.errorLoadChannelInvitesFailed");
       setChannelInvites({ kind: "error", message });
     }
   }, []);
@@ -97,7 +169,10 @@ export default function DashboardPage() {
       const data = await listArchivedWorkspaces(token);
       setArchivedWorkspaces({ kind: "success", data });
     } catch (err) {
-      const message = err instanceof Error ? err.message : translate(getLocale(), "dashboard.errorLoadArchivedWorkspacesFailed");
+      const message =
+        err instanceof Error
+          ? err.message
+          : translate(getLocale(), "dashboard.errorLoadArchivedWorkspacesFailed");
       setArchivedWorkspaces({ kind: "error", message });
     }
   }, []);
@@ -110,7 +185,14 @@ export default function DashboardPage() {
     loadPendingInvites(accessToken);
     loadPendingChannelInvites(accessToken);
     loadArchivedWorkspaces(accessToken);
-  }, [isAuthenticated, accessToken, loadWorkspaces, loadPendingInvites, loadPendingChannelInvites, loadArchivedWorkspaces]);
+  }, [
+    isAuthenticated,
+    accessToken,
+    loadWorkspaces,
+    loadPendingInvites,
+    loadPendingChannelInvites,
+    loadArchivedWorkspaces,
+  ]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -134,15 +216,24 @@ export default function DashboardPage() {
       await loadWorkspaces(accessToken);
       window.dispatchEvent(new Event("workspaces:changed"));
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("dashboard.errorCreateWorkspaceFailed");
+      const message =
+        err instanceof Error ? err.message : t("dashboard.errorCreateWorkspaceFailed");
       setCreateState({ kind: "error", message });
     }
   }
 
-  async function handleArchiveWorkspace(e: React.MouseEvent, workspaceId: string, wsName: string) {
+  async function handleArchiveWorkspace(
+    e: React.MouseEvent,
+    workspaceId: string,
+    wsName: string
+  ) {
     e.preventDefault();
     e.stopPropagation();
-    if (!window.confirm(`${t("dashboard.confirmArchiveWorkspacePrefix")} "${wsName}"?\n${t("dashboard.confirmArchiveWorkspaceBody")}`)) {
+    if (
+      !window.confirm(
+        `${t("dashboard.confirmArchiveWorkspacePrefix")} "${wsName}"?\n${t("dashboard.confirmArchiveWorkspaceBody")}`
+      )
+    ) {
       return;
     }
     if (!accessToken) return;
@@ -152,7 +243,8 @@ export default function DashboardPage() {
       await loadWorkspaces(accessToken);
       window.dispatchEvent(new Event("workspaces:changed"));
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("dashboard.errorArchiveWorkspaceFailed");
+      const message =
+        err instanceof Error ? err.message : t("dashboard.errorArchiveWorkspaceFailed");
       setArchiveError(message);
     }
   }
@@ -167,7 +259,8 @@ export default function DashboardPage() {
       window.dispatchEvent(new Event("workspaces:changed"));
       router.push(`/workspaces/${workspaceId}`);
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("dashboard.errorAcceptInviteFailed");
+      const message =
+        err instanceof Error ? err.message : t("dashboard.errorAcceptInviteFailed");
       setInviteActionError(message);
     }
   }
@@ -180,12 +273,17 @@ export default function DashboardPage() {
       await declineInvite(accessToken, inviteId);
       await loadPendingInvites(accessToken);
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("dashboard.errorDeclineInviteFailed");
+      const message =
+        err instanceof Error ? err.message : t("dashboard.errorDeclineInviteFailed");
       setInviteActionError(message);
     }
   }
 
-  async function handleAcceptChannelInvite(inviteId: string, workspaceId: string, channelId: string) {
+  async function handleAcceptChannelInvite(
+    inviteId: string,
+    workspaceId: string,
+    channelId: string
+  ) {
     if (!accessToken) return;
     setChannelInviteActionError(null);
     try {
@@ -194,7 +292,10 @@ export default function DashboardPage() {
       window.dispatchEvent(new Event("channels:changed"));
       router.push(`/workspaces/${workspaceId}/channels/${channelId}`);
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("dashboard.errorAcceptChannelInviteFailed");
+      const message =
+        err instanceof Error
+          ? err.message
+          : t("dashboard.errorAcceptChannelInviteFailed");
       setChannelInviteActionError(message);
     }
   }
@@ -207,12 +308,19 @@ export default function DashboardPage() {
       await declineChannelInvite(accessToken, inviteId);
       await loadPendingChannelInvites(accessToken);
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("dashboard.errorDeclineChannelInviteFailed");
+      const message =
+        err instanceof Error
+          ? err.message
+          : t("dashboard.errorDeclineChannelInviteFailed");
       setChannelInviteActionError(message);
     }
   }
 
-  async function handleRestoreWorkspace(e: React.MouseEvent, workspaceId: string, wsName: string) {
+  async function handleRestoreWorkspace(
+    e: React.MouseEvent,
+    workspaceId: string,
+    wsName: string
+  ) {
     e.preventDefault();
     e.stopPropagation();
     if (!window.confirm(`${t("dashboard.confirmRestoreWorkspacePrefix")} "${wsName}"?`)) {
@@ -226,7 +334,8 @@ export default function DashboardPage() {
       await loadArchivedWorkspaces(accessToken);
       window.dispatchEvent(new Event("workspaces:changed"));
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("dashboard.errorRestoreWorkspaceFailed");
+      const message =
+        err instanceof Error ? err.message : t("dashboard.errorRestoreWorkspaceFailed");
       setRestoreError(message);
     }
   }
@@ -234,10 +343,7 @@ export default function DashboardPage() {
   if (authLoading) {
     return (
       <div className="flex flex-1 items-center justify-center p-6">
-        <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
-          <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
-          {t("auth.loadingSession")}
-        </div>
+        <Spinner text={t("auth.loadingSession")} />
       </div>
     );
   }
@@ -245,301 +351,275 @@ export default function DashboardPage() {
   if (!isAuthenticated) {
     return (
       <div className="flex flex-1 items-center justify-center p-6">
-        <div className="text-center">
-          <h1 className="text-xl font-semibold">{t("auth.authRequired")}</h1>
-          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-            {t("auth.pleaseSignInDashboard")}
-          </p>
-          <Link
-            href="/login"
-            className="mt-4 inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
-          >
-            {t("auth.signIn")}
-          </Link>
-        </div>
+        <Card className="max-w-sm text-center">
+          <CardHeader>
+            <CardTitle>{t("auth.authRequired")}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {t("auth.pleaseSignInDashboard")}
+            </p>
+            <Link
+              href="/login"
+              className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              {t("auth.signIn")}
+            </Link>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col p-6 sm:p-10 max-w-3xl">
-      <div className="flex items-center gap-4">
-        <div className="relative h-12 w-12 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center overflow-hidden shrink-0">
-          {user?.avatarUrl ? (
-            <Image src={getAvatarUrl(user.avatarUrl) || ""} alt="" fill className="object-cover" unoptimized />
-          ) : (
-            <span className="text-sm font-semibold text-zinc-600 dark:text-zinc-300">
-              {(user?.displayName || user?.username || "?").slice(0, 2).toUpperCase()}
-            </span>
-          )}
-        </div>
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {t("dashboard.welcome")}, {user?.displayName || user?.username}
-          </h1>
-          <p className="mt-1 text-zinc-600 dark:text-zinc-400">
-            {t("dashboard.signedInAs")} {user?.email}.
-          </p>
-        </div>
-      </div>
+    <div className="flex flex-col gap-6 p-6 sm:p-10 max-w-3xl">
+      <PageHeader
+        title={`${t("dashboard.welcome")}, ${user?.displayName || user?.username}`}
+        subtitle={`${t("dashboard.signedInAs")} ${user?.email}.`}
+        actions={
+          <Avatar
+            src={user?.avatarUrl}
+            name={user?.displayName || user?.username}
+            size="lg"
+            alt=""
+          />
+        }
+      />
 
-      <div className="mt-4">
+      <div>
         <Link
           href="/profile"
-          className="inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+          className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
         >
+          <Settings size={14} aria-hidden />
           {t("dashboard.profileSettings")}
         </Link>
       </div>
 
-      {/* Create workspace form */}
-      <div className="mt-8 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
-        <h2 className="text-sm font-semibold">{t("dashboard.createWorkspace")}</h2>
-        <form onSubmit={handleCreate} className="mt-4 flex flex-col sm:flex-row items-start gap-3">
-          <input
-            id="create-workspace-name"
-            name="create-workspace-name"
-            type="text"
-            placeholder={t("dashboard.workspaceName")}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            aria-label={t("dashboard.workspaceName")}
-            className="flex-1 w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
-          />
-          <input
-            id="create-workspace-slug"
-            name="create-workspace-slug"
-            type="text"
-            placeholder={t("dashboard.workspaceSlug")}
-            value={slug}
-            onChange={(e) => setSlug(e.target.value)}
-            aria-label={t("dashboard.workspaceSlug")}
-            className="flex-1 w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
-          />
-          <button
-            type="submit"
-            disabled={createState.kind === "loading"}
-            className="inline-flex w-full sm:w-auto items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
-          >
-            {createState.kind === "loading" ? t("dashboard.creating") : t("dashboard.create")}
-          </button>
-        </form>
-        {createState.kind === "error" && (
-          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-2.5 text-sm dark:border-red-900 dark:bg-red-950/30">
-            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-              <span className="h-2 w-2 rounded-full bg-red-500" />
-              {createState.message}
-            </div>
-          </div>
-        )}
-      </div>
+      {/* Create workspace */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Plus size={18} aria-hidden />
+            {t("dashboard.createWorkspace")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleCreate} className="flex flex-col sm:flex-row gap-3">
+            <Input
+              id="create-workspace-name"
+              name="create-workspace-name"
+              type="text"
+              placeholder={t("dashboard.workspaceName")}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              aria-label={t("dashboard.workspaceName")}
+              className="flex-1"
+            />
+            <Input
+              id="create-workspace-slug"
+              name="create-workspace-slug"
+              type="text"
+              placeholder={t("dashboard.workspaceSlug")}
+              value={slug}
+              onChange={(e) => setSlug(e.target.value)}
+              aria-label={t("dashboard.workspaceSlug")}
+              className="flex-1"
+            />
+            <Button type="submit" disabled={createState.kind === "loading"}>
+              {createState.kind === "loading"
+                ? t("dashboard.creating")
+                : t("dashboard.create")}
+            </Button>
+          </form>
+          {createState.kind === "error" && (
+            <ErrorAlert message={createState.message} className="mt-3" />
+          )}
+        </CardContent>
+      </Card>
 
-      {/* Pending invites */}
-      <div className="mt-8 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold">{t("dashboard.pendingInvitations")}</h2>
-        </div>
-        <div className="mt-3">
+      {/* Pending invitations */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Inbox size={18} aria-hidden />
+            {t("dashboard.pendingInvitations")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
           {invites.kind === "idle" || invites.kind === "loading" ? (
-            <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300 py-4">
-              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
-              {t("dashboard.loadingInvites")}
-            </div>
+            <Spinner text={t("dashboard.loadingInvites")} />
           ) : invites.kind === "error" ? (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-              <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-                <span className="h-2 w-2 rounded-full bg-red-500" />
-                {invites.message}
-              </div>
-            </div>
+            <ErrorAlert message={invites.message} />
           ) : invites.data.length === 0 ? (
-            <p className="text-sm text-zinc-500 dark:text-zinc-400 py-4">
-              {t("dashboard.noPendingInvitations")}
-            </p>
+            <EmptyState icon={Inbox} title={t("dashboard.noPendingInvitations")} />
           ) : (
             <>
               {inviteActionError && (
-                <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-                  <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-                    <span className="h-2 w-2 rounded-full bg-red-500" />
-                    {inviteActionError}
-                  </div>
-                </div>
+                <ErrorAlert message={inviteActionError} className="mb-3" />
               )}
-              <ul className="divide-y divide-zinc-200 dark:divide-zinc-800">
+              <ul className="divide-y divide-border">
                 {invites.data.map((inv) => (
                   <li
                     key={inv.id}
-                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-3 gap-3"
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 py-3"
                   >
-                    <div className="min-w-0">
+                    <div className="min-w-0 space-y-0.5">
                       <p className="text-sm font-medium">{inv.workspace.name}</p>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                      <p className="text-xs text-muted-foreground">
                         {t("dashboard.invitedBy")}{" "}
                         {inv.invitedBy.displayName?.trim()
                           ? inv.invitedBy.displayName
                           : `@${inv.invitedBy.username}`}
                       </p>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                      <p className="text-xs text-muted-foreground">
                         {t("dashboard.joinAs")} {inv.role}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <button
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
                         onClick={() => handleDeclineInvite(inv.id)}
-                        className="inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                       >
                         {t("dashboard.decline")}
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
                         onClick={() => handleAcceptInvite(inv.id, inv.workspace.id)}
-                        className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
                       >
                         {t("dashboard.accept")}
-                      </button>
+                      </Button>
                     </div>
                   </li>
                 ))}
               </ul>
             </>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      {/* Pending channel invites */}
-      <div className="mt-8 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold">{t("dashboard.pendingChannelInvitations")}</h2>
-        </div>
-        <div className="mt-3">
+      {/* Pending channel invitations */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Mail size={18} aria-hidden />
+            {t("dashboard.pendingChannelInvitations")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
           {channelInvites.kind === "idle" || channelInvites.kind === "loading" ? (
-            <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300 py-4">
-              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
-              {t("dashboard.loadingChannelInvites")}
-            </div>
+            <Spinner text={t("dashboard.loadingChannelInvites")} />
           ) : channelInvites.kind === "error" ? (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-              <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-                <span className="h-2 w-2 rounded-full bg-red-500" />
-                {channelInvites.message}
-              </div>
-            </div>
+            <ErrorAlert message={channelInvites.message} />
           ) : channelInvites.data.length === 0 ? (
-            <p className="text-sm text-zinc-500 dark:text-zinc-400 py-4">
-              {t("dashboard.noPendingChannelInvitations")}
-            </p>
+            <EmptyState
+              icon={Mail}
+              title={t("dashboard.noPendingChannelInvitations")}
+            />
           ) : (
             <>
               {channelInviteActionError && (
-                <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-                  <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-                    <span className="h-2 w-2 rounded-full bg-red-500" />
-                    {channelInviteActionError}
-                  </div>
-                </div>
+                <ErrorAlert message={channelInviteActionError} className="mb-3" />
               )}
-              <ul className="divide-y divide-zinc-200 dark:divide-zinc-800">
+              <ul className="divide-y divide-border">
                 {channelInvites.data.map((inv) => (
                   <li
                     key={inv.id}
-                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-3 gap-3"
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 py-3"
                   >
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium">{inv.workspace.name}</p>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400">{inv.channel.name}</p>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                    <div className="min-w-0 space-y-0.5">
+                      <p className="text-sm font-medium">
+                        {inv.workspace.name}
+                        <span className="mx-1.5 text-muted-foreground">·</span>
+                        <span className="text-foreground">{inv.channel.name}</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground">
                         {t("dashboard.invitedBy")}{" "}
                         {inv.invitedBy.displayName?.trim()
                           ? inv.invitedBy.displayName
                           : `@${inv.invitedBy.username}`}
                       </p>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                      <p className="text-xs text-muted-foreground">
                         {t("dashboard.joinAs")} {inv.role}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <button
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
                         onClick={() => handleDeclineChannelInvite(inv.id)}
-                        className="inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                       >
                         {t("dashboard.decline")}
-                      </button>
-                      <button
-                        onClick={() => handleAcceptChannelInvite(inv.id, inv.workspace.id, inv.channel.id)}
-                        className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() =>
+                          handleAcceptChannelInvite(
+                            inv.id,
+                            inv.workspace.id,
+                            inv.channel.id
+                          )
+                        }
                       >
                         {t("dashboard.accept")}
-                      </button>
+                      </Button>
                     </div>
                   </li>
                 ))}
               </ul>
             </>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Workspace list */}
-      <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 p-5">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold">{t("dashboard.yourWorkspaces")}</h2>
-        </div>
-
-        <div className="mt-3">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Building2 size={18} aria-hidden />
+            {t("dashboard.yourWorkspaces")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
           {workspaces.kind === "idle" || workspaces.kind === "loading" ? (
-            <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300 py-4">
-              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
-              {t("dashboard.loadingWorkspaces")}
-            </div>
+            <Spinner text={t("dashboard.loadingWorkspaces")} />
           ) : workspaces.kind === "error" ? (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-              <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-                <span className="h-2 w-2 rounded-full bg-red-500" />
-                {workspaces.message}
-              </div>
-            </div>
+            <ErrorAlert message={workspaces.message} />
           ) : workspaces.data.length === 0 ? (
-            <p className="text-sm text-zinc-500 dark:text-zinc-400 py-4">
-              {t("dashboard.noWorkspaces")}
-            </p>
+            <EmptyState icon={Building2} title={t("dashboard.noWorkspaces")} />
           ) : (
             <>
-              {archiveError && (
-                <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-                  <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-                    <span className="h-2 w-2 rounded-full bg-red-500" />
-                    {archiveError}
-                  </div>
-                </div>
-              )}
-              <ul className="divide-y divide-zinc-200 dark:divide-zinc-800">
+              {archiveError && <ErrorAlert message={archiveError} className="mb-3" />}
+              <ul className="divide-y divide-border">
                 {workspaces.data.map((ws) => (
                   <li
                     key={ws.id}
-                    className="flex items-center justify-between py-3 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 -mx-2 px-2 rounded-md transition-colors"
+                    className="group flex items-center justify-between py-3 hover:bg-accent/50 -mx-2 px-2 rounded-md transition-colors"
                   >
-                    <Link
-                      href={`/workspaces/${ws.id}`}
-                      className="flex-1 min-w-0"
-                    >
+                    <Link href={`/workspaces/${ws.id}`} className="flex-1 min-w-0">
                       <div>
                         <p className="text-sm font-medium">{ws.name}</p>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                          {ws.slug}
-                        </p>
+                        <p className="text-xs text-muted-foreground">{ws.slug}</p>
                       </div>
                     </Link>
-                    <div className="flex items-center gap-2 shrink-0 ml-2">
-                      <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                    <div className="flex items-center gap-3 shrink-0 ml-2">
+                      <span className="text-xs text-muted-foreground">
                         {new Date(ws.createdAt).toLocaleDateString()}
                       </span>
                       {ws.ownerId === user?.id && (
-                        <button
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
                           onClick={(e) => handleArchiveWorkspace(e, ws.id, ws.name)}
-                          className="text-[10px] text-red-600 dark:text-red-400 hover:underline"
                         >
                           {t("dashboard.archive")}
-                        </button>
+                        </Button>
                       )}
                     </div>
                   </li>
@@ -547,69 +627,67 @@ export default function DashboardPage() {
               </ul>
             </>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Archived workspaces */}
-      <div className="mt-6 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-sm">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-zinc-600 dark:text-zinc-400">{t("dashboard.archivedWorkspaces")}</h2>
-        </div>
-
-        <div className="mt-3">
-          {archivedWorkspaces.kind === "idle" || archivedWorkspaces.kind === "loading" ? (
-            <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300 py-4">
-              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
-              {t("dashboard.loadingArchived")}
-            </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Archive size={18} aria-hidden />
+            {t("dashboard.archivedWorkspaces")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {archivedWorkspaces.kind === "idle" ||
+          archivedWorkspaces.kind === "loading" ? (
+            <Spinner text={t("dashboard.loadingArchived")} />
           ) : archivedWorkspaces.kind === "error" ? (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-              <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-                <span className="h-2 w-2 rounded-full bg-red-500" />
-                {archivedWorkspaces.message}
-              </div>
-            </div>
+            <ErrorAlert message={archivedWorkspaces.message} />
           ) : archivedWorkspaces.data.length === 0 ? (
-            <p className="text-sm text-zinc-500 dark:text-zinc-400 py-4">
-              {t("dashboard.noArchivedWorkspaces")}
-            </p>
+            <EmptyState
+              icon={Archive}
+              title={t("dashboard.noArchivedWorkspaces")}
+            />
           ) : (
             <>
               {restoreError && (
-                <div className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-                  <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-                    <span className="h-2 w-2 rounded-full bg-red-500" />
-                    {restoreError}
-                  </div>
-                </div>
+                <ErrorAlert message={restoreError} className="mb-3" />
               )}
-              <ul className="divide-y divide-zinc-200 dark:divide-zinc-800">
+              <ul className="divide-y divide-border">
                 {archivedWorkspaces.data.map((ws) => (
                   <li
                     key={ws.id}
-                    className="flex items-center justify-between py-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 -mx-2 px-2 rounded-md transition-colors"
+                    className="flex items-center justify-between py-3 hover:bg-accent/50 -mx-2 px-2 rounded-md transition-colors"
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-zinc-600 dark:text-zinc-300">{ws.name}</p>
-                      <p className="text-xs text-zinc-400 dark:text-zinc-500">
-                        {ws.slug} · {t("dashboard.archivedLabel")} {ws.deletedAt ? new Date(ws.deletedAt).toLocaleDateString() : ""}
+                      <p className="text-sm font-medium text-muted-foreground">
+                        {ws.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {ws.slug} · {t("dashboard.archivedLabel")}{" "}
+                        {ws.deletedAt
+                          ? new Date(ws.deletedAt).toLocaleDateString()
+                          : ""}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0 ml-2">
-                      <button
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
                         onClick={(e) => handleRestoreWorkspace(e, ws.id, ws.name)}
-                        className="inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                       >
                         {t("dashboard.restore")}
-                      </button>
+                      </Button>
                     </div>
                   </li>
                 ))}
               </ul>
             </>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

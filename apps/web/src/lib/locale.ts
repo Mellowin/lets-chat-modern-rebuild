@@ -378,7 +378,11 @@ export type TranslationKey =
   | "dashboard.confirmDeclineChannelInvitation"
   | "dashboard.confirmRestoreWorkspacePrefix"
   | "direct.title"
+  | "direct.subtitle"
+  | "direct.newConversation"
   | "direct.startChat"
+  | "direct.startChatDescription"
+  | "direct.noConversationsDescription"
   | "direct.usernameOrEmail"
   | "direct.noConversations"
   | "direct.loadingConversations"
@@ -775,7 +779,11 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.socketError": "Error",
     "messageAuthor.unknownUser": "Unknown user",
     "direct.title": "Direct messages",
+    "direct.subtitle": "Chat directly with other users.",
+    "direct.newConversation": "New conversation",
     "direct.startChat": "Start chat",
+    "direct.startChatDescription": "Enter the username or email of the person you want to message.",
+    "direct.noConversationsDescription": "Start a new conversation to begin messaging.",
     "direct.usernameOrEmail": "Username or email",
     "direct.noConversations": "No conversations yet.",
     "direct.loadingConversations": "Loading conversations…",
@@ -1240,7 +1248,11 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.socketError": "Помилка",
     "messageAuthor.unknownUser": "Невідомий користувач",
     "direct.title": "Особисті повідомлення",
+    "direct.subtitle": "Спілкуйтеся безпосередньо з іншими користувачами.",
+    "direct.newConversation": "Нова розмова",
     "direct.startChat": "Почати чат",
+    "direct.startChatDescription": "Введіть імʼя користувача або email людини, якій хочете написати.",
+    "direct.noConversationsDescription": "Почніть нову розмову, щоб написати повідомлення.",
     "direct.usernameOrEmail": "Імʼя користувача або email",
     "direct.noConversations": "Розмов ще немає.",
     "direct.loadingConversations": "Завантажуємо розмови…",
@@ -1705,7 +1717,11 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.socketError": "Ошибка",
     "messageAuthor.unknownUser": "Неизвестный пользователь",
     "direct.title": "Личные сообщения",
+    "direct.subtitle": "Общайтесь напрямую с другими пользователями.",
+    "direct.newConversation": "Новый разговор",
     "direct.startChat": "Начать чат",
+    "direct.startChatDescription": "Введите имя пользователя или email человека, которому хотите написать.",
+    "direct.noConversationsDescription": "Начните новый разговор, чтобы написать сообщение.",
     "direct.usernameOrEmail": "Имя пользователя или email",
     "direct.noConversations": "Разговоров пока нет.",
     "direct.loadingConversations": "Загружаем разговоры…",

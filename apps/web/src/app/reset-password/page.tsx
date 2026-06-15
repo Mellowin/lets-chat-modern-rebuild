@@ -3,14 +3,114 @@
 import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import {
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  Loader2,
+  Lock,
+  XCircle,
+} from "lucide-react";
 import { resetPassword } from "@/lib/auth-api";
 import { useLocale } from "@/lib/locale";
+import { Button } from "@/components/ui/Button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
 
 type FormState =
   | { kind: "idle" }
   | { kind: "loading" }
   | { kind: "success" }
   | { kind: "error"; message: string };
+
+function Alert({
+  variant,
+  children,
+}: {
+  variant: "success" | "error";
+  children: React.ReactNode;
+}) {
+  const variants = {
+    success:
+      "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-400",
+    error:
+      "border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-400",
+  };
+  const icons = {
+    success: <CheckCircle2 className="h-4 w-4 shrink-0" />,
+    error: <XCircle className="h-4 w-4 shrink-0" />,
+  };
+  return (
+    <div
+      className={`flex items-start gap-2 rounded-lg border p-3 text-sm ${variants[variant]}`}
+      role="alert"
+    >
+      {icons[variant]}
+      <div className="flex-1">{children}</div>
+    </div>
+  );
+}
+
+function PasswordField({
+  id,
+  name,
+  label,
+  value,
+  onChange,
+  disabled,
+  placeholder,
+}: {
+  id: string;
+  name: string;
+  label: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  disabled?: boolean;
+  placeholder?: string;
+}) {
+  const [show, setShow] = useState(false);
+  const { t } = useLocale();
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor={id} className="text-sm font-medium">
+        {label}
+      </label>
+      <div className="relative">
+        <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          id={id}
+          name={name}
+          type={show ? "text" : "password"}
+          autoComplete="new-password"
+          required
+          value={value}
+          onChange={onChange}
+          disabled={disabled}
+          placeholder={placeholder}
+          className="pl-9 pr-10"
+        />
+        <Button
+          type="button"
+          variant="icon"
+          size="sm"
+          onClick={() => setShow((s) => !s)}
+          aria-label={
+            show ? t("profile.hidePassword") : t("profile.showPassword")
+          }
+          aria-pressed={show}
+          className="absolute right-1 top-1/2 -translate-y-1/2"
+        >
+          {show ? <EyeOff size={16} /> : <Eye size={16} />}
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export function ResetPasswordContent() {
   const router = useRouter();
@@ -45,97 +145,89 @@ export function ResetPasswordContent() {
       setFormState({ kind: "success" });
       setTimeout(() => router.push("/login"), 2500);
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("auth.passwordResetFailed");
+      const message =
+        err instanceof Error ? err.message : t("auth.passwordResetFailed");
       setFormState({ kind: "error", message });
     }
   }
 
   return (
     <div className="flex flex-1 items-center justify-center p-6">
-      <div className="w-full max-w-sm rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 shadow-sm">
-        <h1 className="text-xl font-semibold tracking-tight">{t("auth.resetPasswordTitle")}</h1>
+      <Card className="w-full max-w-sm">
+        <CardHeader className="text-center">
+          <CardTitle>{t("auth.resetPasswordTitle")}</CardTitle>
 
-        {formState.kind === "success" ? (
-          <div className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
-            <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              {t("auth.passwordResetSuccess")}
-            </div>
-            <p className="mt-2 text-sm text-emerald-700 dark:text-emerald-300">
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {formState.kind === "success" ? (
+            <Alert variant="success">
+              <div className="font-medium">{t("auth.passwordResetSuccess")}</div>
+              <p className="mt-1 text-xs opacity-90">
+                <Link
+                  href="/login"
+                  className="underline underline-offset-2 hover:text-emerald-900 dark:hover:text-emerald-200"
+                >
+                  {t("auth.backToSignIn")}
+                </Link>
+              </p>
+            </Alert>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <PasswordField
+                id="reset-password-password"
+                name="reset-password-password"
+                label={t("auth.newPassword")}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={formState.kind === "loading" || !token}
+                placeholder="••••••••"
+              />
+
+              <PasswordField
+                id="reset-password-confirm-password"
+                name="reset-password-confirm-password"
+                label={t("auth.confirmPassword")}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                disabled={formState.kind === "loading" || !token}
+                placeholder="••••••••"
+              />
+
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={formState.kind === "loading" || !token}
+              >
+                {formState.kind === "loading" ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {t("auth.loading")}
+                  </>
+                ) : (
+                  t("auth.sendResetLink")
+                )}
+              </Button>
+            </form>
+          )}
+
+          {formState.kind === "error" && (
+            <Alert variant="error">
+              <span className="font-medium">{formState.message}</span>
+            </Alert>
+          )}
+
+          {formState.kind !== "success" && (
+            <p className="text-center text-sm text-muted-foreground">
               <Link
                 href="/login"
-                className="underline underline-offset-2 hover:text-emerald-900 dark:hover:text-emerald-200"
+                className="font-medium text-foreground underline underline-offset-2 hover:text-primary transition-colors"
               >
                 {t("auth.backToSignIn")}
               </Link>
             </p>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="mt-5 space-y-4">
-            <div>
-              <label htmlFor="reset-password-password" className="block text-sm font-medium">
-                {t("auth.newPassword")}
-              </label>
-              <input
-                id="reset-password-password"
-                name="reset-password-password"
-                type="password"
-                autoComplete="new-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 block w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
-                placeholder="••••••••"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="reset-password-confirm-password" className="block text-sm font-medium">
-                {t("auth.confirmPassword")}
-              </label>
-              <input
-                id="reset-password-confirm-password"
-                name="reset-password-confirm-password"
-                type="password"
-                autoComplete="new-password"
-                required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="mt-1 block w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
-                placeholder="••••••••"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={formState.kind === "loading" || !token}
-              className="inline-flex w-full items-center justify-center rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
-            >
-              {formState.kind === "loading" ? t("auth.loading") : t("auth.sendResetLink")}
-            </button>
-          </form>
-        )}
-
-        {formState.kind === "error" && (
-          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-              <span className="h-2 w-2 rounded-full bg-red-500" />
-              {formState.message}
-            </div>
-          </div>
-        )}
-
-        {formState.kind !== "success" && (
-          <p className="mt-4 text-center text-sm text-zinc-500 dark:text-zinc-400">
-            <Link
-              href="/login"
-              className="font-medium text-zinc-900 underline underline-offset-2 hover:text-zinc-700 dark:text-zinc-100 dark:hover:text-zinc-300"
-            >
-              {t("auth.backToSignIn")}
-            </Link>
-          </p>
-        )}
-      </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -145,13 +237,17 @@ export default function ResetPasswordPage() {
     <Suspense
       fallback={
         <div className="flex flex-1 items-center justify-center p-6">
-          <div className="w-full max-w-sm rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 shadow-sm">
-            <h1 className="text-xl font-semibold tracking-tight">Reset password</h1>
-            <div className="mt-5 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
-              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
-              Loading…
-            </div>
-          </div>
+          <Card className="w-full max-w-sm">
+            <CardHeader>
+              <CardTitle>Reset password</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading…
+              </div>
+            </CardContent>
+          </Card>
         </div>
       }
     >

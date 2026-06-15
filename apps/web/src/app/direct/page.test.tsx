@@ -668,7 +668,7 @@ describe("DirectMessagesPage — socket unread updates", () => {
 
     await waitFor(() => {
       const dot = screen.getByTestId("direct-list-presence-dot-dc1");
-      expect(dot).toHaveClass("bg-zinc-400");
+      expect(dot).toHaveClass("bg-muted-foreground");
     });
 
     const handler = socketHandlers["presence:online"];
@@ -696,7 +696,7 @@ describe("DirectMessagesPage — socket unread updates", () => {
 
     await waitFor(() => {
       const dot = screen.getByTestId("direct-list-presence-dot-dc1");
-      expect(dot).toHaveClass("bg-zinc-400");
+      expect(dot).toHaveClass("bg-muted-foreground");
     });
   });
 

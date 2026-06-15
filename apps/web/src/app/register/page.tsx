@@ -2,8 +2,26 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import {
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  Loader2,
+  Mail,
+  User,
+  XCircle,
+} from "lucide-react";
 import { register, resendVerification } from "@/lib/auth-api";
 import { useLocale } from "@/lib/locale";
+import { Button } from "@/components/ui/Button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
 
 type FormState =
   | { kind: "idle" }
@@ -13,11 +31,40 @@ type FormState =
   | { kind: "resend-loading"; email: string }
   | { kind: "resend-success"; message: string };
 
+function Alert({
+  variant,
+  children,
+}: {
+  variant: "success" | "error";
+  children: React.ReactNode;
+}) {
+  const variants = {
+    success:
+      "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-400",
+    error:
+      "border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-400",
+  };
+  const icons = {
+    success: <CheckCircle2 className="h-4 w-4 shrink-0" />,
+    error: <XCircle className="h-4 w-4 shrink-0" />,
+  };
+  return (
+    <div
+      className={`flex items-start gap-2 rounded-lg border p-3 text-sm ${variants[variant]}`}
+      role="alert"
+    >
+      {icons[variant]}
+      <div className="flex-1">{children}</div>
+    </div>
+  );
+}
+
 export default function RegisterPage() {
   const { t } = useLocale();
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [formState, setFormState] = useState<FormState>({ kind: "idle" });
 
   async function handleSubmit(e: React.FormEvent) {
@@ -46,9 +93,10 @@ export default function RegisterPage() {
   }
 
   async function handleResend() {
-    const targetEmail = formState.kind === "success" || formState.kind === "resend-loading"
-      ? formState.email
-      : email;
+    const targetEmail =
+      formState.kind === "success" || formState.kind === "resend-loading"
+        ? formState.email
+        : email;
     setFormState({ kind: "resend-loading", email: targetEmail });
     try {
       const data = await resendVerification({ email: targetEmail });
@@ -59,150 +107,175 @@ export default function RegisterPage() {
     }
   }
 
-  const showSuccessPanel = formState.kind === "success" || formState.kind === "resend-loading" || formState.kind === "resend-success";
-  const displayEmail = formState.kind === "success" || formState.kind === "resend-loading"
-    ? formState.email
-    : email;
+  const showSuccessPanel =
+    formState.kind === "success" ||
+    formState.kind === "resend-loading" ||
+    formState.kind === "resend-success";
+  const displayEmail =
+    formState.kind === "success" || formState.kind === "resend-loading"
+      ? formState.email
+      : email;
 
   return (
     <div className="flex flex-1 items-center justify-center p-6">
-      <div className="w-full max-w-sm rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 shadow-sm">
-        <h1 className="text-xl font-semibold tracking-tight">{t("auth.registerTitle")}</h1>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-          {t("auth.registerSubtitle")}
-        </p>
+      <Card className="w-full max-w-sm">
+        <CardHeader className="text-center">
+          <CardTitle>{t("auth.registerTitle")}</CardTitle>
+          <CardDescription>{t("auth.registerSubtitle")}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {showSuccessPanel ? (
+            <div className="space-y-4">
+              <Alert variant="success">
+                <div className="font-medium">{t("auth.checkYourEmail")}</div>
+                <p className="mt-1 text-xs opacity-90">
+                  {t("auth.verificationEmailSent")}{" "}
+                  <span className="font-semibold">{displayEmail}</span>
+                </p>
+              </Alert>
 
-        {showSuccessPanel ? (
-          <div className="mt-5 space-y-4">
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
-              <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                {t("auth.checkYourEmail")}
-              </div>
-              <p className="mt-2 text-emerald-700 dark:text-emerald-300">
-                {t("auth.verificationEmailSent")}{" "}
-                <span className="font-medium">{displayEmail}</span>
-              </p>
+              {formState.kind === "resend-success" && (
+                <Alert variant="success">
+                  <span className="font-medium">{formState.message}</span>
+                </Alert>
+              )}
+
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full"
+                onClick={handleResend}
+                disabled={formState.kind === "resend-loading"}
+              >
+                {formState.kind === "resend-loading"
+                  ? t("auth.resendingVerification")
+                  : t("auth.resendVerification")}
+              </Button>
+
+              <Button asChild className="w-full">
+                <Link href="/login">{t("auth.signIn")}</Link>
+              </Button>
             </div>
-
-            {formState.kind === "resend-success" && (
-              <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
-                <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                  {formState.message}
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <label htmlFor="register-email" className="text-sm font-medium">
+                  {t("auth.email")}
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="register-email"
+                    name="register-email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder={t("auth.emailPlaceholder")}
+                    className="pl-9"
+                  />
                 </div>
               </div>
-            )}
 
-            <button
-              type="button"
-              onClick={handleResend}
-              disabled={formState.kind === "resend-loading"}
-              className="inline-flex w-full items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-4 py-2.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-            >
-              {formState.kind === "resend-loading" ? t("auth.resendingVerification") : t("auth.resendVerification")}
-            </button>
+              <div className="space-y-1.5">
+                <label htmlFor="register-username" className="text-sm font-medium">
+                  {t("auth.username")}
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="register-username"
+                    name="register-username"
+                    type="text"
+                    autoComplete="username"
+                    required
+                    minLength={3}
+                    maxLength={32}
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder={t("auth.usernamePlaceholder")}
+                    className="pl-9"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {t("auth.usernameHint")}
+                </p>
+              </div>
 
-            <Link
-              href="/login"
-              className="inline-flex w-full items-center justify-center rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
-            >
-              {t("auth.signIn")}
-            </Link>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="mt-5 space-y-4">
-            <div>
-              <label htmlFor="register-email" className="block text-sm font-medium">
-                {t("auth.email")}
-              </label>
-              <input
-                id="register-email"
-                name="register-email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 block w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
-                placeholder={t("auth.emailPlaceholder")}
-              />
-            </div>
+              <div className="space-y-1.5">
+                <label htmlFor="register-password" className="text-sm font-medium">
+                  {t("auth.password")}
+                </label>
+                <div className="relative">
+                  <Input
+                    id="register-password"
+                    name="register-password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    required
+                    minLength={8}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                  />
+                  <Button
+                    type="button"
+                    variant="icon"
+                    size="sm"
+                    onClick={() => setShowPassword((s) => !s)}
+                    aria-label={
+                      showPassword
+                        ? t("profile.hidePassword")
+                        : t("profile.showPassword")
+                    }
+                    aria-pressed={showPassword}
+                    className="absolute right-1 top-1/2 -translate-y-1/2"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {t("auth.passwordHint")}
+                </p>
+              </div>
 
-            <div>
-              <label htmlFor="register-username" className="block text-sm font-medium">
-                {t("auth.username")}
-              </label>
-              <input
-                id="register-username"
-                name="register-username"
-                type="text"
-                autoComplete="username"
-                required
-                minLength={3}
-                maxLength={32}
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="mt-1 block w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
-                placeholder={t("auth.usernamePlaceholder")}
-              />
-              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                {t("auth.usernameHint")}
-              </p>
-            </div>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={formState.kind === "loading"}
+              >
+                {formState.kind === "loading" ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {t("auth.creatingAccount")}
+                  </>
+                ) : (
+                  t("auth.registerTitle")
+                )}
+              </Button>
+            </form>
+          )}
 
-            <div>
-              <label htmlFor="register-password" className="block text-sm font-medium">
-                {t("auth.password")}
-              </label>
-              <input
-                id="register-password"
-                name="register-password"
-                type="password"
-                autoComplete="new-password"
-                required
-                minLength={8}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 block w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
-                placeholder="••••••••"
-              />
-              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                {t("auth.passwordHint")}
-              </p>
-            </div>
+          {formState.kind === "error" && (
+            <Alert variant="error">
+              <span className="font-medium">{formState.message}</span>
+            </Alert>
+          )}
 
-            <button
-              type="submit"
-              disabled={formState.kind === "loading"}
-              className="inline-flex w-full items-center justify-center rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
-            >
-              {formState.kind === "loading" ? t("auth.creatingAccount") : t("auth.registerTitle")}
-            </button>
-          </form>
-        )}
-
-        {formState.kind === "error" && (
-          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-              <span className="h-2 w-2 rounded-full bg-red-500" />
-              {formState.message}
-            </div>
-          </div>
-        )}
-
-        {!showSuccessPanel && (
-          <p className="mt-4 text-center text-sm text-zinc-500 dark:text-zinc-400">
-            {t("auth.alreadyHaveAccount")}{" "}
-            <Link
-              href="/login"
-              className="font-medium text-zinc-900 underline underline-offset-2 hover:text-zinc-700 dark:text-zinc-100 dark:hover:text-zinc-300"
-            >
-              {t("auth.signIn")}
-            </Link>
-          </p>
-        )}
-      </div>
+          {!showSuccessPanel && (
+            <p className="text-center text-sm text-muted-foreground">
+              {t("auth.alreadyHaveAccount")}{" "}
+              <Link
+                href="/login"
+                className="font-medium text-foreground underline underline-offset-2 hover:text-primary transition-colors"
+              >
+                {t("auth.signIn")}
+              </Link>
+            </p>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -1,18 +1,43 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import {
+  Archive,
+  ArrowLeft,
+  Check,
+  Copy,
+  Edit3,
+  Forward,
+  ImageIcon,
+  Loader2,
+  LogOut,
+  MessageSquare,
+  MoreHorizontal,
+  Paperclip,
+  Reply,
+  Send,
+  Smile,
+  Trash2,
+  Users,
+  X,
+} from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocale, translate, getLocale } from "@/lib/locale";
+import { Avatar } from "@/components/ui/Avatar";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Input } from "@/components/ui/Input";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { getChannel, getChannelMembers, removeChannelMember, archiveChannel, leaveChannel, markChannelRead, type Channel, type ChannelMember } from "@/lib/channels-api";
 import { createChannelInvite } from "@/lib/channel-invites-api";
 
 import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, presignAttachmentUpload, uploadAttachmentToPresignedUrlWithProgress, getAttachmentDownloadUrl, getMessageContext, type Message, type CreateMessageInput, type UpdateMessageInput, type ReactionSummary, type Attachment, type MessageContextResult, CreateMessageAttachmentInput } from "@/lib/messages-api";
 import { sendDirectMessage, listDirectConversations, type DirectConversation } from "@/lib/direct-conversations-api";
 import { createSocket } from "@/lib/socket-client";
-import { getAvatarUrl } from "@/lib/avatar-url";
 import { MessageAuthor } from "@/components/MessageAuthor";
 import ChannelMessageSearch from "@/components/ChannelMessageSearch";
 import ImageLightbox from "@/components/ImageLightbox";
@@ -93,7 +118,7 @@ function AttachmentImagePreview({
       type="button"
       onClick={() => onOpen(attachment)}
       data-testid={`message-attachment-image-${messageId}-${attachment.id}`}
-      className="block w-fit max-w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 p-1 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors"
+      className="block w-fit max-w-full rounded-lg border border-border bg-muted/50 p-1 text-left hover:bg-accent/50 transition-colors"
     >
       {url && !failed ? (
         /* eslint-disable-next-line @next/next/no-img-element -- dynamic presigned attachment URLs are intentionally rendered with native img */
@@ -105,9 +130,9 @@ function AttachmentImagePreview({
         />
       ) : (
         <div className="flex items-center gap-2 px-1.5 py-1 text-xs">
-          <span className="text-base">🖼️</span>
-          <span className="truncate font-medium text-zinc-700 dark:text-zinc-200">{attachment.fileName}</span>
-          <span className="shrink-0 text-zinc-400 dark:text-zinc-500">{formatFileSize(attachment.sizeBytes)}</span>
+          <ImageIcon size={16} className="text-muted-foreground" />
+          <span className="truncate font-medium text-foreground">{attachment.fileName}</span>
+          <span className="shrink-0 text-muted-foreground">{formatFileSize(attachment.sizeBytes)}</span>
         </div>
       )}
     </button>
@@ -1272,8 +1297,8 @@ export default function ChannelDetailPage() {
   if (authLoading) {
     return (
       <div className="flex flex-1 items-center justify-center p-6">
-        <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
-          <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 size={16} className="animate-spin" />
           {t("auth.loadingSession")}
         </div>
       </div>
@@ -1283,18 +1308,19 @@ export default function ChannelDetailPage() {
   if (!isAuthenticated) {
     return (
       <div className="flex flex-1 items-center justify-center p-6">
-        <div className="text-center">
-          <h1 className="text-xl font-semibold">{t("auth.authRequired")}</h1>
-          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-            {t("auth.pleaseSignInChannel")}
-          </p>
-          <Link
-            href="/login"
-            className="mt-4 inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
-          >
-            {t("auth.signIn")}
-          </Link>
-        </div>
+        <Card className="max-w-sm text-center">
+          <CardHeader>
+            <CardTitle>{t("auth.authRequired")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              {t("auth.pleaseSignInChannel")}
+            </p>
+            <Button asChild className="mt-4">
+              <Link href="/login">{t("auth.signIn")}</Link>
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -1302,107 +1328,102 @@ export default function ChannelDetailPage() {
   return (
     <div className="flex h-[calc(100vh-4rem)] min-w-0 w-full max-w-none flex-col gap-4 overflow-hidden p-4 sm:p-6">
       <main className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
-      <Link
-        href={`/workspaces/${workspaceId}`}
-        className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-      >
-        {t("channel.backToWorkspace")}
-      </Link>
+      <Button variant="ghost" size="sm" asChild className="w-fit">
+        <Link href={`/workspaces/${workspaceId}`}>
+          <ArrowLeft size={16} className="mr-1" />
+          {t("channel.backToWorkspace")}
+        </Link>
+      </Button>
 
       {channel.kind === "loading" && (
-        <div className="mt-6 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
-          <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
+        <div className="mt-6 flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 size={16} className="animate-spin" />
           {t("channel.loading")}
         </div>
       )}
 
       {channel.kind === "error" && (
-        <div className="mt-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm dark:border-red-900 dark:bg-red-950/30">
-          <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-            <span className="h-2 w-2 rounded-full bg-red-500" />
-            {channel.message}
-          </div>
+        <div className="mt-6 rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
+          {channel.message}
         </div>
       )}
 
       {channel.kind === "success" && (
         <>
-          <div className="mt-5 flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl font-semibold tracking-tight">
-              {channel.data.name}
-            </h1>
-            <span
-              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide shrink-0 ${
-                channel.data.type === "PUBLIC"
-                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400"
-                  : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
-              }`}
-            >
-              {channel.data.type === "PUBLIC" ? t("channel.publicChannel") : t("channel.privateChannel")}
-            </span>
-            <span
-              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide shrink-0 ${
-                socketStatus === "joined"
-                  ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400"
-                  : socketStatus === "connected"
-                    ? "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
-                    : socketStatus === "connecting"
-                      ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400"
-                      : socketStatus === "error"
-                        ? "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400"
-                        : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-500"
-              }`}
-            >
-              {socketStatusLabel(socketStatus)}
-            </span>
-            <button
-              onClick={() => setIsMembersOpen(true)}
-              className="inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-            >
-              {t("channel.members")}
-            </button>
-            {canArchiveChannel && (
-              <button
-                onClick={handleArchive}
-                disabled={archiveState.kind === "loading"}
-                className="ml-auto inline-flex items-center justify-center rounded-lg border border-red-300 dark:border-red-800 px-3 py-1.5 text-xs font-medium text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-              >
-                {archiveState.kind === "loading" ? t("channel.archiving") : t("channel.archive")}
-              </button>
-            )}
-            {canLeaveChannel && (
-              <button
-                onClick={handleLeave}
-                disabled={leaveState.kind === "loading"}
-                className="ml-auto inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-              >
-                {leaveState.kind === "loading" ? t("channel.leaving") : t("channel.leaveChannel")}
-              </button>
-            )}
-          </div>
+          <PageHeader
+            titleLabel={channel.data.name}
+            title={
+              <span className="flex items-center gap-3 flex-wrap">
+                {channel.data.name}
+                <Badge variant={channel.data.type === "PUBLIC" ? "success" : "warning"}>
+                  {channel.data.type === "PUBLIC" ? t("channel.publicChannel") : t("channel.privateChannel")}
+                </Badge>
+                <Badge
+                  variant={
+                    socketStatus === "joined"
+                      ? "info"
+                      : socketStatus === "connected"
+                        ? "muted"
+                        : socketStatus === "connecting"
+                          ? "warning"
+                          : socketStatus === "error"
+                            ? "danger"
+                            : "muted"
+                  }
+                >
+                  {socketStatusLabel(socketStatus)}
+                </Badge>
+              </span>
+            }
+            subtitle={
+              <>
+                {channel.data.description || channel.data.slug}
+              </>
+            }
+            actions={
+              <>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setIsMembersOpen(true)}
+                >
+                  <Users size={14} className="mr-1.5" />
+                  {t("channel.members")}
+                </Button>
+                {canArchiveChannel && (
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={handleArchive}
+                    disabled={archiveState.kind === "loading"}
+                  >
+                    <Archive size={14} className="mr-1.5" />
+                    {archiveState.kind === "loading" ? t("channel.archiving") : t("channel.archive")}
+                  </Button>
+                )}
+                {canLeaveChannel && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleLeave}
+                    disabled={leaveState.kind === "loading"}
+                  >
+                    <LogOut size={14} className="mr-1.5" />
+                    {leaveState.kind === "loading" ? t("channel.leaving") : t("channel.leaveChannel")}
+                  </Button>
+                )}
+              </>
+            }
+          />
           {archiveState.kind === "error" && (
-            <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-              <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-                <span className="h-2 w-2 rounded-full bg-red-500" />
-                {archiveState.message}
-              </div>
+            <div className="mt-3 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+              {archiveState.message}
             </div>
           )}
           {leaveState.kind === "error" && (
-            <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-              <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-                <span className="h-2 w-2 rounded-full bg-red-500" />
-                {leaveState.message}
-              </div>
+            <div className="mt-3 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+              {leaveState.message}
             </div>
-          )}
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            {channel.data.slug}
-          </p>
-          {channel.data.description && (
-            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
-              {channel.data.description}
-            </p>
           )}
           {channel.kind === "success" && accessToken && (
             <div className="mt-3">
@@ -1418,55 +1439,63 @@ export default function ChannelDetailPage() {
         </>
       )}
 
-      <div className="mt-4 flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950">
+      <div className="mt-4 flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card">
         {contextMode.kind === "active" && (
-          <div className="shrink-0 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900 px-4 py-2">
-            <button
+          <div className="shrink-0 border-b border-border bg-muted/50 px-4 py-2">
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={exitContextMode}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
               data-testid="back-to-latest-button"
             >
-              <span aria-hidden="true">←</span>
+              <ArrowLeft size={14} className="mr-1.5" />
               {t("channel.backToLatestMessages")}
-            </button>
+            </Button>
           </div>
         )}
         <div className="shrink-0 px-4 pt-3 pb-1">
           {Object.keys(typingUsers).length > 0 && (
-            <div className="text-xs text-zinc-500 dark:text-zinc-400">
-              {Object.values(typingUsers).map((u, i, arr) => (
-                <span key={u.username}>
-                  {u.username}
-                  {i < arr.length - 1 ? ", " : " "}
-                </span>
-              ))}
-              {Object.keys(typingUsers).length === 1 ? t("channel.isTyping") : t("channel.areTyping")}
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="inline-flex gap-0.5">
+                <span className="h-1 w-1 rounded-full bg-primary animate-bounce" />
+                <span className="h-1 w-1 rounded-full bg-primary animate-bounce [animation-delay:0.1s]" />
+                <span className="h-1 w-1 rounded-full bg-primary animate-bounce [animation-delay:0.2s]" />
+              </span>
+              <span>
+                {Object.values(typingUsers).map((u, i, arr) => (
+                  <span key={u.username}>
+                    {u.username}
+                    {i < arr.length - 1 ? ", " : " "}
+                  </span>
+                ))}
+                {Object.keys(typingUsers).length === 1 ? t("channel.isTyping") : t("channel.areTyping")}
+              </span>
             </div>
           )}
         </div>
 
-        <div ref={messagesScrollRef} onScroll={() => { closeMenuAndPicker(); }} className="min-h-0 flex-1 overflow-y-auto bg-gradient-to-br from-[#e4efc4] via-[#c9e2bf] to-[#9cc7b2] px-4 py-3 dark:from-zinc-950 dark:via-emerald-950/40 dark:to-zinc-900">
+        <div ref={messagesScrollRef} onScroll={() => { closeMenuAndPicker(); }} className="min-h-0 flex-1 overflow-y-auto bg-gradient-to-br from-secondary via-muted to-background px-4 py-3 dark:from-background dark:via-primary/10 dark:to-background">
           <div className="flex w-full max-w-3xl flex-col">
             {messages.kind === "loading" && !isContextMode && (
-              <div className="mt-4 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
-                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
+              <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 size={16} className="animate-spin" />
                 {t("channel.loadingMessages")}
               </div>
             )}
 
             {messages.kind === "error" && !isContextMode && (
-              <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-                <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-                  <span className="h-2 w-2 rounded-full bg-red-500" />
-                  {messages.message}
-                </div>
+              <div className="mt-4 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+                {messages.message}
               </div>
             )}
 
             {messages.kind === "success" && messages.data.length === 0 && !isContextMode && (
-              <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">
-                {t("channel.noMessages")}
-              </p>
+              <div className="mt-4">
+                <EmptyState
+                  icon={MessageSquare}
+                  title={t("channel.noMessages")}
+                />
+              </div>
             )}
 
             {displayMessages.length > 0 && (
@@ -1486,43 +1515,44 @@ export default function ChannelDetailPage() {
                     >
                       <div
                         data-testid={`message-avatar-${msg.id}`}
-                        className="sticky bottom-3 self-end relative h-8 w-8 shrink-0 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center overflow-hidden"
+                        className="sticky bottom-3 self-end"
                       >
-                        {msg.author.avatarUrl ? (
-                          <Image src={getAvatarUrl(msg.author.avatarUrl) || ""} alt="" fill sizes="32px" className="object-cover" unoptimized />
-                        ) : (
-                          <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                            {(msg.author.displayName || msg.author.username || "?").slice(0, 2).toUpperCase()}
-                          </span>
-                        )}
+                        <Avatar
+                          src={msg.author.avatarUrl}
+                          name={msg.author.displayName || msg.author.username}
+                          size="md"
+                          alt=""
+                        />
                       </div>
                       <div
                         data-testid={`message-body-${msg.id}`}
                         className="min-w-0 max-w-[80%]"
                       >
-                        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
-                          <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 truncate">
+                        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                          <span className="text-sm font-semibold text-foreground truncate">
                             {msg.author.displayName || msg.author.username || t("messageAuthor.unknownUser")}
                           </span>
-                          <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                          <span className="text-xs text-muted-foreground">
                             {new Date(msg.createdAt).toLocaleString()}
                           </span>
                           {msg.editedAt && (
-                            <span className="text-[10px] text-zinc-400 dark:text-zinc-500 italic">
+                            <Badge variant="muted" className="text-[10px]">
                               {t("channel.edited")}
-                            </span>
+                            </Badge>
                           )}
                           {editingMessageId !== msg.id && (
-                            <button
+                            <Button
+                              variant="icon"
+                              size="sm"
                               onClick={(e) => openMenuForElement(msg.id, e.currentTarget)}
                               data-testid={`channel-message-menu-trigger-${msg.id}`}
-                              className="ml-auto inline-flex h-5 w-5 items-center justify-center rounded text-xs text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                              className="ml-auto h-6 w-6"
                               aria-label={t("channel.messageMenu")}
                               aria-haspopup="menu"
                               aria-expanded={messageMenuId === msg.id}
                             >
-                              ⋯
-                            </button>
+                              <MoreHorizontal size={14} />
+                            </Button>
                           )}
                         </div>
                         <div data-testid={`message-bubble-wrap-${msg.id}`} className={isOwnMessage ? "ml-28 sm:ml-44" : ""}>
@@ -1534,8 +1564,8 @@ export default function ChannelDetailPage() {
                             }}
                             className={`mt-1 w-fit max-w-full rounded-2xl border px-3 py-2 shadow-sm ${
                               isOwnMessage
-                                ? "bg-emerald-50 border-emerald-200 text-zinc-900 dark:bg-emerald-950/40 dark:border-emerald-900 dark:text-zinc-100"
-                                : "bg-white/95 dark:bg-zinc-900/95 border-zinc-200 dark:border-zinc-800"
+                                ? "bg-primary/10 border-primary/20 text-foreground"
+                                : "bg-card text-foreground border-border"
                             }`}
                           >
                           {msg.parentId && (
@@ -1546,23 +1576,23 @@ export default function ChannelDetailPage() {
                                   return (
                                     <button
                                       onClick={() => scrollToMessage(parent.id)}
-                                      className="flex w-full flex-col gap-0.5 rounded-lg border-l-4 border-zinc-400 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900/60 px-2.5 py-1.5 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors"
+                                      className="flex w-full flex-col gap-0.5 rounded-lg border-l-4 border-muted-foreground bg-muted/50 px-2.5 py-1.5 text-left hover:bg-accent/50 transition-colors"
                                     >
-                                      <span className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-300">
+                                      <span className="text-[11px] font-semibold text-foreground">
                                         {getMessageAuthorName(parent)}
                                       </span>
-                                      <span className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2">
+                                      <span className="text-xs text-muted-foreground line-clamp-2">
                                         {getMessageSnippet(parent)}
                                       </span>
                                     </button>
                                   );
                                 }
                                 return (
-                                  <div className="flex flex-col gap-0.5 rounded-lg border-l-4 border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 px-2.5 py-1.5">
-                                    <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
+                                  <div className="flex flex-col gap-0.5 rounded-lg border-l-4 border-border bg-muted/50 px-2.5 py-1.5">
+                                    <span className="text-[11px] font-semibold text-muted-foreground">
                                       {t("channel.reply")}
                                     </span>
-                                    <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                                    <span className="text-xs text-muted-foreground/80">
                                       {t("channel.replyOriginalUnavailable")}
                                     </span>
                                   </div>
@@ -1580,37 +1610,35 @@ export default function ChannelDetailPage() {
                                 onChange={(e) => setEditContent(e.target.value)}
                                 disabled={editState.kind === "loading"}
                                 aria-label={t("channel.edit")}
-                                className="w-full resize-none rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100 disabled:opacity-60"
+                                className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-60"
                               />
                               <div className="flex items-center gap-2">
-                                <button
+                                <Button
                                   type="submit"
+                                  size="sm"
                                   disabled={editState.kind === "loading"}
-                                  className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
                                 >
                                   {editState.kind === "loading" ? t("channel.savingEdit") : t("channel.save")}
-                                </button>
-                                <button
+                                </Button>
+                                <Button
                                   type="button"
+                                  variant="secondary"
+                                  size="sm"
                                   onClick={handleEditCancel}
                                   disabled={editState.kind === "loading"}
-                                  className="inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-60 transition-colors"
                                 >
                                   {t("channel.cancel")}
-                                </button>
+                                </Button>
                               </div>
                               {editState.kind === "error" && (
-                                <div className="rounded-lg border border-red-200 bg-red-50 p-2 text-xs dark:border-red-900 dark:bg-red-950/30">
-                                  <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-                                    <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-                                    {editState.message}
-                                  </div>
+                                <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-2 text-xs text-destructive">
+                                  {editState.message}
                                 </div>
                               )}
                             </form>
                           ) : (
                             msg.content.trim().length > 0 && (
-                              <p className="whitespace-pre-wrap break-words text-sm leading-6 text-zinc-800 dark:text-zinc-200">
+                              <p className="whitespace-pre-wrap break-words text-sm leading-6 text-foreground">
                                 {msg.content}
                               </p>
                             )
@@ -1637,11 +1665,11 @@ export default function ChannelDetailPage() {
                                     key={att.id}
                                     onClick={() => handleDownloadAttachment(msg, att)}
                                     data-testid={`message-attachment-${msg.id}-${att.id}`}
-                                    className="flex items-center gap-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 px-2.5 py-1.5 text-left text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors"
+                                    className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-2.5 py-1.5 text-left text-xs hover:bg-accent/50 transition-colors"
                                   >
-                                    <span className="text-base">📄</span>
-                                    <span className="truncate font-medium text-zinc-700 dark:text-zinc-200">{att.fileName}</span>
-                                    <span className="shrink-0 text-zinc-400 dark:text-zinc-500">{formatFileSize(att.sizeBytes)}</span>
+                                    <Paperclip size={14} className="text-muted-foreground" />
+                                    <span className="truncate font-medium text-foreground">{att.fileName}</span>
+                                    <span className="shrink-0 text-muted-foreground">{formatFileSize(att.sizeBytes)}</span>
                                   </button>
                                 ),
                               )}
@@ -1656,8 +1684,8 @@ export default function ChannelDetailPage() {
                                   data-testid={`channel-reaction-chip-${msg.id}-${reaction.emoji}`}
                                   className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-colors ${
                                     reaction.reactedByMe
-                                      ? "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-900 dark:text-emerald-400"
-                                      : "bg-white/80 border-zinc-200 text-zinc-600 dark:bg-zinc-900/60 dark:border-zinc-700 dark:text-zinc-300"
+                                      ? "bg-primary/10 border-primary/20 text-primary"
+                                      : "bg-card border-border text-muted-foreground"
                                   }`}
                                 >
                                   <span>{reaction.emoji}</span>
@@ -1687,33 +1715,35 @@ export default function ChannelDetailPage() {
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            className={`relative shrink-0 flex flex-col gap-2 border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4 shadow-sm ${isDragOver ? "ring-2 ring-inset ring-blue-400 dark:ring-blue-600" : ""}`}
+            className={`relative shrink-0 flex flex-col gap-2 border-t border-border bg-card p-4 shadow-sm ${isDragOver ? "ring-2 ring-inset ring-primary" : ""}`}
           >
             {isDragOver && (
-              <div data-testid="composer-drag-overlay" className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-blue-50/80 dark:bg-blue-900/20 border-2 border-dashed border-blue-400 dark:border-blue-600 backdrop-blur-sm">
-                <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Drop files here</span>
+              <div data-testid="composer-drag-overlay" className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-primary/5 border-2 border-dashed border-primary backdrop-blur-sm">
+                <span className="text-sm font-medium text-primary">Drop files here</span>
               </div>
             )}
             {replyTargetId && (
-              <div className="flex items-start justify-between gap-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 px-3 py-2">
+              <div className="flex items-start justify-between gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2">
                 <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                  <p className="text-[11px] font-medium text-muted-foreground">
                     {replyTarget
                       ? `${t("channel.replyingTo")} ${getMessageAuthorName(replyTarget)}`
                       : t("channel.reply")}
                   </p>
-                  <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-300 truncate">
+                  <p className="mt-0.5 text-xs text-foreground truncate">
                     {replyTarget ? getMessageSnippet(replyTarget) : t("channel.replyOriginalUnavailable")}
                   </p>
                 </div>
-                <button
+                <Button
                   type="button"
+                  variant="icon"
+                  size="sm"
                   onClick={() => setReplyTargetId(null)}
-                  className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                  className="h-6 w-6"
                   aria-label={t("channel.cancelReply")}
                 >
-                  ×
-                </button>
+                  <X size={14} />
+                </Button>
               </div>
             )}
             <textarea
@@ -1739,7 +1769,7 @@ export default function ChannelDetailPage() {
                 }
               }}
               disabled={sendState.kind === "loading"}
-              className="w-full resize-none rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100 disabled:opacity-60"
+              className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-60"
             />
             {composerAttachments.length > 0 && (
               <div data-testid="composer-attachments" className="flex flex-wrap gap-2">
@@ -1754,34 +1784,36 @@ export default function ChannelDetailPage() {
                     <div
                       key={att.id}
                       data-testid={`composer-attachment-preview-${index}`}
-                      className="relative inline-flex flex-col gap-1 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 p-1"
+                      className="relative inline-flex flex-col gap-1 rounded-lg border border-border bg-muted/50 p-1"
                     >
                       <div className="relative">
                         {/* eslint-disable-next-line @next/next/no-img-element -- blob preview URLs are intentionally rendered with native img */}
                         <img src={previewUrl} alt={att.file.name} className="h-16 w-16 rounded object-cover" />
                         {canRemove && (
-                          <button
+                          <Button
                             type="button"
+                            variant="icon"
+                            size="sm"
                             onClick={() => handleRemoveAttachment(att.id)}
                             data-testid={`composer-attachment-remove-${index}`}
-                            className="absolute -right-1.5 -top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full bg-zinc-200 text-zinc-600 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
+                            className="absolute -right-1.5 -top-1.5 h-4 w-4"
                             aria-label={t("channel.removeAttachment")}
                           >
-                            ✕
-                          </button>
+                            <X size={10} />
+                          </Button>
                         )}
                       </div>
                       <div className="flex items-center justify-between gap-1 px-0.5">
-                        <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
+                        <span className="text-[10px] text-muted-foreground">
                           {formatFileSize(att.file.size)}
                         </span>
                         <span
                           className={`text-[10px] font-medium ${
                             isFailed
-                              ? "text-red-600 dark:text-red-400"
+                              ? "text-destructive"
                               : isUploaded
-                              ? "text-green-600 dark:text-green-400"
-                              : "text-zinc-500 dark:text-zinc-400"
+                              ? "text-primary"
+                              : "text-muted-foreground"
                           }`}
                           data-testid={`composer-attachment-status-${index}`}
                         >
@@ -1796,58 +1828,63 @@ export default function ChannelDetailPage() {
                       </div>
                       {isUploading && (
                         <div className="w-full px-0.5">
-                          <div className="h-1 w-full rounded-full bg-zinc-200 dark:bg-zinc-700">
+                          <div className="h-1 w-full rounded-full bg-muted">
                             <div
-                              className="h-1 rounded-full bg-blue-500 transition-all"
+                              className="h-1 rounded-full bg-primary transition-all"
                               style={{ width: `${att.progress}%` }}
                               data-testid={`composer-attachment-progress-${index}`}
                             />
                           </div>
-                          <span className="text-[10px] text-zinc-500 dark:text-zinc-400">{att.progress}%</span>
+                          <span className="text-[10px] text-muted-foreground">{att.progress}%</span>
                         </div>
                       )}
                       {isFailed && (
-                        <button
+                        <Button
                           type="button"
+                          variant="ghost"
+                          size="sm"
                           onClick={() => handleRetryAttachment(att.id)}
                           data-testid={`composer-attachment-retry-${index}`}
-                          className="px-0.5 text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                          className="h-auto px-0.5 py-0 text-xs"
                         >
                           {t("channel.retryUpload")}
-                        </button>
+                        </Button>
                       )}
                     </div>
                   ) : (
                     <div
                       key={att.id}
                       data-testid={`composer-attachment-chip-${index}`}
-                      className="inline-flex flex-col gap-1 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 px-2.5 py-1 text-xs"
+                      className="inline-flex flex-col gap-1 rounded-lg border border-border bg-muted/50 px-2.5 py-1 text-xs"
                     >
                       <div className="flex items-center gap-1.5">
+                        <Paperclip size={12} className="text-muted-foreground" />
                         <span className="truncate max-w-[6rem]">{att.file.name}</span>
                         {canRemove && (
-                          <button
+                          <Button
                             type="button"
+                            variant="icon"
+                            size="sm"
                             onClick={() => handleRemoveAttachment(att.id)}
                             data-testid={`composer-attachment-remove-${index}`}
-                            className="inline-flex h-4 w-4 items-center justify-center rounded text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                            className="h-4 w-4"
                             aria-label={t("channel.removeAttachment")}
                           >
-                            ✕
-                          </button>
+                            <X size={10} />
+                          </Button>
                         )}
                       </div>
                       <div className="flex items-center justify-between gap-1">
-                        <span className="text-[10px] text-zinc-500 dark:text-zinc-400">
+                        <span className="text-[10px] text-muted-foreground">
                           {formatFileSize(att.file.size)}
                         </span>
                         <span
                           className={`text-[10px] font-medium ${
                             isFailed
-                              ? "text-red-600 dark:text-red-400"
+                              ? "text-destructive"
                               : isUploaded
-                              ? "text-green-600 dark:text-green-400"
-                              : "text-zinc-500 dark:text-zinc-400"
+                              ? "text-primary"
+                              : "text-muted-foreground"
                           }`}
                           data-testid={`composer-attachment-status-${index}`}
                         >
@@ -1862,25 +1899,27 @@ export default function ChannelDetailPage() {
                       </div>
                       {isUploading && (
                         <div className="w-full">
-                          <div className="h-1 w-full rounded-full bg-zinc-200 dark:bg-zinc-700">
+                          <div className="h-1 w-full rounded-full bg-muted">
                             <div
-                              className="h-1 rounded-full bg-blue-500 transition-all"
+                              className="h-1 rounded-full bg-primary transition-all"
                               style={{ width: `${att.progress}%` }}
                               data-testid={`composer-attachment-progress-${index}`}
                             />
                           </div>
-                          <span className="text-[10px] text-zinc-500 dark:text-zinc-400">{att.progress}%</span>
+                          <span className="text-[10px] text-muted-foreground">{att.progress}%</span>
                         </div>
                       )}
                       {isFailed && (
-                        <button
+                        <Button
                           type="button"
+                          variant="ghost"
+                          size="sm"
                           onClick={() => handleRetryAttachment(att.id)}
                           data-testid={`composer-attachment-retry-${index}`}
-                          className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                          className="h-auto px-0 py-0 text-xs"
                         >
                           {t("channel.retryUpload")}
-                        </button>
+                        </Button>
                       )}
                     </div>
                   );
@@ -1889,16 +1928,17 @@ export default function ChannelDetailPage() {
             )}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
+                  size="sm"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={sendState.kind === "loading" || isUploadingAttachments}
                   data-testid="composer-attach-button"
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-60 transition-colors"
                   aria-label={t("channel.attachFile")}
                 >
-                  📎
-                </button>
+                  <Paperclip size={16} />
+                </Button>
                 <input
                   id="file-input"
                   name="file-input"
@@ -1911,32 +1951,29 @@ export default function ChannelDetailPage() {
                   data-testid="composer-file-input"
                   aria-label={t("channel.attachFile")}
                 />
-                <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                <span className="text-xs text-muted-foreground">
                   {content.length}/4000
                 </span>
               </div>
-              <button
+              <Button
                 type="submit"
                 disabled={sendState.kind === "loading" || isUploadingAttachments}
-                className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
               >
-                {sendState.kind === "loading" || isUploadingAttachments ? t("channel.sending") : t("channel.send")}
-              </button>
+                {sendState.kind === "loading" || isUploadingAttachments ? (
+                  <><Loader2 size={16} className="mr-1.5 animate-spin" />{t("channel.sending")}</>
+                ) : (
+                  <><Send size={16} className="mr-1.5" />{t("channel.send")}</>
+                )}
+              </Button>
             </div>
             {attachmentError && (
-              <div className="rounded-lg border border-red-200 bg-red-50 p-2.5 text-sm dark:border-red-900 dark:bg-red-950/30">
-                <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-                  <span className="h-2 w-2 rounded-full bg-red-500" />
-                  {attachmentError}
-                </div>
+              <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-2.5 text-sm text-destructive">
+                {attachmentError}
               </div>
             )}
             {sendState.kind === "error" && (
-              <div className="rounded-lg border border-red-200 bg-red-50 p-2.5 text-sm dark:border-red-900 dark:bg-red-950/30">
-                <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-                  <span className="h-2 w-2 rounded-full bg-red-500" />
-                  {sendState.message}
-                </div>
+              <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-2.5 text-sm text-destructive">
+                {sendState.message}
               </div>
             )}
           </form>
@@ -1948,7 +1985,7 @@ export default function ChannelDetailPage() {
         <div
           data-testid={`channel-message-menu-${messageMenuId}`}
           style={{ top: messageMenuPosition.top, left: messageMenuPosition.left }}
-          className="fixed z-50 w-44 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-1 shadow-lg"
+          className="fixed z-50 w-44 rounded-lg border border-border bg-popover p-1 shadow-lg"
           role="menu"
         >
           {(() => {
@@ -1964,10 +2001,10 @@ export default function ChannelDetailPage() {
                       handleEditStart(activeMenuMessage);
                     }}
                     data-testid={`channel-edit-action-${activeMenuMessage.id}`}
-                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground"
                     role="menuitem"
                   >
-                    <span className="text-base">✏️</span>
+                    <Edit3 size={16} />
                     <span>{t("channel.edit")}</span>
                   </button>
                 )}
@@ -1977,10 +2014,10 @@ export default function ChannelDetailPage() {
                     setReplyTargetId(activeMenuMessage.id);
                   }}
                   data-testid={`channel-reply-action-${activeMenuMessage.id}`}
-                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground"
                   role="menuitem"
                 >
-                  <span className="text-base">↩</span>
+                  <Reply size={16} />
                   <span>{t("channel.reply")}</span>
                 </button>
                 <button
@@ -1990,28 +2027,28 @@ export default function ChannelDetailPage() {
                     }
                   }}
                   data-testid={`channel-react-action-${activeMenuMessage.id}`}
-                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground"
                   role="menuitem"
                 >
-                  <span className="text-base">😊</span>
+                  <Smile size={16} />
                   <span>{t("channel.react")}</span>
                 </button>
                 <button
                   onClick={() => handleForward(activeMenuMessage)}
                   data-testid={`channel-forward-action-${activeMenuMessage.id}`}
-                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground"
                   role="menuitem"
                 >
-                  <span className="text-base">↪</span>
+                  <Forward size={16} />
                   <span>{t("channel.forward")}</span>
                 </button>
                 <button
                   onClick={() => handleCopyText(activeMenuMessage.content)}
                   data-testid={`channel-copy-text-action-${activeMenuMessage.id}`}
-                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground"
                   role="menuitem"
                 >
-                  <span className="text-base">📋</span>
+                  <Copy size={16} />
                   <span>{t("channel.copyText")}</span>
                 </button>
                 {isOwn && (
@@ -2021,10 +2058,10 @@ export default function ChannelDetailPage() {
                       handleDelete(activeMenuMessage.id);
                     }}
                     data-testid={`channel-delete-action-${activeMenuMessage.id}`}
-                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-destructive hover:bg-destructive/10"
                     role="menuitem"
                   >
-                    <span className="text-base">🗑️</span>
+                    <Trash2 size={16} />
                     <span>{t("channel.delete")}</span>
                   </button>
                 )}
@@ -2038,7 +2075,7 @@ export default function ChannelDetailPage() {
         <div
           data-testid={`channel-reaction-picker-${reactionPickerMessageId}`}
           style={{ top: reactionPickerPosition.top, left: reactionPickerPosition.left }}
-          className="fixed z-50 flex flex-wrap gap-1 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-1.5 shadow-sm"
+          className="fixed z-50 flex flex-wrap gap-1 rounded-lg border border-border bg-popover p-1.5 shadow-sm"
         >
           {quickEmojis.map((emoji) => (
             <button
@@ -2051,7 +2088,7 @@ export default function ChannelDetailPage() {
                 closeMenuAndPicker();
               }}
               data-testid={`channel-reaction-option-${reactionPickerMessageId}-${emoji}`}
-              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-sm hover:bg-accent transition-colors"
               aria-label={`${t("channel.react")} ${emoji}`}
             >
               {emoji}
@@ -2063,19 +2100,20 @@ export default function ChannelDetailPage() {
       {forwardModalMessage && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setForwardModalMessage(null)} />
-          <div className="relative z-10 w-full max-w-sm rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-lg">
+          <div className="relative z-10 w-full max-w-sm rounded-xl border border-border bg-card p-4 shadow-lg">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold">{t("channel.forwardTo")}</h3>
-              <button
+              <h3 className="text-sm font-semibold text-card-foreground">{t("channel.forwardTo")}</h3>
+              <Button
+                variant="icon"
+                size="sm"
                 onClick={() => setForwardModalMessage(null)}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                 aria-label={t("channel.cancel")}
               >
-                ×
-              </button>
+                <X size={16} />
+              </Button>
             </div>
             {forwardTargets === null || forwardTargets.length === 0 ? (
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">{forwardError || t("channel.noConversations")}</p>
+              <p className="text-sm text-muted-foreground">{forwardError || t("channel.noConversations")}</p>
             ) : (
               <div className="max-h-60 overflow-y-auto space-y-1">
                 {forwardTargets.map((conv) => (
@@ -2083,11 +2121,14 @@ export default function ChannelDetailPage() {
                     key={conv.id}
                     onClick={() => handleForwardSend(conv.id)}
                     disabled={forwarding}
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-50"
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-card-foreground hover:bg-accent disabled:opacity-50"
                   >
-                    <div className="h-8 w-8 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                      {(conv.otherParticipant?.displayName || conv.otherParticipant?.username || "?").slice(0, 2).toUpperCase()}
-                    </div>
+                    <Avatar
+                      src={conv.otherParticipant?.avatarUrl}
+                      name={conv.otherParticipant?.displayName || conv.otherParticipant?.username || "?"}
+                      size="sm"
+                      alt=""
+                    />
                     <span className="truncate">{conv.otherParticipant?.displayName || conv.otherParticipant?.username || t("messageAuthor.unknownUser")}</span>
                   </button>
                 ))}
@@ -2117,24 +2158,25 @@ export default function ChannelDetailPage() {
     {isMembersOpen && (
       <div className="fixed inset-0 z-40">
         <div className="absolute inset-0 bg-black/20" onClick={() => setIsMembersOpen(false)} />
-        <aside className="absolute right-0 top-0 h-full w-full max-w-sm bg-white dark:bg-zinc-950 border-l border-zinc-200 dark:border-zinc-800 shadow-xl flex flex-col overflow-hidden">
-          <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 px-5 py-4 shrink-0">
-            <h2 className="text-sm font-semibold">{t("channel.members")}</h2>
-            <button
+        <aside className="absolute right-0 top-0 h-full w-full max-w-sm bg-card border-l border-border shadow-xl flex flex-col overflow-hidden">
+          <div className="flex items-center justify-between border-b border-border px-5 py-4 shrink-0">
+            <h2 className="text-sm font-semibold text-card-foreground">{t("channel.members")}</h2>
+            <Button
+              variant="icon"
+              size="sm"
               onClick={() => setIsMembersOpen(false)}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
               aria-label={t("channel.cancel")}
             >
-              ×
-            </button>
+              <X size={18} />
+            </Button>
           </div>
 
           <div className="px-5 pt-4 shrink-0">
-            <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 p-3 text-xs text-zinc-600 dark:text-zinc-300">
+            <div className="rounded-lg border border-border bg-muted/50 p-3 text-xs text-muted-foreground">
               <p>{t("channel.membersPanelInfo")}</p>
               <Link
                 href={`/workspaces/${workspaceId}`}
-                className="mt-1 inline-block font-medium text-zinc-900 dark:text-zinc-100 hover:underline"
+                className="mt-1 inline-block font-medium text-foreground hover:underline"
               >
                 {t("channel.manageWorkspaceRoles")} →
               </Link>
@@ -2142,7 +2184,7 @@ export default function ChannelDetailPage() {
           </div>
 
           <div className="px-5 pt-4 shrink-0">
-            <input
+            <Input
               id="channel-search-input"
               name="channel-search-input"
               type="text"
@@ -2150,14 +2192,13 @@ export default function ChannelDetailPage() {
               value={memberSearch}
               onChange={(e) => setMemberSearch(e.target.value)}
               aria-label={t("channel.searchMembers")}
-              className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
             />
           </div>
 
           {canManageMembers && (
             <form onSubmit={handleAddMember} className="px-5 pt-3 flex flex-col gap-2 shrink-0">
               <div className="flex items-center gap-2">
-                <input
+                <Input
                   id="channel-invite-username"
                   name="channel-invite-username"
                   type="text"
@@ -2171,15 +2212,15 @@ export default function ChannelDetailPage() {
                   }}
                   disabled={addMemberState.kind === "loading"}
                   aria-label={t("channel.invitePlaceholder")}
-                  className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100 disabled:opacity-60"
+                  className="flex-1"
                 />
-                <button
+                <Button
                   type="submit"
+                  size="sm"
                   disabled={addMemberState.kind === "loading"}
-                  className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
                 >
                   {addMemberState.kind === "loading" ? t("channel.adding") : t("channel.add")}
-                </button>
+                </Button>
               </div>
               {myChannelRole === "OWNER" && (
                 <select
@@ -2189,33 +2230,30 @@ export default function ChannelDetailPage() {
                   onChange={(e) => setAddMemberRole(e.target.value as "MEMBER" | "ADMIN")}
                   disabled={addMemberState.kind === "loading"}
                   aria-label={t("workspace.inviteRole")}
-                  className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100 disabled:opacity-60"
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-60"
                 >
                   <option value="MEMBER">{t("channel.member")}</option>
                   <option value="ADMIN">{t("channel.admin")}</option>
                 </select>
               )}
               {addMemberState.kind === "error" && (
-                <div className="rounded-lg border border-red-200 bg-red-50 p-2.5 text-sm dark:border-red-900 dark:bg-red-950/30">
-                  <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-                    <span className="h-2 w-2 rounded-full bg-red-500" />
-                    {addMemberState.message}
-                  </div>
+                <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-2.5 text-sm text-destructive">
+                  {addMemberState.message}
                 </div>
               )}
               {addMemberState.kind === "success" && (
-                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
-                  <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                <div className="rounded-lg border border-primary/20 bg-primary/10 p-2.5 text-sm text-primary">
+                  <div className="flex items-center gap-2 font-medium">
+                    <Check size={16} />
                     {t("channel.invitationSent")}
                   </div>
-                  <p className="mt-1 text-emerald-700 dark:text-emerald-300/90">
+                  <p className="mt-1 text-primary/90">
                     {t("channel.inviteAcceptanceNote")}
                   </p>
                 </div>
               )}
               {addMemberState.kind === "idle" && (
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                <p className="text-xs text-muted-foreground">
                   {t("channel.inviteAcceptanceNote")}
                 </p>
               )}
@@ -2224,7 +2262,7 @@ export default function ChannelDetailPage() {
 
           {channel.kind === "success" && (
             <div className="px-5 pt-2 shrink-0">
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              <p className="text-xs text-muted-foreground">
                 {channel.data.type === "PUBLIC"
                   ? t("channel.publicChannelNote")
                   : t("channel.privateChannelNote")}
@@ -2234,54 +2272,54 @@ export default function ChannelDetailPage() {
 
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-2">
             {members.kind === "loading" && (
-              <div className="mt-3 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
-                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
+              <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 size={16} className="animate-spin" />
                 {t("channel.loadingMembers")}
               </div>
             )}
 
             {members.kind === "error" && (
-              <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-                <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-                  <span className="h-2 w-2 rounded-full bg-red-500" />
-                  {members.message}
-                </div>
+              <div className="mt-3 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+                {members.message}
               </div>
             )}
 
             {members.kind === "success" && filteredMembers.length === 0 && (
-              <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
+              <p className="mt-3 text-sm text-muted-foreground">
                 {t("channel.noMembers")}
               </p>
             )}
 
             {members.kind === "success" && filteredMembers.length > 0 && (
-              <ul className="mt-3 divide-y divide-zinc-200 dark:divide-zinc-800">
+              <ul className="mt-3 divide-y divide-border">
                 {filteredMembers.map((m) => (
                   <li key={m.id} className="flex items-center justify-between py-2">
                     <div className="min-w-0">
                       <MessageAuthor author={m.user} />
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide shrink-0 ${
+                      <Badge
+                        variant={
                           m.role === "OWNER"
-                            ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-400"
+                            ? "warning"
                             : m.role === "ADMIN"
-                              ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400"
-                              : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400"
-                        }`}
+                              ? "info"
+                              : "muted"
+                        }
+                        className="text-[10px] uppercase tracking-wide"
                       >
                         {m.role === "OWNER" ? t("channel.owner") : m.role === "ADMIN" ? t("channel.admin") : t("channel.member")}
-                      </span>
+                      </Badge>
                       {canRemoveMember(m.role, m.user.id) && (
-                        <button
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => handleRemoveMember(m.id, m.user.username)}
                           disabled={removeMemberState.kind === "loading" && removeMemberState.memberId === m.id}
-                          className="text-[10px] text-zinc-400 hover:text-red-600 dark:text-zinc-500 dark:hover:text-red-400 underline disabled:opacity-50"
+                          className="h-auto px-0 py-0 text-[10px] text-destructive hover:bg-transparent hover:text-destructive/80 disabled:opacity-50"
                         >
                           {removeMemberState.kind === "loading" && removeMemberState.memberId === m.id ? t("channel.removing") : t("channel.remove")}
-                        </button>
+                        </Button>
                       )}
                     </div>
                   </li>
@@ -2292,11 +2330,8 @@ export default function ChannelDetailPage() {
 
           {removeMemberState.kind === "error" && (
             <div className="px-5 pb-4">
-              <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-                <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-                  <span className="h-2 w-2 rounded-full bg-red-500" />
-                  {removeMemberState.message}
-                </div>
+              <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+                {removeMemberState.message}
               </div>
             </div>
           )}

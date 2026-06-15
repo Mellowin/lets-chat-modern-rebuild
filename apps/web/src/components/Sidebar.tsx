@@ -3,6 +3,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  MessageSquare,
+  Users,
+  ChevronRight,
+  Hash,
+  Globe,
+  ArrowUp,
+  ArrowDown,
+  Loader2,
+} from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { getWorkspaces, type Workspace } from "@/lib/workspaces-api";
 import { getChannels, type Channel } from "@/lib/channels-api";
@@ -11,6 +21,7 @@ import { type Message } from "@/lib/messages-api";
 import { createSocket } from "@/lib/socket-client";
 import { useLocale } from "@/lib/locale";
 import { dispatchGlobalUnread, updateDocumentTitle } from "@/lib/global-unread";
+import { Badge } from "@/components/ui/Badge";
 
 type WorkspacesState =
   | { kind: "idle" }
@@ -39,11 +50,19 @@ function getStoredSectionOrder(): SectionOrder {
   return "direct-first";
 }
 
+function unreadBadge(count: number, testId?: string) {
+  if (count <= 0) return null;
+  return (
+    <Badge variant="muted" className="ml-1.5" data-testid={testId}>
+      {count > 99 ? "99+" : count}
+    </Badge>
+  );
+}
+
 export default function Sidebar() {
   const { accessToken, isAuthenticated, isLoading: authLoading } = useAuth();
   const pathname = usePathname();
   const { t } = useLocale();
-
 
   const [workspaces, setWorkspaces] = useState<WorkspacesState>({ kind: "idle" });
   const [workspaceChannels, setWorkspaceChannels] = useState<Record<string, WorkspaceChannelsState>>({});
@@ -421,9 +440,12 @@ export default function Sidebar() {
 
   if (authLoading || !isAuthenticated) {
     return (
-      <aside className="w-60 shrink-0 border-r border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 hidden sm:flex flex-col p-3">
-        <div className="text-xs font-medium text-zinc-400 uppercase tracking-wider px-2 py-1">{t("sidebar.workspace")}</div>
-        <div className="mt-2 px-2 text-sm text-zinc-400 dark:text-zinc-500">{t("sidebar.signInToSeeWorkspaces")}</div>
+      <aside className="w-60 shrink-0 border-r border-border bg-card/50 hidden sm:flex flex-col p-3">
+        <div className="flex items-center gap-2 px-2 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+          <Users size={14} />
+          {t("sidebar.workspace")}
+        </div>
+        <div className="mt-2 px-2 text-sm text-muted-foreground">{t("sidebar.signInToSeeWorkspaces")}</div>
       </aside>
     );
   }
@@ -433,9 +455,13 @@ export default function Sidebar() {
       <button
         onClick={toggleDirect}
         data-testid="sidebar-direct-toggle"
-        className="flex flex-1 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-zinc-400 uppercase tracking-wider hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
+        className="flex flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide hover:bg-accent hover:text-accent-foreground transition-colors"
       >
-        <span className={`transition-transform ${directExpanded ? "rotate-90" : ""}`}>▸</span>
+        <ChevronRight
+          size={14}
+          className={`shrink-0 transition-transform ${directExpanded ? "rotate-90" : ""}`}
+        />
+        <MessageSquare size={14} />
         <span>{t("sidebar.direct")}</span>
       </button>
       <button
@@ -446,9 +472,9 @@ export default function Sidebar() {
         }}
         data-testid="sidebar-direct-move"
         aria-label={t(sectionOrder === "direct-first" ? "sidebar.moveDown" : "sidebar.moveUp")}
-        className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-[10px] text-zinc-400 hover:bg-zinc-200/60 hover:text-zinc-700 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-200"
+        className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
       >
-        {sectionOrder === "direct-first" ? "↓" : "↑"}
+        {sectionOrder === "direct-first" ? <ArrowDown size={14} /> : <ArrowUp size={14} />}
       </button>
     </div>
   );
@@ -457,9 +483,13 @@ export default function Sidebar() {
     <div className="flex items-center gap-1">
       <button
         onClick={toggleWorkspaces}
-        className="flex flex-1 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-zinc-400 uppercase tracking-wider hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
+        className="flex flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide hover:bg-accent hover:text-accent-foreground transition-colors"
       >
-        <span className={`transition-transform ${workspacesExpanded ? "rotate-90" : ""}`}>▸</span>
+        <ChevronRight
+          size={14}
+          className={`shrink-0 transition-transform ${workspacesExpanded ? "rotate-90" : ""}`}
+        />
+        <Users size={14} />
         <span>{t("sidebar.workspaces")}</span>
       </button>
       <button
@@ -470,9 +500,9 @@ export default function Sidebar() {
         }}
         data-testid="sidebar-workspaces-move"
         aria-label={t(sectionOrder === "workspaces-first" ? "sidebar.moveDown" : "sidebar.moveUp")}
-        className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-[10px] text-zinc-400 hover:bg-zinc-200/60 hover:text-zinc-700 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-200"
+        className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
       >
-        {sectionOrder === "workspaces-first" ? "↓" : "↑"}
+        {sectionOrder === "workspaces-first" ? <ArrowDown size={14} /> : <ArrowUp size={14} />}
       </button>
     </div>
   );
@@ -489,16 +519,12 @@ export default function Sidebar() {
                 data-testid="sidebar-direct-link"
                 className={`flex items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors ${
                   pathname?.startsWith("/direct")
-                    ? "bg-zinc-200 dark:bg-zinc-800 font-medium text-zinc-900 dark:text-zinc-100"
-                    : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
+                    ? "bg-zinc-200 dark:bg-zinc-800 font-medium text-foreground"
+                    : "text-foreground/80 hover:bg-accent hover:text-accent-foreground"
                 }`}
               >
                 <span className="truncate block">{t("sidebar.directMessages")}</span>
-                {directUnreadTotal > 0 && (
-                  <span data-testid="sidebar-direct-unread-badge" className="inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-zinc-900 px-1 text-[9px] font-bold text-white dark:bg-zinc-100 dark:text-zinc-900">
-                    {directUnreadTotal > 99 ? "99+" : directUnreadTotal}
-                  </span>
-                )}
+                {unreadBadge(directUnreadTotal, "sidebar-direct-unread-badge")}
               </Link>
             </li>
           </ul>
@@ -514,10 +540,10 @@ export default function Sidebar() {
                       data-testid={`sidebar-direct-conversation-link-${conv.id}`}
                       className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
                         isActive
-                          ? "bg-zinc-200 dark:bg-zinc-800 font-medium text-zinc-900 dark:text-zinc-100"
+                          ? "bg-zinc-200 dark:bg-zinc-800 font-medium text-foreground"
                           : conv.hasUnread
-                            ? "font-medium text-zinc-900 dark:text-zinc-100 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
-                            : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
+                            ? "font-medium text-foreground hover:bg-accent hover:text-accent-foreground"
+                            : "text-foreground/80 hover:bg-accent hover:text-accent-foreground"
                       }`}
                     >
                       <span
@@ -527,11 +553,7 @@ export default function Sidebar() {
                         }`}
                       />
                       <span className="truncate flex-1">{name}</span>
-                      {conv.unreadCount > 0 && (
-                        <span className="inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-zinc-900 px-1 text-[9px] font-bold text-white dark:bg-zinc-100 dark:text-zinc-900">
-                          {conv.unreadCount > 99 ? "99+" : conv.unreadCount}
-                        </span>
-                      )}
+                      {unreadBadge(conv.unreadCount)}
                     </Link>
                   </li>
                 );
@@ -549,16 +571,16 @@ export default function Sidebar() {
       {workspacesExpanded && (
         <div className="mt-1">
           {workspaces.kind === "loading" && (
-            <div className="flex items-center gap-2 px-2 text-sm text-zinc-500 dark:text-zinc-400">
-              <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
+            <div className="flex items-center gap-2 px-2 text-sm text-muted-foreground">
+              <Loader2 size={14} className="animate-spin" />
               {t("sidebar.loading")}
             </div>
           )}
           {workspaces.kind === "error" && (
-            <div className="px-2 text-sm text-red-600 dark:text-red-400">{t("sidebar.failedToLoadWorkspaces")}</div>
+            <div className="px-2 text-sm text-destructive">{t("sidebar.failedToLoadWorkspaces")}</div>
           )}
           {workspaces.kind === "success" && workspaces.data.length === 0 && (
-            <div className="px-2 text-sm text-zinc-500 dark:text-zinc-400">{t("sidebar.noWorkspacesYet")}</div>
+            <div className="px-2 text-sm text-muted-foreground">{t("sidebar.noWorkspacesYet")}</div>
           )}
           {workspaces.kind === "success" && workspaces.data.length > 0 && (
             <ul className="space-y-0.5">
@@ -572,89 +594,79 @@ export default function Sidebar() {
                       data-testid={`sidebar-workspace-toggle-${ws.id}`}
                       className={`flex w-full items-center gap-1 rounded-md px-2 py-1.5 text-sm transition-colors ${
                         isActive
-                          ? "bg-zinc-200 dark:bg-zinc-800 font-medium text-zinc-900 dark:text-zinc-100"
-                          : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
+                          ? "bg-zinc-200 dark:bg-zinc-800 font-medium text-foreground"
+                          : "text-foreground/80 hover:bg-accent hover:text-accent-foreground"
                       }`}
                     >
-                      <span className={`transition-transform ${isExpanded ? "rotate-90" : ""}`}>▸</span>
+                      <ChevronRight
+                        size={14}
+                        className={`shrink-0 transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                      />
                       <span className="truncate flex-1 text-left">{ws.name}</span>
-                      {(workspaceChannelUnread[ws.id] ?? 0) > 0 && (
-                        <span
-                          data-testid={`sidebar-workspace-unread-${ws.id}`}
-                          className="inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-zinc-900 px-1 text-[9px] font-bold text-white dark:bg-zinc-100 dark:text-zinc-900"
-                        >
-                          {workspaceChannelUnread[ws.id] > 99 ? "99+" : workspaceChannelUnread[ws.id]}
-                        </span>
-                      )}
+                      {unreadBadge(workspaceChannelUnread[ws.id] ?? 0, `sidebar-workspace-unread-${ws.id}`)}
                     </button>
                     {isExpanded && (
                       <div className="ml-4 mt-0.5 space-y-0.5" data-testid={`sidebar-workspace-channels-${ws.id}`}>
                         <Link
                           href={`/workspaces/${ws.id}`}
-                          className={`block rounded-md px-2 py-1 text-sm transition-colors ${
+                          className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-sm transition-colors ${
                             pathname === `/workspaces/${ws.id}`
-                              ? "bg-zinc-200 dark:bg-zinc-800 font-medium text-zinc-900 dark:text-zinc-100"
-                              : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
+                              ? "bg-zinc-200 dark:bg-zinc-800 font-medium text-foreground"
+                              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                           }`}
                         >
+                          <Globe size={12} />
                           <span className="truncate block">{t("sidebar.overview")}</span>
                         </Link>
                         {workspaceChannels[ws.id]?.kind === "loading" && (
-                          <div className="flex items-center gap-2 px-2 text-xs text-zinc-500 dark:text-zinc-400">
-                            <span className="inline-block h-2 w-2 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
+                          <div className="flex items-center gap-2 px-2 text-xs text-muted-foreground">
+                            <Loader2 size={12} className="animate-spin" />
                             {t("sidebar.loading")}
                           </div>
                         )}
                         {workspaceChannels[ws.id]?.kind === "error" && (
-                          <div className="px-2 text-xs text-red-600 dark:text-red-400">{t("sidebar.failedToLoadChannels")}</div>
+                          <div className="px-2 text-xs text-destructive">{t("sidebar.failedToLoadChannels")}</div>
                         )}
                         {(() => {
                           const chState = workspaceChannels[ws.id];
                           if (chState?.kind !== "success") return null;
                           if (chState.data.length === 0) {
-                            return <div className="px-2 text-xs text-zinc-500 dark:text-zinc-400">{t("sidebar.noChannelsYet")}</div>;
+                            return <div className="px-2 text-xs text-muted-foreground">{t("sidebar.noChannelsYet")}</div>;
                           }
                           return (
                             <ul className="space-y-0.5">
                               {chState.data.map((ch) => {
-                              const isChActive = ch.id === activeChannelId;
-                              return (
-                                <li key={ch.id}>
-                                  <Link
-                                    href={`/workspaces/${ws.id}/channels/${ch.id}`}
-                                    data-testid={`sidebar-channel-link-${ch.id}`}
-                                    className={`flex items-center justify-between rounded-md px-2 py-1 text-sm transition-colors ${
-                                      isChActive
-                                        ? "bg-zinc-200 dark:bg-zinc-800 font-medium text-zinc-900 dark:text-zinc-100"
-                                        : ch.hasUnread
-                                          ? "font-medium text-zinc-900 dark:text-zinc-100 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
-                                          : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200/60 dark:hover:bg-zinc-800/60"
-                                    }`}
-                                  >
-                                    <span className="truncate"># {ch.name}</span>
-                                    <span className="flex items-center gap-1 shrink-0 ml-1">
-                                      {(ch.unreadCount ?? 0) > 0 && (
-                                        <span data-testid={`sidebar-channel-unread-${ch.id}`} className="inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-zinc-900 px-1 text-[9px] font-bold text-white dark:bg-zinc-100 dark:text-zinc-900">
-                                          {(ch.unreadCount ?? 0) > 99 ? "99+" : ch.unreadCount}
-                                        </span>
-                                      )}
-                                      <span
-                                        className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide ${
-                                          ch.type === "PUBLIC"
-                                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400"
-                                            : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
-                                        }`}
-                                      >
-                                        {ch.type === "PUBLIC" ? t("sidebar.publicShort") : t("sidebar.privateShort")}
+                                const isChActive = ch.id === activeChannelId;
+                                return (
+                                  <li key={ch.id}>
+                                    <Link
+                                      href={`/workspaces/${ws.id}/channels/${ch.id}`}
+                                      data-testid={`sidebar-channel-link-${ch.id}`}
+                                      className={`flex items-center justify-between rounded-md px-2 py-1 text-sm transition-colors ${
+                                        isChActive
+                                          ? "bg-zinc-200 dark:bg-zinc-800 font-medium text-foreground"
+                                          : ch.hasUnread
+                                            ? "font-medium text-foreground hover:bg-accent hover:text-accent-foreground"
+                                            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                                      }`}
+                                    >
+                                      <span className="flex items-center gap-1.5 truncate">
+                                        <Hash size={12} />
+                                        {ch.name}
                                       </span>
-                                    </span>
-                                  </Link>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        );
-                      })()}
+                                      <span className="flex items-center gap-1 shrink-0 ml-1">
+                                        {unreadBadge(ch.unreadCount ?? 0, `sidebar-channel-unread-${ch.id}`)}
+                                        <Badge variant={ch.type === "PUBLIC" ? "success" : "warning"}>
+                                          {ch.type === "PUBLIC" ? t("sidebar.publicShort") : t("sidebar.privateShort")}
+                                        </Badge>
+                                      </span>
+                                    </Link>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          );
+                        })()}
                       </div>
                     )}
                   </li>
@@ -668,19 +680,17 @@ export default function Sidebar() {
   );
 
   return (
-    <aside className="w-60 shrink-0 border-r border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 hidden sm:flex flex-col p-3 overflow-y-auto">
-      <div className="space-y-4">
+    <aside className="w-60 shrink-0 border-r border-border bg-card/50 hidden sm:flex flex-col p-3 overflow-y-auto">
+      <div className="space-y-5">
         {totalUnread > 0 && (
           <div
             data-testid="sidebar-global-unread"
-            className="flex items-center justify-between rounded-md bg-zinc-100 dark:bg-zinc-800 px-2.5 py-1.5"
+            className="flex items-center justify-between rounded-lg bg-accent px-3 py-2"
           >
-            <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+            <span className="text-xs font-medium text-accent-foreground">
               {t("sidebar.unread")}
             </span>
-            <span className="inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-zinc-900 px-1 text-[9px] font-bold text-white dark:bg-zinc-100 dark:text-zinc-900">
-              {totalUnread > 99 ? "99+" : totalUnread}
-            </span>
+            {unreadBadge(totalUnread)}
           </div>
         )}
         {sectionOrder === "direct-first" ? (

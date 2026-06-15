@@ -1,10 +1,10 @@
 # Project Status
 
-> Last updated: 2026-06-15 (B191 portfolio readiness)  
+> Last updated: 2026-06-15 (B192 UI polish)  
 > Code checkpoint: `main`  
 > Docs checkpoint: `main`
 >
-> 🎓 **Portfolio status:** ready for presentation. See [`docs/portfolio-demo.md`](portfolio-demo.md) for demo flow and screenshots checklist.
+> 🎓 **Portfolio status:** ready for presentation. The UI was polished in B192 (clean SaaS look, design-system components, improved dashboard/workspace/channel/DM/search/profile screens). See [`docs/portfolio-demo.md`](portfolio-demo.md) for demo flow and screenshots checklist.
 
 ---
 
@@ -209,7 +209,24 @@ Use these steps to verify core functionality after deploy or before release:
 
 ---
 
-## 9. Known Limitations
+## 9. B192 Product UI Polish
+
+- **Goal** — make the app look like a clean modern SaaS chat product for portfolio/demo without adding new product features or changing backend behavior.
+- **Design direction** — clean SaaS/chat app with indigo primary accent, zinc surfaces, rounded cards, consistent buttons/inputs/badges, Lucide icons, improved spacing and hierarchy.
+- **What changed:**
+  - Added `lucide-react` for consistent iconography.
+  - Added design-system CSS variables (`primary`, `secondary`, `muted`, `accent`, `destructive`, `border`, `ring`) and updated `globals.css`.
+  - Created reusable UI primitives: `Button`, `Card`, `Badge`, `Input`, `Select`, `EmptyState`, `PageHeader`, `Avatar`.
+  - Polished app shell: `Header`, `Sidebar`, `layout` — better spacing, active states, icons.
+  - Polished pages: `dashboard`, `workspace overview`, `channel`, `DM`, `global search`, `workspace/channel search`, `profile/sessions`, `auth` pages, `invites`, `project-status`.
+  - Improved message bubbles, composer, reactions, attachments/lightbox, empty states, loading/error states.
+  - Updated tests that were coupled to old CSS class names (`bg-emerald-50`, `bg-yellow-100/70`, etc.) to match the new design tokens.
+- **Checks:** web lint/typecheck/test/test:pages/build ✅, API lint/typecheck/test/build:api:prod ✅, smoke 10/10 ✅.
+- **Status:** UI is portfolio-ready.
+
+---
+
+## 10. Known Limitations
 
 - **Invite link QA is manual** — email delivery of targeted invites and end-to-end invite accept flow are not covered by automated E2E tests; manual verification in production (or a local environment with SMTP) is required. Targeted email invites require the recipient's account email to match the invite email exactly.
 - **No slug-based URLs** — routing is strictly UUID-based; slugs are cosmetic only.

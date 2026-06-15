@@ -2,8 +2,13 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { Search, X, Loader2 } from "lucide-react";
 import { useLocale } from "@/lib/locale";
 import { useAuth } from "@/lib/auth-context";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Badge } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   searchGlobalMessages,
   type GlobalSearchResponse,
@@ -28,7 +33,7 @@ function highlightText(text: string, query: string): React.ReactNode[] {
     parts.push(
       <mark
         key={`${idx}-${query}`}
-        className="rounded-sm bg-yellow-200 px-0.5 text-zinc-900 dark:bg-yellow-700 dark:text-zinc-100"
+        className="rounded-sm bg-primary/20 px-0.5 text-foreground dark:bg-primary/30"
       >
         {text.slice(idx, idx + query.length)}
       </mark>,
@@ -115,6 +120,14 @@ export default function GlobalMessageSearch() {
     setIsOpen(false);
   }
 
+  function handleClear() {
+    setQuery("");
+    setResults([]);
+    setNextCursor(null);
+    setStatus("idle");
+    setErrorMessage(null);
+  }
+
   function handleResultClick(result: GlobalSearchResult) {
     if (result.source.type === "CHANNEL") {
       router.push(
@@ -138,14 +151,14 @@ export default function GlobalMessageSearch() {
     return other?.displayName || other?.username || t("globalSearch.directConversation");
   }
 
-  function getSourceBadge(result: GlobalSearchResult): string {
+  function getSourceBadge(result: GlobalSearchResult): { label: string; variant: "success" | "warning" | "info" } {
     if (result.source.type === "DIRECT") {
-      return t("globalSearch.directLabel");
+      return { label: t("globalSearch.directLabel"), variant: "info" };
     }
     if (result.source.channelType === "PRIVATE") {
-      return t("globalSearch.privateChannelLabel");
+      return { label: t("globalSearch.privateChannelLabel"), variant: "warning" };
     }
-    return t("globalSearch.publicChannelLabel");
+    return { label: t("globalSearch.publicChannelLabel"), variant: "success" };
   }
 
   function getSnippet(result: GlobalSearchResult): React.ReactNode {
@@ -153,7 +166,7 @@ export default function GlobalMessageSearch() {
     if (text.length > 0) {
       return <span className="line-clamp-2">{highlightText(text, query)}</span>;
     }
-    return <span className="text-zinc-400 dark:text-zinc-500">—</span>;
+    return <span className="text-muted-foreground">—</span>;
   }
 
   useEffect(() => {
@@ -174,120 +187,157 @@ export default function GlobalMessageSearch() {
 
   return (
     <>
-      <button
+      <Button
+        variant="ghost"
+        size="sm"
         onClick={handleOpen}
-        className="inline-flex items-center gap-2 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-1.5 text-xs text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
         data-testid="global-search-open-button"
         aria-label={t("header.searchAllMessages")}
       >
-        <span>🔍</span>
+        <Search size={16} />
         <span className="hidden sm:inline">{t("header.searchAllMessages")}</span>
-      </button>
+      </Button>
 
       {isOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-16 sm:pt-24"
+          className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 pt-16 sm:pt-24"
           onClick={(e) => {
             if (e.target === e.currentTarget) handleClose();
           }}
           data-testid="global-search-modal"
         >
-          <div className="w-full max-w-2xl rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-2xl flex flex-col max-h-[80vh]">
-            <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 px-4 py-3">
+          <div className="flex w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-border bg-background shadow-2xl max-h-[80vh]">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-sm font-semibold">{t("globalSearch.title")}</h2>
-              <button
+              <Button
+                variant="icon"
+                size="md"
                 onClick={handleClose}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
                 aria-label={t("channel.cancel")}
                 data-testid="global-search-close-button"
               >
-                ×
-              </button>
+                <X size={16} />
+              </Button>
             </div>
 
-            <div className="p-4 overflow-y-auto">
+            <div className="overflow-y-auto p-4">
               <form onSubmit={handleSubmit} className="flex items-center gap-2">
-                <input
-                  type="text"
-                  id="global-search-input"
-                  name="global-search-input"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder={t("globalSearch.placeholder")}
-                  className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600"
-                  data-testid="global-search-input"
-                  aria-label={t("globalSearch.placeholder")}
-                  autoFocus
-                />
-                <button
+                <div className="relative flex-1">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    id="global-search-input"
+                    name="global-search-input"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder={t("globalSearch.placeholder")}
+                    className="pl-9 pr-9"
+                    data-testid="global-search-input"
+                    aria-label={t("globalSearch.placeholder")}
+                    autoFocus
+                  />
+                  {query && (
+                    <button
+                      type="button"
+                      onClick={handleClear}
+                      className="absolute right-2 top-1/2 inline-flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      aria-label={t("channel.cancel")}
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+                <Button
                   type="submit"
                   disabled={status === "loading" || !query.trim()}
-                  className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
                   data-testid="global-search-submit"
                 >
-                  {status === "loading" ? t("globalSearch.loading") : t("globalSearch.search")}
-                </button>
+                  {status === "loading" ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      {t("globalSearch.loading")}
+                    </>
+                  ) : (
+                    t("globalSearch.search")
+                  )}
+                </Button>
               </form>
 
               {status === "error" && errorMessage && (
-                <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-                  <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-                    <span className="h-2 w-2 rounded-full bg-red-500" />
+                <div className="mt-3 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm">
+                  <div className="flex items-center gap-2 font-medium text-destructive">
+                    <span className="h-2 w-2 rounded-full bg-destructive" />
                     {errorMessage}
                   </div>
                 </div>
               )}
 
+              {status === "loading" && (
+                <div className="mt-6 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 size={16} className="animate-spin" />
+                  {t("globalSearch.loading")}
+                </div>
+              )}
+
               {status === "success" && results.length === 0 && query.trim().length > 0 && (
-                <p
-                  className="mt-3 text-sm text-zinc-500 dark:text-zinc-400"
-                  data-testid="global-search-empty"
-                >
-                  {t("globalSearch.empty")}
-                </p>
+                <div data-testid="global-search-empty">
+                  <EmptyState
+                    icon={Search}
+                    title={t("globalSearch.empty")}
+                    description={t("globalSearch.placeholder")}
+                  />
+                </div>
               )}
 
               {results.length > 0 && (
                 <ul className="mt-3 space-y-2">
-                  {results.map((result) => (
-                    <li key={result.id}>
-                      <button
-                        onClick={() => handleResultClick(result)}
-                        className="w-full text-left rounded-lg border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/60 p-2.5 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
-                        data-testid={`global-search-result-${result.id}`}
-                      >
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
-                            {result.author.displayName || result.author.username}
-                          </span>
-                          <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
-                            {formatDate(result.createdAt)}
-                          </span>
-                          <span className="text-[10px] rounded-full bg-zinc-200 dark:bg-zinc-800 px-1.5 py-0.5 text-zinc-600 dark:text-zinc-300">
-                            {getSourceBadge(result)}
-                          </span>
-                        </div>
-                        <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-                          {getSourceLabel(result)}
-                        </p>
-                        <p className="mt-0.5 text-sm text-zinc-700 dark:text-zinc-300">
-                          {getSnippet(result)}
-                        </p>
-                      </button>
-                    </li>
-                  ))}
+                  {results.map((result) => {
+                    const badge = getSourceBadge(result);
+                    return (
+                      <li key={result.id}>
+                        <button
+                          onClick={() => handleResultClick(result)}
+                          className="w-full rounded-lg border border-border bg-card p-3 text-left transition-colors hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                          data-testid={`global-search-result-${result.id}`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-sm font-semibold text-foreground">
+                                {result.author.displayName || result.author.username}
+                              </span>
+                              <Badge variant={badge.variant}>{badge.label}</Badge>
+                            </div>
+                            <span className="shrink-0 text-xs text-muted-foreground">
+                              {formatDate(result.createdAt)}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-xs text-muted-foreground">{getSourceLabel(result)}</p>
+                          <p className="mt-1 text-sm text-foreground">{getSnippet(result)}</p>
+                        </button>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
 
               {nextCursor && (
-                <button
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={handleLoadMore}
                   disabled={loadingMore}
-                  className="mt-3 w-full inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                  className="mt-3 w-full"
                   data-testid="global-search-load-more"
                 >
-                  {loadingMore ? t("globalSearch.loading") : t("globalSearch.loadMore")}
-                </button>
+                  {loadingMore ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      {t("globalSearch.loading")}
+                    </>
+                  ) : (
+                    t("globalSearch.loadMore")
+                  )}
+                </Button>
               )}
             </div>
           </div>

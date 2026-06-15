@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { X, Download, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { getAttachmentDownloadUrl, type Attachment } from "@/lib/messages-api";
 import { useLocale } from "@/lib/locale";
+import { Button } from "@/components/ui/Button";
 
 interface ImageLightboxProps {
   attachments: Attachment[];
@@ -107,78 +109,83 @@ export default function ImageLightbox({
       role="dialog"
       aria-modal="true"
       aria-label={t("channel.lightboxTitle")}
-      className="fixed inset-0 z-50 flex flex-col bg-black/90"
+      className="fixed inset-0 z-50 flex flex-col bg-black/95 backdrop-blur-sm"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
       data-testid="image-lightbox"
     >
       {/* Top bar */}
-      <div className="flex items-center justify-between px-4 py-3">
+      <div className="flex items-center justify-between px-4 py-3 sm:px-6">
         <div className="flex items-center gap-3 min-w-0">
-          <span className="truncate text-sm font-medium text-white">
+          <span className="truncate text-sm font-medium text-white/90">
             {current?.fileName}
           </span>
           {total > 1 && (
-            <span className="shrink-0 text-xs text-zinc-400">
+            <span className="shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-xs text-white/70">
               {index + 1} / {total}
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <button
+        <div className="flex items-center gap-1">
+          <Button
             type="button"
+            variant="icon"
             onClick={() => onDownload(current)}
-            className="inline-flex items-center justify-center rounded-md px-2.5 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors"
             aria-label={t("channel.lightboxDownload")}
             data-testid="lightbox-download"
+            className="text-white/70 hover:bg-white/10 hover:text-white"
           >
-            {t("channel.lightboxDownload")}
-          </button>
-          <button
+            <Download size={18} />
+          </Button>
+          <Button
             type="button"
+            variant="icon"
             onClick={onClose}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors"
             aria-label={t("channel.lightboxClose")}
             data-testid="lightbox-close"
+            className="text-white/70 hover:bg-white/10 hover:text-white"
           >
-            ✕
-          </button>
+            <X size={20} />
+          </Button>
         </div>
       </div>
 
       {/* Image area */}
       <div className="relative flex flex-1 items-center justify-center overflow-hidden px-4">
         {total > 1 && (
-          <button
+          <Button
             type="button"
+            variant="icon"
             onClick={() => setIndex((i) => i - 1)}
             disabled={!hasPrev}
-            className="absolute left-2 top-1/2 z-10 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-zinc-800/80 text-white hover:bg-zinc-700 disabled:opacity-30 disabled:hover:bg-zinc-800/80 transition-colors"
+            className="absolute left-2 top-1/2 z-10 h-10 w-10 -translate-y-1/2 rounded-full bg-white/10 text-white hover:bg-white/20 disabled:opacity-30 disabled:hover:bg-white/10"
             aria-label={t("channel.lightboxPrevious")}
             data-testid="lightbox-prev"
           >
-            ‹
-          </button>
+            <ChevronLeft size={24} />
+          </Button>
         )}
 
         <div className="flex h-full w-full items-center justify-center">
           {currentLoading && (
-            <div className="flex items-center gap-2 text-sm text-zinc-400">
-              <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-zinc-600 border-t-zinc-300" />
+            <div className="flex items-center gap-2 text-sm text-white/60">
+              <Loader2 size={18} className="animate-spin" />
               {t("channel.lightboxLoading")}
             </div>
           )}
           {currentError && (
-            <div className="flex flex-col items-center gap-2 text-sm text-zinc-400">
+            <div className="flex flex-col items-center gap-3 text-sm text-white/60">
               <span>{t("channel.lightboxImageFailed")}</span>
-              <button
+              <Button
                 type="button"
+                variant="secondary"
+                size="sm"
                 onClick={() => onDownload(current)}
-                className="inline-flex items-center justify-center rounded-md px-3 py-1.5 text-xs font-medium text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors"
               >
+                <Download size={14} className="mr-1.5" />
                 {t("channel.lightboxDownload")}
-              </button>
+              </Button>
             </div>
           )}
           {currentUrl && !currentLoading && !currentError && (
@@ -187,25 +194,43 @@ export default function ImageLightbox({
               src={currentUrl}
               alt={current.fileName}
               draggable={false}
-              className="pointer-events-none max-h-full max-w-full object-contain"
+              className="pointer-events-none max-h-full max-w-full object-contain rounded-lg shadow-2xl"
               data-testid="lightbox-image"
             />
           )}
         </div>
 
         {total > 1 && (
-          <button
+          <Button
             type="button"
+            variant="icon"
             onClick={() => setIndex((i) => i + 1)}
             disabled={!hasNext}
-            className="absolute right-2 top-1/2 z-10 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-zinc-800/80 text-white hover:bg-zinc-700 disabled:opacity-30 disabled:hover:bg-zinc-800/80 transition-colors"
+            className="absolute right-2 top-1/2 z-10 h-10 w-10 -translate-y-1/2 rounded-full bg-white/10 text-white hover:bg-white/20 disabled:opacity-30 disabled:hover:bg-white/10"
             aria-label={t("channel.lightboxNext")}
             data-testid="lightbox-next"
           >
-            ›
-          </button>
+            <ChevronRight size={24} />
+          </Button>
         )}
       </div>
+
+      {/* Bottom indicators */}
+      {total > 1 && (
+        <div className="flex justify-center gap-1.5 pb-4">
+          {attachments.map((att, i) => (
+            <button
+              key={att.id}
+              type="button"
+              onClick={() => setIndex(i)}
+              className={`h-1.5 rounded-full transition-all ${
+                i === index ? "w-4 bg-white/80" : "w-1.5 bg-white/30 hover:bg-white/50"
+              }`}
+              aria-label={`${t("channel.lightboxTitle")} ${i + 1}`}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

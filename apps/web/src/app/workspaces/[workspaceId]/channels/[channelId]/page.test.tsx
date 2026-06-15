@@ -2866,7 +2866,7 @@ describe("ChannelDetailPage — reactions", () => {
       expect(screen.getByText("3")).toBeInTheDocument();
     });
     const chip = screen.getByTestId("channel-reaction-chip-m2-👍");
-    expect(chip).not.toHaveClass("bg-emerald-50");
+    expect(chip).not.toHaveClass("bg-primary/10");
   });
 
   it("socket reaction:added from self sets reactedByMe true", async () => {
@@ -2891,7 +2891,7 @@ describe("ChannelDetailPage — reactions", () => {
       expect(screen.getByTestId("channel-reaction-chip-m1-❤️")).toBeInTheDocument();
     });
     const chip = screen.getByTestId("channel-reaction-chip-m1-❤️");
-    expect(chip).toHaveClass("bg-emerald-50");
+    expect(chip).toHaveClass("bg-primary/10");
   });
 
   it("replacing own emoji removes old reaction chip and shows new one active", async () => {
@@ -2916,7 +2916,7 @@ describe("ChannelDetailPage — reactions", () => {
       expect(screen.queryByTestId("channel-reaction-chip-m3-👍")).not.toBeInTheDocument();
     });
     expect(screen.getByTestId("channel-reaction-chip-m3-🔥")).toBeInTheDocument();
-    expect(screen.getByTestId("channel-reaction-chip-m3-🔥")).toHaveClass("bg-emerald-50");
+    expect(screen.getByTestId("channel-reaction-chip-m3-🔥")).toHaveClass("bg-primary/10");
   });
 
   it("reaction socket event does not duplicate messages", async () => {

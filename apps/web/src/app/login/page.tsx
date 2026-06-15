@@ -3,9 +3,27 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import {
+  Eye,
+  EyeOff,
+  Loader2,
+  Mail,
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
 import { login, resendVerification, type AuthResult, isApiTimeoutError } from "@/lib/auth-api";
 import { useAuth } from "@/lib/auth-context";
 import { useLocale } from "@/lib/locale";
+import { Button } from "@/components/ui/Button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/Card";
+import { Input } from "@/components/ui/Input";
 
 type FormState =
   | { kind: "idle" }
@@ -17,12 +35,44 @@ type FormState =
   | { kind: "resend-loading"; email: string }
   | { kind: "resend-success"; message: string };
 
+function Alert({
+  variant,
+  children,
+}: {
+  variant: "success" | "error" | "warning";
+  children: React.ReactNode;
+}) {
+  const variants = {
+    success:
+      "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-400",
+    error:
+      "border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-400",
+    warning:
+      "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-400",
+  };
+  const icons = {
+    success: <CheckCircle2 className="h-4 w-4 shrink-0" />,
+    error: <XCircle className="h-4 w-4 shrink-0" />,
+    warning: <AlertTriangle className="h-4 w-4 shrink-0" />,
+  };
+  return (
+    <div
+      className={`flex items-start gap-2 rounded-lg border p-3 text-sm ${variants[variant]}`}
+      role="alert"
+    >
+      {icons[variant]}
+      <div className="flex-1">{children}</div>
+    </div>
+  );
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const { loginSuccess } = useAuth();
   const { t } = useLocale();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [formState, setFormState] = useState<FormState>({ kind: "idle" });
 
   async function handleSubmit(e: React.FormEvent) {
@@ -43,7 +93,10 @@ export default function LoginPage() {
         return;
       }
       const message = err instanceof Error ? err.message : t("auth.loginFailed");
-      if (message.toLowerCase().includes("email not verified") || message.toLowerCase().includes("not verified")) {
+      if (
+        message.toLowerCase().includes("email not verified") ||
+        message.toLowerCase().includes("not verified")
+      ) {
         setFormState({ kind: "unverified", email: email.trim() });
       } else {
         setFormState({ kind: "error", message });
@@ -65,132 +118,148 @@ export default function LoginPage() {
 
   return (
     <div className="flex flex-1 items-center justify-center p-6">
-      <div className="w-full max-w-sm rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 shadow-sm">
-        <h1 className="text-xl font-semibold tracking-tight">{t("auth.loginTitle")}</h1>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-          {t("auth.loginSubtitle")}
-        </p>
-
-        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
-          <div>
-            <label htmlFor="login-email" className="block text-sm font-medium">
-              {t("auth.email")}
-            </label>
-            <input
-              id="login-email"
-              name="login-email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
-              placeholder={t("auth.emailPlaceholder")}
-            />
-          </div>
-
-          <div>
-            <label htmlFor="login-password" className="block text-sm font-medium">
-              {t("auth.password")}
-            </label>
-            <input
-              id="login-password"
-              name="login-password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100"
-              placeholder="••••••••"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={formState.kind === "loading" || formState.kind === "resend-loading"}
-            className="inline-flex w-full items-center justify-center rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
-          >
-            {formState.kind === "loading" ? t("auth.signingIn") : t("auth.signIn")}
-          </button>
-
-          <div className="flex justify-end">
-            <Link
-              href="/forgot-password"
-              className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 underline underline-offset-2 transition-colors"
-            >
-              {t("auth.forgotPassword")}
-            </Link>
-          </div>
-        </form>
-
-        {formState.kind === "unverified" && (
-          <div className="mt-4 space-y-3">
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm dark:border-amber-900 dark:bg-amber-950/30">
-              <div className="flex items-center gap-2 font-medium text-amber-800 dark:text-amber-400">
-                <span className="h-2 w-2 rounded-full bg-amber-500" />
-                {t("auth.emailNotVerified")}
+      <Card className="w-full max-w-sm">
+        <CardHeader className="text-center">
+          <CardTitle>{t("auth.loginTitle")}</CardTitle>
+          <CardDescription>{t("auth.loginSubtitle")}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <label htmlFor="login-email" className="text-sm font-medium">
+                {t("auth.email")}
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="login-email"
+                  name="login-email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder={t("auth.emailPlaceholder")}
+                  className="pl-9"
+                />
               </div>
             </div>
-            <button
-              type="button"
-              onClick={handleResend}
-              className="inline-flex w-full items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-4 py-2.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+
+            <div className="space-y-1.5">
+              <label htmlFor="login-password" className="text-sm font-medium">
+                {t("auth.password")}
+              </label>
+              <div className="relative">
+                <Input
+                  id="login-password"
+                  name="login-password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                />
+                <Button
+                  type="button"
+                  variant="icon"
+                  size="sm"
+                  onClick={() => setShowPassword((s) => !s)}
+                  aria-label={
+                    showPassword
+                      ? t("profile.hidePassword")
+                      : t("profile.showPassword")
+                  }
+                  aria-pressed={showPassword}
+                  className="absolute right-1 top-1/2 -translate-y-1/2"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </Button>
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={
+                formState.kind === "loading" ||
+                formState.kind === "resend-loading"
+              }
             >
-              {t("auth.resendVerification")}
-            </button>
-          </div>
-        )}
+              {formState.kind === "loading" ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {t("auth.signingIn")}
+                </>
+              ) : (
+                t("auth.signIn")
+              )}
+            </Button>
 
-        {formState.kind === "resend-success" && (
-          <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
-            <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              {formState.message}
+            <div className="flex justify-end">
+              <Link
+                href="/forgot-password"
+                className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+              >
+                {t("auth.forgotPassword")}
+              </Link>
             </div>
-          </div>
-        )}
+          </form>
 
-        {formState.kind === "success" && (
-          <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
-            <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              {t("auth.signedInAs")} {formState.data.user.email}
+          {formState.kind === "unverified" && (
+            <div className="space-y-3">
+              <Alert variant="warning">
+                <span className="font-medium">{t("auth.emailNotVerified")}</span>
+              </Alert>
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full"
+                onClick={handleResend}
+              >
+                {t("auth.resendVerification")}
+              </Button>
             </div>
-          </div>
-        )}
+          )}
 
-        {formState.kind === "error" && (
-          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-            <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-              <span className="h-2 w-2 rounded-full bg-red-500" />
-              {formState.message}
-            </div>
-          </div>
-        )}
+          {formState.kind === "resend-success" && (
+            <Alert variant="success">
+              <span className="font-medium">{formState.message}</span>
+            </Alert>
+          )}
 
-        {formState.kind === "timeout" && (
-          <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm dark:border-amber-900 dark:bg-amber-950/30">
-            <div className="flex items-center gap-2 font-medium text-amber-800 dark:text-amber-400">
-              <span className="h-2 w-2 rounded-full bg-amber-500" />
-              {t("api.timeoutError")}
-            </div>
-            <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-              {t("api.coldStartHint")}
-            </p>
-          </div>
-        )}
+          {formState.kind === "success" && (
+            <Alert variant="success">
+              <span className="font-medium">
+                {t("auth.signedInAs")} {formState.data.user.email}
+              </span>
+            </Alert>
+          )}
 
-        <p className="mt-4 text-center text-sm text-zinc-500 dark:text-zinc-400">
-          {t("auth.noAccount")}{" "}
-          <Link
-            href="/register"
-            className="font-medium text-zinc-900 underline underline-offset-2 hover:text-zinc-700 dark:text-zinc-100 dark:hover:text-zinc-300"
-          >
-            {t("auth.createOne")}
-          </Link>
-        </p>
-      </div>
+          {formState.kind === "error" && (
+            <Alert variant="error">
+              <span className="font-medium">{formState.message}</span>
+            </Alert>
+          )}
+
+          {formState.kind === "timeout" && (
+            <Alert variant="warning">
+              <div className="font-medium">{t("api.timeoutError")}</div>
+              <p className="mt-1 text-xs opacity-90">{t("api.coldStartHint")}</p>
+            </Alert>
+          )}
+
+          <p className="text-center text-sm text-muted-foreground">
+            {t("auth.noAccount")}{" "}
+            <Link
+              href="/register"
+              className="font-medium text-foreground underline underline-offset-2 hover:text-primary transition-colors"
+            >
+              {t("auth.createOne")}
+            </Link>
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }

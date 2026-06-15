@@ -1,13 +1,14 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { User, LogOut, MessageSquare } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocale } from "@/lib/locale";
-import { getAvatarUrl } from "@/lib/avatar-url";
 import { GLOBAL_UNREAD_CHANGED_EVENT, type GlobalUnreadPayload } from "@/lib/global-unread";
 import GlobalMessageSearch from "./GlobalMessageSearch";
+import { Button } from "@/components/ui/Button";
+import { Avatar } from "@/components/ui/Avatar";
 
 export default function Header() {
   const { user, isAuthenticated, isLoading, logout } = useAuth();
@@ -25,64 +26,66 @@ export default function Header() {
   }, []);
 
   return (
-    <header className="flex items-center justify-between h-14 px-4 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
-      <Link href={isAuthenticated ? "/dashboard" : "/"} className="flex items-center gap-2">
-        <div className="w-6 h-6 rounded bg-zinc-900 dark:bg-zinc-100" />
+    <header className="flex items-center justify-between h-14 px-4 border-b border-border bg-card/50 backdrop-blur supports-[backdrop-filter]:bg-card/50 shrink-0">
+      <Link href={isAuthenticated ? "/dashboard" : "/"} className="flex items-center gap-2 group">
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          <MessageSquare size={16} strokeWidth={2.5} />
+        </div>
         <span className="font-semibold text-sm tracking-tight">lets-chat</span>
         {globalUnread > 0 && (
           <span
             data-testid="header-global-unread"
-            className="inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-bold text-white"
+            className="inline-flex h-4 min-w-[1.25rem] items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-bold text-destructive-foreground"
           >
             {globalUnread > 99 ? "99+" : globalUnread}
           </span>
         )}
       </Link>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         {isAuthenticated && <GlobalMessageSearch />}
         {isLoading ? (
-          <span className="text-xs text-zinc-400">{t("header.loading")}</span>
+          <span className="text-xs text-muted-foreground">{t("header.loading")}</span>
         ) : isAuthenticated && user ? (
           <>
-            <div className="flex items-center gap-2">
-              <div className="relative h-6 w-6 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center overflow-hidden shrink-0">
-                {user.avatarUrl ? (
-                  <Image src={getAvatarUrl(user.avatarUrl) || ""} alt="" fill className="object-cover" unoptimized />
-                ) : (
-                  <span className="text-[10px] font-semibold text-zinc-600 dark:text-zinc-300">
-                    {(user.displayName || user.username || "?").slice(0, 2).toUpperCase()}
-                  </span>
-                )}
-              </div>
-              <span className="text-sm text-zinc-600 dark:text-zinc-300">
+            <div className="flex items-center gap-2 pr-2">
+              <Avatar
+                src={user.avatarUrl}
+                name={user.displayName || user.username}
+                size="sm"
+              />
+              <span className="hidden sm:inline text-sm text-muted-foreground">
                 {user.displayName || user.username}
               </span>
             </div>
             <Link
               href="/profile"
-              className="inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-xs font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg px-3 h-8 text-xs font-medium text-foreground hover:bg-accent hover:text-accent-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
+              <User size={14} />
               {t("header.profile")}
             </Link>
-            <button
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => logout()}
-              className="inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 py-1.5 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+              className="gap-1.5"
             >
+              <LogOut size={14} />
               {t("header.logout")}
-            </button>
+            </Button>
           </>
         ) : (
           <>
             <Link
               href="/login"
-              className="inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-xs font-medium hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              className="inline-flex items-center justify-center rounded-lg px-3 h-8 text-xs font-medium text-foreground hover:bg-accent hover:text-accent-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               {t("header.signIn")}
             </Link>
             <Link
               href="/register"
-              className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
+              className="inline-flex items-center justify-center rounded-lg px-3 h-8 text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               {t("header.createAccount")}
             </Link>

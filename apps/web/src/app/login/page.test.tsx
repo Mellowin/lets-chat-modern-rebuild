@@ -43,7 +43,7 @@ describe("LoginPage", () => {
     expect(screen.getByRole("heading", { name: /Sign in/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/Email/i)).toBeInTheDocument();
     expect(screen.getByPlaceholderText("you@example.com")).toBeInTheDocument();
-    expect(screen.getByLabelText(/Password/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Password$/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Sign in/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Create one/i })).toHaveAttribute("href", "/register");
   });
@@ -91,11 +91,11 @@ describe("LoginPage", () => {
     render(<LoginPage />);
 
     await userEvent.type(screen.getByLabelText(/Email/i), "a@b.com");
-    await userEvent.type(screen.getByLabelText(/Пароль/i), "secret");
+    await userEvent.type(screen.getByLabelText(/^Пароль$/i), "secret");
     await userEvent.click(screen.getByRole("button", { name: "Войти" }));
 
-    expect(screen.getByRole("button")).toHaveTextContent("Входим…");
-    expect(screen.getByRole("button")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Входим…" })).toHaveTextContent("Входим…");
+    expect(screen.getByRole("button", { name: "Входим…" })).toBeDisabled();
 
     await act(async () => {
       resolveLogin!({
@@ -131,7 +131,7 @@ describe("LoginPage", () => {
     render(<LoginPage />);
 
     await userEvent.type(screen.getByLabelText(/Email/i), "  a@b.com  ");
-    await userEvent.type(screen.getByLabelText(/Password/i), "secret");
+    await userEvent.type(screen.getByLabelText(/^Password$/i), "secret");
     await userEvent.click(screen.getByRole("button", { name: /Sign in/i }));
 
     await waitFor(() => {
@@ -148,7 +148,7 @@ describe("LoginPage", () => {
     render(<LoginPage />);
 
     await userEvent.type(screen.getByLabelText(/Email/i), "a@b.com");
-    await userEvent.type(screen.getByLabelText(/Password/i), "wrong");
+    await userEvent.type(screen.getByLabelText(/^Password$/i), "wrong");
     await userEvent.click(screen.getByRole("button", { name: /Sign in/i }));
 
     expect(await screen.findByText(/Invalid credentials/i)).toBeInTheDocument();
@@ -162,7 +162,7 @@ describe("LoginPage", () => {
     render(<LoginPage />);
 
     await userEvent.type(screen.getByLabelText(/Email/i), "a@b.com");
-    await userEvent.type(screen.getByLabelText(/Password/i), "secret");
+    await userEvent.type(screen.getByLabelText(/^Password$/i), "secret");
     await userEvent.click(screen.getByRole("button", { name: /Sign in/i }));
 
     expect(await screen.findByText(/Please verify your email before signing in/i)).toBeInTheDocument();
@@ -180,7 +180,7 @@ describe("LoginPage", () => {
     render(<LoginPage />);
 
     await userEvent.type(screen.getByLabelText(/Email/i), "a@b.com");
-    await userEvent.type(screen.getByLabelText(/Password/i), "secret");
+    await userEvent.type(screen.getByLabelText(/^Password$/i), "secret");
     await userEvent.click(screen.getByRole("button", { name: /Sign in/i }));
 
     expect(await screen.findByText(/Please verify your email before signing in/i)).toBeInTheDocument();
@@ -204,11 +204,11 @@ describe("LoginPage", () => {
     render(<LoginPage />);
 
     await userEvent.type(screen.getByLabelText(/Email/i), "a@b.com");
-    await userEvent.type(screen.getByLabelText(/Password/i), "secret");
+    await userEvent.type(screen.getByLabelText(/^Password$/i), "secret");
     await userEvent.click(screen.getByRole("button", { name: /Sign in/i }));
 
-    expect(screen.getByRole("button")).toHaveTextContent(/Signing in…/i);
-    expect(screen.getByRole("button")).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Signing in…/i })).toHaveTextContent(/Signing in…/i);
+    expect(screen.getByRole("button", { name: /Signing in…/i })).toBeDisabled();
 
     await act(async () => {
       resolveLogin!({
@@ -230,13 +230,13 @@ describe("LoginPage", () => {
     render(<LoginPage />);
 
     await userEvent.type(screen.getByLabelText(/Email/i), "a@b.com");
-    await userEvent.type(screen.getByLabelText(/Password/i), "secret");
+    await userEvent.type(screen.getByLabelText(/^Password$/i), "secret");
     await userEvent.click(screen.getByRole("button", { name: /Sign in/i }));
 
     expect(await screen.findByText(/taking too long to respond/i)).toBeInTheDocument();
     expect(screen.getByText(/Free Render instances may take up to a minute/i)).toBeInTheDocument();
-    expect(screen.getByRole("button")).toHaveTextContent(/Sign in/i);
-    expect(screen.getByRole("button")).not.toBeDisabled();
+    expect(screen.getByRole("button", { name: /Sign in/i })).toHaveTextContent(/Sign in/i);
+    expect(screen.getByRole("button", { name: /Sign in/i })).not.toBeDisabled();
     expect(loginSuccessMock).not.toHaveBeenCalled();
     expect(pushMock).not.toHaveBeenCalled();
   });
@@ -253,7 +253,7 @@ describe("LoginPage", () => {
     render(<LoginPage />);
 
     await userEvent.type(screen.getByLabelText(/Email/i), "a@b.com");
-    await userEvent.type(screen.getByLabelText(/Password/i), "secret");
+    await userEvent.type(screen.getByLabelText(/^Password$/i), "secret");
     await userEvent.click(screen.getByRole("button", { name: /Sign in/i }));
 
     expect(await screen.findByText(/taking too long to respond/i)).toBeInTheDocument();

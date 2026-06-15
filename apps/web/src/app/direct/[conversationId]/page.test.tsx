@@ -998,8 +998,8 @@ describe("DirectConversationPage — layout and bubbles", () => {
     });
 
     const bubble = screen.getByTestId("direct-message-bubble-dm1");
-    expect(bubble.className).toContain("bg-emerald-50");
-    expect(bubble.className).toContain("border-emerald-200");
+    expect(bubble.className).toContain("bg-primary/10");
+    expect(bubble.className).toContain("border-primary/20");
   });
 
   it("renders other message with white bubble styling", async () => {
@@ -1027,8 +1027,8 @@ describe("DirectConversationPage — layout and bubbles", () => {
     });
 
     const bubble = screen.getByTestId("direct-message-bubble-dm1");
-    expect(bubble.className).toContain("bg-white");
-    expect(bubble.className).toContain("border-zinc-200");
+    expect(bubble.className).toContain("bg-card");
+    expect(bubble.className).toContain("border-border");
   });
 
   it("indents own bubble compared to other bubble", async () => {
@@ -1833,7 +1833,7 @@ describe("DirectConversationPage — quote preview", () => {
 
     await waitFor(() => {
       const row = screen.getByTestId("direct-message-row-dm1");
-      expect(row.className).toContain("bg-yellow-100/70");
+      expect(row.className).toContain("bg-primary/10");
     });
   });
 
@@ -1881,7 +1881,7 @@ describe("DirectConversationPage — quote preview", () => {
 
     await waitFor(() => {
       const row = screen.getByTestId("direct-message-row-dm1");
-      expect(row.className).toContain("bg-yellow-100/70");
+      expect(row.className).toContain("bg-primary/10");
     });
 
     act(() => {
@@ -1890,7 +1890,7 @@ describe("DirectConversationPage — quote preview", () => {
 
     await waitFor(() => {
       const row = screen.getByTestId("direct-message-row-dm1");
-      expect(row.className).not.toContain("bg-yellow-100/70");
+      expect(row.className).not.toContain("bg-primary/10");
     });
 
     vi.useRealTimers();
@@ -2968,7 +2968,7 @@ describe("DirectConversationPage — reactions", () => {
       expect(screen.getByTestId("direct-reaction-chip-dm1-👍")).toBeInTheDocument();
     });
     const chip = screen.getByTestId("direct-reaction-chip-dm1-👍");
-    expect(chip.className).toContain("bg-emerald-50");
+    expect(chip.className).toContain("bg-primary/10");
   });
 });
 
@@ -3213,7 +3213,7 @@ describe("DirectConversationPage — B89b reactedByMe viewer safety", () => {
     });
     const chip = screen.getByTestId("direct-reaction-chip-dm1-👍");
     expect(chip).toHaveTextContent("👍1");
-    expect(chip.className).not.toContain("bg-emerald-50");
+    expect(chip.className).not.toContain("bg-primary/10");
   });
 
   it("socket added from self sets reactedByMe true", async () => {
@@ -3250,7 +3250,7 @@ describe("DirectConversationPage — B89b reactedByMe viewer safety", () => {
 
     await waitFor(() => {
       const chip = screen.getByTestId("direct-reaction-chip-dm1-👍");
-      expect(chip.className).toContain("bg-emerald-50");
+      expect(chip.className).toContain("bg-primary/10");
     });
   });
 
@@ -3289,7 +3289,7 @@ describe("DirectConversationPage — B89b reactedByMe viewer safety", () => {
     await waitFor(() => {
       const chip = screen.getByTestId("direct-reaction-chip-dm1-👍");
       expect(chip).toHaveTextContent("👍2");
-      expect(chip.className).toContain("bg-emerald-50");
+      expect(chip.className).toContain("bg-primary/10");
     });
   });
 
@@ -3328,7 +3328,7 @@ describe("DirectConversationPage — B89b reactedByMe viewer safety", () => {
     await waitFor(() => {
       const chip = screen.getByTestId("direct-reaction-chip-dm1-👍");
       expect(chip).toHaveTextContent("👍1");
-      expect(chip.className).toContain("bg-emerald-50");
+      expect(chip.className).toContain("bg-primary/10");
     });
   });
 
@@ -3451,7 +3451,7 @@ describe("DirectConversationPage — B89b reactedByMe viewer safety", () => {
     });
     const chip = screen.getByTestId("direct-reaction-chip-dm1-👍");
     expect(chip).toHaveTextContent("👍1");
-    expect(chip.className).toContain("bg-emerald-50");
+    expect(chip.className).toContain("bg-primary/10");
   });
 
   it("clicking own chip removes local active state after API success", async () => {
@@ -4201,7 +4201,7 @@ describe("DirectConversationPage — B91 one reaction per user", () => {
 
     const heartChip = screen.getByTestId("direct-reaction-chip-dm1-❤️");
     expect(heartChip).toBeInTheDocument();
-    expect(heartChip.className).toContain("bg-emerald-50");
+    expect(heartChip.className).toContain("bg-primary/10");
   });
 
   it("same user cannot have two active emoji chips on same message after replacement", async () => {
@@ -4325,7 +4325,7 @@ describe("DirectConversationPage — B91 one reaction per user", () => {
 
     const heartChip = screen.getByTestId("direct-reaction-chip-dm1-❤️");
     expect(heartChip).toBeInTheDocument();
-    expect(heartChip.className).toContain("bg-emerald-50");
+    expect(heartChip.className).toContain("bg-primary/10");
   });
 
   it("socket replacement from other user preserves my active emoji", async () => {
@@ -4369,10 +4369,10 @@ describe("DirectConversationPage — B91 one reaction per user", () => {
 
     const thumbChip = screen.getByTestId("direct-reaction-chip-dm1-👍");
     expect(thumbChip).toBeInTheDocument();
-    expect(thumbChip.className).toContain("bg-emerald-50");
+    expect(thumbChip.className).toContain("bg-primary/10");
 
     const heartChip = screen.getByTestId("direct-reaction-chip-dm1-❤️");
-    expect(heartChip.className).not.toContain("bg-emerald-50");
+    expect(heartChip.className).not.toContain("bg-primary/10");
   });
 });
 

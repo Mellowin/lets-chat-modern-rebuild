@@ -1,12 +1,30 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import {
+  ArrowLeft,
+  Check,
+  CheckCheck,
+  Copy,
+  Edit3,
+  Forward,
+  Loader2,
+  MessageSquare,
+  MoreHorizontal,
+  Reply,
+  Send,
+  Smile,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocale } from "@/lib/locale";
-import { getAvatarUrl } from "@/lib/avatar-url";
+import { Avatar } from "@/components/ui/Avatar";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   listDirectMessages,
   sendDirectMessage,
@@ -842,8 +860,8 @@ export default function DirectConversationPage() {
   if (authLoading) {
     return (
       <div className="flex flex-1 items-center justify-center p-6">
-        <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
-          <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 size={16} className="animate-spin" />
           {t("auth.loadingSession")}
         </div>
       </div>
@@ -855,15 +873,12 @@ export default function DirectConversationPage() {
       <div className="flex flex-1 items-center justify-center p-6">
         <div className="text-center">
           <h1 className="text-xl font-semibold">{t("auth.authRequired")}</h1>
-          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+          <p className="mt-2 text-sm text-muted-foreground">
             {t("auth.pleaseSignIn")}
           </p>
-          <Link
-            href="/login"
-            className="mt-4 inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
-          >
-            {t("auth.signIn")}
-          </Link>
+          <Button asChild className="mt-4">
+            <Link href="/login">{t("auth.signIn")}</Link>
+          </Button>
         </div>
       </div>
     );
@@ -873,46 +888,38 @@ export default function DirectConversationPage() {
     <div className="flex h-[calc(100vh-4rem)] min-w-0 w-full max-w-none flex-col gap-4 overflow-hidden p-4 sm:p-6">
       <main className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
         <header className="shrink-0 flex items-center gap-3">
-          <Link
-            href="/direct"
-            className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-          >
-            {t("direct.backToDirectMessages")}
-          </Link>
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/direct">
+              <ArrowLeft size={16} className="mr-1" />
+              {t("direct.backToDirectMessages")}
+            </Link>
+          </Button>
           {conversation.kind === "success" && conversation.data?.otherParticipant && (
             <div className="flex items-center gap-2">
-              <div className="relative h-8 w-8 shrink-0 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center overflow-hidden">
-                {conversation.data.otherParticipant.avatarUrl ? (
-                  <Image
-                    src={getAvatarUrl(conversation.data.otherParticipant.avatarUrl) || ""}
-                    alt=""
-                    fill
-                    sizes="32px"
-                    className="object-cover"
-                    unoptimized
-                  />
-                ) : (
-                  <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                    {(conversation.data.otherParticipant.displayName || conversation.data.otherParticipant.username || "?").slice(0, 2).toUpperCase()}
-                  </span>
-                )}
+              <div className="relative">
+                <Avatar
+                  src={conversation.data.otherParticipant.avatarUrl}
+                  name={conversation.data.otherParticipant.displayName || conversation.data.otherParticipant.username}
+                  size="md"
+                  alt=""
+                />
+                <span
+                  data-testid="direct-presence-dot"
+                  className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-background ${
+                    presenceStatus === "online"
+                      ? "bg-primary"
+                      : "bg-muted-foreground"
+                  }`}
+                />
               </div>
               <div>
-                <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                <p className="text-sm font-semibold text-foreground">
                   {conversation.data.otherParticipant.displayName || conversation.data.otherParticipant.username || t("messageAuthor.unknownUser")}
                 </p>
                 <p
                   data-testid="direct-presence-status"
-                  className="text-[10px] text-zinc-500 dark:text-zinc-400 flex items-center gap-1"
+                  className="text-[10px] text-muted-foreground flex items-center gap-1"
                 >
-                  <span
-                    data-testid="direct-presence-dot"
-                    className={`inline-block h-1.5 w-1.5 rounded-full ${
-                      presenceStatus === "online"
-                        ? "bg-emerald-500"
-                        : "bg-zinc-400 dark:bg-zinc-500"
-                    }`}
-                  />
                   {presenceStatus === "online" ? t("direct.online") : t("direct.offline")}
                 </p>
               </div>
@@ -920,29 +927,29 @@ export default function DirectConversationPage() {
           )}
         </header>
 
-        <div className="mt-4 flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950">
-          <div ref={messagesScrollRef} data-testid="direct-messages-scroll" onScroll={() => { setMessageMenuId(null); setMessageMenuPosition(null); setReactionPickerMessageId(null); setReactionPickerPosition(null); }} className="min-h-0 flex-1 overflow-y-auto bg-gradient-to-br from-[#e4efc4] via-[#c9e2bf] to-[#9cc7b2] px-4 py-3 dark:from-zinc-950 dark:via-emerald-950/40 dark:to-zinc-900">
+        <div className="mt-4 flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card">
+          <div ref={messagesScrollRef} data-testid="direct-messages-scroll" onScroll={() => { setMessageMenuId(null); setMessageMenuPosition(null); setReactionPickerMessageId(null); setReactionPickerPosition(null); }} className="min-h-0 flex-1 overflow-y-auto bg-gradient-to-br from-secondary via-muted to-background px-4 py-3 dark:from-background dark:via-primary/10 dark:to-background">
             <div className="flex w-full max-w-3xl flex-col">
               {messages.kind === "loading" && (
-                <div className="mt-4 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
-                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
+                <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 size={16} className="animate-spin" />
                   {t("direct.loadingMessages")}
                 </div>
               )}
 
               {messages.kind === "error" && (
-                <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950/30">
-                  <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-                    <span className="h-2 w-2 rounded-full bg-red-500" />
-                    {messages.message}
-                  </div>
+                <div className="mt-4 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+                  {messages.message}
                 </div>
               )}
 
               {messages.kind === "success" && messages.data.length === 0 && (
-                <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">
-                  {t("direct.noMessages")}
-                </p>
+                <div className="mt-4">
+                  <EmptyState
+                    icon={MessageSquare}
+                    title={t("direct.noMessages")}
+                  />
+                </div>
               )}
 
               {messages.kind === "success" && messages.data.length > 0 && (
@@ -955,7 +962,7 @@ export default function DirectConversationPage() {
                       return [
                         showSeparator ? (
                           <li key="unread-separator" data-testid="direct-unread-separator" className="flex justify-center py-2">
-                            <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 px-3 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                            <span className="text-xs font-medium text-muted-foreground px-3 py-1 rounded-full bg-muted border border-border">
                               {t("direct.unreadMessages")}
                             </span>
                           </li>
@@ -970,56 +977,67 @@ export default function DirectConversationPage() {
                         }}
                         className={`flex items-start gap-3 rounded-xl transition-colors ${
                           highlightedMessageId === msg.id
-                            ? "bg-yellow-100/70 dark:bg-yellow-900/30 ring-2 ring-yellow-300/80 dark:ring-yellow-700/70"
+                            ? "bg-primary/10 ring-2 ring-primary/30"
                             : ""
                         }`}
                       >
                         <div
                           data-testid={`direct-message-avatar-${msg.id}`}
-                          className="sticky bottom-3 self-end relative h-8 w-8 shrink-0 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center overflow-hidden"
+                          className="sticky bottom-3 self-end"
                         >
-                          {msg.author.avatarUrl ? (
-                            <Image src={getAvatarUrl(msg.author.avatarUrl) || ""} alt="" fill sizes="32px" className="object-cover" unoptimized />
-                          ) : (
-                            <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                              {(msg.author.displayName || msg.author.username || "?").slice(0, 2).toUpperCase()}
-                            </span>
-                          )}
+                          <Avatar
+                            src={msg.author.avatarUrl}
+                            name={msg.author.displayName || msg.author.username}
+                            size="md"
+                            alt=""
+                          />
                         </div>
                         <div
                           data-testid={`direct-message-body-${msg.id}`}
                           className="min-w-0 max-w-[80%]"
                         >
-                          <div className="relative flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
-                            <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 truncate">
+                          <div className="relative flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                            <span className="text-sm font-semibold text-foreground truncate">
                               {msg.author.displayName || msg.author.username || t("messageAuthor.unknownUser")}
                             </span>
-                            <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                            <span className="text-xs text-muted-foreground">
                               {new Date(msg.createdAt).toLocaleString()}
                             </span>
                             {msg.editedAt && (
-                              <span className="text-[10px] text-zinc-400 dark:text-zinc-500 italic">
+                              <Badge variant="muted" className="text-[10px]">
                                 {t("channel.edited")}
-                              </span>
+                              </Badge>
                             )}
                             {isOwnMessage && (
                               <span
                                 data-testid={`direct-read-receipt-${msg.id}`}
-                                className="text-[10px] text-zinc-400 dark:text-zinc-500"
+                                className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground"
                               >
-                                {msg.readByOtherParticipant ? t("direct.seen") : t("direct.sent")}
+                                {msg.readByOtherParticipant ? (
+                                  <>
+                                    <CheckCheck size={12} />
+                                    {t("direct.seen")}
+                                  </>
+                                ) : (
+                                  <>
+                                    <Check size={12} />
+                                    {t("direct.sent")}
+                                  </>
+                                )}
                               </span>
                             )}
-                            <button
+                            <Button
+                              variant="icon"
+                              size="sm"
                               onClick={(e) => openMenuForElement(msg.id, e.currentTarget)}
                               data-testid={`direct-message-menu-trigger-${msg.id}`}
-                              className="ml-auto inline-flex h-5 w-5 items-center justify-center rounded text-xs text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                              className="ml-auto h-6 w-6"
                               aria-label={t("direct.messageMenu")}
                               aria-haspopup="menu"
                               aria-expanded={messageMenuId === msg.id}
                             >
-                              ⋯
-                            </button>
+                              <MoreHorizontal size={14} />
+                            </Button>
                           </div>
                           <div data-testid={`direct-message-bubble-wrap-${msg.id}`} className={isOwnMessage ? "ml-28 sm:ml-44" : ""}>
                             <div
@@ -1030,8 +1048,8 @@ export default function DirectConversationPage() {
                               }}
                               className={`mt-1 w-fit max-w-full rounded-2xl border px-3 py-2 shadow-sm ${
                                 isOwnMessage
-                                  ? "bg-emerald-50 border-emerald-200 text-zinc-900 dark:bg-emerald-950/40 dark:border-emerald-900 dark:text-zinc-100"
-                                  : "bg-white/95 dark:bg-zinc-900/95 border-zinc-200 dark:border-zinc-800"
+                                  ? "bg-primary/10 border-primary/20 text-foreground"
+                                  : "bg-card text-foreground border-border"
                               }`}
                             >
                               {msg.parentId && (
@@ -1044,23 +1062,23 @@ export default function DirectConversationPage() {
                                       return (
                                         <button
                                           onClick={() => { closeMenuAndPicker(); scrollToMessage(parent.id); }}
-                                          className="flex w-full flex-col gap-0.5 rounded-lg border-l-4 border-zinc-400 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900/60 px-2.5 py-1.5 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800/60 transition-colors"
+                                          className="flex w-full flex-col gap-0.5 rounded-lg border-l-4 border-border bg-muted/50 px-2.5 py-1.5 text-left hover:bg-accent/50 transition-colors"
                                         >
-                                          <span className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-300">
+                                          <span className="text-[11px] font-semibold text-foreground">
                                             {getMessageAuthorName(parent)}
                                           </span>
-                                          <span className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2">
+                                          <span className="text-xs text-muted-foreground line-clamp-2">
                                             {getMessageSnippet(parent)}
                                           </span>
                                         </button>
                                       );
                                     }
                                     return (
-                                      <div className="flex flex-col gap-0.5 rounded-lg border-l-4 border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60 px-2.5 py-1.5">
-                                        <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
+                                      <div className="flex flex-col gap-0.5 rounded-lg border-l-4 border-border bg-muted/50 px-2.5 py-1.5">
+                                        <span className="text-[11px] font-semibold text-muted-foreground">
                                           {t("direct.reply")}
                                         </span>
-                                        <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                                        <span className="text-xs text-muted-foreground/80">
                                           {t("direct.originalMessageMissing")}
                                         </span>
                                       </div>
@@ -1068,7 +1086,7 @@ export default function DirectConversationPage() {
                                   })()}
                                 </div>
                               )}
-                              <p className="whitespace-pre-wrap break-words text-sm leading-6 text-zinc-800 dark:text-zinc-200">
+                              <p className="whitespace-pre-wrap break-words text-sm leading-6 text-foreground">
                                 {msg.content}
                               </p>
                               {msg.reactions && msg.reactions.length > 0 && (
@@ -1080,8 +1098,8 @@ export default function DirectConversationPage() {
                                       data-testid={`direct-reaction-chip-${msg.id}-${reaction.emoji}`}
                                       className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-colors ${
                                         reaction.reactedByMe
-                                          ? "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-900 dark:text-emerald-400"
-                                          : "bg-white/80 border-zinc-200 text-zinc-600 dark:bg-zinc-900/60 dark:border-zinc-700 dark:text-zinc-300"
+                                          ? "bg-primary/10 border-primary/20 text-primary"
+                                          : "bg-card border-border text-muted-foreground"
                                       }`}
                                     >
                                       <span>{reaction.emoji}</span>
@@ -1106,60 +1124,61 @@ export default function DirectConversationPage() {
             </div>
           </div>
 
-          <form onSubmit={handleSendMessage} data-testid="direct-composer" className="shrink-0 flex flex-col gap-2 border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-4 shadow-sm">
+          <form onSubmit={handleSendMessage} data-testid="direct-composer" className="shrink-0 flex flex-col gap-2 border-t border-border bg-card p-4 shadow-sm">
             {socketError && (
-              <div className="rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs dark:border-red-900 dark:bg-red-950/30">
-                <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-                  <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-                  {socketError}
-                </div>
+              <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-2.5 text-xs text-destructive">
+                {socketError}
               </div>
             )}
             {editingMessage && (
-              <div data-testid="direct-edit-preview" className="flex items-start justify-between gap-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 px-3 py-2">
+              <div data-testid="direct-edit-preview" className="flex items-start justify-between gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2">
                 <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                  <p className="text-[11px] font-medium text-muted-foreground">
                     {t("direct.editingMessage")}
                   </p>
-                  <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-300 truncate">
+                  <p className="mt-0.5 text-xs text-foreground truncate">
                     {getMessageSnippet(editingMessage)}
                   </p>
                 </div>
-                <button
+                <Button
                   type="button"
+                  variant="icon"
+                  size="sm"
                   onClick={handleEditCancel}
                   data-testid="direct-cancel-edit"
-                  className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                  className="h-6 w-6"
                   aria-label={t("direct.cancelEdit")}
                 >
-                  ×
-                </button>
+                  <X size={14} />
+                </Button>
               </div>
             )}
             {replyToMessage && (
-              <div data-testid="direct-reply-preview" className="flex items-start justify-between gap-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 px-3 py-2">
+              <div data-testid="direct-reply-preview" className="flex items-start justify-between gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2">
                 <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                  <p className="text-[11px] font-medium text-muted-foreground">
                     {t("direct.replyingTo")} {getMessageAuthorName(replyToMessage)}
                   </p>
-                  <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-300 truncate">
+                  <p className="mt-0.5 text-xs text-foreground truncate">
                     {getMessageSnippet(replyToMessage)}
                   </p>
                 </div>
-                <button
+                <Button
                   type="button"
+                  variant="icon"
+                  size="sm"
                   onClick={() => setReplyToMessage(null)}
                   data-testid="direct-cancel-reply"
-                  className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                  className="h-6 w-6"
                   aria-label={t("direct.cancelReply")}
                 >
-                  ×
-                </button>
+                  <X size={14} />
+                </Button>
               </div>
             )}
             {typingUser && (
-              <div data-testid="direct-typing-indicator" className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <div data-testid="direct-typing-indicator" className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
                 {t("direct.typing", typingUser.displayName || typingUser.username)}
               </div>
             )}
@@ -1187,40 +1206,33 @@ export default function DirectConversationPage() {
                 }
               }}
               disabled={sendState.kind === "loading" || editState.kind === "loading"}
-              className="w-full resize-none rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 dark:focus:border-zinc-100 dark:focus:ring-zinc-100 disabled:opacity-60"
+              className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-60"
             />
             <div className="flex items-center justify-between gap-2">
-              <div className="text-[10px] text-zinc-400 dark:text-zinc-500">
+              <div className="text-[10px] text-muted-foreground">
                 {content.length > 0 && `${content.length} / 4000`}
               </div>
-              <button
+              <Button
                 type="submit"
                 disabled={sendState.kind === "loading" || editState.kind === "loading"}
-                className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
               >
                 {editingMessage
                   ? editState.kind === "loading"
-                    ? t("channel.savingEdit")
+                    ? <><Loader2 size={16} className="mr-1.5 animate-spin" />{t("channel.savingEdit")}</>
                     : t("direct.saveEdit")
                   : sendState.kind === "loading"
-                    ? t("direct.sending")
-                    : t("direct.send")}
-              </button>
+                    ? <><Loader2 size={16} className="mr-1.5 animate-spin" />{t("direct.sending")}</>
+                    : <><Send size={16} className="mr-1.5" />{t("direct.send")}</>}
+              </Button>
             </div>
             {editState.kind === "error" && (
-              <div className="rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs dark:border-red-900 dark:bg-red-950/30">
-                <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-                  <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-                  {editState.message}
-                </div>
+              <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-2.5 text-xs text-destructive">
+                {editState.message}
               </div>
             )}
             {sendState.kind === "error" && (
-              <div className="rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs dark:border-red-900 dark:bg-red-950/30">
-                <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-                  <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-                  {sendState.message}
-                </div>
+              <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-2.5 text-xs text-destructive">
+                {sendState.message}
               </div>
             )}
           </form>
@@ -1231,7 +1243,7 @@ export default function DirectConversationPage() {
         <div
           data-testid={`direct-message-menu-${messageMenuId}`}
           style={{ top: messageMenuPosition.top, left: messageMenuPosition.left }}
-          className="fixed z-50 w-44 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-1 shadow-lg"
+          className="fixed z-50 w-48 rounded-lg border border-border bg-popover p-1 shadow-lg"
           role="menu"
         >
           {(() => {
@@ -1243,66 +1255,78 @@ export default function DirectConversationPage() {
             return (
               <>
                 {activeMenuMessage.author.id === user?.id && (
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => handleEditStart(activeMenuMessage)}
                     data-testid={`direct-edit-action-${activeMenuMessage.id}`}
-                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                    className="w-full justify-start"
                     role="menuitem"
                   >
-                    <span className="text-base">✏️</span>
-                    <span>{t("direct.edit")}</span>
-                  </button>
+                    <Edit3 size={14} className="mr-2" />
+                    {t("direct.edit")}
+                  </Button>
                 )}
-                <button
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => handleReply(activeMenuMessage)}
                   data-testid={`direct-reply-action-${activeMenuMessage.id}`}
-                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                  className="w-full justify-start"
                   role="menuitem"
                 >
-                  <span className="text-base">↩</span>
-                  <span>{t("direct.reply")}</span>
-                </button>
-                <button
+                  <Reply size={14} className="mr-2" />
+                  {t("direct.reply")}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => {
                     if (messageMenuPosition) {
                       openReactionPickerAt(activeMenuMessage.id, messageMenuPosition);
                     }
                   }}
                   data-testid={`direct-react-action-${activeMenuMessage.id}`}
-                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                  className="w-full justify-start"
                   role="menuitem"
                 >
-                  <span className="text-base">😊</span>
-                  <span>{t("direct.react")}</span>
-                </button>
-                <button
+                  <Smile size={14} className="mr-2" />
+                  {t("direct.react")}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => handleForward(activeMenuMessage)}
                   data-testid={`direct-forward-action-${activeMenuMessage.id}`}
-                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                  className="w-full justify-start"
                   role="menuitem"
                 >
-                  <span className="text-base">↪</span>
-                  <span>{t("direct.forward")}</span>
-                </button>
-                <button
+                  <Forward size={14} className="mr-2" />
+                  {t("direct.forward")}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => handleCopyText(activeMenuMessage.content)}
                   data-testid={`direct-copy-text-action-${activeMenuMessage.id}`}
-                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                  className="w-full justify-start"
                   role="menuitem"
                 >
-                  <span className="text-base">📋</span>
-                  <span>{t("direct.copyText")}</span>
-                </button>
+                  <Copy size={14} className="mr-2" />
+                  {t("direct.copyText")}
+                </Button>
                 {activeMenuMessage.author.id === user?.id && (
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => handleDelete(activeMenuMessage)}
                     data-testid={`direct-delete-action-${activeMenuMessage.id}`}
-                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+                    className="w-full justify-start text-destructive hover:bg-destructive/10 hover:text-destructive"
                     role="menuitem"
                   >
-                    <span className="text-base">🗑️</span>
-                    <span>{t("direct.delete")}</span>
-                  </button>
+                    <Trash2 size={14} className="mr-2" />
+                    {t("direct.delete")}
+                  </Button>
                 )}
               </>
             );
@@ -1314,7 +1338,7 @@ export default function DirectConversationPage() {
         <div
           data-testid={`direct-reaction-picker-${reactionPickerMessageId}`}
           style={{ top: reactionPickerPosition.top, left: reactionPickerPosition.left }}
-          className="fixed z-50 flex flex-wrap gap-1 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-1.5 shadow-sm"
+          className="fixed z-50 flex flex-wrap gap-1 rounded-lg border border-border bg-popover p-1.5 shadow-sm"
         >
           {quickEmojis.map((emoji) => (
             <button
@@ -1330,7 +1354,7 @@ export default function DirectConversationPage() {
                 closeMenuAndPicker();
               }}
               data-testid={`direct-reaction-option-${reactionPickerMessageId}-${emoji}`}
-              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
               aria-label={`${t("direct.react")} ${emoji}`}
             >
               {emoji}
@@ -1347,37 +1371,39 @@ export default function DirectConversationPage() {
             if (e.target === e.currentTarget) setForwardMessage(null);
           }}
         >
-          <div className="w-full max-w-sm rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-5 shadow-xl">
+          <div className="w-full max-w-sm rounded-xl border border-border bg-card p-5 shadow-xl">
             <div className="flex items-center justify-between gap-2 mb-4">
-              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              <h2 className="text-sm font-semibold text-card-foreground">
                 {t("direct.forwardMessage")}
               </h2>
-              <button
+              <Button
                 type="button"
+                variant="icon"
+                size="sm"
                 onClick={() => setForwardMessage(null)}
                 data-testid="direct-cancel-forward"
-                className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                className="h-6 w-6"
                 aria-label={t("direct.cancelForward")}
               >
-                ×
-              </button>
+                <X size={14} />
+              </Button>
             </div>
 
-            <div className="mb-4 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 px-3 py-2">
-              <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+            <div className="mb-4 rounded-lg border border-border bg-muted/50 px-3 py-2">
+              <p className="text-[11px] font-medium text-muted-foreground">
                 {getMessageAuthorName(forwardMessage)}
               </p>
-              <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-300 line-clamp-3">
+              <p className="mt-0.5 text-xs text-foreground line-clamp-3">
                 {getMessageSnippet(forwardMessage)}
               </p>
             </div>
 
-            <p className="mb-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+            <p className="mb-2 text-xs font-medium text-muted-foreground">
               {t("direct.forwardTo")}
             </p>
 
             {forwardTargets.length === 0 && (
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              <p className="text-sm text-muted-foreground">
                 {t("direct.noForwardTargets")}
               </p>
             )}
@@ -1390,25 +1416,15 @@ export default function DirectConversationPage() {
                     onClick={() => handleForwardSend(conv.id)}
                     disabled={forwardState.kind === "loading"}
                     data-testid={`direct-forward-target-${conv.id}`}
-                    className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-60"
+                    className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-60"
                   >
-                    <div className="relative h-8 w-8 shrink-0 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center overflow-hidden">
-                      {conv.otherParticipant?.avatarUrl ? (
-                        <Image
-                          src={getAvatarUrl(conv.otherParticipant.avatarUrl) || ""}
-                          alt=""
-                          fill
-                          sizes="32px"
-                          className="object-cover"
-                          unoptimized
-                        />
-                      ) : (
-                        <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                          {(conv.otherParticipant?.displayName || conv.otherParticipant?.username || "?").slice(0, 2).toUpperCase()}
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-sm text-zinc-700 dark:text-zinc-300 truncate">
+                    <Avatar
+                      src={conv.otherParticipant?.avatarUrl}
+                      name={conv.otherParticipant?.displayName || conv.otherParticipant?.username}
+                      size="md"
+                      alt=""
+                    />
+                    <span className="text-sm text-foreground truncate">
                       {conv.otherParticipant?.displayName || conv.otherParticipant?.username || t("messageAuthor.unknownUser")}
                     </span>
                   </button>
@@ -1417,11 +1433,8 @@ export default function DirectConversationPage() {
             </ul>
 
             {forwardState.kind === "error" && (
-              <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs dark:border-red-900 dark:bg-red-950/30">
-                <div className="flex items-center gap-2 font-medium text-red-800 dark:text-red-400">
-                  <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-                  {forwardState.message}
-                </div>
+              <div className="mt-3 rounded-lg border border-destructive/20 bg-destructive/10 p-2.5 text-xs text-destructive">
+                {forwardState.message}
               </div>
             )}
           </div>

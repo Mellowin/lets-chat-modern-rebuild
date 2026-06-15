@@ -304,7 +304,7 @@ describe("ProfilePage — authenticated", () => {
       });
 
       const englishBtn = screen.getByRole("button", { name: "English" });
-      expect(englishBtn).toHaveClass("bg-zinc-900");
+      expect(englishBtn).toHaveClass("bg-primary");
     });
 
     it("saves selected Ukrainian locale to localStorage", async () => {
@@ -319,7 +319,7 @@ describe("ProfilePage — authenticated", () => {
       await userEvent.click(screen.getByRole("button", { name: /Українська/i }));
 
       expect(localStorage.getItem("lets-chat:locale")).toBe("uk");
-      expect(screen.getByRole("button", { name: /Українська/i })).toHaveClass("bg-zinc-900");
+      expect(screen.getByRole("button", { name: /Українська/i })).toHaveClass("bg-primary");
     });
 
     it("saves selected Russian locale to localStorage", async () => {
@@ -334,7 +334,7 @@ describe("ProfilePage — authenticated", () => {
       await userEvent.click(screen.getByRole("button", { name: /Русский/i }));
 
       expect(localStorage.getItem("lets-chat:locale")).toBe("ru");
-      expect(screen.getByRole("button", { name: /Русский/i })).toHaveClass("bg-zinc-900");
+      expect(screen.getByRole("button", { name: /Русский/i })).toHaveClass("bg-primary");
     });
 
     it("updates selected language immediately", async () => {

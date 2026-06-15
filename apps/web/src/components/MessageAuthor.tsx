@@ -1,8 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import { useLocale } from "@/lib/locale";
-import { getAvatarUrl } from "@/lib/avatar-url";
+import { Avatar } from "@/components/ui/Avatar";
 
 export interface MessageAuthorProps {
   author: {
@@ -16,18 +15,24 @@ export interface MessageAuthorProps {
 export function MessageAuthor({ author }: MessageAuthorProps) {
   const { t } = useLocale();
   const name = author.displayName || author.username || t("messageAuthor.unknownUser");
-  const initials = (author.displayName || author.username || "?").slice(0, 2).toUpperCase();
+  const showUsername = author.displayName && author.username;
 
   return (
-    <div className="flex items-center gap-2">
-      <div className="relative h-8 w-8 shrink-0 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center overflow-hidden">
-        {author.avatarUrl ? (
-          <Image fill className="object-cover" sizes="32px" src={getAvatarUrl(author.avatarUrl) || ""} alt="" unoptimized />
-        ) : (
-          <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">{initials}</span>
+    <div className="flex items-center gap-2.5">
+      <Avatar
+        src={author.avatarUrl}
+        name={author.displayName || author.username}
+        size="md"
+        alt={name}
+      />
+      <div className="flex min-w-0 flex-col">
+        <span className="text-sm font-semibold text-foreground truncate">{name}</span>
+        {showUsername && (
+          <span className="text-xs text-muted-foreground truncate">@{author.username}</span>
         )}
       </div>
-      <span className="text-sm font-semibold truncate">{name}</span>
     </div>
   );
 }
+
+export default MessageAuthor;
