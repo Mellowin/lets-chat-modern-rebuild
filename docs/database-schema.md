@@ -164,6 +164,7 @@ model Channel {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   deletedAt   DateTime?
+  permanentlyDeletedAt DateTime?
 
   // Relations
   workspace   Workspace     @relation(fields: [workspaceId], references: [id])
@@ -175,6 +176,7 @@ model Channel {
 
   @@unique([workspaceId, slug])
   @@index([workspaceId, deletedAt])
+  @@index([workspaceId, permanentlyDeletedAt])
 }
 ```
 
@@ -186,7 +188,8 @@ model Channel {
 | `slug` | String | NOT NULL | B-tree composite | Unique per workspace. |
 | `type` | Enum | NOT NULL, DEFAULT `PUBLIC` | - | `PUBLIC` or `PRIVATE`. Immutable in MVP (see `decisions.md` D6). |
 | `createdById` | UUID | FK -> User.id, NOT NULL | B-tree | Creator gets explicit `OWNER` in `ChannelMember`. |
-| `deletedAt` | DateTime | - | B-tree | Soft delete. |
+| `deletedAt` | DateTime | - | B-tree | Soft delete (archive). |
+| `permanentlyDeletedAt` | DateTime | - | B-tree | Permanent owner-only delete; row retained for referential integrity. |
 
 ---
 

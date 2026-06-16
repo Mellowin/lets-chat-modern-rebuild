@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { getChannels, getChannel, getArchivedChannels, createChannel, addChannelMember, removeChannelMember, restoreChannel, leaveChannel, markChannelRead } from "./channels-api";
+import { getChannels, getChannel, getArchivedChannels, createChannel, addChannelMember, removeChannelMember, restoreChannel, leaveChannel, markChannelRead, deleteChannel } from "./channels-api";
 
 const API_BASE = "http://localhost:3001/api/v1";
 
@@ -170,6 +170,31 @@ describe("channels-api", () => {
     it("throws with backend error message", async () => {
       vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ message: "Workspace not found" }), { status: 404 }));
       await expect(getArchivedChannels("token", "ws1")).rejects.toThrow("Workspace not found");
+    });
+  });
+
+  describe("deleteChannel", () => {
+    it("sends DELETE /workspaces/:wsId/channels/:chId", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ success: true }), { status: 200 }));
+
+      const result = await deleteChannel("token", "ws1", "ch1");
+
+      expect(fetch).toHaveBeenCalledWith(
+        `${API_BASE}/workspaces/ws1/channels/ch1`,
+        expect.objectContaining({
+          method: "DELETE",
+          headers: {
+            Accept: "application/json",
+            Authorization: "Bearer token",
+          },
+        }),
+      );
+      expect(result).toEqual({ success: true });
+    });
+
+    it("throws with backend error message", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ message: "Only workspace owner can delete channel" }), { status: 403 }));
+      await expect(deleteChannel("token", "ws1", "ch1")).rejects.toThrow("Only workspace owner can delete channel");
     });
   });
 

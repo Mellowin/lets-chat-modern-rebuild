@@ -319,6 +319,37 @@ export async function archiveChannel(
   return res.json() as Promise<{ success: boolean }>;
 }
 
+export async function deleteChannel(
+  accessToken: string,
+  workspaceId: string,
+  channelId: string,
+): Promise<{ success: boolean }> {
+  const res = await fetch(
+    `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}`,
+    {
+      method: "DELETE",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
+
+  if (!res.ok) {
+    let message = `Failed to delete channel: ${res.status} ${res.statusText}`;
+    try {
+      const body = await res.json();
+      if (body?.message) message = body.message;
+      else if (body?.error) message = body.error;
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+
+  return res.json() as Promise<{ success: boolean }>;
+}
+
 export async function leaveChannel(
   accessToken: string,
   workspaceId: string,

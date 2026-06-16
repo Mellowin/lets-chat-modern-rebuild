@@ -143,7 +143,7 @@ If `CORS_ORIGIN` is not set, the API falls back to `http://localhost:3000` for l
 ## Production checklist
 
 - [ ] **Backend deployed first** — API must be live before web build
-- [ ] **Database migrated** — run `prisma migrate deploy` on production database
+- [x] **Database migrated automatically** — `render.yaml` runs `pnpm --filter @lets-chat/database migrate:deploy` before starting the API, using the Render `DATABASE_URL` environment variable.
 - [ ] **Web env vars set** — `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_WS_URL` point to backend HTTPS URL
 - [ ] **Backend CORS allows Vercel domain** — `CORS_ORIGIN` includes production (and preview) URLs
 - [ ] **APP_WEB_URL matches Vercel** — email links point to correct frontend URL
@@ -242,7 +242,7 @@ These are the dashboard settings for the active backend service `lets-chat-api-v
 | Branch | `main` | Auto-deploy watches this branch |
 | Root Directory | `.` (repo root) | Monorepo build runs from root |
 | Build Command | `pnpm install --prod=false && pnpm run build:api:prod` | Installs dev deps needed for build; `--include=dev` previously failed on Render |
-| Start Command | `pnpm --filter api start:prod` | Runs compiled NestJS app |
+| Start Command | `pnpm --filter @lets-chat/database migrate:deploy && pnpm --filter api start:prod` | Runs pending Prisma migrations, then starts the compiled NestJS app |
 | Health Check Path | `/api/v1/health` | Render uses this for liveness |
 | Auto-deploy | `Off` | Verified: deploys are triggered only by the GitHub Actions Render Deploy Hook |
 | Plan | `Free` | Cold start ~1 min after sleep |

@@ -21,6 +21,7 @@ export interface ChannelWithUnread {
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
+  permanentlyDeletedAt: Date | null;
   unreadCount: number;
   hasUnread: boolean;
   lastReadAt: Date | null;
@@ -59,6 +60,7 @@ export class ChannelsRepository {
         workspaceId,
         slug,
         deletedAt: null,
+        permanentlyDeletedAt: null,
       },
     });
   }
@@ -68,6 +70,7 @@ export class ChannelsRepository {
       where: {
         workspaceId,
         deletedAt: null,
+        permanentlyDeletedAt: null,
         members: {
           some: {
             userId,
@@ -87,6 +90,7 @@ export class ChannelsRepository {
       where: {
         workspaceId,
         deletedAt: null,
+        permanentlyDeletedAt: null,
         members: {
           some: {
             userId,
@@ -146,6 +150,7 @@ export class ChannelsRepository {
       where: {
         workspaceId,
         deletedAt: { not: null },
+        permanentlyDeletedAt: null,
         members: {
           some: {
             userId,
@@ -159,7 +164,7 @@ export class ChannelsRepository {
 
   async findActiveById(channelId: string) {
     return this.prisma.channel.findFirst({
-      where: { id: channelId, deletedAt: null },
+      where: { id: channelId, deletedAt: null, permanentlyDeletedAt: null },
     });
   }
 
@@ -249,7 +254,17 @@ export class ChannelsRepository {
 
   async findByIdIncludingArchived(channelId: string) {
     return this.prisma.channel.findFirst({
+      where: { id: channelId, permanentlyDeletedAt: null },
+    });
+  }
+
+  async permanentlyDeleteChannel(channelId: string) {
+    return this.prisma.channel.update({
       where: { id: channelId },
+      data: {
+        deletedAt: new Date(),
+        permanentlyDeletedAt: new Date(),
+      },
     });
   }
 
@@ -309,6 +324,7 @@ export class ChannelsRepository {
         channel: {
           workspaceId,
           deletedAt: null,
+          permanentlyDeletedAt: null,
         },
       },
       data: { deletedAt: new Date() },

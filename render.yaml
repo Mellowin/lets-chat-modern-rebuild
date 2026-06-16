@@ -7,7 +7,7 @@ services:
     branch: main
     rootDir: .
     buildCommand: pnpm install --prod=false && pnpm run build:api:prod
-    startCommand: pnpm --filter api start:prod
+    startCommand: pnpm --filter @lets-chat/database migrate:deploy && pnpm --filter api start:prod
     envVars:
       - key: NODE_ENV
         value: production
