@@ -2,6 +2,7 @@
 
 > **Scope:** authentication, sessions, RBAC/IDOR, workspace/channel permissions, invites, global search, uploads/attachments, CORS/environment secrets, XSS/rendering safety.
 > **Date:** 2026-06-15
+> **Commit:** `f1d55c4b44b9f1075eb88bcb4b98b3d76897ab47`
 > **Auditor:** Kimi Code CLI (automated code review + local tests + production probes)
 > **Verdict:** No critical vulnerabilities found. Authorization boundaries are enforced server-side. A few hardening improvements were applied during this audit; remaining items are documented as known limitations.
 
@@ -253,6 +254,8 @@ pnpm run build:api:prod
 node scripts/smoke-deploy.mjs
 ```
 
+Local B195 results: API lint/typecheck/test ✅ (718 tests), web lint/typecheck/test ✅ (679 tests), web test:pages ✅ (239 tests), web build ✅, `build:api:prod` ✅, smoke 10/10 ✅.
+
 Production probes performed:
 
 ```bash
@@ -264,6 +267,10 @@ curl -I -X OPTIONS \
 
 # Error response check (no stack trace)
 curl https://lets-chat-api-v2.onrender.com/api/v1/this-does-not-exist
+
+# Swagger/OpenAPI disabled in production
+curl -I https://lets-chat-api-v2.onrender.com/api/docs
+# Expected: HTTP 404
 ```
 
 Expected production headers:

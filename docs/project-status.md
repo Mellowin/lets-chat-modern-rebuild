@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-06-15 (B195 security audit)  
+> Last updated: 2026-06-16 (B195 security audit completed)  
 > Code checkpoint: `main`  
 > Docs checkpoint: `main`
 >
@@ -244,7 +244,8 @@ Use these steps to verify core functionality after deploy or before release:
   - Added channel-invite OWNER-role rejection tests.
   - Added frontend XSS regression tests for author names and search snippets.
 - **Known limitations documented honestly:** no rate limiting, email/username enumeration possible, 15-minute access-token window after password change, public avatar URLs are unguessable but not authenticated, S3 bucket policy dependency, no HTTP security headers yet, console mail provider logs tokens in dev only.
-- **Checks:** API lint/typecheck/test ✅, web lint/typecheck/test/test:pages/build ✅, `build:api:prod` ✅, smoke 10/10 ✅.
+- **Checks:** API lint/typecheck/test ✅ (718 tests), web lint/typecheck/test ✅ (679 tests), web test:pages ✅ (239 tests), web build ✅, `build:api:prod` ✅, smoke 10/10 ✅.
+- **Commit:** `f1d55c4b44b9f1075eb88bcb4b98b3d76897ab47`
 - **Status:** security posture verified and documented; ready for B196 mobile responsiveness and later destructive owner actions.
 
 ---
