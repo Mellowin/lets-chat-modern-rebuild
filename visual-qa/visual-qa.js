@@ -6,7 +6,13 @@ const path = require("path");
 const WEB_BASE = "https://lets-chat-web.vercel.app";
 const API_BASE = "https://lets-chat-api-v2.onrender.com/api/v1";
 const MAIL_BASE = "https://api.mail.tm";
-const PASSWORD = "VisualQA!2024";
+
+function getVisualQAPassword() {
+  if (process.env.VISUAL_QA_PASSWORD) return process.env.VISUAL_QA_PASSWORD;
+  return `VisualQA-${Date.now()}-${Math.random().toString(36).slice(2)}!`;
+}
+
+const PASSWORD = getVisualQAPassword();
 const SCREENSHOT_DIR = path.join(__dirname, "screenshots");
 
 function sleep(ms) {

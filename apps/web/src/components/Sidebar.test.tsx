@@ -164,7 +164,7 @@ describe("Sidebar — Direct section", () => {
     await waitFor(() => {
       expect(screen.getByTestId("sidebar-direct-conversation-link-dc1")).toBeInTheDocument();
     });
-    expect(screen.getByTestId("sidebar-direct-conversation-link-dc1")).toHaveClass("bg-zinc-200");
+    expect(screen.getByTestId("sidebar-direct-conversation-link-dc1")).toHaveAttribute("data-active", "true");
   });
 
   it("shows total unread badge on Direct messages link", async () => {
@@ -238,7 +238,7 @@ describe("Sidebar — Workspaces section", () => {
     await waitFor(() => {
       expect(screen.getByTestId("sidebar-channel-link-ch1")).toBeInTheDocument();
     });
-    expect(screen.getByTestId("sidebar-channel-link-ch1")).toHaveClass("bg-zinc-200");
+    expect(screen.getByTestId("sidebar-channel-link-ch1")).toHaveAttribute("data-active", "true");
   });
 
   it("shows unread badge on channel with unread messages", async () => {
@@ -511,13 +511,13 @@ describe("Sidebar — presence updates", () => {
     await waitFor(() => {
       expect(screen.getByTestId("sidebar-direct-conversation-link-dc1")).toBeInTheDocument();
     });
-    expect(screen.getByTestId("sidebar-direct-conversation-link-dc1")).toHaveClass("bg-zinc-200");
+    expect(screen.getByTestId("sidebar-direct-conversation-link-dc1")).toHaveAttribute("data-active", "true");
     const handler = socketHandlers["presence:online"];
     handler({ user: { id: "u3", username: "charlie" }, status: "online" });
     await waitFor(() => {
       expect(screen.getByTestId("sidebar-direct-presence-dot-dc2")).toHaveClass("bg-emerald-500");
     });
-    expect(screen.getByTestId("sidebar-direct-conversation-link-dc1")).toHaveClass("bg-zinc-200");
+    expect(screen.getByTestId("sidebar-direct-conversation-link-dc1")).toHaveAttribute("data-active", "true");
   });
 
   it("presence event for unrelated user does not change existing conversations", async () => {
@@ -643,9 +643,9 @@ describe("Sidebar — section order", () => {
     await waitFor(() => {
       expect(screen.getByTestId("sidebar-direct-conversation-link-dc1")).toBeInTheDocument();
     });
-    expect(screen.getByTestId("sidebar-direct-conversation-link-dc1")).toHaveClass("bg-zinc-200");
+    expect(screen.getByTestId("sidebar-direct-conversation-link-dc1")).toHaveAttribute("data-active", "true");
     await userEvent.click(screen.getByTestId("sidebar-direct-move"));
-    expect(screen.getByTestId("sidebar-direct-conversation-link-dc1")).toHaveClass("bg-zinc-200");
+    expect(screen.getByTestId("sidebar-direct-conversation-link-dc1")).toHaveAttribute("data-active", "true");
   });
 
   it("active workspace and channel highlight remains after reorder", async () => {
@@ -654,11 +654,11 @@ describe("Sidebar — section order", () => {
     await waitFor(() => {
       expect(screen.getByTestId("sidebar-channel-link-ch1")).toBeInTheDocument();
     });
-    expect(screen.getByTestId("sidebar-workspace-toggle-ws1")).toHaveClass("bg-zinc-200");
-    expect(screen.getByTestId("sidebar-channel-link-ch1")).toHaveClass("bg-zinc-200");
+    expect(screen.getByTestId("sidebar-workspace-toggle-ws1")).toHaveAttribute("data-active", "true");
+    expect(screen.getByTestId("sidebar-channel-link-ch1")).toHaveAttribute("data-active", "true");
     await userEvent.click(screen.getByTestId("sidebar-direct-move"));
-    expect(screen.getByTestId("sidebar-workspace-toggle-ws1")).toHaveClass("bg-zinc-200");
-    expect(screen.getByTestId("sidebar-channel-link-ch1")).toHaveClass("bg-zinc-200");
+    expect(screen.getByTestId("sidebar-workspace-toggle-ws1")).toHaveAttribute("data-active", "true");
+    expect(screen.getByTestId("sidebar-channel-link-ch1")).toHaveAttribute("data-active", "true");
   });
 
   it("channels remain nested under workspace after reorder", async () => {

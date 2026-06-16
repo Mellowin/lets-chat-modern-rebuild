@@ -521,9 +521,10 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
               <Link
                 href="/direct"
                 data-testid="sidebar-direct-link"
+                data-active={pathname?.startsWith("/direct") ? "true" : undefined}
                 className={`flex items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors ${
                   pathname?.startsWith("/direct")
-                    ? "bg-zinc-200 dark:bg-zinc-800 font-medium text-foreground"
+                    ? "bg-accent text-accent-foreground font-semibold shadow-sm"
                     : "text-foreground/80 hover:bg-accent hover:text-accent-foreground"
                 }`}
               >
@@ -542,9 +543,10 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
                     <Link
                       href={`/direct/${conv.id}`}
                       data-testid={`sidebar-direct-conversation-link-${conv.id}`}
+                      data-active={isActive ? "true" : undefined}
                       className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
                         isActive
-                          ? "bg-zinc-200 dark:bg-zinc-800 font-medium text-foreground"
+                          ? "bg-accent text-accent-foreground font-semibold shadow-sm"
                           : conv.hasUnread
                             ? "font-medium text-foreground hover:bg-accent hover:text-accent-foreground"
                             : "text-foreground/80 hover:bg-accent hover:text-accent-foreground"
@@ -596,9 +598,10 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
                     <button
                       onClick={() => toggleWorkspace(ws.id)}
                       data-testid={`sidebar-workspace-toggle-${ws.id}`}
+                      data-active={isActive ? "true" : undefined}
                       className={`flex w-full items-center gap-1 rounded-md px-2 py-1.5 text-sm transition-colors ${
                         isActive
-                          ? "bg-zinc-200 dark:bg-zinc-800 font-medium text-foreground"
+                          ? "bg-accent text-accent-foreground font-semibold shadow-sm"
                           : "text-foreground/80 hover:bg-accent hover:text-accent-foreground"
                       }`}
                     >
@@ -613,9 +616,10 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
                       <div className="ml-4 mt-0.5 space-y-0.5" data-testid={`sidebar-workspace-channels-${ws.id}`}>
                         <Link
                           href={`/workspaces/${ws.id}`}
+                          data-active={pathname === `/workspaces/${ws.id}` ? "true" : undefined}
                           className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-sm transition-colors ${
                             pathname === `/workspaces/${ws.id}`
-                              ? "bg-zinc-200 dark:bg-zinc-800 font-medium text-foreground"
+                              ? "bg-accent text-accent-foreground font-semibold shadow-sm"
                               : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                           }`}
                         >
@@ -646,9 +650,10 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
                                     <Link
                                       href={`/workspaces/${ws.id}/channels/${ch.id}`}
                                       data-testid={`sidebar-channel-link-${ch.id}`}
+                                      data-active={isChActive ? "true" : undefined}
                                       className={`flex items-center justify-between rounded-md px-2 py-1 text-sm transition-colors ${
                                         isChActive
-                                          ? "bg-zinc-200 dark:bg-zinc-800 font-medium text-foreground"
+                                          ? "bg-accent text-accent-foreground font-semibold shadow-sm"
                                           : ch.hasUnread
                                             ? "font-medium text-foreground hover:bg-accent hover:text-accent-foreground"
                                             : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
