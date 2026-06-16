@@ -384,7 +384,7 @@ Use these steps to verify core functionality after deploy or before release:
   - Logout, password change, password reset, and explicit session revocation all mark refresh-token rows as revoked.
 - **Frontend behavior (new)**:
   - `apps/web/src/lib/auth-fetch.ts` wraps authenticated `fetch` calls. On `401`, it attempts a single refresh, retries the original request once with the new access token, and clears tokens if refresh fails.
-  - Concurrent `401` responses are coalesced into a single in-flight refresh promise.
+  - `apps/web/src/lib/auth-fetch.ts` exports `performSilentRefresh`, a shared in-flight refresh lock used by both `authFetch` and `AuthProvider`. This coalesces startup refresh and concurrent `401` API calls into a single `POST /auth/refresh`.
   - `AuthProvider` attempts silent refresh on startup when the stored access token is expired or `/auth/me` fails.
   - Authenticated API modules route through `authFetch` so the refresh is transparent to call sites.
 - **Tests added/updated:**
@@ -392,17 +392,22 @@ Use these steps to verify core functionality after deploy or before release:
   - Web: `auth-fetch.test.ts` (7 tests) covers 401 refresh, refresh failure logout, concurrent 401 coalescing, and no infinite retry.
   - Web: `auth-context.test.tsx` updated to cover startup refresh from expired token, startup refresh after a rejected `/auth/me`, and refresh failure clearing state.
 - **Docs updated** — `docs/security-audit.md`, `docs/portfolio-summary.md`, `README.md` (removed the "no silent token refresh" limitation).
-- **Checks:** API lint/typecheck/test ✅ (745 tests), web lint/typecheck/build ✅, web test ✅ (688 tests with `--retry=2`), web test:pages ✅ (248 tests).
+- **Checks:** API lint/typecheck/test ✅ (745 tests), web lint/typecheck/build ✅, web test ✅ (688 tests), web test:pages ✅ (248 tests).
 - **Production verification** — completed 2026-06-16.
-  - GitHub Actions CI/deploy run: [#27647958916](https://github.com/Mellowin/lets-chat-modern-rebuild/actions/runs/27647958916) ✅ — `ci` ✅, `Migrate production database` ✅, `Deploy API v2 to Render` ✅.
+  - GitHub Actions CI/deploy run: [#27649548286](https://github.com/Mellowin/lets-chat-modern-rebuild/actions/runs/27649548286) ✅ — `ci` ✅, `Migrate production database` ✅, `Deploy API v2 to Render` ✅.
   - `node scripts/smoke-deploy.mjs` public checks 10/10 ✅.
-  - Refresh probe (`scripts/verify-b200-refresh.mjs`) against `https://lets-chat-api-v2.onrender.com/api/v1`:
+  - Backend refresh probe (`scripts/verify-b200-refresh.mjs`) against `https://lets-chat-api-v2.onrender.com/api/v1`:
     - registered a disposable account via catchmail.io, verified email, and logged in;
     - `POST /auth/refresh` returned new access and refresh tokens;
     - `GET /auth/me` with the new access token succeeded;
     - `POST /auth/logout` succeeded;
     - reusing the logged-out refresh token returned `401`.
-  - Verified that the refresh endpoint rotates tokens and rejects revoked sessions in production.
+  - Browser silent-refresh acceptance (`scripts/verify-b200-browser.mjs`) against `https://lets-chat-web.vercel.app` using Playwright:
+    - injected valid tokens → dashboard loads authenticated;
+    - replaced access token with an expired token and reloaded → exactly one `POST /auth/refresh`, `/auth/me` succeeded, user stayed logged in;
+    - forced an authenticated API call (`/profile`) with expired access token → exactly one `POST /auth/refresh`, request retried and succeeded, no infinite loop;
+    - revoked the current refresh token and reloaded with expired access token → `sessionStorage` cleared and UI showed auth required;
+    - no tokens were printed to the browser console.
 
 ## 12. Known Limitations
 
