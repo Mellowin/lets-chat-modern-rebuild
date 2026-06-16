@@ -141,16 +141,17 @@ model WorkspaceMember {
 }
 
 model Channel {
-  id          String      @id @default(uuid()) @db.Uuid
-  workspaceId String      @db.Uuid
-  name        String
-  slug        String
-  description String?
-  type        ChannelType @default(PUBLIC)
-  createdById String      @db.Uuid
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  deletedAt   DateTime?
+  id                  String      @id @default(uuid()) @db.Uuid
+  workspaceId         String      @db.Uuid
+  name                String
+  slug                String
+  description         String?
+  type                ChannelType @default(PUBLIC)
+  createdById         String      @db.Uuid
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  deletedAt           DateTime?
+  permanentlyDeletedAt DateTime?
 
   // Relations
   workspace     Workspace       @relation(fields: [workspaceId], references: [id])
@@ -165,6 +166,7 @@ model Channel {
 
   @@unique([workspaceId, slug])
   @@index([workspaceId, deletedAt])
+  @@index([workspaceId, permanentlyDeletedAt])
 }
 
 model ChannelMember {

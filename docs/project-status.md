@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-06-16 (B197A production migration hardening completed)  
+> Last updated: 2026-06-16 (B197B owner-only channel delete completed)  
 > Code checkpoint: `main`  
 > Docs checkpoint: `main`
 >
@@ -50,6 +50,7 @@ See [`docs/deployment-vercel.md`](deployment-vercel.md) for full deployment guid
 - List workspace channels
 - View channel detail
 - Archive/restore channels (OWNER only)
+- Permanently delete channels (workspace OWNER only)
 - Channel member management via Members drawer:
   - Channel roles (OWNER/ADMIN/MEMBER) are separate from workspace roles
   - OWNER/ADMIN can invite workspace members to the channel; ADMIN cannot create ADMIN invites
@@ -285,25 +286,39 @@ Use these steps to verify core functionality after deploy or before release:
 
 ---
 
-## 13. B197A Production Migration Hardening
+## 13. B197A Production Migration Hardening + B197B Owner-Only Channel Delete
 
-- **Goal** — fix the deployment/migration gap that caused the B197 production outage, without re-implementing channel delete.
-- **Root cause of B197 outage** — API code referenced `Channel.permanentlyDeletedAt` before the production PostgreSQL column was created. `render.yaml` changes did not apply to the existing Render service, so the migration never ran.
+### B197A — Migration hardening
+
+- **Goal** — fix the deployment/migration gap that caused the first B197 production outage.
+- **Root cause** — API code referenced `Channel.permanentlyDeletedAt` before the production PostgreSQL column was created. `render.yaml` changes did not apply to the existing Render service, so the migration never ran.
 - **Chosen strategy** — GitHub Actions `migrate` job:
   - Runs `pnpm --filter @lets-chat/database migrate:deploy` with the `PRODUCTION_DATABASE_URL` secret.
   - Runs after the `ci` job and before the `deploy` job.
   - If the migration fails, the Render deploy hook is not called, so production stays on the previous working API version.
   - If `PRODUCTION_DATABASE_URL` is missing, the job warns and skips, and deployment is skipped too.
-- **Why it is safer than the B197 attempt:**
-  - Migrations are explicit, observable CI steps instead of hidden inside container startup.
-  - Deploy depends on migration success via job outputs.
-  - It does not rely on Render dashboard command changes, which may not take effect for existing services.
-- **Smoke coverage expanded** — `scripts/smoke-deploy.mjs` now supports authenticated checks via `SMOKE_ACCESS_TOKEN`, `SMOKE_WORKSPACE_ID`, and optional `SMOKE_CHANNEL_ID`. These catch workspace/channel 500s caused by schema mismatches.
 - **Docs updated** — `docs/deployment-vercel.md`, `docs/database-schema.md`.
 - **Required secrets:**
-  - `PRODUCTION_DATABASE_URL` (new)
-  - `RENDER_API_V2_DEPLOY_HOOK_URL` (already required)
-- **B197 owner-only channel delete status:** still paused. Will be reintroduced as B197B only after the migration strategy is proven.
+  - `PRODUCTION_DATABASE_URL`
+  - `RENDER_API_V2_DEPLOY_HOOK_URL`
+
+### B197B — Owner-only channel delete
+
+- **Goal** — allow workspace OWNER to permanently delete channels, reintroduced only after B197A pipeline was proven.
+- **Schema change** — `Channel.permanentlyDeletedAt DateTime?` added via migration `20260616173000_add_channel_permanently_deleted_at`.
+- **Soft-delete decision** — deleting sets both `deletedAt` and `permanentlyDeletedAt` timestamps; messages and attachments rows are kept (they no longer appear in search because the channel is excluded).
+- **Permission rules:**
+  - Only workspace `OWNER` can delete a channel.
+  - Workspace `ADMIN`/`MEMBER` and non-members receive `403`/`404`.
+  - Archived channels can also be deleted by the workspace owner.
+  - Already-deleted channels return `404` on repeat delete.
+- **Backend endpoint** — `DELETE /api/v1/workspaces/:workspaceId/channels/:channelId`.
+- **Frontend UI** — workspace overview shows a red **Delete** button for workspace owner on active and archived channels; confirmation dialog shows channel name and explains the action is destructive; successful delete refreshes both channel lists; failure shows an inline error.
+- **Visibility after delete** — deleted channels disappear from active list, archived list, direct channel fetch, and global/workspace/channel message search.
+- **Tests added/updated:**
+  - API: owner delete active/archived, admin/member/non-member rejection, wrong workspace, already deleted, list/search exclusion.
+  - Web: owner sees Delete, non-owner does not, successful delete refreshes lists, failed delete shows error.
+- **Docs updated** — `docs/project-status.md`, `docs/security-audit.md`, `docs/database-schema.md`, `docs/portfolio-demo.md`.
 
 ## 12. Known Limitations
 

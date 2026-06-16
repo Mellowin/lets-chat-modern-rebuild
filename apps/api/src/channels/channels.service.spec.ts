@@ -81,6 +81,7 @@ describe('ChannelsService', () => {
             findByIdIncludingArchived: jest.fn(),
             archiveChannel: jest.fn(),
             restoreChannel: jest.fn(),
+            permanentlyDeleteChannel: jest.fn(),
             softDeleteChannelMember: jest.fn(),
             findBySlug: jest.fn(),
             createChannel: jest.fn(),
@@ -1634,6 +1635,146 @@ describe('ChannelsService', () => {
         userId,
       );
       expect(leaveResult.success).toBe(true);
+
+      await expect(
+        service.findById(workspaceId, channelId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('delete', () => {
+    it('workspace OWNER can delete active channel', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      channelsRepository.findByIdIncludingArchived.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+        deletedAt: null,
+        permanentlyDeletedAt: null,
+      } as ChannelWithArchive);
+      channelsRepository.permanentlyDeleteChannel.mockResolvedValue({
+        id: channelId,
+        deletedAt: new Date(),
+        permanentlyDeletedAt: new Date(),
+      } as ChannelWithArchive);
+
+      const result = await service.delete(workspaceId, channelId, userId);
+
+      expect(result.success).toBe(true);
+      expect(channelsRepository.permanentlyDeleteChannel).toHaveBeenCalledWith(
+        channelId,
+      );
+    });
+
+    it('workspace OWNER can delete archived channel', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      channelsRepository.findByIdIncludingArchived.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+        deletedAt: new Date(),
+        permanentlyDeletedAt: null,
+      } as ChannelWithArchive);
+      channelsRepository.permanentlyDeleteChannel.mockResolvedValue({
+        id: channelId,
+        deletedAt: new Date(),
+        permanentlyDeletedAt: new Date(),
+      } as ChannelWithArchive);
+
+      const result = await service.delete(workspaceId, channelId, userId);
+
+      expect(result.success).toBe(true);
+      expect(channelsRepository.permanentlyDeleteChannel).toHaveBeenCalledWith(
+        channelId,
+      );
+    });
+
+    it('ADMIN cannot delete channel', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('ADMIN');
+
+      await expect(
+        service.delete(workspaceId, channelId, userId),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(
+        channelsRepository.permanentlyDeleteChannel,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('MEMBER cannot delete channel', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+
+      await expect(
+        service.delete(workspaceId, channelId, userId),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(
+        channelsRepository.permanentlyDeleteChannel,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('non-workspace member cannot delete channel', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue(null);
+
+      await expect(
+        service.delete(workspaceId, channelId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(
+        channelsRepository.permanentlyDeleteChannel,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('returns 404 when channel belongs to another workspace', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      channelsRepository.findByIdIncludingArchived.mockResolvedValue({
+        id: channelId,
+        workspaceId: '99999999-9999-9999-9999-999999999999',
+        deletedAt: null,
+        permanentlyDeletedAt: null,
+      } as ChannelWithArchive);
+
+      await expect(
+        service.delete(workspaceId, channelId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(
+        channelsRepository.permanentlyDeleteChannel,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('returns 404 when channel is already permanently deleted', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      channelsRepository.findByIdIncludingArchived.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        deletedAt: new Date(),
+        permanentlyDeletedAt: new Date(),
+      } as ChannelWithArchive);
+
+      await expect(
+        service.delete(workspaceId, channelId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(
+        channelsRepository.permanentlyDeleteChannel,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('deleted channel does not appear in active list', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.listForWorkspaceWithUnread.mockResolvedValue([]);
+
+      const listResult = await service.list(workspaceId, userId);
+      expect(listResult).toEqual([]);
+    });
+
+    it('deleted channel does not appear in archived list', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.listArchivedForWorkspace.mockResolvedValue([]);
+
+      const listResult = await service.listArchived(workspaceId, userId);
+      expect(listResult).toEqual([]);
+    });
+
+    it('direct access to deleted channel returns 404', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue(null);
 
       await expect(
         service.findById(workspaceId, channelId, userId),

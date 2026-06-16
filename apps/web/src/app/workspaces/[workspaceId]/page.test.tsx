@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import WorkspaceDetailPage from "./page";
 import { getWorkspace, getWorkspaceMembers, addWorkspaceMember, leaveWorkspace, removeWorkspaceMember, updateWorkspaceMemberRole } from "@/lib/workspaces-api";
 import { createWorkspaceInvite, listWorkspaceInvites } from "@/lib/invites-api";
-import { getChannels, getArchivedChannels, archiveChannel, restoreChannel } from "@/lib/channels-api";
+import { getChannels, getArchivedChannels, archiveChannel, restoreChannel, deleteChannel } from "@/lib/channels-api";
 
 const routerPushMock = vi.fn();
 const mockRouter = { push: routerPushMock };
@@ -46,6 +46,7 @@ vi.mock("@/lib/channels-api", () => ({
   createChannel: vi.fn(),
   archiveChannel: vi.fn(),
   restoreChannel: vi.fn(),
+  deleteChannel: vi.fn(),
 }));
 
 beforeEach(() => {
@@ -156,6 +157,74 @@ describe("WorkspaceDetailPage — locale", () => {
     });
     await userEvent.click(screen.getByRole("button", { name: "Восстановить" }));
     expect(confirmSpy).toHaveBeenCalledWith('Восстановить канал "old-general"?');
+    confirmSpy.mockRestore();
+  });
+
+  it("shows delete button for workspace owner", async () => {
+    mockWorkspaceData({ archived: [] });
+    vi.mocked(getChannels).mockResolvedValue([
+      { id: "ch1", workspaceId: "ws1", name: "general", slug: "general-slug", description: null, type: "PUBLIC", createdById: "u2", createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", deletedAt: null },
+    ]);
+    render(<WorkspaceDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
+    });
+  });
+
+  it("does not show delete button for non-owner workspace member", async () => {
+    mockWorkspaceData({ archived: [] });
+    vi.mocked(getWorkspaceMembers).mockResolvedValue([
+      { id: "wm1", workspaceId: "ws1", role: "MEMBER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice", displayName: "Alice" } },
+    ]);
+    vi.mocked(getChannels).mockResolvedValue([
+      { id: "ch1", workspaceId: "ws1", name: "general", slug: "general-slug", description: null, type: "PUBLIC", createdById: "u1", createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", deletedAt: null },
+    ]);
+    render(<WorkspaceDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("general")).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
+  });
+
+  it("successful delete refreshes channel lists", async () => {
+    mockWorkspaceData({ archived: [] });
+    vi.mocked(getChannels).mockResolvedValue([
+      { id: "ch1", workspaceId: "ws1", name: "general", slug: "general-slug", description: null, type: "PUBLIC", createdById: "u1", createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", deletedAt: null },
+    ]);
+    vi.mocked(deleteChannel).mockResolvedValue({ success: true });
+    vi.mocked(getArchivedChannels).mockResolvedValue([]);
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(<WorkspaceDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+    await waitFor(() => {
+      expect(deleteChannel).toHaveBeenCalledWith("token", "ws1", "ch1");
+    });
+    expect(getChannels).toHaveBeenCalledTimes(2);
+    expect(getArchivedChannels).toHaveBeenCalledTimes(2);
+
+    confirmSpy.mockRestore();
+  });
+
+  it("delete failure shows error", async () => {
+    mockWorkspaceData({ archived: [] });
+    vi.mocked(getChannels).mockResolvedValue([
+      { id: "ch1", workspaceId: "ws1", name: "general", slug: "general-slug", description: null, type: "PUBLIC", createdById: "u1", createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", deletedAt: null },
+    ]);
+    vi.mocked(deleteChannel).mockRejectedValue(new Error("Channel not found"));
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    render(<WorkspaceDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+    expect(await screen.findByText("Channel not found")).toBeInTheDocument();
     confirmSpy.mockRestore();
   });
 

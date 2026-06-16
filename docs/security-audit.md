@@ -1,8 +1,8 @@
 # Security Audit (B195)
 
 > **Scope:** authentication, sessions, RBAC/IDOR, workspace/channel permissions, invites, global search, uploads/attachments, CORS/environment secrets, XSS/rendering safety.
-> **Date:** 2026-06-15
-> **Commit:** `f1d55c4b44b9f1075eb88bcb4b98b3d76897ab47`
+> **Date:** 2026-06-15 (updated 2026-06-16 for B197B)
+> **Commit:** `f1d55c4b44b9f1075eb88bcb4b98b3d76897ab47` (B195 baseline; B197B adds owner-only channel delete)
 > **Auditor:** Kimi Code CLI (automated code review + local tests + production probes)
 > **Verdict:** No critical vulnerabilities found. Authorization boundaries are enforced server-side. A few hardening improvements were applied during this audit; remaining items are documented as known limitations.
 
@@ -59,6 +59,7 @@ During this audit we:
 | Workspace archive/restore/transfer | OWNER only. |
 | Channel detail | Active workspace member **and** active channel member required. |
 | Channel archive/restore | Channel OWNER only. |
+| Channel permanent delete | Workspace OWNER only; admin/member/non-member rejected. |
 | Channel member management | Channel OWNER/ADMIN; ADMIN cannot remove/change another ADMIN or OWNER. |
 | DM messages | `DirectConversationParticipant` check on every read/write. |
 | Sessions | Users can only see/revoke their own refresh sessions. |
@@ -79,6 +80,7 @@ During this audit we:
 - ADMIN can add/remove MEMBERs but not OWNER/ADMIN.
 - Any workspace member can create a channel and becomes its channel OWNER.
 - Channel OWNER can archive/restore and manage channel members.
+- Workspace OWNER can permanently delete channels (active or archived).
 - Channel ADMIN can invite MEMBERs and remove MEMBERs; cannot create ADMIN invites.
 
 These rules are enforced in `WorkspacesService` and `ChannelsService` and are covered by unit tests.

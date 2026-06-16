@@ -209,6 +209,11 @@ export type TranslationKey =
   | "workspace.noArchivedChannels"
   | "workspace.restore"
   | "workspace.restoring"
+  | "workspace.delete"
+  | "workspace.deleting"
+  | "workspace.confirmDeleteChannelPrefix"
+  | "workspace.confirmDeleteChannelBody"
+  | "workspace.errorDeleteChannelFailed"
   | "channel.backToWorkspace"
   | "invite.loadingInvite"
   | "invite.invitedToJoin"
@@ -847,6 +852,11 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "workspace.confirmArchiveChannelPrefix": "Archive channel",
     "workspace.confirmArchiveChannelBody": "This will hide the channel from the workspace. Only the channel owner can do this.",
     "workspace.confirmRestoreChannelPrefix": "Restore channel",
+    "workspace.delete": "Delete",
+    "workspace.deleting": "Deleting…",
+    "workspace.confirmDeleteChannelPrefix": "Delete channel",
+    "workspace.confirmDeleteChannelBody": "This will permanently delete the channel and its messages. Only the workspace owner can do this.",
+    "workspace.errorDeleteChannelFailed": "Failed to delete channel",
     "workspace.confirmLeaveWorkspacePrefix": "Leave workspace",
     "workspace.confirmRemoveMemberPrefix": "Remove",
     "workspace.confirmRemoveMemberSuffix": "from this workspace?",
@@ -1317,6 +1327,11 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "workspace.confirmArchiveChannelPrefix": "Архівувати канал",
     "workspace.confirmArchiveChannelBody": "Це приховає канал з робочого простору. Це може зробити лише власник каналу.",
     "workspace.confirmRestoreChannelPrefix": "Відновити канал",
+    "workspace.delete": "Видалити",
+    "workspace.deleting": "Видаляємо…",
+    "workspace.confirmDeleteChannelPrefix": "Видалити канал",
+    "workspace.confirmDeleteChannelBody": "Це назавжди видалить канал і його повідомлення. Це може зробити лише власник робочого простору.",
+    "workspace.errorDeleteChannelFailed": "Не вдалося видалити канал",
     "workspace.confirmLeaveWorkspacePrefix": "Покинути робочий простір",
     "workspace.confirmRemoveMemberPrefix": "Вилучити",
     "workspace.confirmRemoveMemberSuffix": "з цього робочого простору?",
@@ -1787,6 +1802,11 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "workspace.confirmArchiveChannelPrefix": "Архивировать канал",
     "workspace.confirmArchiveChannelBody": "Это скроет канал из рабочего пространства. Это может сделать только владелец канала.",
     "workspace.confirmRestoreChannelPrefix": "Восстановить канал",
+    "workspace.delete": "Удалить",
+    "workspace.deleting": "Удаляем…",
+    "workspace.confirmDeleteChannelPrefix": "Удалить канал",
+    "workspace.confirmDeleteChannelBody": "Это навсегда удалит канал и его сообщения. Это может сделать только владелец рабочего пространства.",
+    "workspace.errorDeleteChannelFailed": "Не удалось удалить канал",
     "workspace.confirmLeaveWorkspacePrefix": "Покинуть рабочее пространство",
     "workspace.confirmRemoveMemberPrefix": "Удалить",
     "workspace.confirmRemoveMemberSuffix": "из этого рабочего пространства?",

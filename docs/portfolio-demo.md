@@ -53,6 +53,7 @@ For a quick, repeatable demo, register a throwaway account with a fake email and
 - Create a **private** channel and invite specific workspace members.
 - Confirm that a non-member cannot access the private channel (returns 404, no information leakage).
 - Archive and restore a channel (OWNER only).
+- Permanently delete a channel (workspace OWNER only); verify it disappears from active and archived lists and search.
 
 ### 4. Real-Time Messaging
 

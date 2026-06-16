@@ -184,6 +184,21 @@ export class ChannelsController {
     return this.channels.leaveChannel(workspaceId, channelId, user.id);
   }
 
+  @Delete(':channelId')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Permanently delete channel' })
+  @ApiOkResponse({ description: 'Channel deleted' })
+  @ApiForbiddenResponse({ description: 'Forbidden' })
+  @ApiNotFoundResponse({ description: 'Channel not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async delete(
+    @Param('workspaceId') workspaceId: string,
+    @Param('channelId') channelId: string,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.channels.delete(workspaceId, channelId, user.id);
+  }
+
   @Post(':channelId/archive')
   @HttpCode(200)
   @ApiOperation({ summary: 'Archive channel' })

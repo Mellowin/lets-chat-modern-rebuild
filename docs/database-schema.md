@@ -626,6 +626,7 @@ Message ||--o{ Notification : "referenced"
 | Workspace | Yes | Hidden from lists; data retained | `OWNER` can archive workspace. Owner transfer is required before leaving, not before archive. |
 | WorkspaceMember | Yes | Membership history preserved | Re-join possible by creating new row. |
 | Channel | Yes | Hidden from lists; messages readable by admins | Direct links still work for admins. |
+| Channel | permanentlyDeletedAt | Permanently deleted by workspace OWNER; channel and its messages are hidden from all lists and search | Data is retained in DB; visibility is filtered by `permanentlyDeletedAt IS NULL`. |
 | ChannelMember | Yes | Join/leave history preserved | Re-join possible. |
 | Message | Yes | Content masked; metadata retained | API uses `deletedAt != null` and `content: null` where deletion context is allowed. |
 | MessageEdit | No | Immutable audit data | No soft delete. |
@@ -765,7 +766,8 @@ MVP supports only one level of threading (flat replies). Only messages with `par
 | WorkspaceMember | `[workspaceId, role]` | B-tree | Fast admin/owner lookups. |
 | WorkspaceMember | `workspaceId` WHERE `role` = `OWNER` | Partial unique (raw SQL) | Enforces single active OWNER per workspace. |
 | Channel | `[workspaceId, slug]` | Unique | Per-workspace URL routing. |
-| Channel | `[workspaceId, deletedAt]` | B-tree | Filtered channel lists. |
+| Channel | `[workspaceId, deletedAt]` | B-tree | Filtered active/archived channel lists. |
+| Channel | `[workspaceId, permanentlyDeletedAt]` | B-tree | Exclude permanently deleted channels from lists/search. |
 | ChannelMember | `[channelId, userId]` | Partial unique (raw SQL) | One active membership per user per channel. |
 | ChannelMember | `[channelId, role]` | B-tree | Fast owner/admin lookups. |
 | Message | `[channelId, createdAt, id]` | B-tree | Cursor pagination. |
