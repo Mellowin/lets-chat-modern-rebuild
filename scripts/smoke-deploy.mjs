@@ -5,6 +5,9 @@
  * Usage:
  *   WEB_URL=https://app.example.com API_URL=https://api.example.com/api/v1 node scripts/smoke-deploy.mjs
  *
+ * Optional authenticated checks (recommended for post-B197 deploys):
+ *   SMOKE_ACCESS_TOKEN=<jwt> SMOKE_WORKSPACE_ID=<uuid> [SMOKE_CHANNEL_ID=<uuid>] node scripts/smoke-deploy.mjs
+ *
  * PowerShell:
  *   $env:WEB_URL="https://app.example.com"
  *   $env:API_URL="https://api.example.com/api/v1"
@@ -163,6 +166,81 @@ async function checkMissingAvatarFallback() {
   }
 }
 
+async function checkAuthenticatedChannels() {
+  const token = process.env.SMOKE_ACCESS_TOKEN;
+  const workspaceId = process.env.SMOKE_WORKSPACE_ID;
+
+  if (!token || !workspaceId) {
+    console.log(
+      "  ⏭️  Authenticated channel checks skipped (set SMOKE_ACCESS_TOKEN and SMOKE_WORKSPACE_ID)",
+    );
+    return;
+  }
+
+  const headers = {
+    Accept: "application/json",
+    Authorization: `Bearer ${token}`,
+  };
+
+  const listLabel = "GET /workspaces/:id/channels returns 200 for authenticated user";
+  try {
+    const res = await fetch(`${API_URL}/workspaces/${workspaceId}/channels`, {
+      method: "GET",
+      headers,
+    });
+    if (res.status !== 200) {
+      fail(listLabel, `status ${res.status}: ${await res.text()}`);
+    } else {
+      const body = await res.json();
+      if (!Array.isArray(body)) {
+        fail(listLabel, "response is not an array");
+      } else {
+        pass(listLabel);
+      }
+    }
+  } catch (err) {
+    fail(listLabel, err instanceof Error ? err.message : String(err));
+  }
+
+  const archivedLabel = "GET /workspaces/:id/channels/archived returns 200 for authenticated user";
+  try {
+    const res = await fetch(`${API_URL}/workspaces/${workspaceId}/channels/archived`, {
+      method: "GET",
+      headers,
+    });
+    if (res.status !== 200) {
+      fail(archivedLabel, `status ${res.status}: ${await res.text()}`);
+    } else {
+      const body = await res.json();
+      if (!Array.isArray(body)) {
+        fail(archivedLabel, "response is not an array");
+      } else {
+        pass(archivedLabel);
+      }
+    }
+  } catch (err) {
+    fail(archivedLabel, err instanceof Error ? err.message : String(err));
+  }
+
+  const channelId = process.env.SMOKE_CHANNEL_ID;
+  if (channelId) {
+    const channelLabel = "GET /workspaces/:id/channels/:channelId returns 200 for authenticated user";
+    try {
+      const res = await fetch(`${API_URL}/workspaces/${workspaceId}/channels/${channelId}`, {
+        method: "GET",
+        headers,
+      });
+      if (res.status !== 200) {
+        fail(channelLabel, `status ${res.status}: ${await res.text()}`);
+      } else {
+        pass(channelLabel);
+      }
+    } catch (err) {
+      fail(channelLabel, err instanceof Error ? err.message : String(err));
+    }
+  }
+}
+
 async function main() {
   console.log("=== Deployment Smoke Check ===\n");
 
@@ -220,6 +298,9 @@ async function main() {
     "POST",
     "/auth/change-password",
   );
+
+  console.log("\n--- Authenticated endpoints ---");
+  await checkAuthenticatedChannels();
 
   const failures = checks.filter((c) => !c.ok);
   console.log("\n=== Automated checks completed ===");

@@ -184,6 +184,16 @@ $env:API_URL="https://lets-chat-api-v2.onrender.com/api/v1"
 node scripts/smoke-deploy.mjs
 ```
 
+**With authenticated workspace/channel checks (recommended):**
+```bash
+WEB_URL=https://lets-chat-web.vercel.app \
+API_URL=https://lets-chat-api-v2.onrender.com/api/v1 \
+SMOKE_ACCESS_TOKEN=<production-jwt> \
+SMOKE_WORKSPACE_ID=<workspace-uuid> \
+SMOKE_CHANNEL_ID=<channel-uuid> \
+node scripts/smoke-deploy.mjs
+```
+
 ### Required values
 
 - `WEB_URL` — full Vercel production URL (e.g. `https://lets-chat-web.vercel.app`)
@@ -204,6 +214,13 @@ node scripts/smoke-deploy.mjs
 8. `POST /auth/sessions/revoke-all` returns `401 Unauthorized`
 9. `POST /auth/sessions/revoke-others` returns `401 Unauthorized`
 10. `POST /auth/change-password` returns `401 Unauthorized`
+
+**Authenticated endpoints (when `SMOKE_ACCESS_TOKEN` and `SMOKE_WORKSPACE_ID` are set)**
+11. `GET /workspaces/:id/channels` returns `200 OK` with a JSON array
+12. `GET /workspaces/:id/channels/archived` returns `200 OK` with a JSON array
+13. `GET /workspaces/:id/channels/:channelId` returns `200 OK` (when `SMOKE_CHANNEL_ID` is set)
+
+> These authenticated checks catch missing-column/migration errors that public checks cannot, because the channel endpoints touch the `Channel` table.
 
 ### What still requires manual verification
 
@@ -227,6 +244,7 @@ node scripts/smoke-deploy.mjs
 | `API health returns status ok: status 403/404` | Wrong `API_URL` path (missing `/api/v1`) |
 | `POST /auth/forgot-password returns generic success: fetch failed` | CORS blocked — `CORS_ORIGIN` on backend does not include Vercel domain |
 | `API health: body.status = degraded` | Database connection failing — migrations not applied or wrong `DATABASE_URL` |
+| `GET /workspaces/:id/channels returns 500` | Missing database column — run `prisma migrate deploy` against production before deploying code that uses the column |
 
 ---
 
@@ -242,7 +260,7 @@ These are the dashboard settings for the active backend service `lets-chat-api-v
 | Branch | `main` | Auto-deploy watches this branch |
 | Root Directory | `.` (repo root) | Monorepo build runs from root |
 | Build Command | `pnpm install --prod=false && pnpm run build:api:prod` | Installs dev deps needed for build; `--include=dev` previously failed on Render |
-| Start Command | `pnpm --filter api start:prod` | Runs compiled NestJS app |
+| Start Command | `pnpm --filter api start:prod` | Runs compiled NestJS app. Database migrations are **not** run automatically; see the production migration strategy below. |
 | Health Check Path | `/api/v1/health` | Render uses this for liveness |
 | Auto-deploy | `Off` | Verified: deploys are triggered only by the GitHub Actions Render Deploy Hook |
 | Plan | `Free` | Cold start ~1 min after sleep |
@@ -258,6 +276,27 @@ GitHub Actions is the source of truth for deploying `lets-chat-api-v2`:
 5. If the secret is not set, the deploy job skips with a warning and Render auto-deploy must be enabled as a fallback.
 
 This has been verified end-to-end (B190): pushes to `main` no longer trigger Render auto-deploy, and the service deploys only after the GitHub Actions hook is called.
+
+### Production migration strategy
+
+Migrations must run **before** the new API code starts serving traffic. The `render.yaml` file in the repo is **not authoritative** for an already-created Render service; dashboard settings and deploy hooks are what actually execute. Do not assume `render.yaml` changes alone will run migrations.
+
+Choose one of the following strategies before re-introducing schema changes such as B197's `permanentlyDeletedAt` column:
+
+1. **Render dashboard start command (recommended for Render)**
+   Change the **Start Command** in the Render dashboard for `lets-chat-api-v2` to:
+   ```bash
+   pnpm --filter @lets-chat/database migrate:deploy && pnpm --filter api start:prod
+   ```
+   This runs `prisma migrate deploy` before every container start, so migrations are applied before the API boots. Verify that the command succeeds by checking the Render deploy logs for the `migrate:deploy` output.
+
+2. **GitHub Actions migration job**
+   Add a CI job that runs `pnpm --filter @lets-chat/database migrate:deploy` against production using a `DATABASE_URL` secret, and only triggers the Render deploy hook after the migration succeeds. This keeps migrations explicit and observable in the deploy pipeline.
+
+3. **Manual migration gate (fallback)**
+   Before triggering a Render deploy that depends on a new column, manually run `pnpm --filter @lets-chat/database migrate:deploy` from a trusted environment with `DATABASE_URL` set to production, then verify the migration completed before deploying.
+
+Never deploy API code that references a column that has not yet been created in production.
 
 ### One-time setup: Render Deploy Hook
 
