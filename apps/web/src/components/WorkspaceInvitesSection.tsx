@@ -312,7 +312,7 @@ export default function WorkspaceInvitesSection({
 
         {createState.kind === "success" && createState.token && (
           <SuccessAlert message={createState.message} className="mt-4">
-            <div className="mt-2 flex items-center gap-2">
+            <div className="mt-2 flex flex-col sm:flex-row items-start sm:items-center gap-2">
               <Input
                 id="invite-link"
                 name="invite-link"
@@ -365,7 +365,7 @@ export default function WorkspaceInvitesSection({
                   {activeInvites.map((inv) => (
                     <li
                       key={inv.id}
-                      className="flex items-center justify-between gap-3 py-2"
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 py-2"
                     >
                       <div className="min-w-0 text-sm">
                         <p className="font-medium">
@@ -408,7 +408,7 @@ export default function WorkspaceInvitesSection({
                   {pastInvites.map((inv) => (
                     <li
                       key={inv.id}
-                      className="flex items-center justify-between gap-3 py-2"
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 py-2"
                     >
                       <div className="min-w-0 text-sm">
                         <p className="font-medium">

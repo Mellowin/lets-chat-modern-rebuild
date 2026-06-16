@@ -3,6 +3,8 @@
 This guide helps present the project to recruiters, hiring managers, or in a portfolio. It focuses on the live production deployment and the features that are stable enough to demonstrate.
 
 > **B192 UI Polish:** The app received a visual redesign pass — cleaner layout, improved cards/buttons/inputs, polished message bubbles, search modals, and auth/profile screens. Screenshots taken after this pass should look portfolio-ready.
+>
+> **B196 Mobile Responsiveness:** The app was polished for mobile and tablet viewports. All demo screens are usable down to 375 px wide, and the authenticated shell uses a mobile drawer for navigation.
 
 ---
 
@@ -118,6 +120,17 @@ Use this list when preparing portfolio visuals. Do not add images to the repo un
 - [ ] **Direct message** — 1-to-1 chat.
 - [ ] **Global search modal** — search results with source labels.
 - [ ] **Profile → Sessions** — session list with current badge and revoke button.
+
+### Mobile / Tablet Additions (B196)
+
+- [ ] **Mobile login** (375–390 px wide) — centered card, no overflow.
+- [ ] **Mobile dashboard** — cards stack cleanly.
+- [ ] **Mobile workspace overview** — channel/member/invite cards fit.
+- [ ] **Mobile channel** — composer and message bubbles usable.
+- [ ] **Mobile global search** — full-screen modal with readable results.
+- [ ] **Mobile DM** — conversation fits narrow viewport.
+- [ ] **Mobile profile sessions** — tabs scroll, cards stack.
+- [ ] **Tablet channel / dashboard** (768×1024) — balanced sidebar and content.
 - [ ] **Profile → Language switcher** — EN/UK/RU.
 - [ ] **Workspace members / invites** — role management or invite link.
 - [ ] **Attachment upload** — file picker or inline image preview.

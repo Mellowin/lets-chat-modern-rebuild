@@ -342,7 +342,7 @@ export default function DashboardPage() {
 
   if (authLoading) {
     return (
-      <div className="flex flex-1 items-center justify-center p-6">
+      <div className="flex flex-1 items-center justify-center p-4 sm:p-6">
         <Spinner text={t("auth.loadingSession")} />
       </div>
     );
@@ -350,7 +350,7 @@ export default function DashboardPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="flex flex-1 items-center justify-center p-6">
+      <div className="flex flex-1 items-center justify-center p-4 sm:p-6">
         <Card className="max-w-sm text-center">
           <CardHeader>
             <CardTitle>{t("auth.authRequired")}</CardTitle>
@@ -599,7 +599,7 @@ export default function DashboardPage() {
                 {workspaces.data.map((ws) => (
                   <li
                     key={ws.id}
-                    className="group flex items-center justify-between py-3 hover:bg-accent/50 -mx-2 px-2 rounded-md transition-colors"
+                    className="group flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 py-3 hover:bg-accent/50 -mx-2 px-2 rounded-md transition-colors"
                   >
                     <Link href={`/workspaces/${ws.id}`} className="flex-1 min-w-0">
                       <div>
@@ -658,7 +658,7 @@ export default function DashboardPage() {
                 {archivedWorkspaces.data.map((ws) => (
                   <li
                     key={ws.id}
-                    className="flex items-center justify-between py-3 hover:bg-accent/50 -mx-2 px-2 rounded-md transition-colors"
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 py-3 hover:bg-accent/50 -mx-2 px-2 rounded-md transition-colors"
                   >
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-muted-foreground">

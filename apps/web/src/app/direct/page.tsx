@@ -231,7 +231,7 @@ export default function DirectMessagesPage() {
 
   if (authLoading) {
     return (
-      <div className="flex flex-1 items-center justify-center p-6">
+      <div className="flex flex-1 items-center justify-center p-4 sm:p-6">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 size={16} className="animate-spin" />
           {t("auth.loadingSession")}
@@ -242,7 +242,7 @@ export default function DirectMessagesPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="flex flex-1 items-center justify-center p-6">
+      <div className="flex flex-1 items-center justify-center p-4 sm:p-6">
         <Card className="max-w-sm text-center">
           <CardHeader>
             <CardTitle>{t("auth.authRequired")}</CardTitle>
@@ -332,7 +332,7 @@ export default function DirectMessagesPage() {
                 return (
                   <li
                     key={conv.id}
-                    className="flex items-center justify-between py-3 -mx-2 px-2 rounded-lg hover:bg-accent/50 transition-colors"
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 py-3 -mx-2 px-2 rounded-lg hover:bg-accent/50 transition-colors"
                   >
                     <Link
                       href={`/direct/${conv.id}`}

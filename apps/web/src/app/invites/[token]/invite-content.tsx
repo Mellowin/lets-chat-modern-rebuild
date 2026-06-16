@@ -125,7 +125,7 @@ export default function InviteAcceptContent() {
     preview.kind === "success" ? new Date(preview.data.expiresAt) : null;
 
   return (
-    <div className="flex flex-1 items-center justify-center p-6">
+    <div className="flex flex-1 items-center justify-center p-4 sm:p-6">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">

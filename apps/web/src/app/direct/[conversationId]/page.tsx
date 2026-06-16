@@ -859,7 +859,7 @@ export default function DirectConversationPage() {
 
   if (authLoading) {
     return (
-      <div className="flex flex-1 items-center justify-center p-6">
+      <div className="flex flex-1 items-center justify-center p-4 sm:p-6">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 size={16} className="animate-spin" />
           {t("auth.loadingSession")}
@@ -870,7 +870,7 @@ export default function DirectConversationPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="flex flex-1 items-center justify-center p-6">
+      <div className="flex flex-1 items-center justify-center p-4 sm:p-6">
         <div className="text-center">
           <h1 className="text-xl font-semibold">{t("auth.authRequired")}</h1>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -994,7 +994,7 @@ export default function DirectConversationPage() {
                         </div>
                         <div
                           data-testid={`direct-message-body-${msg.id}`}
-                          className="min-w-0 max-w-[80%]"
+                          className="min-w-0 max-w-[92%] sm:max-w-[80%]"
                         >
                           <div className="relative flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                             <span className="text-sm font-semibold text-foreground truncate">
@@ -1039,7 +1039,7 @@ export default function DirectConversationPage() {
                               <MoreHorizontal size={14} />
                             </Button>
                           </div>
-                          <div data-testid={`direct-message-bubble-wrap-${msg.id}`} className={isOwnMessage ? "ml-28 sm:ml-44" : ""}>
+                          <div data-testid={`direct-message-bubble-wrap-${msg.id}`} className={isOwnMessage ? "ml-4 sm:ml-44" : ""}>
                             <div
                               data-testid={`direct-message-bubble-${msg.id}`}
                               onContextMenu={(e) => {

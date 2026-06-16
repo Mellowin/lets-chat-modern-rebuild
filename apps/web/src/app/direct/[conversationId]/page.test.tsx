@@ -1056,7 +1056,7 @@ describe("DirectConversationPage — layout and bubbles", () => {
     });
 
     const wrap = screen.getByTestId("direct-message-bubble-wrap-dm1");
-    expect(wrap.className).toContain("ml-28");
+    expect(wrap.className).toContain("ml-4");
   });
 
   it("shows other participant name in header", async () => {

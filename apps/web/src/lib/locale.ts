@@ -24,6 +24,7 @@ export type TranslationKey =
   | "header.createAccount"
   | "header.loading"
   | "header.searchAllMessages"
+  | "header.openMenu"
   | "globalSearch.title"
   | "globalSearch.placeholder"
   | "globalSearch.search"
@@ -494,6 +495,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "header.createAccount": "Create account",
     "header.loading": "Loading…",
     "header.searchAllMessages": "Search all messages",
+    "header.openMenu": "Open menu",
     "globalSearch.title": "Search all messages",
     "globalSearch.placeholder": "Search across workspaces, channels and DMs…",
     "globalSearch.search": "Search",
@@ -963,6 +965,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "header.createAccount": "Створити акаунт",
     "header.loading": "Завантаження…",
     "header.searchAllMessages": "Пошук по всіх повідомленнях",
+    "header.openMenu": "Відкрити меню",
     "globalSearch.title": "Пошук по всіх повідомленнях",
     "globalSearch.placeholder": "Шукати в робочих просторах, каналах та особистих листуваннях…",
     "globalSearch.search": "Пошук",
@@ -1432,6 +1435,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "header.createAccount": "Создать аккаунт",
     "header.loading": "Загрузка…",
     "header.searchAllMessages": "Поиск по всем сообщениям",
+    "header.openMenu": "Открыть меню",
     "globalSearch.title": "Поиск по всем сообщениям",
     "globalSearch.placeholder": "Искать в рабочих пространствах, каналах и личных сообщениях…",
     "globalSearch.search": "Поиск",

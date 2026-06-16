@@ -70,7 +70,7 @@ export function ConfirmEmailChangeContent() {
   }, [token, t]);
 
   return (
-    <div className="flex flex-1 items-center justify-center p-6">
+    <div className="flex flex-1 items-center justify-center p-4 sm:p-6">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <CardTitle>{t("auth.confirmEmailChangeTitle")}</CardTitle>
@@ -120,7 +120,7 @@ export default function ConfirmEmailChangePage() {
   return (
     <Suspense
       fallback={
-        <div className="flex flex-1 items-center justify-center p-6">
+        <div className="flex flex-1 items-center justify-center p-4 sm:p-6">
           <Card className="w-full max-w-sm">
             <CardHeader>
               <CardTitle>Confirm email change</CardTitle>

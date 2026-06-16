@@ -331,7 +331,7 @@ export default function ProfilePage() {
 
   if (authLoading) {
     return (
-      <div className="flex flex-1 items-center justify-center p-6">
+      <div className="flex flex-1 items-center justify-center p-4 sm:p-6">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
           {t("auth.loadingSession")}
@@ -342,7 +342,7 @@ export default function ProfilePage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="flex flex-1 items-center justify-center p-6">
+      <div className="flex flex-1 items-center justify-center p-4 sm:p-6">
         <Card className="w-full max-w-sm text-center">
           <CardHeader>
             <CardTitle>{t("auth.authRequired")}</CardTitle>
@@ -772,7 +772,7 @@ export default function ProfilePage() {
                           data-testid={`session-item-${currentSession.id}`}
                           className="rounded-lg border border-primary/20 bg-primary/5 p-4"
                         >
-                          <div className="flex items-center justify-between gap-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                             <div className="flex items-center gap-3 min-w-0">
                               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                                 <Monitor size={18} />

@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-06-16 (B195 security audit completed)  
+> Last updated: 2026-06-16 (B196 mobile responsiveness completed)  
 > Code checkpoint: `main`  
 > Docs checkpoint: `main`
 >
@@ -250,7 +250,41 @@ Use these steps to verify core functionality after deploy or before release:
 
 ---
 
-## 11. Known Limitations
+## 11. B196 Mobile Responsiveness
+
+- **Goal** — make the app comfortable to use on mobile/tablet for portfolio/demo without adding features or working on delete/archive behavior.
+- **Scope** — auth pages, dashboard, workspace overview, channel page, DM list/conversation, global search modal, profile sessions, and the app shell sidebar.
+- **Key changes:**
+  - Added a mobile drawer for the sidebar: hamburger button in the header, slide-in navigation, backdrop close, auto-close on route change.
+  - Made lists and cards stack vertically on narrow viewports (dashboard workspaces, workspace channels/members/invites, DM list, session cards).
+  - Reduced own-message left indentation in DMs from `ml-28` to `ml-4` on mobile and widened message bubbles.
+  - Made search forms, invite forms, and channel-create forms stack vertically on mobile.
+  - Tuned header padding and PageHeader title size for small screens.
+  - Updated public/auth page wrapper padding for narrow screens.
+- **Files changed:**
+  - `apps/web/src/components/AppShell.tsx`
+  - `apps/web/src/components/Header.tsx`
+  - `apps/web/src/components/Sidebar.tsx`
+  - `apps/web/src/components/ui/PageHeader.tsx`
+  - `apps/web/src/lib/locale.ts`
+  - `apps/web/src/app/dashboard/page.tsx`
+  - `apps/web/src/app/workspaces/[workspaceId]/page.tsx`
+  - `apps/web/src/app/workspaces/[workspaceId]/channels/[channelId]/page.tsx`
+  - `apps/web/src/app/direct/page.tsx`
+  - `apps/web/src/app/direct/[conversationId]/page.tsx`
+  - `apps/web/src/components/WorkspaceInvitesSection.tsx`
+  - `apps/web/src/components/ChannelMessageSearch.tsx`
+  - `apps/web/src/components/WorkspaceMessageSearch.tsx`
+  - `apps/web/src/components/GlobalMessageSearch.tsx`
+  - `apps/web/src/app/profile/page.tsx`
+  - Public/auth page wrappers
+- **Visual QA:** `visual-qa/visual-qa.js` updated to capture desktop, mobile (390×844 / 375×812), and tablet (768×1024) screenshots for login, dashboard, workspace, channel, global search, DM, and profile sessions. Screenshots are generated in `visual-qa/screenshots/` (gitignored artifacts).
+- **Checks:** web lint ✅, web typecheck ✅, web test ✅ (679 tests), web test:pages ✅ (239 tests), web build ✅.
+- **Status:** mobile/tablet responsive pass complete; ready for B197 owner-only delete.
+
+---
+
+## 12. Known Limitations
 
 - **Invite link QA is manual** — email delivery of targeted invites and end-to-end invite accept flow are not covered by automated E2E tests; manual verification in production (or a local environment with SMTP) is required. Targeted email invites require the recipient's account email to match the invite email exactly.
 - **No slug-based URLs** — routing is strictly UUID-based; slugs are cosmetic only.

@@ -330,7 +330,7 @@ export default function WorkspaceDetailPage() {
 
   if (authLoading) {
     return (
-      <div className="flex flex-1 items-center justify-center p-6">
+      <div className="flex flex-1 items-center justify-center p-4 sm:p-6">
         <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
           <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
           {t("auth.loadingSession")}
@@ -341,7 +341,7 @@ export default function WorkspaceDetailPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="flex flex-1 items-center justify-center p-6">
+      <div className="flex flex-1 items-center justify-center p-4 sm:p-6">
         <div className="text-center">
           <h1 className="text-xl font-semibold">{t("auth.authRequired")}</h1>
           <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
@@ -418,7 +418,7 @@ export default function WorkspaceDetailPage() {
               onChange={(e) => setChannelDescription(e.target.value)}
               aria-label={t("workspace.channelDescription")}
             />
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
               <Select
                 id="channel-type"
                 name="channel-type"
@@ -486,7 +486,7 @@ export default function WorkspaceDetailPage() {
               {channels.data.map((ch) => (
                 <li
                   key={ch.id}
-                  className="flex items-center justify-between py-3 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 -mx-2 px-2 rounded-md transition-colors"
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 py-3 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 -mx-2 px-2 rounded-md transition-colors"
                 >
                   <Link
                     href={`/workspaces/${workspaceId}/channels/${ch.id}`}
@@ -564,7 +564,7 @@ export default function WorkspaceDetailPage() {
                       (myRole === "ADMIN" && m.role === "MEMBER" && !isSelf);
                     const canUpdateRole = myRole === "OWNER" && m.role !== "OWNER" && !isSelf;
                     return (
-                      <li key={m.id} className="flex items-center justify-between py-2">
+                      <li key={m.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 py-2">
                         <div className="min-w-0">
                           <MessageAuthor author={m.user} />
                         </div>
@@ -613,7 +613,7 @@ export default function WorkspaceDetailPage() {
               const canManageMembers = myRole === "OWNER" || myRole === "ADMIN";
               return canManageMembers ? (
                 <>
-                  <form onSubmit={handleAddMember} className="mt-4 flex items-center gap-2">
+                  <form onSubmit={handleAddMember} className="mt-4 flex flex-col sm:flex-row items-start sm:items-center gap-2">
                     <Input
                       id="invite-username-or-email"
                       name="invite-username-or-email"
@@ -776,7 +776,7 @@ export default function WorkspaceDetailPage() {
           {archivedChannels.kind === "success" && archivedChannels.data.length > 0 && (
             <ul className="mt-3 divide-y divide-zinc-200 dark:divide-zinc-800">
               {archivedChannels.data.map((ch) => (
-                <li key={ch.id} className="flex items-center justify-between py-3 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 -mx-2 px-2 rounded-md transition-colors">
+                <li key={ch.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 py-3 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 -mx-2 px-2 rounded-md transition-colors">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium">{ch.name}</p>
                     <p className="text-xs text-zinc-500 dark:text-zinc-400">{ch.slug}</p>

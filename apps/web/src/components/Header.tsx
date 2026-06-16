@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { User, LogOut, MessageSquare } from "lucide-react";
+import { User, LogOut, MessageSquare, Menu } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocale } from "@/lib/locale";
 import { GLOBAL_UNREAD_CHANGED_EVENT, type GlobalUnreadPayload } from "@/lib/global-unread";
@@ -10,7 +10,11 @@ import GlobalMessageSearch from "./GlobalMessageSearch";
 import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
 
-export default function Header() {
+interface HeaderProps {
+  onMenuToggle?: () => void;
+}
+
+export default function Header({ onMenuToggle }: HeaderProps) {
   const { user, isAuthenticated, isLoading, logout } = useAuth();
   const { t } = useLocale();
   const [globalUnread, setGlobalUnread] = useState(0);
@@ -26,8 +30,21 @@ export default function Header() {
   }, []);
 
   return (
-    <header className="flex items-center justify-between h-14 px-4 border-b border-border bg-card/50 backdrop-blur supports-[backdrop-filter]:bg-card/50 shrink-0">
-      <Link href={isAuthenticated ? "/dashboard" : "/"} className="flex items-center gap-2 group">
+    <header className="flex items-center justify-between h-14 px-3 sm:px-4 border-b border-border bg-card/50 backdrop-blur supports-[backdrop-filter]:bg-card/50 shrink-0">
+      <div className="flex items-center gap-2">
+        {onMenuToggle && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onMenuToggle}
+            aria-label={t("header.openMenu")}
+            data-testid="mobile-menu-button"
+            className="sm:hidden"
+          >
+            <Menu size={18} />
+          </Button>
+        )}
+        <Link href={isAuthenticated ? "/dashboard" : "/"} className="flex items-center gap-2 group">
         <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
           <MessageSquare size={16} strokeWidth={2.5} />
         </div>
@@ -41,6 +58,7 @@ export default function Header() {
           </span>
         )}
       </Link>
+      </div>
 
       <div className="flex items-center gap-2">
         {isAuthenticated && <GlobalMessageSearch />}

@@ -189,6 +189,7 @@ async function createAndVerifyAccount(prefix) {
 
     // Create accounts
     const userA = await createAndVerifyAccount("visqa");
+    await sleep(3000);
     const userB = await createAndVerifyAccount("visqab");
 
     // Seed workspace / channel / messages
@@ -246,7 +247,10 @@ async function createAndVerifyAccount(prefix) {
     const loginPage = await anonContext.newPage();
     await loginPage.goto(`${WEB_BASE}/login`, { waitUntil: "networkidle" });
     await loginPage.waitForSelector('input[type="email"]', { timeout: 10000 });
-    await capture(loginPage, "01-login.png");
+    await capture(loginPage, "01-login-desktop.png");
+
+    await loginPage.setViewportSize({ width: 390, height: 844 });
+    await capture(loginPage, "01-login-mobile.png");
     await anonContext.close();
 
     // Authenticated context with tokens seeded
@@ -260,50 +264,91 @@ async function createAndVerifyAccount(prefix) {
     );
     const page = await authContext.newPage();
 
-    // Dashboard
+    async function captureAuthenticatedMobile(nameSuffix) {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto(`${WEB_BASE}/dashboard`, { waitUntil: "networkidle" });
+      await page.waitForSelector("text=Your workspaces", { timeout: 20000 });
+      await capture(page, `02-dashboard-${nameSuffix}.png`);
+
+      await page.goto(`${WEB_BASE}/workspaces/${workspace.id}`, { waitUntil: "networkidle" });
+      await page.waitForSelector(`h1:has-text("${workspaceName}")`, { timeout: 20000 });
+      await capture(page, `03-workspace-${nameSuffix}.png`);
+
+      await page.goto(`${WEB_BASE}/workspaces/${workspace.id}/channels/${channel.id}`, { waitUntil: "networkidle" });
+      await page.waitForSelector("text=Welcome to the visual QA workspace!", { timeout: 20000 });
+      await capture(page, `04-channel-${nameSuffix}.png`, { fullPage: false });
+
+      await page.click('[data-testid="global-search-open-button"]');
+      await page.waitForSelector('[data-testid="global-search-modal"]', { timeout: 10000 });
+      await page.fill('[data-testid="global-search-input"]', "screenshots");
+      await page.click('[data-testid="global-search-submit"]');
+      await page.waitForSelector("text=Search results", { timeout: 20000 }).catch(() => {});
+      await sleep(2000);
+      await capture(page, `05-global-search-${nameSuffix}.png`, { fullPage: false });
+      await page.click('[data-testid="global-search-close-button"]');
+
+      await page.goto(`${WEB_BASE}/direct/${dm.id}`, { waitUntil: "networkidle" });
+      await page.waitForSelector("text=Hey, can you check the new UI?", { timeout: 20000 });
+      await capture(page, `06-dm-${nameSuffix}.png`, { fullPage: false });
+
+      await page.goto(`${WEB_BASE}/profile`, { waitUntil: "networkidle" });
+      await page.waitForSelector("text=Sessions", { timeout: 20000 });
+      await page.click('button:has-text("Sessions")');
+      await page.waitForSelector('[data-testid="toggle-sessions-list"]', { timeout: 20000 });
+      await page.click('[data-testid="toggle-sessions-list"]');
+      await page.waitForSelector('[data-testid^="session-item-"]', { timeout: 20000 });
+      await capture(page, `07-profile-sessions-${nameSuffix}.png`);
+    }
+
+    // Desktop screenshots
+    await page.setViewportSize({ width: 1280, height: 900 });
+
     await page.goto(`${WEB_BASE}/dashboard`, { waitUntil: "networkidle" });
-    await page.waitForSelector("text=Visual QA Workspace", { timeout: 20000 });
-    await capture(page, "02-dashboard.png");
+    await page.waitForSelector("text=Your workspaces", { timeout: 20000 });
+    await capture(page, "02-dashboard-desktop.png");
 
-    // Workspace overview
     await page.goto(`${WEB_BASE}/workspaces/${workspace.id}`, { waitUntil: "networkidle" });
-    await page.waitForSelector("text=general", { timeout: 20000 });
-    await capture(page, "03-workspace.png");
+    await page.waitForSelector(`h1:has-text("${workspaceName}")`, { timeout: 20000 });
+    await capture(page, "03-workspace-desktop.png");
 
-    // Channel
     await page.goto(`${WEB_BASE}/workspaces/${workspace.id}/channels/${channel.id}`, { waitUntil: "networkidle" });
     await page.waitForSelector("text=Welcome to the visual QA workspace!", { timeout: 20000 });
-    await capture(page, "04-channel.png", { fullPage: false });
+    await capture(page, "04-channel-desktop.png", { fullPage: false });
 
-    // Global search
     await page.click('[data-testid="global-search-open-button"]');
     await page.waitForSelector('[data-testid="global-search-modal"]', { timeout: 10000 });
     await page.fill('[data-testid="global-search-input"]', "screenshots");
     await page.click('[data-testid="global-search-submit"]');
     await page.waitForSelector("text=Search results", { timeout: 20000 }).catch(() => {});
     await sleep(2000);
-    await capture(page, "05-global-search.png", { fullPage: false });
+    await capture(page, "05-global-search-desktop.png", { fullPage: false });
     await page.click('[data-testid="global-search-close-button"]');
 
-    // DM
     await page.goto(`${WEB_BASE}/direct/${dm.id}`, { waitUntil: "networkidle" });
     await page.waitForSelector("text=Hey, can you check the new UI?", { timeout: 20000 });
-    await capture(page, "06-dm.png", { fullPage: false });
+    await capture(page, "06-dm-desktop.png", { fullPage: false });
 
-    // Profile (Sessions tab)
     await page.goto(`${WEB_BASE}/profile`, { waitUntil: "networkidle" });
     await page.waitForSelector("text=Sessions", { timeout: 20000 });
     await page.click('button:has-text("Sessions")');
     await page.waitForSelector('[data-testid="toggle-sessions-list"]', { timeout: 20000 });
     await page.click('[data-testid="toggle-sessions-list"]');
     await page.waitForSelector('[data-testid^="session-item-"]', { timeout: 20000 });
-    await capture(page, "07-profile-sessions.png");
+    await capture(page, "07-profile-sessions-desktop.png");
 
-    // Mobile channel
-    await page.setViewportSize({ width: 375, height: 812 });
+    // Mobile screenshots
+    await captureAuthenticatedMobile("mobile");
+
+    // Tablet screenshots
+    await page.setViewportSize({ width: 768, height: 1024 });
+
+    await page.goto(`${WEB_BASE}/dashboard`, { waitUntil: "networkidle" });
+    await page.waitForSelector("text=Your workspaces", { timeout: 20000 });
+    await capture(page, "02-dashboard-tablet.png");
+
     await page.goto(`${WEB_BASE}/workspaces/${workspace.id}/channels/${channel.id}`, { waitUntil: "networkidle" });
     await page.waitForSelector("text=Welcome to the visual QA workspace!", { timeout: 20000 });
-    await capture(page, "08-mobile-channel.png", { fullPage: false });
+    await capture(page, "04-channel-tablet.png", { fullPage: false });
 
     await authContext.close();
     await browser.close();
@@ -316,7 +361,7 @@ async function createAndVerifyAccount(prefix) {
   } finally {
     const reportPath = path.join(SCREENSHOT_DIR, "report.md");
     const reportBody = [
-      "# B192 Visual QA Report",
+      "# B196 Visual QA Report",
       "",
       `Generated: ${new Date().toISOString()}`,
       `Production: ${WEB_BASE}`,
@@ -326,14 +371,22 @@ async function createAndVerifyAccount(prefix) {
       ...report.map((line) => `- ${line}`),
       "",
       "## Screenshots",
-      "- `01-login.png` — public login page",
-      "- `02-dashboard.png` — authenticated dashboard with seeded workspace",
-      "- `03-workspace.png` — workspace overview (channels, members, invites)",
-      "- `04-channel.png` — public channel with message bubbles and composer",
-      "- `05-global-search.png` — global message search modal",
-      "- `06-dm.png` — direct message conversation",
-      "- `07-profile-sessions.png` — profile settings / sessions",
-      "- `08-mobile-channel.png` — channel on narrow viewport (375×812)",
+      "- `01-login-desktop.png` — public login page (desktop)",
+      "- `01-login-mobile.png` — public login page (390×844 mobile)",
+      "- `02-dashboard-desktop.png` — authenticated dashboard (desktop)",
+      "- `02-dashboard-tablet.png` — authenticated dashboard (768×1024 tablet)",
+      "- `03-workspace-desktop.png` — workspace overview (desktop)",
+      "- `04-channel-desktop.png` — public channel (desktop)",
+      "- `04-channel-tablet.png` — public channel (768×1024 tablet)",
+      "- `05-global-search-desktop.png` — global message search modal (desktop)",
+      "- `06-dm-desktop.png` — direct message conversation (desktop)",
+      "- `07-profile-sessions-desktop.png` — profile settings / sessions (desktop)",
+      "- `02-dashboard-mobile.png` — dashboard (390×844 mobile)",
+      "- `03-workspace-mobile.png` — workspace overview (390×844 mobile)",
+      "- `04-channel-mobile.png` — channel (375×812 mobile small)",
+      "- `05-global-search-mobile.png` — global search modal (390×844 mobile)",
+      "- `06-dm-mobile.png` — DM conversation (390×844 mobile)",
+      "- `07-profile-sessions-mobile.png` — profile sessions (390×844 mobile)",
       "",
       "## Findings",
       findings.length ? findings.map((f) => `- ${f}`).join("\n") : "- No automated issues detected. Human review of screenshots required.",

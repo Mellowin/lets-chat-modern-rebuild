@@ -1296,7 +1296,7 @@ export default function ChannelDetailPage() {
 
   if (authLoading) {
     return (
-      <div className="flex flex-1 items-center justify-center p-6">
+      <div className="flex flex-1 items-center justify-center p-4 sm:p-6">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 size={16} className="animate-spin" />
           {t("auth.loadingSession")}
@@ -1307,7 +1307,7 @@ export default function ChannelDetailPage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="flex flex-1 items-center justify-center p-6">
+      <div className="flex flex-1 items-center justify-center p-4 sm:p-6">
         <Card className="max-w-sm text-center">
           <CardHeader>
             <CardTitle>{t("auth.authRequired")}</CardTitle>
@@ -1526,7 +1526,7 @@ export default function ChannelDetailPage() {
                       </div>
                       <div
                         data-testid={`message-body-${msg.id}`}
-                        className="min-w-0 max-w-[80%]"
+                        className="min-w-0 max-w-[92%] sm:max-w-[80%]"
                       >
                         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                           <span className="text-sm font-semibold text-foreground truncate">

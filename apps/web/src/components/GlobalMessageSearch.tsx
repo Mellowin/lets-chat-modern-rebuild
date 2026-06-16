@@ -200,13 +200,13 @@ export default function GlobalMessageSearch() {
 
       {isOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 pt-16 sm:pt-24"
+          className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-0 pt-12 sm:p-4 sm:pt-24"
           onClick={(e) => {
             if (e.target === e.currentTarget) handleClose();
           }}
           data-testid="global-search-modal"
         >
-          <div className="flex w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-border bg-background shadow-2xl max-h-[80vh]">
+          <div className="flex h-[calc(100vh-3rem)] sm:h-auto w-full max-w-2xl flex-col overflow-hidden rounded-none sm:rounded-xl border border-border bg-background shadow-2xl max-h-none sm:max-h-[80vh]">
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-sm font-semibold">{t("globalSearch.title")}</h2>
               <Button
@@ -221,7 +221,7 @@ export default function GlobalMessageSearch() {
             </div>
 
             <div className="overflow-y-auto p-4">
-              <form onSubmit={handleSubmit} className="flex items-center gap-2">
+              <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
                 <div className="relative flex-1">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input

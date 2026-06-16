@@ -59,7 +59,11 @@ function unreadBadge(count: number, testId?: string) {
   );
 }
 
-export default function Sidebar() {
+interface SidebarProps {
+  mobileOpen?: boolean;
+}
+
+export default function Sidebar({ mobileOpen = false }: SidebarProps) {
   const { accessToken, isAuthenticated, isLoading: authLoading } = useAuth();
   const pathname = usePathname();
   const { t } = useLocale();
@@ -440,7 +444,7 @@ export default function Sidebar() {
 
   if (authLoading || !isAuthenticated) {
     return (
-      <aside className="w-60 shrink-0 border-r border-border bg-card/50 hidden sm:flex flex-col p-3">
+      <aside className="hidden sm:flex w-60 shrink-0 border-r border-border bg-card/50 flex-col p-3">
         <div className="flex items-center gap-2 px-2 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
           <Users size={14} />
           {t("sidebar.workspace")}
@@ -680,7 +684,10 @@ export default function Sidebar() {
   );
 
   return (
-    <aside className="w-60 shrink-0 border-r border-border bg-card/50 hidden sm:flex flex-col p-3 overflow-y-auto">
+    <aside
+      className={`fixed inset-y-0 left-0 top-14 z-40 w-64 -translate-x-full transform transition-transform duration-200 ease-in-out border-r border-border bg-card/50 flex flex-col p-3 overflow-y-auto sm:static sm:inset-auto sm:top-auto sm:z-auto sm:translate-x-0 sm:w-60 sm:shrink-0 ${mobileOpen ? "translate-x-0" : ""}`}
+      data-testid="sidebar"
+    >
       <div className="space-y-5">
         {totalUnread > 0 && (
           <div
