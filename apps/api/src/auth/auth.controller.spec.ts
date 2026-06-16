@@ -486,4 +486,43 @@ describe('AuthController', () => {
       expect(result).toEqual({ success: true });
     });
   });
+
+  describe('POST /auth/refresh', () => {
+    it('returns new tokens when refresh token is valid', async () => {
+      authService.refresh.mockResolvedValue({
+        user,
+        accessToken: 'new-access-token',
+        refreshToken: 'new-refresh-token',
+      });
+
+      const result = await controller.refresh({
+        refreshToken: 'valid-refresh-token',
+      });
+
+      expect(authService.refresh).toHaveBeenCalledWith('valid-refresh-token');
+      expect(result.accessToken).toBe('new-access-token');
+      expect(result.refreshToken).toBe('new-refresh-token');
+    });
+
+    it('propagates UnauthorizedException for invalid refresh token', async () => {
+      authService.refresh.mockRejectedValue(new Error('Invalid token'));
+
+      await expect(
+        controller.refresh({ refreshToken: 'bad-token' }),
+      ).rejects.toThrow('Invalid token');
+    });
+  });
+
+  describe('POST /auth/logout', () => {
+    it('revokes the refresh token and returns success', async () => {
+      authService.logout.mockResolvedValue({ success: true });
+
+      const result = await controller.logout({
+        refreshToken: 'valid-refresh-token',
+      });
+
+      expect(authService.logout).toHaveBeenCalledWith('valid-refresh-token');
+      expect(result).toEqual({ success: true });
+    });
+  });
 });

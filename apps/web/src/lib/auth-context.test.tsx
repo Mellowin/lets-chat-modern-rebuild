@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import { AuthProvider, useAuth } from "./auth-context";
-import { getMe, logout as apiLogout } from "./auth-api";
+import { getMe, logout as apiLogout, refresh as apiRefresh } from "./auth-api";
 import { useLocale } from "./locale";
 
 function makeToken(exp: number): string {
@@ -17,6 +17,7 @@ const expiredAccessToken = makeToken(Math.floor(Date.now() / 1000) - 3600);
 vi.mock("@/lib/auth-api", () => ({
   getMe: vi.fn(),
   logout: vi.fn(),
+  refresh: vi.fn(),
   isTokenExpired: (token: string, bufferSeconds = 60) => {
     try {
       const payload = JSON.parse(atob(token.split(".")[1])) as { exp?: number } | undefined;
@@ -67,6 +68,7 @@ describe("AuthProvider", () => {
     sessionStorage.clear();
     vi.mocked(getMe).mockReset();
     vi.mocked(apiLogout).mockReset();
+    vi.mocked(apiRefresh).mockReset();
   });
 
   afterEach(() => {
@@ -139,9 +141,45 @@ describe("AuthProvider", () => {
     expect(sessionStorage.getItem("refreshToken")).toBeNull();
   });
 
-  it("does not call getMe and clears tokens when accessToken is expired", async () => {
+  it("silently refreshes and initializes user when accessToken is expired", async () => {
     sessionStorage.setItem("accessToken", expiredAccessToken);
     sessionStorage.setItem("refreshToken", "refresh-token");
+    vi.mocked(apiRefresh).mockResolvedValueOnce({
+      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z" },
+      accessToken: validAccessToken,
+      refreshToken: "new-refresh-token",
+    });
+    vi.mocked(getMe).mockResolvedValueOnce({
+      id: "u1",
+      email: "a@b.com",
+      username: "alice",
+      displayName: null,
+      avatarUrl: null,
+      avatarUpdatedAt: null,
+      interfaceLanguage: "en",
+      createdAt: "2024-01-01T00:00:00Z",
+    });
+
+    render(
+      <AuthProvider>
+        <TestConsumer />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("auth")).toHaveTextContent("yes");
+    });
+
+    expect(apiRefresh).toHaveBeenCalledWith("refresh-token");
+    expect(getMe).toHaveBeenCalledWith(validAccessToken);
+    expect(sessionStorage.getItem("refreshToken")).toBe("new-refresh-token");
+    expect(screen.getByTestId("user")).toHaveTextContent("alice (a@b.com)");
+  });
+
+  it("clears tokens and stays unauthenticated when refresh fails", async () => {
+    sessionStorage.setItem("accessToken", expiredAccessToken);
+    sessionStorage.setItem("refreshToken", "refresh-token");
+    vi.mocked(apiRefresh).mockRejectedValueOnce(new Error("Invalid refresh token"));
 
     render(
       <AuthProvider>
@@ -153,10 +191,46 @@ describe("AuthProvider", () => {
       expect(screen.getByTestId("loading")).toHaveTextContent("done");
     });
 
-    expect(getMe).not.toHaveBeenCalled();
+    expect(apiLogout).not.toHaveBeenCalled();
     expect(screen.getByTestId("auth")).toHaveTextContent("no");
     expect(sessionStorage.getItem("accessToken")).toBeNull();
     expect(sessionStorage.getItem("refreshToken")).toBeNull();
+  });
+
+  it("silently refreshes when getMe rejects for a non-expired access token", async () => {
+    sessionStorage.setItem("accessToken", validAccessToken);
+    sessionStorage.setItem("refreshToken", "refresh-token");
+    vi.mocked(getMe).mockRejectedValueOnce(new Error("Unauthorized"));
+    vi.mocked(apiRefresh).mockResolvedValueOnce({
+      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z" },
+      accessToken: "refreshed-access-token",
+      refreshToken: "new-refresh-token",
+    });
+    vi.mocked(getMe).mockResolvedValueOnce({
+      id: "u1",
+      email: "a@b.com",
+      username: "alice",
+      displayName: null,
+      avatarUrl: null,
+      avatarUpdatedAt: null,
+      interfaceLanguage: "en",
+      createdAt: "2024-01-01T00:00:00Z",
+    });
+
+    render(
+      <AuthProvider>
+        <TestConsumer />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("auth")).toHaveTextContent("yes");
+    });
+
+    expect(apiRefresh).toHaveBeenCalledWith("refresh-token");
+    expect(getMe).toHaveBeenLastCalledWith("refreshed-access-token");
+    expect(sessionStorage.getItem("accessToken")).toBe("refreshed-access-token");
+    expect(sessionStorage.getItem("refreshToken")).toBe("new-refresh-token");
   });
 
   it("loginSuccess stores tokens and sets authenticated state", async () => {

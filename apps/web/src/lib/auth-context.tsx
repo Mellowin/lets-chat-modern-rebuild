@@ -8,8 +8,9 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
-import { getMe, logout as apiLogout, isTokenExpired, type AuthUser, type AuthResult } from "@/lib/auth-api";
+import { getMe, logout as apiLogout, refresh as apiRefresh, isTokenExpired, type AuthUser, type AuthResult } from "@/lib/auth-api";
 import { syncLocale } from "@/lib/locale";
+import { AUTH_EVENTS } from "@/lib/auth-fetch";
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -38,35 +39,94 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isAuthenticated = !!user && !!accessToken;
 
+  const clearAuth = useCallback(() => {
+    sessionStorage.removeItem("accessToken");
+    sessionStorage.removeItem("refreshToken");
+    setUser(null);
+    setAccessToken(null);
+    setRefreshToken(null);
+  }, []);
+
+  const applyTokens = useCallback((tokens: { accessToken: string; refreshToken: string }) => {
+    sessionStorage.setItem("accessToken", tokens.accessToken);
+    sessionStorage.setItem("refreshToken", tokens.refreshToken);
+    setAccessToken(tokens.accessToken);
+    setRefreshToken(tokens.refreshToken);
+  }, []);
+
+  const loadUser = useCallback(async (token: string): Promise<AuthUser | null> => {
+    try {
+      const me = await getMe(token);
+      return me;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const tryRefresh = useCallback(async (): Promise<{ accessToken: string; refreshToken: string } | null> => {
+    const storedRefresh = sessionStorage.getItem("refreshToken");
+    if (!storedRefresh) return null;
+    try {
+      const result = await apiRefresh(storedRefresh);
+      applyTokens(result);
+      return { accessToken: result.accessToken, refreshToken: result.refreshToken };
+    } catch {
+      return null;
+    }
+  }, [applyTokens]);
+
   useEffect(() => {
     let cancelled = false;
     async function init() {
       const storedAccess = sessionStorage.getItem("accessToken");
-      const storedRefresh = sessionStorage.getItem("refreshToken");
+
+      let me: AuthUser | null = null;
+
       if (storedAccess && !isTokenExpired(storedAccess)) {
-        try {
-          const me = await getMe(storedAccess);
-          if (!cancelled) {
-            setUser(me);
-            setAccessToken(storedAccess);
-            setRefreshToken(storedRefresh);
-            syncLocale(me.interfaceLanguage);
-          }
-        } catch {
-          sessionStorage.removeItem("accessToken");
-          sessionStorage.removeItem("refreshToken");
-        }
-      } else if (storedAccess) {
-        // Token is expired or malformed; clear it without firing a request
-        // that would produce a 401 in the browser console.
-        sessionStorage.removeItem("accessToken");
-        sessionStorage.removeItem("refreshToken");
+        me = await loadUser(storedAccess);
       }
-      if (!cancelled) setIsLoading(false);
+
+      // Access token missing, expired, or rejected by server — try silent refresh.
+      if (!me) {
+        const refreshed = await tryRefresh();
+        if (refreshed) {
+          me = await loadUser(refreshed.accessToken);
+        }
+      }
+
+      if (cancelled) return;
+
+      if (me) {
+        setUser(me);
+        setAccessToken(sessionStorage.getItem("accessToken"));
+        setRefreshToken(sessionStorage.getItem("refreshToken"));
+        syncLocale(me.interfaceLanguage);
+      } else {
+        clearAuth();
+      }
+
+      setIsLoading(false);
     }
     init();
     return () => { cancelled = true; };
-  }, []);
+  }, [loadUser, tryRefresh, clearAuth]);
+
+  // Keep React state in sync when authFetch refreshes tokens in the background.
+  useEffect(() => {
+    function onTokensRefreshed() {
+      setAccessToken(sessionStorage.getItem("accessToken"));
+      setRefreshToken(sessionStorage.getItem("refreshToken"));
+    }
+    function onSessionExpired() {
+      clearAuth();
+    }
+    window.addEventListener(AUTH_EVENTS.TOKENS_REFRESHED, onTokensRefreshed);
+    window.addEventListener(AUTH_EVENTS.SESSION_EXPIRED, onSessionExpired);
+    return () => {
+      window.removeEventListener(AUTH_EVENTS.TOKENS_REFRESHED, onTokensRefreshed);
+      window.removeEventListener(AUTH_EVENTS.SESSION_EXPIRED, onSessionExpired);
+    };
+  }, [clearAuth]);
 
   const loginSuccess = useCallback((result: AuthResult) => {
     sessionStorage.setItem("accessToken", result.accessToken);
@@ -86,12 +146,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (rt) {
       try { await apiLogout(rt); } catch { /* best-effort */ }
     }
-    sessionStorage.removeItem("accessToken");
-    sessionStorage.removeItem("refreshToken");
-    setUser(null);
-    setAccessToken(null);
-    setRefreshToken(null);
-  }, []);
+    clearAuth();
+  }, [clearAuth]);
 
   return (
     <AuthContext.Provider

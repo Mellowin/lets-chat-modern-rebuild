@@ -26,8 +26,9 @@ See [`docs/deployment-vercel.md`](deployment-vercel.md) for full deployment guid
 ### Authentication
 - Registration with email, username, password
 - Login with email + password
-- Logout (clears sessionStorage)
+- Logout (clears sessionStorage and revokes the refresh-token session)
 - Access/refresh token rotation
+- **Silent access-token refresh** — when an API call returns `401` or the stored access token is expired on startup, the frontend uses the stored refresh token to obtain a new access token without interrupting the user. Concurrent `401` responses are coalesced into a single refresh request.
 - **sessionStorage** isolates sessions per browser tab (no cross-tab logout collisions)
 - **Session management** in Profile → Sessions:
   - Lists all refresh-token sessions with `isCurrent` flag, status (active/revoked/expired), creation/expiration timestamps, and device metadata when available.
@@ -372,6 +373,28 @@ Use these steps to verify core functionality after deploy or before release:
   - `ci` → `migrate` → `deploy` ordering verified in the workflow and confirmed green on `main`.
   - Render health `ok`; `node scripts/smoke-deploy.mjs` public checks 10/10; Vercel production frontend responds.
 
+## 16. B200 Silent Access-Token Refresh
+
+- **Goal** — eliminate the user-facing logout that happened when a 15-minute access token expired while a tab stayed open.
+- **Backend behavior (already implemented)** — `POST /api/v1/auth/refresh`:
+  - Verifies the refresh JWT.
+  - Consumes the matching active refresh-token row (sets `revokedAt`) so the same refresh token cannot be replayed.
+  - Issues a new access token and a new refresh token.
+  - Persists the new refresh session.
+  - Logout, password change, password reset, and explicit session revocation all mark refresh-token rows as revoked.
+- **Frontend behavior (new)**:
+  - `apps/web/src/lib/auth-fetch.ts` wraps authenticated `fetch` calls. On `401`, it attempts a single refresh, retries the original request once with the new access token, and clears tokens if refresh fails.
+  - Concurrent `401` responses are coalesced into a single in-flight refresh promise.
+  - `AuthProvider` attempts silent refresh on startup when the stored access token is expired or `/auth/me` fails.
+  - Authenticated API modules route through `authFetch` so the refresh is transparent to call sites.
+- **Tests added/updated:**
+  - API: refresh success, invalid/expired refresh token rejection, revoked/consumed refresh token rejection, logout revokes refresh token, session revocation blocks refresh.
+  - Web: `auth-fetch.test.ts` (7 tests) covers 401 refresh, refresh failure logout, concurrent 401 coalescing, and no infinite retry.
+  - Web: `auth-context.test.tsx` updated to cover startup refresh from expired token, startup refresh after a rejected `/auth/me`, and refresh failure clearing state.
+- **Docs updated** — `docs/security-audit.md`, `docs/portfolio-summary.md`, `README.md` (removed the "no silent token refresh" limitation).
+- **Checks:** API lint/typecheck/test ✅ (745 tests), web lint/typecheck/build ✅, web test ✅ (688 tests with `--retry=2`), web test:pages ✅ (248 tests).
+- **Production verification** — pending push to `main` and Render deploy.
+
 ## 12. Known Limitations
 
 - **Invite link QA is manual** — email delivery of targeted invites and end-to-end invite accept flow are not covered by automated E2E tests; manual verification in production (or a local environment with SMTP) is required. Targeted email invites require the recipient's account email to match the invite email exactly.
@@ -387,7 +410,7 @@ Use these steps to verify core functionality after deploy or before release:
 - **Production smoke verifies protected auth/session endpoints reject anonymous requests** — `GET /auth/sessions`, `POST /auth/sessions/revoke-all`, `POST /auth/sessions/revoke-others`, `POST /auth/change-password` checked for `401` without token.
 - **Public `/project-status` page added for portfolio/employer review** — honest overview of implemented and planned features, tech stack, and production links.
 - **Production smoke verifies public `/project-status` page** — checked for `200` and expected content.
-- **B183 cleanup** — `AuthProvider` now skips the `/auth/me` request when the stored access token is expired or malformed, eliminating expected `401 Unauthorized` console noise on app reload. The token expiry helper is unit-tested. Render deployment docs updated to point to the active `lets-chat-api-v2` service and document exact dashboard settings for auto-deploy troubleshooting.
+- **B200 silent access-token refresh** — `AuthProvider` attempts to refresh an expired or rejected access token on startup and during authenticated API calls. The refresh endpoint rotates refresh tokens (single-use consumption) and rejects revoked or expired sessions. Concurrent `401` responses are coalesced into one refresh request. If refresh fails, the client clears its tokens and requires re-login.
 - **Channel attachments support file picker, drag-and-drop, image previews, upload progress, retry, presigned upload, message rendering, authenticated download URLs, and orphaned upload cleanup** — frontend composer supports selecting up to 5 files (validated MIME/size), drag-and-drop into the composer, thumbnail previews for images before send, upload progress per file with retry on failure, inline image previews in the message list, file cards for non-image attachments, presigned upload to storage, secure download via backend download-url endpoint, and a cleanup script that removes orphaned storage objects older than a configurable threshold by comparing against the Attachment table; gallery/lightbox is still in progress.
 - **Frontend API timeout and recovery UX** — all API requests have a 15-second `AbortController` timeout. When the backend is cold-starting or unreachable, login stops loading and shows a human-friendly message with a cold-start hint instead of hanging forever on "Signing in…". Users can retry immediately.
 - **Workspace invite links are available end-to-end** — OWNER/ADMIN can create targeted email/username invites and public invite links with `maxUses` from the workspace page, copy the generated link, list/revoke active invites, and preview the invite at `/invites/:token` without authentication. Recipients can open the invite link, see workspace name and expiry, and accept the invite (authenticated users) or sign in first (unauthenticated users). `POST /invites/:token/accept` adds the user to the workspace; already-member users receive a safe current-membership response. Expired, revoked, or max-uses-reached links are rejected.

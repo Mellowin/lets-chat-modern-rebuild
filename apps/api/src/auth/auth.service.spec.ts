@@ -560,6 +560,66 @@ describe('AuthService — email verification', () => {
     });
   });
 
+  describe('refresh', () => {
+    it('issues new tokens for a valid refresh token', async () => {
+      tokenService.verifyRefreshToken.mockResolvedValue({
+        sub: 'user-id',
+        email: 'u@test.com',
+        jti: 'session-id',
+      });
+      refreshTokensRepository.consumeActiveToken.mockResolvedValue(1);
+      const user = makeUser({ emailVerifiedAt: new Date() });
+      usersRepository.findById.mockResolvedValue(user);
+      tokenService.signAccessToken.mockResolvedValue('new-access-token');
+      tokenService.signRefreshToken.mockResolvedValue('new-refresh-token');
+      refreshTokensRepository.createToken.mockResolvedValue({
+        count: 1,
+      } as unknown as never);
+
+      const result = await service.refresh('valid-refresh-token');
+
+      expect(result.accessToken).toBe('new-access-token');
+      expect(result.refreshToken).toBe('new-refresh-token');
+      expect(refreshTokensRepository.consumeActiveToken).toHaveBeenCalled();
+      expect(refreshTokensRepository.createToken).toHaveBeenCalled();
+    });
+
+    it('throws UnauthorizedException for an invalid or expired refresh token', async () => {
+      tokenService.verifyRefreshToken.mockRejectedValue(new Error('expired'));
+
+      await expect(service.refresh('bad-token')).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('throws UnauthorizedException when refresh token has been revoked or consumed', async () => {
+      tokenService.verifyRefreshToken.mockResolvedValue({
+        sub: 'user-id',
+        email: 'u@test.com',
+        jti: 'session-id',
+      });
+      refreshTokensRepository.consumeActiveToken.mockResolvedValue(0);
+
+      await expect(service.refresh('revoked-token')).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('throws UnauthorizedException when user no longer exists', async () => {
+      tokenService.verifyRefreshToken.mockResolvedValue({
+        sub: 'user-id',
+        email: 'u@test.com',
+        jti: 'session-id',
+      });
+      refreshTokensRepository.consumeActiveToken.mockResolvedValue(1);
+      usersRepository.findById.mockResolvedValue(null);
+
+      await expect(service.refresh('valid-token')).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+  });
+
   describe('verifyEmail', () => {
     it('marks user as verified when token is valid and not expired', async () => {
       const user = makeUser({
@@ -1201,6 +1261,7 @@ describe('AuthService — change password', () => {
 describe('AuthService — sessions', () => {
   let service: AuthService;
   let refreshTokensRepository: jest.Mocked<RefreshTokensRepository>;
+  let tokenService: jest.Mocked<TokenService>;
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -1266,6 +1327,7 @@ describe('AuthService — sessions', () => {
 
     service = moduleRef.get(AuthService);
     refreshTokensRepository = moduleRef.get(RefreshTokensRepository);
+    tokenService = moduleRef.get(TokenService);
   });
 
   describe('listSessions', () => {
@@ -1392,6 +1454,51 @@ describe('AuthService — sessions', () => {
       await expect(
         service.revokeSession('user-id', 'session-1'),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('refresh after logout or revocation', () => {
+    it('logout revokes the refresh token so subsequent refresh fails', async () => {
+      refreshTokensRepository.revokeToken.mockResolvedValue({ count: 1 });
+
+      await service.logout('refresh-token');
+
+      expect(refreshTokensRepository.revokeToken).toHaveBeenCalledWith(
+        expect.any(String),
+      );
+
+      tokenService.verifyRefreshToken.mockResolvedValue({
+        sub: 'user-id',
+        email: 'u@test.com',
+        jti: 'session-id',
+      });
+      refreshTokensRepository.consumeActiveToken.mockResolvedValue(0);
+
+      await expect(service.refresh('refresh-token')).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('session revocation blocks refresh for that session', async () => {
+      refreshTokensRepository.revokeByIdForUser.mockResolvedValue(1);
+
+      await service.revokeSession('user-id', 'session-id');
+
+      expect(refreshTokensRepository.revokeByIdForUser).toHaveBeenCalledWith(
+        'session-id',
+        'user-id',
+      );
+
+      tokenService.verifyRefreshToken.mockResolvedValue({
+        sub: 'user-id',
+        email: 'u@test.com',
+        jti: 'session-id',
+      });
+      refreshTokensRepository.consumeActiveToken.mockResolvedValue(0);
+
+      await expect(service.refresh('refresh-token')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 });

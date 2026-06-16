@@ -1,4 +1,5 @@
 import { getApiBase } from "./env";
+import { authFetch } from "./auth-fetch";
 
 const API_BASE = getApiBase();
 
@@ -88,7 +89,7 @@ async function parseErrorMessage(res: Response, fallback: string): Promise<strin
 }
 
 export async function listDirectConversations(accessToken: string): Promise<DirectConversation[]> {
-  const res = await fetch(`${API_BASE}/direct-conversations`, {
+  const res = await authFetch(`${API_BASE}/direct-conversations`, {
     method: "GET",
     headers: {
       Accept: "application/json",
@@ -107,7 +108,7 @@ export async function createDirectConversation(
   accessToken: string,
   input: CreateDirectConversationInput,
 ): Promise<DirectConversation> {
-  const res = await fetch(`${API_BASE}/direct-conversations`, {
+  const res = await authFetch(`${API_BASE}/direct-conversations`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -125,7 +126,7 @@ export async function createDirectConversation(
 }
 
 export async function listDirectMessages(accessToken: string, conversationId: string): Promise<DirectMessage[]> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/direct-conversations/${encodeURIComponent(conversationId)}/messages`,
     {
       method: "GET",
@@ -148,7 +149,7 @@ export async function sendDirectMessage(
   conversationId: string,
   input: SendDirectMessageInput,
 ): Promise<DirectMessage> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/direct-conversations/${encodeURIComponent(conversationId)}/messages`,
     {
       method: "POST",
@@ -172,7 +173,7 @@ export async function markDirectConversationRead(
   accessToken: string,
   conversationId: string,
 ): Promise<{ success: boolean; lastReadAt: string }> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/direct-conversations/${encodeURIComponent(conversationId)}/read`,
     {
       method: "POST",
@@ -196,7 +197,7 @@ export async function reactToDirectMessage(
   messageId: string,
   emoji: string,
 ): Promise<DirectMessageReactionSummary[]> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/direct-conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}/reactions`,
     {
       method: "POST",
@@ -222,7 +223,7 @@ export async function updateDirectMessage(
   messageId: string,
   input: UpdateDirectMessageInput,
 ): Promise<DirectMessage> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/direct-conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}`,
     {
       method: "PATCH",
@@ -248,7 +249,7 @@ export async function removeDirectMessageReaction(
   messageId: string,
   emoji: string,
 ): Promise<DirectMessageReactionSummary[]> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/direct-conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}/reactions/${encodeURIComponent(emoji)}`,
     {
       method: "DELETE",
@@ -271,7 +272,7 @@ export async function deleteDirectMessage(
   conversationId: string,
   messageId: string,
 ): Promise<{ ok: true }> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/direct-conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}`,
     {
       method: "DELETE",

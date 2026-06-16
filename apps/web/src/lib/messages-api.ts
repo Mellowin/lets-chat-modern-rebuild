@@ -1,4 +1,5 @@
 import { getApiBase } from "./env";
+import { authFetch } from "./auth-fetch";
 
 const API_BASE = getApiBase();
 
@@ -80,7 +81,7 @@ export async function getMessages(
   workspaceId: string,
   channelId: string,
 ): Promise<Message[]> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/messages?limit=50`,
     {
       method: "GET",
@@ -112,7 +113,7 @@ export async function presignAttachmentUpload(
   channelId: string,
   input: { filename: string; mimeType: string; sizeBytes: number },
 ): Promise<PresignAttachmentResponse> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/messages/attachments/presign`,
     {
       method: "POST",
@@ -144,7 +145,7 @@ export async function uploadAttachmentToPresignedUrl(
   uploadUrl: string,
   file: File,
 ): Promise<void> {
-  const res = await fetch(uploadUrl, {
+  const res = await authFetch(uploadUrl, {
     method: "PUT",
     headers: {
       "Content-Type": file.type,
@@ -201,7 +202,7 @@ export async function getAttachmentDownloadUrl(
   messageId: string,
   attachmentId: string,
 ): Promise<AttachmentDownloadUrlResponse> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}/download-url`,
     {
       method: "GET",
@@ -233,7 +234,7 @@ export async function createMessage(
   channelId: string,
   input: CreateMessageInput,
 ): Promise<Message> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/messages`,
     {
       method: "POST",
@@ -268,7 +269,7 @@ export async function updateMessage(
   messageId: string,
   input: UpdateMessageInput,
 ): Promise<Message> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(messageId)}`,
     {
       method: "PATCH",
@@ -302,7 +303,7 @@ export async function deleteMessage(
   channelId: string,
   messageId: string,
 ): Promise<void> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(messageId)}`,
     {
       method: "DELETE",
@@ -333,7 +334,7 @@ export async function addMessageReaction(
   messageId: string,
   emoji: string,
 ): Promise<ReactionSummary[]> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(messageId)}/reactions`,
     {
       method: "POST",
@@ -368,7 +369,7 @@ export async function removeMessageReaction(
   messageId: string,
   emoji: string,
 ): Promise<ReactionSummary[]> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(messageId)}/reactions/${encodeURIComponent(emoji)}`,
     {
       method: "DELETE",
@@ -421,7 +422,7 @@ export async function getMessageContext(
   const query = params.toString();
   const url = `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(messageId)}/context${query ? `?${query}` : ""}`;
 
-  const res = await fetch(url, {
+  const res = await authFetch(url, {
     method: "GET",
     headers: {
       Accept: "application/json",
@@ -456,7 +457,7 @@ export async function searchChannelMessages(
   if (options?.limit) params.set("limit", String(options.limit));
   if (options?.cursor) params.set("cursor", options.cursor);
 
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/messages/search?${params.toString()}`,
     {
       method: "GET",
@@ -551,7 +552,7 @@ export async function searchWorkspaceMessages(
   if (options?.limit) params.set("limit", String(options.limit));
   if (options?.channelId) params.set("channelId", options.channelId);
 
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/search/messages?${params.toString()}`,
     {
       method: "GET",
@@ -587,7 +588,7 @@ export async function searchGlobalMessages(
   if (options?.limit) params.set("limit", String(options.limit));
   if (options?.cursor) params.set("cursor", options.cursor);
 
-  const res = await fetch(`${API_BASE}/me/search/messages?${params.toString()}`, {
+  const res = await authFetch(`${API_BASE}/me/search/messages?${params.toString()}`, {
     method: "GET",
     headers: {
       Accept: "application/json",

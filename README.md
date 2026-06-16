@@ -217,7 +217,6 @@ pnpm --filter web build
 
 > This is a **portfolio-grade rebuild**, not production-ready software.
 
-- **No silent token refresh** — expired access token leads to logout
 - **Free Render instance may cold-start** — first request after sleep can take ~1 min
 - **E2E tests are local-only** — CI workflow lacks a PostgreSQL service
 - **No broad E2E coverage** beyond private-channel authorization smoke tests

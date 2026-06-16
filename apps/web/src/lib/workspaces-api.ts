@@ -1,5 +1,5 @@
 import { getApiBase } from "./env";
-import { fetchWithTimeout } from "./fetch-timeout";
+import { authFetch } from "./auth-fetch";
 
 const API_BASE = getApiBase();
 
@@ -51,7 +51,7 @@ async function parseErrorMessage(res: Response, fallback: string): Promise<strin
 }
 
 export async function getWorkspaces(accessToken: string): Promise<Workspace[]> {
-  const res = await fetch(`${API_BASE}/workspaces`, {
+  const res = await authFetch(`${API_BASE}/workspaces`, {
     method: "GET",
     headers: {
       Accept: "application/json",
@@ -67,7 +67,7 @@ export async function getWorkspaces(accessToken: string): Promise<Workspace[]> {
 }
 
 export async function listArchivedWorkspaces(accessToken: string): Promise<Workspace[]> {
-  const res = await fetch(`${API_BASE}/workspaces/archived`, {
+  const res = await authFetch(`${API_BASE}/workspaces/archived`, {
     method: "GET",
     headers: {
       Accept: "application/json",
@@ -83,7 +83,7 @@ export async function listArchivedWorkspaces(accessToken: string): Promise<Works
 }
 
 export async function getWorkspace(accessToken: string, workspaceId: string): Promise<Workspace> {
-  const res = await fetch(`${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}`, {
+  const res = await authFetch(`${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}`, {
     method: "GET",
     headers: {
       Accept: "application/json",
@@ -102,7 +102,7 @@ export async function archiveWorkspace(
   accessToken: string,
   workspaceId: string,
 ): Promise<{ success: boolean }> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/archive`,
     {
       method: "POST",
@@ -133,7 +133,7 @@ export async function createWorkspace(
   accessToken: string,
   input: CreateWorkspaceInput,
 ): Promise<Workspace> {
-  const res = await fetch(`${API_BASE}/workspaces`, {
+  const res = await authFetch(`${API_BASE}/workspaces`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -154,7 +154,7 @@ export async function getWorkspaceMembers(
   accessToken: string,
   workspaceId: string,
 ): Promise<WorkspaceMember[]> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/members`,
     {
       method: "GET",
@@ -177,7 +177,7 @@ export async function addWorkspaceMember(
   workspaceId: string,
   input: AddWorkspaceMemberInput,
 ): Promise<WorkspaceMember> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/members`,
     {
       method: "POST",
@@ -201,7 +201,7 @@ export async function leaveWorkspace(
   accessToken: string,
   workspaceId: string,
 ): Promise<{ success: boolean }> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/leave`,
     {
       method: "POST",
@@ -232,7 +232,7 @@ export async function removeWorkspaceMember(
   workspaceId: string,
   memberId: string,
 ): Promise<{ success: boolean }> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(memberId)}`,
     {
       method: "DELETE",
@@ -264,7 +264,7 @@ export async function updateWorkspaceMemberRole(
   memberId: string,
   role: "ADMIN" | "MEMBER",
 ): Promise<WorkspaceMember> {
-  const res = await fetchWithTimeout(
+  const res = await authFetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(memberId)}/role`,
     {
       method: "PATCH",
@@ -288,7 +288,7 @@ export async function deleteWorkspace(
   accessToken: string,
   workspaceId: string,
 ): Promise<{ success: boolean }> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}`,
     {
       method: "DELETE",
@@ -318,7 +318,7 @@ export async function restoreWorkspace(
   accessToken: string,
   workspaceId: string,
 ): Promise<Workspace> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/restore`,
     {
       method: "POST",

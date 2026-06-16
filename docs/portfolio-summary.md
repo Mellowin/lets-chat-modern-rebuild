@@ -80,9 +80,9 @@ Small teams need a secure, real-time messaging workspace where access to channel
 
 | Suite | Count |
 |-------|-------|
-| API unit tests | 716 (32 suites) |
-| Web unit tests | 677 (29 files) |
-| Web page tests | 239 (2 files) |
+| API unit tests | 745 (34 suites) |
+| Web unit tests | 688 (31 files) |
+| Web page tests | 248 (2 files) |
 | E2E smoke tests | 7 (local, needs Docker PostgreSQL) |
 
 - GitHub Actions runs lint, typecheck, tests, and builds on every push.
@@ -127,7 +127,6 @@ Raw rerunnable artifacts (`visual-qa/screenshots/`, `node_modules/`, `package-lo
 - Render free tier cold start can take ~1 minute after idle.
 - Real Gmail email delivery depends on a verified Resend sender domain; otherwise auth emails fall back to console/dev mode.
 - E2E tests run locally only; CI does not yet spin up PostgreSQL for them.
-- No silent access-token refresh yet — expiry logs the user out if the tab stays open.
 
 ---
 
@@ -139,7 +138,7 @@ Raw rerunnable artifacts (`visual-qa/screenshots/`, `node_modules/`, `package-lo
 - Delivered **real-time messaging** with **Socket.io** rooms, message broadcasts, typing indicators, reactions, replies, and read receipts.
 - Built **global message search** across workspaces, channels, and DMs with highlighting and jump-to-message.
 - Set up **CI/CD** with GitHub Actions, Render Deploy Hooks, and Vercel auto-deploy; production health and smoke checks run after every deploy.
-- Maintained **1,600+ automated tests** (Jest for API, Vitest + Testing Library for Web) with lint and typecheck gates.
+- Maintained **1,680+ automated tests** (Jest for API, Vitest + Testing Library for Web) with lint and typecheck gates.
 
 ---
 
@@ -173,7 +172,6 @@ Raw rerunnable artifacts (`visual-qa/screenshots/`, `node_modules/`, `package-lo
 
 ### What Would Be Improved Next
 
-- Add silent access-token refresh for a smoother long-lived tab experience.
 - Integrate E2E tests into CI with a PostgreSQL service container.
 - Add push/browser notifications for mentions and DMs.
 - Add message pagination / virtualized lists for very large channels.

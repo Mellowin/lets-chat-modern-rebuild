@@ -1,5 +1,5 @@
 import { getApiBase } from "./env";
-import { fetchWithTimeout } from "./fetch-timeout";
+import { authFetch } from "./auth-fetch";
 
 const API_BASE = getApiBase();
 
@@ -60,7 +60,7 @@ export async function createWorkspaceInvite(
   workspaceId: string,
   input: { email?: string; identifier?: string; role: "ADMIN" | "MEMBER"; maxUses?: number },
 ): Promise<{ id: string; workspaceId: string; email: string | null; role: string; token: string; expiresAt: string; maxUses: number | null; createdAt: string }> {
-  const res = await fetchWithTimeout(
+  const res = await authFetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/invites`,
     {
       method: "POST",
@@ -84,7 +84,7 @@ export async function listWorkspaceInvites(
   accessToken: string,
   workspaceId: string,
 ): Promise<WorkspaceInvite[]> {
-  const res = await fetchWithTimeout(
+  const res = await authFetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/invites`,
     {
       method: "GET",
@@ -107,7 +107,7 @@ export async function revokeWorkspaceInvite(
   workspaceId: string,
   inviteId: string,
 ): Promise<{ id: string; deletedAt: string }> {
-  const res = await fetchWithTimeout(
+  const res = await authFetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/invites/${encodeURIComponent(inviteId)}`,
     {
       method: "DELETE",
@@ -126,7 +126,7 @@ export async function revokeWorkspaceInvite(
 }
 
 export async function previewInvite(token: string): Promise<InvitePreview> {
-  const res = await fetchWithTimeout(
+  const res = await authFetch(
     `${API_BASE}/invites/${encodeURIComponent(token)}/preview`,
     {
       method: "GET",
@@ -144,7 +144,7 @@ export async function previewInvite(token: string): Promise<InvitePreview> {
 }
 
 export async function getPendingInvites(accessToken: string): Promise<PendingInvite[]> {
-  const res = await fetchWithTimeout(`${API_BASE}/invites/pending`, {
+  const res = await authFetch(`${API_BASE}/invites/pending`, {
     method: "GET",
     headers: {
       Accept: "application/json",
@@ -163,7 +163,7 @@ export async function acceptInvite(
   accessToken: string,
   inviteId: string,
 ): Promise<AcceptInviteResult> {
-  const res = await fetchWithTimeout(`${API_BASE}/invites/${encodeURIComponent(inviteId)}/accept`, {
+  const res = await authFetch(`${API_BASE}/invites/${encodeURIComponent(inviteId)}/accept`, {
     method: "POST",
     headers: {
       Accept: "application/json",
@@ -182,7 +182,7 @@ export async function acceptInviteByToken(
   accessToken: string,
   token: string,
 ): Promise<AcceptInviteResult> {
-  const res = await fetchWithTimeout(`${API_BASE}/invites/accept`, {
+  const res = await authFetch(`${API_BASE}/invites/accept`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -203,7 +203,7 @@ export async function declineInvite(
   accessToken: string,
   inviteId: string,
 ): Promise<{ id: string; deletedAt: string }> {
-  const res = await fetchWithTimeout(`${API_BASE}/invites/${encodeURIComponent(inviteId)}/decline`, {
+  const res = await authFetch(`${API_BASE}/invites/${encodeURIComponent(inviteId)}/decline`, {
     method: "POST",
     headers: {
       Accept: "application/json",

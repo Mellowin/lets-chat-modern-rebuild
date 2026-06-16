@@ -1,4 +1,5 @@
 import { getApiBase } from "./env";
+import { authFetch } from "./auth-fetch";
 
 const API_BASE = getApiBase();
 
@@ -41,7 +42,7 @@ export async function getChannels(
   accessToken: string,
   workspaceId: string,
 ): Promise<Channel[]> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels`,
     {
       method: "GET",
@@ -71,7 +72,7 @@ export async function getArchivedChannels(
   accessToken: string,
   workspaceId: string,
 ): Promise<Channel[]> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/archived`,
     {
       method: "GET",
@@ -102,7 +103,7 @@ export async function getChannel(
   workspaceId: string,
   channelId: string,
 ): Promise<Channel> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}`,
     {
       method: "GET",
@@ -133,7 +134,7 @@ export async function getChannelMembers(
   workspaceId: string,
   channelId: string,
 ): Promise<ChannelMember[]> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/members`,
     {
       method: "GET",
@@ -165,7 +166,7 @@ export async function removeChannelMember(
   channelId: string,
   memberId: string,
 ): Promise<{ success: boolean }> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/members/${encodeURIComponent(memberId)}`,
     {
       method: "DELETE",
@@ -197,7 +198,7 @@ export async function addChannelMember(
   channelId: string,
   input: AddChannelMemberInput,
 ): Promise<ChannelMember> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/members`,
     {
       method: "POST",
@@ -230,7 +231,7 @@ export async function markChannelRead(
   workspaceId: string,
   channelId: string,
 ): Promise<{ success: boolean; lastReadAt: string }> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/read`,
     {
       method: "POST",
@@ -261,7 +262,7 @@ export async function restoreChannel(
   workspaceId: string,
   channelId: string,
 ): Promise<{ success: boolean }> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/restore`,
     {
       method: "POST",
@@ -292,7 +293,7 @@ export async function archiveChannel(
   workspaceId: string,
   channelId: string,
 ): Promise<{ success: boolean }> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/archive`,
     {
       method: "POST",
@@ -324,7 +325,7 @@ export async function leaveChannel(
   workspaceId: string,
   channelId: string,
 ): Promise<{ success: boolean }> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/leave`,
     {
       method: "POST",
@@ -355,7 +356,7 @@ export async function deleteChannel(
   workspaceId: string,
   channelId: string,
 ): Promise<{ success: boolean }> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}`,
     {
       method: "DELETE",
@@ -386,7 +387,7 @@ export async function createChannel(
   workspaceId: string,
   input: CreateChannelInput,
 ): Promise<Channel> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels`,
     {
       method: "POST",

@@ -1,4 +1,5 @@
 import { getApiBase } from "./env";
+import { authFetch } from "./auth-fetch";
 
 const API_BASE = getApiBase();
 
@@ -43,7 +44,7 @@ export async function createChannelInvite(
   channelId: string,
   input: CreateChannelInviteInput,
 ): Promise<{ id: string; workspaceId: string; channelId: string; email: string; role: string; token: string; expiresAt: string; createdAt: string }> {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/invites`,
     {
       method: "POST",
@@ -64,7 +65,7 @@ export async function createChannelInvite(
 }
 
 export async function getPendingChannelInvites(accessToken: string): Promise<PendingChannelInvite[]> {
-  const res = await fetch(`${API_BASE}/channel-invites/pending`, {
+  const res = await authFetch(`${API_BASE}/channel-invites/pending`, {
     method: "GET",
     headers: {
       Accept: "application/json",
@@ -83,7 +84,7 @@ export async function acceptChannelInvite(
   accessToken: string,
   inviteId: string,
 ): Promise<{ channelId: string; workspaceId: string; role: string; joinedAt: string }> {
-  const res = await fetch(`${API_BASE}/channel-invites/${encodeURIComponent(inviteId)}/accept`, {
+  const res = await authFetch(`${API_BASE}/channel-invites/${encodeURIComponent(inviteId)}/accept`, {
     method: "POST",
     headers: {
       Accept: "application/json",
@@ -102,7 +103,7 @@ export async function declineChannelInvite(
   accessToken: string,
   inviteId: string,
 ): Promise<{ id: string; deletedAt: string }> {
-  const res = await fetch(`${API_BASE}/channel-invites/${encodeURIComponent(inviteId)}/decline`, {
+  const res = await authFetch(`${API_BASE}/channel-invites/${encodeURIComponent(inviteId)}/decline`, {
     method: "POST",
     headers: {
       Accept: "application/json",

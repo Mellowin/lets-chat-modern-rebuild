@@ -1,7 +1,7 @@
 # Security Audit (B195)
 
 > **Scope:** authentication, sessions, RBAC/IDOR, workspace/channel permissions, invites, global search, uploads/attachments, CORS/environment secrets, XSS/rendering safety.
-> **Date:** 2026-06-15 (updated 2026-06-16 for B197B and B198)
+> **Date:** 2026-06-15 (updated 2026-06-16 for B197B, B198, and B200)
 > **Commit:** `f1d55c4b44b9f1075eb88bcb4b98b3d76897ab47` (B195 baseline; B197B adds owner-only channel delete; B198 adds owner-only workspace delete)
 > **Auditor:** Kimi Code CLI (automated code review + local tests + production probes)
 > **Verdict:** No critical vulnerabilities found. Authorization boundaries are enforced server-side. A few hardening improvements were applied during this audit; remaining items are documented as known limitations.
@@ -38,13 +38,14 @@ During this audit we:
 |-------|--------|-------|
 | Access token handling | ✅ | 15-minute expiry, `HS256`, signed with `JWT_ACCESS_SECRET` (min 32 chars enforced). |
 | Refresh token/session storage | ✅ | Stored as SHA-256 hash in `RefreshToken`; raw token returned once at creation/refresh. |
-| Expired token behavior | ✅ | Both HTTP guard and WebSocket connection reject expired tokens with generic messages. |
+| Expired token behavior | ✅ | Both HTTP guard and WebSocket connection reject expired tokens with generic messages. HTTP clients silently refresh expired access tokens using stored refresh tokens. |
+| Silent access-token refresh | ✅ | `authFetch` intercepts `401`, refreshes once, retries the original request, and coalesces concurrent refreshes. `AuthProvider` refreshes on startup when the access token is expired. |
 | Logout behavior | ✅ | Logout revokes the refresh-token hash; sessionStorage is cleared on the client. |
 | Session revocation | ✅ | Users can list, revoke single, revoke all, and revoke all-other sessions. Current session is protected from accidental self-revoke. |
 | Current session protection | ✅ | `revoke-others` requires the current `sessionId` (JWT `jti`). |
 | Token exposure | ✅ | Tokens are not logged by the API filter; console dev-mail logs verification/reset links only when `MAIL_PROVIDER=console`. |
 
-**Tests:** `auth.service.spec.ts`, `token.service.spec.ts`, `jwt-access.guard.spec.ts`, `auth-context.test.tsx`.
+**Tests:** `auth.service.spec.ts`, `token.service.spec.ts`, `jwt-access.guard.spec.ts`, `auth-context.test.tsx`, `auth-fetch.test.ts`.
 
 **Limitation:** Access tokens remain valid until expiry even after a password change; only refresh tokens are revoked. This is acceptable given the 15-minute access-token TTL but should be noted for high-security scenarios.
 
