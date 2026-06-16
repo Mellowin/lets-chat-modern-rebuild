@@ -47,6 +47,7 @@ Small teams need a secure, real-time messaging workspace where access to channel
 - **Direct messages** — participant-only 1-to-1 conversations.
 - **Global, workspace, and channel message search** with highlight and jump-to-message.
 - **Session management** — list active refresh-token sessions, revoke others, protect current session.
+- **Silent token refresh** — backend rotates refresh tokens safely; frontend `authFetch` intercepts 401s and retries without logging the user out.
 - **Invites** — email/username invites and public invite links with usage limits.
 - **File attachments** — drag-and-drop, upload progress, retry, presigned URLs, inline image previews.
 - **Audit logging** for member, invite, and ownership actions.
@@ -75,6 +76,7 @@ Small teams need a secure, real-time messaging workspace where access to channel
 - Direct messages accessible only to the two participants.
 - Channel archive/restore and role changes restricted to OWNER/ADMIN.
 - WebSocket events revalidate channel membership on the server.
+- Refresh tokens are single-use and rotated on every refresh; reuse detection invalidates the whole session family.
 
 ## Testing & CI/CD Highlights
 
@@ -83,7 +85,7 @@ Small teams need a secure, real-time messaging workspace where access to channel
 | API unit tests | 745 (34 suites) |
 | Web unit tests | 688 (31 files) |
 | Web page tests | 248 (2 files) |
-| E2E smoke tests | 7 (local, needs Docker PostgreSQL) |
+| E2E smoke tests | 7 (local-only, needs Docker PostgreSQL) |
 
 - GitHub Actions runs lint, typecheck, tests, and builds on every push.
 - Render deploy hook fires only after green CI; Render Auto-Deploy is disabled.
@@ -138,7 +140,7 @@ Raw rerunnable artifacts (`visual-qa/screenshots/`, `node_modules/`, `package-lo
 - Delivered **real-time messaging** with **Socket.io** rooms, message broadcasts, typing indicators, reactions, replies, and read receipts.
 - Built **global message search** across workspaces, channels, and DMs with highlighting and jump-to-message.
 - Set up **CI/CD** with GitHub Actions, Render Deploy Hooks, and Vercel auto-deploy; production health and smoke checks run after every deploy.
-- Maintained **1,680+ automated tests** (Jest for API, Vitest + Testing Library for Web) with lint and typecheck gates.
+- Maintained **1,681+ automated tests** (Jest for API, Vitest + Testing Library for Web) with lint and typecheck gates.
 
 ---
 
@@ -162,16 +164,19 @@ Raw rerunnable artifacts (`visual-qa/screenshots/`, `node_modules/`, `package-lo
 - **Private channel security**: making non-members receive `404` at every layer — REST, WebSocket, and search — without leaking existence.
 - **Session isolation**: storing tokens in `sessionStorage` so multiple browser tabs stay independent, while still supporting "Revoke all other sessions".
 - **WebSocket authorization revalidation**: ensuring revoked members are immediately removed from rooms and stop receiving events.
+- **Silent token refresh without double requests**: shared in-flight refresh lock between `AuthProvider` startup and `authFetch` 401 retry so concurrent expired-token calls trigger exactly one `/auth/refresh`.
 - **Render deploy hook reliability**: disabling Render Auto-Deploy and making GitHub Actions the only automatic deploy path.
 
 ### What Was Improved After QA
 
 - B192 introduced a unified design-system palette and polished all authenticated screens.
 - B193 fixed remaining visual inconsistencies: workspace page migrated to shared primitives, invite button stopped wrapping, channel message gutter was tightened, and public auth pages no longer show an empty sidebar.
+- B200 added transparent silent token refresh: `authFetch` retries once after a 401, `AuthProvider` refreshes on startup, and both share a single in-flight refresh lock to avoid racing the backend.
 - Visual QA is now automated with Playwright + disposable Mail.tm accounts, capturing real rendered screenshots instead of checking CSS classes.
 
 ### What Would Be Improved Next
 
 - Integrate E2E tests into CI with a PostgreSQL service container.
+- Record a short portfolio demo video walking through the recruiter demo path.
 - Add push/browser notifications for mentions and DMs.
 - Add message pagination / virtualized lists for very large channels.

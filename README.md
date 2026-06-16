@@ -10,9 +10,7 @@
 - **Backend:** https://lets-chat-api-v2.onrender.com/api/v1
 - **WebSocket:** wss://lets-chat-api-v2.onrender.com
 
-See [`docs/portfolio-demo.md`](docs/portfolio-demo.md) for a step-by-step demo guide and [`docs/portfolio-summary.md`](docs/portfolio-summary.md) for a resume-ready summary, screenshots, and interview talking points.
-
----
+See [`docs/portfolio-demo.md`](docs/portfolio-demo.md) for a step-by-step demo guide, [`docs/demo-script.md`](docs/demo-script.md) for a recruiter-ready narrative, and [`docs/portfolio-summary.md`](docs/portfolio-summary.md) for a resume-ready summary, screenshots, and interview talking points.
 
 ---
 
@@ -33,7 +31,7 @@ See [`docs/portfolio-demo.md`](docs/portfolio-demo.md) for a step-by-step demo g
 
 ### Backend
 
-- 🔐 **JWT Auth** — access/refresh token rotation, bcrypt, per-tab sessionStorage
+- 🔐 **JWT Auth** — access/refresh token rotation, bcrypt, per-tab sessionStorage, token reuse detection
 - 🏢 **Workspaces** — multi-tenant teams with OWNER/ADMIN/MEMBER roles
 - 💬 **Channels** — public and private with authorization guards
 - 💬 **Messages** — CRUD, soft delete, 15-minute edit window
@@ -65,6 +63,7 @@ See [`docs/portfolio-demo.md`](docs/portfolio-demo.md) for a step-by-step demo g
 - 👁️ **Read Receipts** — message seen status
 - 🖥️ **Session Management** — Profile → Sessions, revoke others, current-session badge
 - 🌐 **Cyrillic Support** — usernames and workspace names with auto-transliteration
+- 🔁 **Silent Token Refresh** — `authFetch` intercepts 401s, rotates tokens once, and retries the original request without logging the user out
 
 ---
 
@@ -83,9 +82,9 @@ See [`docs/portfolio-demo.md`](docs/portfolio-demo.md) for a step-by-step demo g
 
 | Suite | Count | Status |
 |-------|-------|--------|
-| API Unit Tests | 716 (32 suites) | ✅ passing |
-| Web Unit Tests | 677 (29 files) | ✅ passing |
-| Web Page Tests | 239 (2 files) | ✅ passing |
+| API Unit Tests | 745 (34 suites) | ✅ passing |
+| Web Unit Tests | 688 (31 files) | ✅ passing |
+| Web Page Tests | 248 (2 files) | ✅ passing |
 | E2E Security Smoke Tests | 7 (2 suites) | ✅ passing locally |
 
 - **CI:** GitHub Actions green for unit tests, builds, and lint
@@ -254,11 +253,11 @@ GET /api/v1/health → ok
 
 ## Roadmap
 
-- [ ] Add screenshots and short demo video
+- [x] Add portfolio screenshots and demo script
+- [ ] Record short demo video (screen recording) for portfolio
 - [ ] Integrate E2E tests into CI with PostgreSQL service
 - [ ] Redis Socket.io adapter for multi-server presence
 - [ ] Cursor-based pagination for messages and audit logs
-- [ ] Silent token refresh for expired access tokens
 - [ ] Push/browser notifications
 
 ---

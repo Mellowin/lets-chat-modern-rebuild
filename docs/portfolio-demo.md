@@ -106,38 +106,44 @@ For a quick, repeatable demo, register a throwaway account with a fake email and
 5. Open a second browser/incognito window with a different user; show real-time updates.
 6. Demonstrate global search with a short query.
 7. Open Profile → Sessions and revoke the other session.
-8. Mention the CI/CD flow and point to the GitHub Actions / Render setup.
+8. Mention the silent token refresh story: close a tab, come back later, and the app renews the session without asking for a password.
+9. Mention the CI/CD flow and point to the GitHub Actions / Render setup.
+
+For a scripted recruiter narrative, see [`docs/demo-script.md`](demo-script.md).
 
 ---
 
 ## Recommended Screenshots Checklist
 
-Use this list when preparing portfolio visuals. Do not add images to the repo unless explicitly requested.
+Use this list when preparing portfolio visuals. The repo already contains a starter set in [`docs/portfolio-media/`](portfolio-media/); replace or extend them with your own branding if desired.
 
-- [ ] **Login page** — clean auth UI.
+### Available now in `docs/portfolio-media/`
+
+- [x] **Login page** — clean auth UI (`login.png`).
+- [x] **Dashboard** — workspace list and create form (`dashboard.png`).
+- [x] **Workspace overview** — channels, members, invites, archived channels (`workspace.png`).
+- [x] **Channel chat** — messages, reactions, composer (`channel.png`).
+- [x] **Direct message** — 1-to-1 chat (`dm.png`).
+- [x] **Global search modal** — search results with source labels (`global-search.png`).
+- [x] **Profile → Sessions** — session list with current badge and revoke button (`profile-sessions.png`).
+- [x] **Mobile channel** — composer and message bubbles usable (`mobile-channel.png`).
+
+### Still to capture / optional
+
 - [ ] **Registration page** — Cyrillic username and workspace name.
-- [ ] **Workspace overview** — sidebar with channels and DMs.
-- [ ] **Channel chat** — messages, reactions, composer.
 - [ ] **Reply thread** — reply under a parent message.
-- [ ] **Direct message** — 1-to-1 chat.
-- [ ] **Global search modal** — search results with source labels.
-- [ ] **Profile → Sessions** — session list with current badge and revoke button.
-
-### Mobile / Tablet Additions (B196)
-
 - [ ] **Mobile login** (375–390 px wide) — centered card, no overflow.
 - [ ] **Mobile dashboard** — cards stack cleanly.
 - [ ] **Mobile workspace overview** — channel/member/invite cards fit.
-- [ ] **Mobile channel** — composer and message bubbles usable.
 - [ ] **Mobile global search** — full-screen modal with readable results.
 - [ ] **Mobile DM** — conversation fits narrow viewport.
 - [ ] **Mobile profile sessions** — tabs scroll, cards stack.
 - [ ] **Tablet channel / dashboard** (768×1024) — balanced sidebar and content.
 - [ ] **Profile → Language switcher** — EN/UK/RU.
-- [ ] **Workspace members / invites** — role management or invite link.
 - [ ] **Attachment upload** — file picker or inline image preview.
 - [ ] **GitHub Actions CI green** — screenshot of passing `CI` and `Deploy API v2 to Render` jobs.
 - [ ] **Render dashboard** — `lets-chat-api-v2` showing Live status (optional).
+- [ ] **Short demo video / screen recording** — 60–90 seconds walking through the recruiter demo path.
 
 ---
 
@@ -145,9 +151,7 @@ Use this list when preparing portfolio visuals. Do not add images to the repo un
 
 - **Cold start:** The Render free instance may sleep; the first load can take ~1 minute.
 - **Email delivery:** Real Gmail delivery only works if the Resend sender domain is verified; otherwise auth emails fall back to console/dev mode.
-- **No silent token refresh:** If the access token expires while the tab is open, the user is logged out. Refreshing before expiry keeps the session alive.
 - **Disposable QA account:** `b188-session-test-1781544153@web-library.net` may still exist in production but has no workspaces, DMs, or channel memberships.
-- **Old backend:** `lets-chat-api-wa43.onrender.com` is decommissioned (404) and not used.
 
 ---
 

@@ -4,6 +4,9 @@
  *
  * Verifies the actual silent refresh UX in a real browser against
  * https://lets-chat-web.vercel.app
+ *
+ * Optional env var:
+ *   B200_PROBE_PASSWORD=<password>  (if omitted, a random password is generated)
  */
 
 import { chromium } from "playwright";
@@ -11,7 +14,13 @@ import { chromium } from "playwright";
 const WEB_BASE = "https://lets-chat-web.vercel.app";
 const API_BASE = "https://lets-chat-api-v2.onrender.com/api/v1";
 const CATCHMAIL_BASE = "https://api.catchmail.io/api/v1";
-const PASSWORD = "TestPass123!";
+
+function getProbePassword() {
+  if (process.env.B200_PROBE_PASSWORD) return process.env.B200_PROBE_PASSWORD;
+  return `Test-${Date.now()}-${Math.random().toString(36).slice(2)}!`;
+}
+
+const PASSWORD = getProbePassword();
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
