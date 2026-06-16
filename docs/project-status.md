@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-06-16 (B197B owner-only channel delete completed)  
+> Last updated: 2026-06-16 (B197A/B197B production verified)  
 > Code checkpoint: `main`  
 > Docs checkpoint: `main`
 >
@@ -319,6 +319,14 @@ Use these steps to verify core functionality after deploy or before release:
   - API: owner delete active/archived, admin/member/non-member rejection, wrong workspace, already deleted, list/search exclusion.
   - Web: owner sees Delete, non-owner does not, successful delete refreshes lists, failed delete shows error.
 - **Docs updated** — `docs/project-status.md`, `docs/security-audit.md`, `docs/database-schema.md`, `docs/portfolio-demo.md`.
+- **Production verification (2026-06-16):**
+  - GitHub Actions run [`#27632670133`](https://github.com/Mellowin/lets-chat-modern-rebuild/actions/runs/27632670133) for commit `449243d0e09410a7d7b8f13897e1de2f0095a516` — `ci` ✅, `Migrate production database` ✅, `Deploy API v2 to Render` ✅.
+  - Authenticated production smoke test against `https://lets-chat-api-v2.onrender.com/api/v1`:
+    - Registered a disposable member account via catchmail.io, verified email, and accepted a workspace invite.
+    - Owner `DELETE /workspaces/:ws/channels/:ch` → `200 { success: true }`.
+    - Member `DELETE` on the same channel → `403 Only workspace owner can delete channels`.
+    - After delete, channel absent from active list, archived list, and direct fetch (`404 Channel not found`).
+  - Test workspace archived after verification to keep production tidy.
 
 ## 12. Known Limitations
 
