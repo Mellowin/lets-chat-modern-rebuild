@@ -366,7 +366,11 @@ Use these steps to verify core functionality after deploy or before release:
   - Render Auto-Deploy remains **Off**.
   - Render Start Command remains `pnpm --filter api start:prod`.
 - **Docs updated** — `docs/deployment-vercel.md` (action versions, secrets, pipeline order), `docs/project-status.md`.
-- **Production verification** — pending after push.
+- **Production verification** — completed 2026-06-16.
+  - GitHub Actions CI/deploy run: [#27643895631](https://github.com/Mellowin/lets-chat-modern-rebuild/actions/runs/27643895631) ✅
+  - No Node.js 20 action runtime warnings remain in `.github/workflows/ci.yml`; all used actions (`actions/checkout@v6`, `pnpm/action-setup@v6`, `actions/setup-node@v6`) target Node.js 24.
+  - `ci` → `migrate` → `deploy` ordering verified in the workflow and confirmed green on `main`.
+  - Render health `ok`; `node scripts/smoke-deploy.mjs` public checks 10/10; Vercel production frontend responds.
 
 ## 12. Known Limitations
 
