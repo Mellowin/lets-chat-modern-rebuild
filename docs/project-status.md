@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-06-16 (B198 owner-only workspace delete in progress)  
+> Last updated: 2026-06-16 (B198 owner-only workspace delete production-verified)  
 > Code checkpoint: `main`  
 > Docs checkpoint: `main`
 >
@@ -345,7 +345,10 @@ Use these steps to verify core functionality after deploy or before release:
   - API: owner delete, admin/member/non-member rejection, already-deleted workspace, controller endpoint.
   - Web: owner sees Danger zone, non-owner does not, confirm disabled until name matches, success redirects, failure shows error.
 - **Docs updated** — `docs/project-status.md`, `docs/security-audit.md`, `docs/database-schema.md`, `docs/portfolio-demo.md`.
-- **Production verification** — pending after push.
+- **Production verification** — completed 2026-06-16.
+  - GitHub Actions CI/deploy run: [#27641586675](https://github.com/Mellowin/lets-chat-modern-rebuild/actions/runs/27641586675) ✅
+  - API probes: owner can delete; admin/member get 403; deleted workspace/channel fetch returns 404; workspace/member lists exclude it; global search excludes its messages; workspace search on deleted workspace returns 404; invite accept fails; DMs remain available.
+  - UI probe: owner can log in, open a workspace, use the Danger Zone name-confirmation flow, and is redirected to `/dashboard` after deletion.
 
 ## 12. Known Limitations
 
