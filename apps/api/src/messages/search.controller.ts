@@ -16,6 +16,7 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { MessagesSearchService, SearchResult } from './messages-search.service';
+import { WorkspacesService } from '../workspaces/workspaces.service';
 import { SearchMessagesQueryDto } from './dto/search-messages-query.dto';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -26,7 +27,10 @@ import type { AuthUserResponse } from '../auth/auth.service';
 @UseGuards(JwtAccessGuard)
 @ApiBearerAuth()
 export class SearchController {
-  constructor(private readonly search: MessagesSearchService) {}
+  constructor(
+    private readonly search: MessagesSearchService,
+    private readonly workspaces: WorkspacesService,
+  ) {}
 
   @Get('messages')
   @ApiOperation({ summary: 'Search messages in workspace' })
@@ -39,6 +43,7 @@ export class SearchController {
     @Query() query: SearchMessagesQueryDto,
     @CurrentUser() user: AuthUserResponse,
   ): Promise<SearchResult[]> {
+    await this.workspaces.findById(workspaceId, user.id);
     return this.search.search(workspaceId, user.id, query);
   }
 }
