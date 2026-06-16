@@ -279,8 +279,9 @@ Use these steps to verify core functionality after deploy or before release:
   - `apps/web/src/app/profile/page.tsx`
   - Public/auth page wrappers
 - **Visual QA:** `visual-qa/visual-qa.js` updated to capture desktop, mobile (390×844 / 375×812), and tablet (768×1024) screenshots for login, dashboard, workspace, channel, global search, DM, and profile sessions. Screenshots are generated in `visual-qa/screenshots/` (gitignored artifacts).
-- **Checks:** web lint ✅, web typecheck ✅, web test ✅ (679 tests), web test:pages ✅ (239 tests), web build ✅.
-- **Status:** mobile/tablet responsive pass complete; ready for B197 owner-only delete.
+- **Checks:** web lint ✅, web typecheck ✅, web test ✅ (679 tests), web test:pages ✅ (239 tests), web build ✅, smoke-deploy ✅ (10/10), visual QA ✅ (16 screenshots across desktop/mobile/tablet).
+- **Commit:** `ef4c4ff9c91aca05c4c300e3a02f67ee16228e2d`
+- **Status:** mobile/tablet responsive pass complete; production UX verified; ready for B197 owner-only delete.
 
 ---
 
