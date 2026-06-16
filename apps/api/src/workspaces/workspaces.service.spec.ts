@@ -1796,12 +1796,14 @@ describe('WorkspacesService', () => {
         id: workspaceId,
         deletedAt: new Date(),
         permanentlyDeletedAt: new Date(),
-      });
+      } as WorkspaceWithArchive);
 
       const result = await service.delete(workspaceId, userId);
 
       expect(result).toEqual({ success: true });
-      expect(workspacesRepository.deleteWorkspace).toHaveBeenCalledWith(workspaceId);
+      expect(workspacesRepository.deleteWorkspace).toHaveBeenCalledWith(
+        workspaceId,
+      );
     });
 
     it('should reject ADMIN', async () => {

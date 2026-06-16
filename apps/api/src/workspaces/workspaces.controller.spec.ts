@@ -49,7 +49,10 @@ describe('WorkspacesController', () => {
       const result = await controller.delete('workspace-id', user);
 
       expect(result).toEqual({ success: true });
-      expect(workspacesService.delete).toHaveBeenCalledWith('workspace-id', user.id);
+      expect(workspacesService.delete).toHaveBeenCalledWith(
+        'workspace-id',
+        user.id,
+      );
     });
   });
 
