@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-06-16 (B196 mobile responsiveness completed)  
+> Last updated: 2026-06-16 (B197A production migration hardening completed)  
 > Code checkpoint: `main`  
 > Docs checkpoint: `main`
 >
@@ -284,6 +284,26 @@ Use these steps to verify core functionality after deploy or before release:
 - **Status:** mobile/tablet responsive pass complete; production UX verified; ready for B197 owner-only delete.
 
 ---
+
+## 13. B197A Production Migration Hardening
+
+- **Goal** — fix the deployment/migration gap that caused the B197 production outage, without re-implementing channel delete.
+- **Root cause of B197 outage** — API code referenced `Channel.permanentlyDeletedAt` before the production PostgreSQL column was created. `render.yaml` changes did not apply to the existing Render service, so the migration never ran.
+- **Chosen strategy** — GitHub Actions `migrate` job:
+  - Runs `pnpm --filter @lets-chat/database migrate:deploy` with the `PRODUCTION_DATABASE_URL` secret.
+  - Runs after the `ci` job and before the `deploy` job.
+  - If the migration fails, the Render deploy hook is not called, so production stays on the previous working API version.
+  - If `PRODUCTION_DATABASE_URL` is missing, the job warns and skips, and deployment is skipped too.
+- **Why it is safer than the B197 attempt:**
+  - Migrations are explicit, observable CI steps instead of hidden inside container startup.
+  - Deploy depends on migration success via job outputs.
+  - It does not rely on Render dashboard command changes, which may not take effect for existing services.
+- **Smoke coverage expanded** — `scripts/smoke-deploy.mjs` now supports authenticated checks via `SMOKE_ACCESS_TOKEN`, `SMOKE_WORKSPACE_ID`, and optional `SMOKE_CHANNEL_ID`. These catch workspace/channel 500s caused by schema mismatches.
+- **Docs updated** — `docs/deployment-vercel.md`, `docs/database-schema.md`.
+- **Required secrets:**
+  - `PRODUCTION_DATABASE_URL` (new)
+  - `RENDER_API_V2_DEPLOY_HOOK_URL` (already required)
+- **B197 owner-only channel delete status:** still paused. Will be reintroduced as B197B only after the migration strategy is proven.
 
 ## 12. Known Limitations
 

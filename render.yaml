@@ -7,6 +7,9 @@ services:
     branch: main
     rootDir: .
     buildCommand: pnpm install --prod=false && pnpm run build:api:prod
+    # Migrations are applied by the GitHub Actions 'migrate' job before this
+    # service is deployed. Do NOT rely on render.yaml to update an existing
+    # Render service; verify the actual dashboard Start Command matches this.
     startCommand: pnpm --filter api start:prod
     envVars:
       - key: NODE_ENV

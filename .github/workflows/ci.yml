@@ -67,11 +67,63 @@ jobs:
           NEXT_PUBLIC_API_URL: 'https://api.example.com/api/v1'
           NEXT_PUBLIC_WS_URL: 'https://api.example.com'
 
-  deploy:
-    name: Deploy API v2 to Render
+  migrate:
+    name: Migrate production database
     needs: ci
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    outputs:
+      should_deploy: ${{ steps.check.outputs.should_deploy }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @lets-chat/database generate
+
+      - name: Check production database URL secret
+        id: check
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "should_deploy=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::PRODUCTION_DATABASE_URL is not configured. Skipping production migration and deploy."
+            echo "         Add the secret in GitHub Settings → Secrets and variables → Actions."
+          else
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+            echo "✅ PRODUCTION_DATABASE_URL is configured."
+          fi
+
+      - name: Deploy production Prisma migrations
+        if: steps.check.outputs.should_deploy == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          echo "🚀 Running prisma migrate deploy against production database..."
+          pnpm --filter @lets-chat/database migrate:deploy
+          echo "✅ Production migrations applied successfully."
+
+  deploy:
+    name: Deploy API v2 to Render
+    needs: [ci, migrate]
+    runs-on: ubuntu-latest
+    if: |
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      needs.migrate.outputs.should_deploy == 'true'
     steps:
       - name: Trigger Render deploy hook
         env:

@@ -818,7 +818,46 @@ MVP supports only one level of threading (flat replies). Only messages with `par
 
 ---
 
-## 12. Out of Schema (v2 / Post-MVP)
+## 12. Production Migration Safety
+
+### 12.1 Deployment order
+
+Every schema change must follow this order in production:
+
+1. Commit the Prisma migration file together with the code that needs it.
+2. Merge to `main`.
+3. GitHub Actions runs the `ci` job (lint, typecheck, tests, builds).
+4. GitHub Actions runs the `migrate` job:
+   - uses the `PRODUCTION_DATABASE_URL` secret;
+   - runs `pnpm --filter @lets-chat/database migrate:deploy`;
+   - if it fails, the pipeline stops and production keeps running the previous API version.
+5. Only if migration succeeds, GitHub Actions runs the `deploy` job and triggers the Render deploy hook.
+6. After deploy, run the smoke script with authenticated checks:
+   ```bash
+   WEB_URL=https://lets-chat-web.vercel.app \
+   API_URL=https://lets-chat-api-v2.onrender.com/api/v1 \
+   SMOKE_ACCESS_TOKEN=<jwt> \
+   SMOKE_WORKSPACE_ID=<uuid> \
+   SMOKE_CHANNEL_ID=<uuid> \
+   node scripts/smoke-deploy.mjs
+   ```
+7. Verify the production UI loads workspaces and channels without `Internal server error`.
+
+### 12.2 Safety rules
+
+- Never deploy API code that references a column before the column exists in production.
+- Do not rely on `render.yaml` to run migrations for the existing `lets-chat-api-v2` service; it is not authoritative.
+- Do not add migration steps to the Render Start Command unless the GitHub Actions strategy is replaced explicitly.
+- Keep migration files immutable after they have been applied to production. If a migration is broken, create a new migration to fix it, not a hand-edited old file.
+
+### 12.3 Required GitHub secrets
+
+| Secret | Purpose |
+|--------|---------|
+| `PRODUCTION_DATABASE_URL` | Connection string used by the `migrate` job |
+| `RENDER_API_V2_DEPLOY_HOOK_URL` | Render deploy hook used by the `deploy` job |
+
+## 13. Out of Schema (v2 / Post-MVP)
 
 - **Email delivery / SMTP integration** - out of MVP; no `EmailQueue` table.
 - **Message pinning** - no `PinnedMessage` table.

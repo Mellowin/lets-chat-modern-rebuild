@@ -265,71 +265,104 @@ These are the dashboard settings for the active backend service `lets-chat-api-v
 | Auto-deploy | `Off` | Verified: deploys are triggered only by the GitHub Actions Render Deploy Hook |
 | Plan | `Free` | Cold start ~1 min after sleep |
 
-### Deploy strategy (B190)
+### Deploy strategy (B190 + B197A)
 
-GitHub Actions is the source of truth for deploying `lets-chat-api-v2`:
+GitHub Actions is the source of truth for both migrating the production database and deploying `lets-chat-api-v2`:
 
 1. Push to `main` triggers the `CI` workflow.
-2. After lint, typecheck, tests, and builds pass, the `deploy` job runs.
-3. The deploy job POSTs to a Render Deploy Hook URL stored in the GitHub secret `RENDER_API_V2_DEPLOY_HOOK_URL`.
-4. Render starts a new deploy for the latest commit.
-5. If the secret is not set, the deploy job skips with a warning and Render auto-deploy must be enabled as a fallback.
+2. After lint, typecheck, tests, and builds pass, the `migrate` job runs.
+3. The `migrate` job runs `prisma migrate deploy` against production using the `PRODUCTION_DATABASE_URL` secret.
+4. Only if the migration succeeds, the `deploy` job POSTs to the Render Deploy Hook stored in `RENDER_API_V2_DEPLOY_HOOK_URL`.
+5. Render starts a new deploy for the latest commit.
 
-This has been verified end-to-end (B190): pushes to `main` no longer trigger Render auto-deploy, and the service deploys only after the GitHub Actions hook is called.
+If `PRODUCTION_DATABASE_URL` is missing, the `migrate` job prints a clear warning, sets `should_deploy=false`, and the `deploy` job is skipped. This prevents accidentally deploying code that depends on an unmigrated schema.
 
-### Production migration strategy
+> **Important:** `render.yaml` in this repo is **not authoritative** for the already-created `lets-chat-api-v2` Render service. The actual build/start commands, health-check path, and auto-deploy setting are controlled by the Render dashboard. Keep the dashboard Start Command set to `pnpm --filter api start:prod` and let GitHub Actions handle migrations.
 
-Migrations must run **before** the new API code starts serving traffic. The `render.yaml` file in the repo is **not authoritative** for an already-created Render service; dashboard settings and deploy hooks are what actually execute. Do not assume `render.yaml` changes alone will run migrations.
+### Production migration strategy (B197A)
 
-Choose one of the following strategies before re-introducing schema changes such as B197's `permanentlyDeletedAt` column:
+Migrations must run **before** the new API code starts serving traffic. The chosen strategy is a **GitHub Actions migration job**.
 
-1. **Render dashboard start command (recommended for Render)**
-   Change the **Start Command** in the Render dashboard for `lets-chat-api-v2` to:
-   ```bash
-   pnpm --filter @lets-chat/database migrate:deploy && pnpm --filter api start:prod
-   ```
-   This runs `prisma migrate deploy` before every container start, so migrations are applied before the API boots. Verify that the command succeeds by checking the Render deploy logs for the `migrate:deploy` output.
+**Why this is safer than the failed B197 attempt:**
 
-2. **GitHub Actions migration job**
-   Add a CI job that runs `pnpm --filter @lets-chat/database migrate:deploy` against production using a `DATABASE_URL` secret, and only triggers the Render deploy hook after the migration succeeds. This keeps migrations explicit and observable in the deploy pipeline.
+- Migrations run in a dedicated CI job with explicit logs, not inside an unobserved container start.
+- The Render deploy hook is called **only after** `migrate:deploy` exits successfully. If the migration fails, production keeps running the previous API version.
+- It does not depend on Render dashboard command changes, which may not apply to an existing service.
+- It keeps schema changes and code changes in the same `main` branch commit/PR, but applies them in the correct order automatically.
 
-3. **Manual migration gate (fallback)**
-   Before triggering a Render deploy that depends on a new column, manually run `pnpm --filter @lets-chat/database migrate:deploy` from a trusted environment with `DATABASE_URL` set to production, then verify the migration completed before deploying.
+**Pipeline order:**
+
+```text
+push main → CI (lint/typecheck/test/build)
+          → migrate (prisma migrate deploy with PRODUCTION_DATABASE_URL)
+          → deploy (Render hook, only if migrate succeeded)
+          → smoke (authenticated workspace/channel checks)
+```
+
+**Alternatives (not the primary strategy):**
+
+- **Render dashboard start command:** change the dashboard Start Command to `pnpm --filter @lets-chat/database migrate:deploy && pnpm --filter api start:prod`. This also runs migrations before the API boots, but it is harder to observe and depends on someone remembering to update the dashboard.
+- **Manual migration gate:** run `pnpm --filter @lets-chat/database migrate:deploy` locally with `DATABASE_URL` set to production, verify success, then trigger Render deploy. Acceptable for emergencies, but not automatic.
 
 Never deploy API code that references a column that has not yet been created in production.
 
-### One-time setup: Render Deploy Hook
+### One-time setup: GitHub secrets
 
-1. Open the Render dashboard for `lets-chat-api-v2`.
-2. Go to **Settings** → **Deploy Hook**.
-3. Create a deploy hook and copy the URL (it looks like `https://api.render.com/deploy/srv-...?key=...`).
-4. Set **Auto-Deploy** to **No** so the GitHub Actions hook is the only automatic deploy path.
+Two secrets are required for the full B197A pipeline:
 
-### One-time setup: GitHub secret
+1. `PRODUCTION_DATABASE_URL`
+   - In the GitHub repo, go to **Settings** → **Secrets and variables** → **Actions**.
+   - Click **New repository secret**.
+   - Name: `PRODUCTION_DATABASE_URL`
+   - Value: the production PostgreSQL connection string (e.g. `postgresql://user:pass@host:5432/db?schema=public`).
+   - Save.
 
-1. In the GitHub repo, go to **Settings** → **Secrets and variables** → **Actions**.
-2. Click **New repository secret**.
-3. Name: `RENDER_API_V2_DEPLOY_HOOK_URL`
-4. Value: the Render Deploy Hook URL copied above.
-5. Save.
+2. `RENDER_API_V2_DEPLOY_HOOK_URL`
+   - Open the Render dashboard for `lets-chat-api-v2`.
+   - Go to **Settings** → **Deploy Hook**.
+   - Create a deploy hook and copy the URL (it looks like `https://api.render.com/deploy/srv-...?key=...`).
+   - Set **Auto-Deploy** to **No** so the GitHub Actions hook is the only automatic deploy path.
+   - In the GitHub repo, add a secret named `RENDER_API_V2_DEPLOY_HOOK_URL` with the copied URL.
 
 ### Verification
 
-After the secret is set:
+After both secrets are set:
 
 1. Push any commit to `main` (or use workflow dispatch if enabled).
-2. Open the GitHub Actions run and confirm the `deploy` job ran and reported `✅ Render deploy hook accepted`.
+2. Open the GitHub Actions run and confirm:
+   - the `migrate` job ran and reported `✅ Production migrations applied successfully.`;
+   - the `deploy` job ran and reported `✅ Render deploy hook accepted`.
 3. Open the Render dashboard **Events** tab and confirm a deploy started for the latest commit.
 4. Wait for the service to show **Live**.
-5. Verify `GET https://lets-chat-api-v2.onrender.com/api/v1/health` returns `status: ok`.
+5. Run the smoke script with authenticated checks:
+   ```bash
+   WEB_URL=https://lets-chat-web.vercel.app \
+   API_URL=https://lets-chat-api-v2.onrender.com/api/v1 \
+   SMOKE_ACCESS_TOKEN=<jwt> \
+   SMOKE_WORKSPACE_ID=<uuid> \
+   SMOKE_CHANNEL_ID=<uuid> \
+   node scripts/smoke-deploy.mjs
+   ```
+6. Verify `GET https://lets-chat-api-v2.onrender.com/api/v1/health` returns `status: ok`.
 
-### Fallback if the hook is not configured
+### Fallback if a secret is not configured
 
-If `RENDER_API_V2_DEPLOY_HOOK_URL` is missing, the workflow skips the hook trigger and prints a warning. In that case:
+- If `PRODUCTION_DATABASE_URL` is missing: the `migrate` job warns and skips, and the `deploy` job does **not** run. Set the secret before the next schema-changing push.
+- If `RENDER_API_V2_DEPLOY_HOOK_URL` is missing: the deploy job warns and skips. Enable Render **Auto-Deploy** only as a temporary fallback, then set the secret and disable auto-deploy.
 
-1. Keep Render **Auto-Deploy** enabled as a fallback.
-2. Set the secret as soon as possible and disable Render auto-deploy.
-3. If auto-deploy still does not fire, click **Manual Deploy** → **Deploy latest commit** as a last resort.
+### Migration safety checklist
+
+Use this checklist whenever a new Prisma migration is added (e.g. B197B):
+
+- [ ] Migration file is committed together with the code that uses it.
+- [ ] `pnpm --filter @lets-chat/database migrate:deploy` succeeds locally against a fresh database.
+- [ ] `pnpm run build:api:prod` passes.
+- [ ] Smoke script passes locally (no authenticated checks needed for pure schema additions).
+- [ ] `PRODUCTION_DATABASE_URL` secret is set in GitHub Actions.
+- [ ] `RENDER_API_V2_DEPLOY_HOOK_URL` secret is set in GitHub Actions.
+- [ ] After push, confirm the `migrate` job succeeds before the `deploy` job starts.
+- [ ] After deploy, run the smoke script with `SMOKE_ACCESS_TOKEN` and `SMOKE_WORKSPACE_ID`.
+- [ ] Open the production UI and verify workspace/channel lists load without errors.
 
 ### Environment variables required on Render
 
