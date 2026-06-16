@@ -52,12 +52,7 @@ function isRefreshRequest(url: string): boolean {
   return url.includes("/auth/refresh");
 }
 
-async function performRefresh(): Promise<AuthResult | null> {
-  const { refreshToken } = getStoredTokens();
-  if (!refreshToken) {
-    return null;
-  }
-
+async function fetchRefreshToken(refreshToken: string): Promise<AuthResult | null> {
   try {
     const res = await fetchWithTimeout(
       `${API_BASE}/auth/refresh`,
@@ -76,21 +71,28 @@ async function performRefresh(): Promise<AuthResult | null> {
       return null;
     }
 
-    const data = (await res.json()) as AuthResult;
-    setStoredTokens(data.accessToken, data.refreshToken);
-    dispatchAuthEvent(AUTH_EVENTS.TOKENS_REFRESHED);
-    return data;
+    return (await res.json()) as AuthResult;
   } catch {
     return null;
   }
 }
 
-async function refreshTokens(): Promise<AuthResult | null> {
+/**
+ * Performs a single in-flight refresh request. This is shared between authFetch
+ * and AuthProvider so concurrent 401s and startup refresh coalesce into one
+ * backend call.
+ */
+export async function performSilentRefresh(): Promise<AuthResult | null> {
+  const { refreshToken } = getStoredTokens();
+  if (!refreshToken) {
+    return null;
+  }
+
   if (refreshPromise) {
     return refreshPromise;
   }
 
-  refreshPromise = performRefresh().finally(() => {
+  refreshPromise = fetchRefreshToken(refreshToken).finally(() => {
     refreshPromise = null;
   });
 
@@ -145,13 +147,15 @@ export async function authFetch(
     return res;
   }
 
-  const refreshed = await refreshTokens();
+  const refreshed = await performSilentRefresh();
   if (!refreshed) {
     setStoredTokens(null, null);
     dispatchAuthEvent(AUTH_EVENTS.SESSION_EXPIRED);
     return res;
   }
 
+  setStoredTokens(refreshed.accessToken, refreshed.refreshToken);
+  dispatchAuthEvent(AUTH_EVENTS.TOKENS_REFRESHED);
   setAuthHeader(headers, refreshed.accessToken);
   return fetchWithTimeout(input, { ...init, headers }, timeoutMs);
 }

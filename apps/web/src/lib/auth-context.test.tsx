@@ -2,7 +2,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import { AuthProvider, useAuth } from "./auth-context";
-import { getMe, logout as apiLogout, refresh as apiRefresh } from "./auth-api";
+import { getMe, logout as apiLogout } from "./auth-api";
+import { performSilentRefresh } from "./auth-fetch";
 import { useLocale } from "./locale";
 
 function makeToken(exp: number): string {
@@ -17,7 +18,6 @@ const expiredAccessToken = makeToken(Math.floor(Date.now() / 1000) - 3600);
 vi.mock("@/lib/auth-api", () => ({
   getMe: vi.fn(),
   logout: vi.fn(),
-  refresh: vi.fn(),
   isTokenExpired: (token: string, bufferSeconds = 60) => {
     try {
       const payload = JSON.parse(atob(token.split(".")[1])) as { exp?: number } | undefined;
@@ -26,6 +26,14 @@ vi.mock("@/lib/auth-api", () => ({
     } catch {
       return true;
     }
+  },
+}));
+
+vi.mock("@/lib/auth-fetch", () => ({
+  performSilentRefresh: vi.fn(),
+  AUTH_EVENTS: {
+    TOKENS_REFRESHED: "auth:tokens-refreshed",
+    SESSION_EXPIRED: "auth:session-expired",
   },
 }));
 
@@ -68,7 +76,7 @@ describe("AuthProvider", () => {
     sessionStorage.clear();
     vi.mocked(getMe).mockReset();
     vi.mocked(apiLogout).mockReset();
-    vi.mocked(apiRefresh).mockReset();
+    vi.mocked(performSilentRefresh).mockReset();
   });
 
   afterEach(() => {
@@ -144,7 +152,7 @@ describe("AuthProvider", () => {
   it("silently refreshes and initializes user when accessToken is expired", async () => {
     sessionStorage.setItem("accessToken", expiredAccessToken);
     sessionStorage.setItem("refreshToken", "refresh-token");
-    vi.mocked(apiRefresh).mockResolvedValueOnce({
+    vi.mocked(performSilentRefresh).mockResolvedValueOnce({
       user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z" },
       accessToken: validAccessToken,
       refreshToken: "new-refresh-token",
@@ -170,7 +178,7 @@ describe("AuthProvider", () => {
       expect(screen.getByTestId("auth")).toHaveTextContent("yes");
     });
 
-    expect(apiRefresh).toHaveBeenCalledWith("refresh-token");
+    expect(performSilentRefresh).toHaveBeenCalled();
     expect(getMe).toHaveBeenCalledWith(validAccessToken);
     expect(sessionStorage.getItem("refreshToken")).toBe("new-refresh-token");
     expect(screen.getByTestId("user")).toHaveTextContent("alice (a@b.com)");
@@ -179,7 +187,7 @@ describe("AuthProvider", () => {
   it("clears tokens and stays unauthenticated when refresh fails", async () => {
     sessionStorage.setItem("accessToken", expiredAccessToken);
     sessionStorage.setItem("refreshToken", "refresh-token");
-    vi.mocked(apiRefresh).mockRejectedValueOnce(new Error("Invalid refresh token"));
+    vi.mocked(performSilentRefresh).mockRejectedValueOnce(new Error("Invalid refresh token"));
 
     render(
       <AuthProvider>
@@ -201,7 +209,7 @@ describe("AuthProvider", () => {
     sessionStorage.setItem("accessToken", validAccessToken);
     sessionStorage.setItem("refreshToken", "refresh-token");
     vi.mocked(getMe).mockRejectedValueOnce(new Error("Unauthorized"));
-    vi.mocked(apiRefresh).mockResolvedValueOnce({
+    vi.mocked(performSilentRefresh).mockResolvedValueOnce({
       user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z" },
       accessToken: "refreshed-access-token",
       refreshToken: "new-refresh-token",
@@ -227,7 +235,7 @@ describe("AuthProvider", () => {
       expect(screen.getByTestId("auth")).toHaveTextContent("yes");
     });
 
-    expect(apiRefresh).toHaveBeenCalledWith("refresh-token");
+    expect(performSilentRefresh).toHaveBeenCalled();
     expect(getMe).toHaveBeenLastCalledWith("refreshed-access-token");
     expect(sessionStorage.getItem("accessToken")).toBe("refreshed-access-token");
     expect(sessionStorage.getItem("refreshToken")).toBe("new-refresh-token");

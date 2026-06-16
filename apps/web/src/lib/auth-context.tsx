@@ -8,9 +8,9 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
-import { getMe, logout as apiLogout, refresh as apiRefresh, isTokenExpired, type AuthUser, type AuthResult } from "@/lib/auth-api";
+import { getMe, logout as apiLogout, isTokenExpired, type AuthUser, type AuthResult } from "@/lib/auth-api";
 import { syncLocale } from "@/lib/locale";
-import { AUTH_EVENTS } from "@/lib/auth-fetch";
+import { AUTH_EVENTS, performSilentRefresh } from "@/lib/auth-fetch";
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -64,10 +64,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const tryRefresh = useCallback(async (): Promise<{ accessToken: string; refreshToken: string } | null> => {
-    const storedRefresh = sessionStorage.getItem("refreshToken");
-    if (!storedRefresh) return null;
     try {
-      const result = await apiRefresh(storedRefresh);
+      const result = await performSilentRefresh();
+      if (!result) return null;
       applyTokens(result);
       return { accessToken: result.accessToken, refreshToken: result.refreshToken };
     } catch {
