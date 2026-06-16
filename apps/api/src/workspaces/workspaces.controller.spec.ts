@@ -29,6 +29,7 @@ describe('WorkspacesController', () => {
           provide: WorkspacesService,
           useValue: {
             addMember: jest.fn(),
+            delete: jest.fn(),
           },
         },
       ],
@@ -39,6 +40,17 @@ describe('WorkspacesController', () => {
 
     controller = moduleRef.get(WorkspacesController);
     workspacesService = moduleRef.get(WorkspacesService);
+  });
+
+  describe('delete', () => {
+    it('should call service.delete and return success', async () => {
+      workspacesService.delete.mockResolvedValue({ success: true });
+
+      const result = await controller.delete('workspace-id', user);
+
+      expect(result).toEqual({ success: true });
+      expect(workspacesService.delete).toHaveBeenCalledWith('workspace-id', user.id);
+    });
   });
 
   describe('addMember', () => {

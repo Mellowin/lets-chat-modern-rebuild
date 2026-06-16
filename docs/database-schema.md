@@ -10,7 +10,7 @@
 
 ## 1. Design Principles
 
-1. **All user-facing entities are soft-deleted** via `deletedAt?: DateTime` (nullable timestamp). No `DELETE` statements in application code for business entities.
+1. **All user-facing entities are soft-deleted** via `deletedAt?: DateTime` (nullable timestamp). Permanent delete is expressed by an additional `permanentlyDeletedAt?: DateTime` timestamp (sets both). No `DELETE` statements in application code for business entities.
 2. **Audit log is append-only.** No `updatedAt`, no `deletedAt` on `AuditLog`.
 3. **Threads are flat.** A thread is a message with replies; replies are messages with `parentId`. No separate `Thread` table.
 4. **Workspace role is the floor for channel access.** Public channels are readable by all active workspace members; `ChannelMember` is required for private channels and explicit public-channel role elevation.
@@ -91,9 +91,10 @@ model Workspace {
   slug          String    @unique
   description   String?
   ownerId       String    @db.Uuid
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  deletedAt     DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  deletedAt            DateTime?
+  permanentlyDeletedAt DateTime?
 
   // Relations
   owner     User              @relation(fields: [ownerId], references: [id])
@@ -101,6 +102,8 @@ model Workspace {
   channels  Channel[]
   auditLogs AuditLog[]
   invitations Invitation[]
+
+  @@index([ownerId, permanentlyDeletedAt])
 }
 ```
 
@@ -111,7 +114,8 @@ model Workspace {
 | `slug` | String | Unique, NOT NULL | B-tree unique | URL-friendly. Regexp: `^[a-z0-9-]+$`. |
 | `description` | String | - | - | - |
 | `ownerId` | UUID | FK -> User.id, NOT NULL | B-tree | Transferable. |
-| `deletedAt` | DateTime | - | B-tree | Soft delete. |
+| `deletedAt` | DateTime | - | B-tree | Archive soft delete. |
+| `permanentlyDeletedAt` | DateTime | - | B-tree composite | Permanent soft delete. `IS NULL` filter on all active queries. |
 
 **Note on `slug` uniqueness:** Global unique in MVP. If soft-deleted workspaces must free slugs, handle via app-layer suffix or post-MVP partial unique index.
 

@@ -12,6 +12,7 @@ export interface Workspace {
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
+  permanentlyDeletedAt?: string | null;
 }
 
 export interface CreateWorkspaceInput {
@@ -281,6 +282,36 @@ export async function updateWorkspaceMemberRole(
   }
 
   return res.json() as Promise<WorkspaceMember>;
+}
+
+export async function deleteWorkspace(
+  accessToken: string,
+  workspaceId: string,
+): Promise<{ success: boolean }> {
+  const res = await fetch(
+    `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}`,
+    {
+      method: "DELETE",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
+
+  if (!res.ok) {
+    let message = `Failed to delete workspace: ${res.status} ${res.statusText}`;
+    try {
+      const body = await res.json();
+      if (body?.message) message = body.message;
+      else if (body?.error) message = body.error;
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+
+  return res.json() as Promise<{ success: boolean }>;
 }
 
 export async function restoreWorkspace(

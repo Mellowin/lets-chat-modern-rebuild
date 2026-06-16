@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import WorkspaceDetailPage from "./page";
-import { getWorkspace, getWorkspaceMembers, addWorkspaceMember, leaveWorkspace, removeWorkspaceMember, updateWorkspaceMemberRole } from "@/lib/workspaces-api";
+import { getWorkspace, getWorkspaceMembers, addWorkspaceMember, leaveWorkspace, removeWorkspaceMember, updateWorkspaceMemberRole, deleteWorkspace } from "@/lib/workspaces-api";
 import { createWorkspaceInvite, listWorkspaceInvites } from "@/lib/invites-api";
 import { getChannels, getArchivedChannels, archiveChannel, restoreChannel, deleteChannel } from "@/lib/channels-api";
 
@@ -32,6 +32,7 @@ vi.mock("@/lib/workspaces-api", () => ({
   leaveWorkspace: vi.fn(),
   removeWorkspaceMember: vi.fn(),
   updateWorkspaceMemberRole: vi.fn(),
+  deleteWorkspace: vi.fn(),
 }));
 
 vi.mock("@/lib/invites-api", () => ({
@@ -226,6 +227,78 @@ describe("WorkspaceDetailPage — locale", () => {
 
     expect(await screen.findByText("Channel not found")).toBeInTheDocument();
     confirmSpy.mockRestore();
+  });
+
+  it("shows workspace delete button for owner", async () => {
+    mockWorkspaceData({ archived: [] });
+    render(<WorkspaceDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Danger zone" })).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: "Delete workspace" })).toBeInTheDocument();
+  });
+
+  it("does not show workspace delete button for non-owner", async () => {
+    mockWorkspaceData({ archived: [] });
+    vi.mocked(getWorkspaceMembers).mockResolvedValue([
+      { id: "wm1", workspaceId: "ws1", role: "MEMBER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice", displayName: "Alice" } },
+    ]);
+    render(<WorkspaceDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Channels" })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("heading", { name: "Danger zone" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete workspace" })).not.toBeInTheDocument();
+  });
+
+  it("workspace delete confirm button disabled until name matches", async () => {
+    mockWorkspaceData({ archived: [] });
+    render(<WorkspaceDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Delete workspace" })).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Delete workspace" }));
+
+    const confirmButton = screen.getByRole("button", { name: "Delete workspace" });
+    expect(confirmButton).toBeDisabled();
+
+    await userEvent.type(screen.getByPlaceholderText("Type workspace name to confirm"), "Wrong Name");
+    expect(confirmButton).toBeDisabled();
+
+    await userEvent.clear(screen.getByPlaceholderText("Type workspace name to confirm"));
+    await userEvent.type(screen.getByPlaceholderText("Type workspace name to confirm"), "Test Workspace");
+    expect(confirmButton).not.toBeDisabled();
+  });
+
+  it("successful workspace delete redirects to dashboard", async () => {
+    mockWorkspaceData({ archived: [] });
+    vi.mocked(deleteWorkspace).mockResolvedValue({ success: true });
+    render(<WorkspaceDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Delete workspace" })).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Delete workspace" }));
+    await userEvent.type(screen.getByPlaceholderText("Type workspace name to confirm"), "Test Workspace");
+    await userEvent.click(screen.getByRole("button", { name: "Delete workspace" }));
+
+    await waitFor(() => {
+      expect(deleteWorkspace).toHaveBeenCalledWith("token", "ws1");
+    });
+    expect(routerPushMock).toHaveBeenCalledWith("/dashboard");
+  });
+
+  it("workspace delete failure shows error", async () => {
+    mockWorkspaceData({ archived: [] });
+    vi.mocked(deleteWorkspace).mockRejectedValue(new Error("Only owner can delete workspace"));
+    render(<WorkspaceDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Delete workspace" })).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Delete workspace" }));
+    await userEvent.type(screen.getByPlaceholderText("Type workspace name to confirm"), "Test Workspace");
+    await userEvent.click(screen.getByRole("button", { name: "Delete workspace" }));
+
+    expect(await screen.findByText("Only owner can delete workspace")).toBeInTheDocument();
   });
 
   it("shows Ukrainian remove member confirm dialog", async () => {

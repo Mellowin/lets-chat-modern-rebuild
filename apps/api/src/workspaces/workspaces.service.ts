@@ -105,6 +105,22 @@ export class WorkspacesService {
     return { success: true };
   }
 
+  async delete(workspaceId: string, userId: string) {
+    const workspace = await this.workspaces.findActiveById(workspaceId);
+    if (!workspace) {
+      throw new NotFoundException('Workspace not found');
+    }
+    const role = await this.workspaces.findMemberRole(workspaceId, userId);
+    if (!role) {
+      throw new NotFoundException('Workspace not found');
+    }
+    if (role !== 'OWNER') {
+      throw new ForbiddenException('Only owner can delete workspace');
+    }
+    await this.workspaces.deleteWorkspace(workspaceId);
+    return { success: true };
+  }
+
   async restore(workspaceId: string, userId: string) {
     const workspace =
       await this.workspaces.findByIdIncludingArchived(workspaceId);

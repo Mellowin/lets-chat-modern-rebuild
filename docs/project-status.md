@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-06-16 (B197A/B197B production verified)  
+> Last updated: 2026-06-16 (B198 owner-only workspace delete in progress)  
 > Code checkpoint: `main`  
 > Docs checkpoint: `main`
 >
@@ -327,6 +327,25 @@ Use these steps to verify core functionality after deploy or before release:
     - Member `DELETE` on the same channel → `403 Only workspace owner can delete channels`.
     - After delete, channel absent from active list, archived list, and direct fetch (`404 Channel not found`).
   - Test workspace archived after verification to keep production tidy.
+
+## 14. B198 Owner-Only Workspace Delete
+
+- **Goal** — allow workspace OWNER to safely delete a workspace without physically destroying data.
+- **Soft-delete decision** — workspace delete sets both `deletedAt` and `permanentlyDeletedAt` timestamps, mirroring the channel delete pattern. Channels, messages, attachments, memberships, and invites are left in the database but become inaccessible through normal UI/API/search routes.
+- **Archive vs delete difference** — archived workspace has only `deletedAt` set and can be restored by the owner. Deleted workspace has both timestamps set and cannot be restored or discovered by members/non-members.
+- **Schema change** — `Workspace.permanentlyDeletedAt DateTime?` added via migration `20260616202600_add_workspace_permanently_deleted_at` with index `(ownerId, permanentlyDeletedAt)`.
+- **Backend endpoint** — `DELETE /api/v1/workspaces/:workspaceId`, workspace OWNER only.
+- **Permission rules:**
+  - Only workspace `OWNER` can delete.
+  - `ADMIN`/`MEMBER` receive `403 Only owner can delete workspace`.
+  - Outsiders and already-deleted workspaces return `404 Workspace not found`.
+- **Cascading visibility** — all active workspace queries, channel queries, and message search CTEs exclude workspaces where `permanentlyDeletedAt IS NOT NULL`. Invite acceptance and direct channel access also fail safely for deleted workspaces.
+- **Frontend UI** — workspace overview has a **Danger zone** card visible only to owner. It shows the workspace name, explains the destructive effect, and requires typing the exact workspace name before the confirm button is enabled. After success the user is redirected to `/dashboard` and the workspace is removed from sidebar/dashboard via the `workspaces:changed` event.
+- **Tests added/updated:**
+  - API: owner delete, admin/member/non-member rejection, already-deleted workspace, controller endpoint.
+  - Web: owner sees Danger zone, non-owner does not, confirm disabled until name matches, success redirects, failure shows error.
+- **Docs updated** — `docs/project-status.md`, `docs/security-audit.md`, `docs/database-schema.md`, `docs/portfolio-demo.md`.
+- **Production verification** — pending after push.
 
 ## 12. Known Limitations
 

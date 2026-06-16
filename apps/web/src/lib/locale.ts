@@ -214,6 +214,14 @@ export type TranslationKey =
   | "workspace.confirmDeleteChannelPrefix"
   | "workspace.confirmDeleteChannelBody"
   | "workspace.errorDeleteChannelFailed"
+  | "workspace.dangerZone"
+  | "workspace.deleteWorkspace"
+  | "workspace.deleteWorkspaceDescription"
+  | "workspace.deleteWorkspaceConfirmPrefix"
+  | "workspace.deleteWorkspaceConfirmBody"
+  | "workspace.deleteWorkspaceInputPlaceholder"
+  | "workspace.deletingWorkspace"
+  | "workspace.errorDeleteWorkspaceFailed"
   | "channel.backToWorkspace"
   | "invite.loadingInvite"
   | "invite.invitedToJoin"
@@ -857,6 +865,14 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "workspace.confirmDeleteChannelPrefix": "Delete channel",
     "workspace.confirmDeleteChannelBody": "This will permanently delete the channel and its messages. Only the workspace owner can do this.",
     "workspace.errorDeleteChannelFailed": "Failed to delete channel",
+    "workspace.dangerZone": "Danger zone",
+    "workspace.deleteWorkspace": "Delete workspace",
+    "workspace.deleteWorkspaceDescription": "Once deleted, this workspace, its channels, messages and invites will be inaccessible to everyone. Only the workspace owner can do this. This action cannot be undone.",
+    "workspace.deleteWorkspaceConfirmPrefix": "Delete workspace",
+    "workspace.deleteWorkspaceConfirmBody": "This action is permanent. Type the workspace name below to confirm.",
+    "workspace.deleteWorkspaceInputPlaceholder": "Type workspace name to confirm",
+    "workspace.deletingWorkspace": "Deleting workspace…",
+    "workspace.errorDeleteWorkspaceFailed": "Failed to delete workspace",
     "workspace.confirmLeaveWorkspacePrefix": "Leave workspace",
     "workspace.confirmRemoveMemberPrefix": "Remove",
     "workspace.confirmRemoveMemberSuffix": "from this workspace?",
@@ -1332,6 +1348,14 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "workspace.confirmDeleteChannelPrefix": "Видалити канал",
     "workspace.confirmDeleteChannelBody": "Це назавжди видалить канал і його повідомлення. Це може зробити лише власник робочого простору.",
     "workspace.errorDeleteChannelFailed": "Не вдалося видалити канал",
+    "workspace.dangerZone": "Небезпечна зона",
+    "workspace.deleteWorkspace": "Видалити робочий простір",
+    "workspace.deleteWorkspaceDescription": "Після видалення цей робочий простір, його канали, повідомлення та запрошення стануть недоступними для всіх. Це може зробити лише власник. Цю дію не можна скасувати.",
+    "workspace.deleteWorkspaceConfirmPrefix": "Видалити робочий простір",
+    "workspace.deleteWorkspaceConfirmBody": "Цю дію неможливо скасувати. Введіть назву робочого простору нижче для підтвердження.",
+    "workspace.deleteWorkspaceInputPlaceholder": "Введіть назву робочого простору для підтвердження",
+    "workspace.deletingWorkspace": "Видаляємо робочий простір…",
+    "workspace.errorDeleteWorkspaceFailed": "Не вдалося видалити робочий простір",
     "workspace.confirmLeaveWorkspacePrefix": "Покинути робочий простір",
     "workspace.confirmRemoveMemberPrefix": "Вилучити",
     "workspace.confirmRemoveMemberSuffix": "з цього робочого простору?",
@@ -1807,6 +1831,14 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "workspace.confirmDeleteChannelPrefix": "Удалить канал",
     "workspace.confirmDeleteChannelBody": "Это навсегда удалит канал и его сообщения. Это может сделать только владелец рабочего пространства.",
     "workspace.errorDeleteChannelFailed": "Не удалось удалить канал",
+    "workspace.dangerZone": "Опасная зона",
+    "workspace.deleteWorkspace": "Удалить рабочее пространство",
+    "workspace.deleteWorkspaceDescription": "После удаления это рабочее пространство, его каналы, сообщения и приглашения станут недоступны для всех. Это может сделать только владелец. Это действие нельзя отменить.",
+    "workspace.deleteWorkspaceConfirmPrefix": "Удалить рабочее пространство",
+    "workspace.deleteWorkspaceConfirmBody": "Это действие нельзя отменить. Введите название рабочего пространства ниже для подтверждения.",
+    "workspace.deleteWorkspaceInputPlaceholder": "Введите название рабочего пространства для подтверждения",
+    "workspace.deletingWorkspace": "Удаляем рабочее пространство…",
+    "workspace.errorDeleteWorkspaceFailed": "Не удалось удалить рабочее пространство",
     "workspace.confirmLeaveWorkspacePrefix": "Покинуть рабочее пространство",
     "workspace.confirmRemoveMemberPrefix": "Удалить",
     "workspace.confirmRemoveMemberSuffix": "из этого рабочего пространства?",

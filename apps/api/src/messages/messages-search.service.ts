@@ -107,11 +107,14 @@ export class MessagesSearchService {
       FROM "Message" m
       JOIN "User" u ON u.id = m."authorId"
       JOIN "Channel" c ON c.id = m."channelId"
+      JOIN "Workspace" w ON w.id = c."workspaceId"
       WHERE m."searchVector" @@ plainto_tsquery('simple', ${q})
         AND m."deletedAt" IS NULL
         AND c."workspaceId" = ${workspaceId}::uuid
         AND c."deletedAt" IS NULL
         AND c."permanentlyDeletedAt" IS NULL
+        AND w."deletedAt" IS NULL
+        AND w."permanentlyDeletedAt" IS NULL
         AND (
           c.type = 'PUBLIC'
           OR EXISTS (
@@ -162,6 +165,8 @@ export class MessagesSearchService {
           AND wm."deletedAt" IS NULL
         WHERE c."deletedAt" IS NULL
           AND c."permanentlyDeletedAt" IS NULL
+          AND w."deletedAt" IS NULL
+          AND w."permanentlyDeletedAt" IS NULL
           AND (
             c.type = 'PUBLIC'
             OR EXISTS (

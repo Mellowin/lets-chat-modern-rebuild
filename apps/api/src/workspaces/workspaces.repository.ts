@@ -47,6 +47,7 @@ export class WorkspacesRepository {
     return this.prisma.workspace.findMany({
       where: {
         deletedAt: null,
+        permanentlyDeletedAt: null,
         members: {
           some: {
             userId,
@@ -63,6 +64,7 @@ export class WorkspacesRepository {
       where: {
         ownerId: userId,
         deletedAt: { not: null },
+        permanentlyDeletedAt: null,
       },
       orderBy: { updatedAt: 'desc' },
     });
@@ -70,13 +72,13 @@ export class WorkspacesRepository {
 
   async findActiveById(id: string) {
     return this.prisma.workspace.findFirst({
-      where: { id, deletedAt: null },
+      where: { id, deletedAt: null, permanentlyDeletedAt: null },
     });
   }
 
   async findActiveBySlug(slug: string) {
     return this.prisma.workspace.findFirst({
-      where: { slug, deletedAt: null },
+      where: { slug, deletedAt: null, permanentlyDeletedAt: null },
     });
   }
 
@@ -117,10 +119,17 @@ export class WorkspacesRepository {
 
   async restoreWorkspace(id: string) {
     const result = await this.prisma.workspace.updateMany({
-      where: { id, deletedAt: { not: null } },
+      where: { id, deletedAt: { not: null }, permanentlyDeletedAt: null },
       data: { deletedAt: null },
     });
     return result.count;
+  }
+
+  async deleteWorkspace(id: string) {
+    return this.prisma.workspace.update({
+      where: { id },
+      data: { deletedAt: new Date(), permanentlyDeletedAt: new Date() },
+    });
   }
 
   async listActiveMembers(workspaceId: string) {
@@ -277,7 +286,11 @@ export class WorkspacesRepository {
       }
 
       const workspaceUpdate = await tx.workspace.updateMany({
-        where: { id: data.workspaceId, deletedAt: null },
+        where: {
+          id: data.workspaceId,
+          deletedAt: null,
+          permanentlyDeletedAt: null,
+        },
         data: { ownerId: data.targetUserId },
       });
       if (workspaceUpdate.count === 0) {

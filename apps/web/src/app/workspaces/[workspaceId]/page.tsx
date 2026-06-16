@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useLocale, translate, getLocale } from "@/lib/locale";
-import { getWorkspace, getWorkspaceMembers, leaveWorkspace, removeWorkspaceMember, updateWorkspaceMemberRole, type Workspace, type WorkspaceMember } from "@/lib/workspaces-api";
+import { getWorkspace, getWorkspaceMembers, leaveWorkspace, removeWorkspaceMember, updateWorkspaceMemberRole, deleteWorkspace, type Workspace, type WorkspaceMember } from "@/lib/workspaces-api";
 import { MessageAuthor } from "@/components/MessageAuthor";
 import { createWorkspaceInvite } from "@/lib/invites-api";
 import WorkspaceInvitesSection from "@/components/WorkspaceInvitesSection";
@@ -84,6 +84,10 @@ export default function WorkspaceDetailPage() {
     | { kind: "success"; message: string }
     | { kind: "error"; message: string }
   >({ kind: "idle" });
+  const [isDeleteWorkspaceDialogOpen, setIsDeleteWorkspaceDialogOpen] = useState(false);
+  const [deleteWorkspaceConfirmName, setDeleteWorkspaceConfirmName] = useState("");
+  const [isDeletingWorkspace, setIsDeletingWorkspace] = useState(false);
+  const [deleteWorkspaceError, setDeleteWorkspaceError] = useState<string | null>(null);
   const router = useRouter();
   const { t } = useLocale();
 
@@ -264,6 +268,20 @@ export default function WorkspaceDetailPage() {
       setDeleteError(err instanceof Error ? err.message : t("workspace.errorDeleteChannelFailed"));
     } finally {
       setDeletingChannelId(null);
+    }
+  }
+
+  async function handleDeleteWorkspace() {
+    if (!accessToken || !workspaceId) return;
+    setIsDeletingWorkspace(true);
+    setDeleteWorkspaceError(null);
+    try {
+      await deleteWorkspace(accessToken, workspaceId);
+      window.dispatchEvent(new Event("workspaces:changed"));
+      router.push("/dashboard");
+    } catch (err) {
+      setDeleteWorkspaceError(err instanceof Error ? err.message : t("workspace.errorDeleteWorkspaceFailed"));
+      setIsDeletingWorkspace(false);
     }
   }
 
@@ -859,6 +877,79 @@ export default function WorkspaceDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      {myRole === "OWNER" && detail.kind === "success" && (
+        <Card className="border-destructive/20">
+          <CardHeader>
+            <CardTitle className="text-destructive">{t("workspace.dangerZone")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!isDeleteWorkspaceDialogOpen ? (
+              <div className="space-y-3">
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                  {t("workspace.deleteWorkspaceDescription")}
+                </p>
+                <Button
+                  variant="danger"
+                  onClick={() => {
+                    setIsDeleteWorkspaceDialogOpen(true);
+                    setDeleteWorkspaceConfirmName("");
+                    setDeleteWorkspaceError(null);
+                  }}
+                >
+                  {t("workspace.deleteWorkspace")}
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm">
+                  <p className="font-medium text-destructive">
+                    {t("workspace.deleteWorkspaceConfirmPrefix")}: {detail.data.name}
+                  </p>
+                  <p className="mt-1 text-zinc-700 dark:text-zinc-300">
+                    {t("workspace.deleteWorkspaceConfirmBody")}
+                  </p>
+                </div>
+                <Input
+                  value={deleteWorkspaceConfirmName}
+                  onChange={(e) => setDeleteWorkspaceConfirmName(e.target.value)}
+                  placeholder={t("workspace.deleteWorkspaceInputPlaceholder")}
+                  className="border-destructive/30"
+                />
+                {deleteWorkspaceError && (
+                  <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm">
+                    <div className="flex items-center gap-2 font-medium text-destructive">
+                      <span className="h-2 w-2 rounded-full bg-destructive" />
+                      {deleteWorkspaceError}
+                    </div>
+                  </div>
+                )}
+                <div className="flex flex-col-reverse sm:flex-row gap-2">
+                  <Button
+                    variant="secondary"
+                    onClick={() => setIsDeleteWorkspaceDialogOpen(false)}
+                    disabled={isDeletingWorkspace}
+                    className="w-full sm:w-auto"
+                  >
+                    {t("channel.cancel")}
+                  </Button>
+                  <Button
+                    variant="danger"
+                    onClick={handleDeleteWorkspace}
+                    disabled={
+                      isDeletingWorkspace ||
+                      deleteWorkspaceConfirmName.trim() !== detail.data.name.trim()
+                    }
+                    className="w-full sm:w-auto"
+                  >
+                    {isDeletingWorkspace ? t("workspace.deletingWorkspace") : t("workspace.deleteWorkspace")}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

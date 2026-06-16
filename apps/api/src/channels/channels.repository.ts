@@ -60,6 +60,7 @@ export class ChannelsRepository {
         slug,
         deletedAt: null,
         permanentlyDeletedAt: null,
+        workspace: { permanentlyDeletedAt: null },
       },
     });
   }
@@ -70,6 +71,7 @@ export class ChannelsRepository {
         workspaceId,
         deletedAt: null,
         permanentlyDeletedAt: null,
+        workspace: { permanentlyDeletedAt: null },
         members: {
           some: {
             userId,
@@ -90,6 +92,7 @@ export class ChannelsRepository {
         workspaceId,
         deletedAt: null,
         permanentlyDeletedAt: null,
+        workspace: { permanentlyDeletedAt: null },
         members: {
           some: {
             userId,
@@ -150,6 +153,7 @@ export class ChannelsRepository {
         workspaceId,
         deletedAt: { not: null },
         permanentlyDeletedAt: null,
+        workspace: { permanentlyDeletedAt: null },
         members: {
           some: {
             userId,
@@ -163,7 +167,12 @@ export class ChannelsRepository {
 
   async findActiveById(channelId: string) {
     return this.prisma.channel.findFirst({
-      where: { id: channelId, deletedAt: null, permanentlyDeletedAt: null },
+      where: {
+        id: channelId,
+        deletedAt: null,
+        permanentlyDeletedAt: null,
+        workspace: { permanentlyDeletedAt: null },
+      },
     });
   }
 
@@ -253,7 +262,11 @@ export class ChannelsRepository {
 
   async findByIdIncludingArchived(channelId: string) {
     return this.prisma.channel.findFirst({
-      where: { id: channelId, permanentlyDeletedAt: null },
+      where: {
+        id: channelId,
+        permanentlyDeletedAt: null,
+        workspace: { permanentlyDeletedAt: null },
+      },
     });
   }
 

@@ -107,6 +107,7 @@ describe('InvitesService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
       deletedAt: null,
+      permanentlyDeletedAt: null,
       ...overrides,
     };
   }

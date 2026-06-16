@@ -54,6 +54,7 @@ For a quick, repeatable demo, register a throwaway account with a fake email and
 - Confirm that a non-member cannot access the private channel (returns 404, no information leakage).
 - Archive and restore a channel (OWNER only).
 - Permanently delete a channel (workspace OWNER only); verify it disappears from active and archived lists and search.
+- Permanently delete a workspace (workspace OWNER only); verify the workspace, its channels, and messages disappear from dashboard, sidebar, direct access, and search.
 
 ### 4. Real-Time Messaging
 

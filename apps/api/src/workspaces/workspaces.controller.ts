@@ -113,6 +113,20 @@ export class WorkspacesController {
     return this.workspaces.archive(workspaceId, user.id);
   }
 
+  @Delete(':workspaceId')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Permanently delete workspace' })
+  @ApiOkResponse({ description: 'Workspace deleted' })
+  @ApiForbiddenResponse({ description: 'Forbidden' })
+  @ApiNotFoundResponse({ description: 'Workspace not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async delete(
+    @Param('workspaceId') workspaceId: string,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.workspaces.delete(workspaceId, user.id);
+  }
+
   @Post(':workspaceId/restore')
   @HttpCode(200)
   @ApiOperation({ summary: 'Restore archived workspace' })

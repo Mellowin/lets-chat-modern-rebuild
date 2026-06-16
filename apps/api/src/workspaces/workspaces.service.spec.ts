@@ -73,6 +73,7 @@ describe('WorkspacesService', () => {
             transferOwnership: jest.fn(),
             findByIdIncludingArchived: jest.fn(),
             restoreWorkspace: jest.fn(),
+            deleteWorkspace: jest.fn(),
             listArchivedOwnedByUser: jest.fn(),
             findBySlug: jest.fn(),
             createWorkspaceWithOwner: jest.fn(),
@@ -1777,6 +1778,90 @@ describe('WorkspacesService', () => {
       await expect(service.restore(workspaceId, userId)).rejects.toBeInstanceOf(
         ConflictException,
       );
+      expectAuditNotCalled();
+    });
+  });
+
+  describe('delete', () => {
+    it('should allow OWNER to delete workspace', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({
+        id: workspaceId,
+        name: 'Active WS',
+        ownerId: userId,
+        deletedAt: null,
+        permanentlyDeletedAt: null,
+      } as ActiveWorkspace);
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      workspacesRepository.deleteWorkspace.mockResolvedValue({
+        id: workspaceId,
+        deletedAt: new Date(),
+        permanentlyDeletedAt: new Date(),
+      });
+
+      const result = await service.delete(workspaceId, userId);
+
+      expect(result).toEqual({ success: true });
+      expect(workspacesRepository.deleteWorkspace).toHaveBeenCalledWith(workspaceId);
+    });
+
+    it('should reject ADMIN', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({
+        id: workspaceId,
+        name: 'Active WS',
+        ownerId: userId,
+        deletedAt: null,
+        permanentlyDeletedAt: null,
+      } as ActiveWorkspace);
+      workspacesRepository.findMemberRole.mockResolvedValue('ADMIN');
+
+      await expect(service.delete(workspaceId, userId)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(workspacesRepository.deleteWorkspace).not.toHaveBeenCalled();
+      expectAuditNotCalled();
+    });
+
+    it('should reject MEMBER', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({
+        id: workspaceId,
+        name: 'Active WS',
+        ownerId: userId,
+        deletedAt: null,
+        permanentlyDeletedAt: null,
+      } as ActiveWorkspace);
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+
+      await expect(service.delete(workspaceId, userId)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(workspacesRepository.deleteWorkspace).not.toHaveBeenCalled();
+      expectAuditNotCalled();
+    });
+
+    it('should reject non-member as not found', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({
+        id: workspaceId,
+        name: 'Active WS',
+        ownerId: userId,
+        deletedAt: null,
+        permanentlyDeletedAt: null,
+      } as ActiveWorkspace);
+      workspacesRepository.findMemberRole.mockResolvedValue(null);
+
+      await expect(service.delete(workspaceId, userId)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(workspacesRepository.deleteWorkspace).not.toHaveBeenCalled();
+      expectAuditNotCalled();
+    });
+
+    it('should reject already deleted workspace as not found', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue(null);
+
+      await expect(service.delete(workspaceId, userId)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(workspacesRepository.deleteWorkspace).not.toHaveBeenCalled();
       expectAuditNotCalled();
     });
   });
