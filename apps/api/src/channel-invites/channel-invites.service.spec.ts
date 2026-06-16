@@ -1,5 +1,6 @@
 import { Test } from '@nestjs/testing';
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   NotFoundException,
@@ -424,6 +425,27 @@ describe('ChannelInvitesService', () => {
       ).rejects.toBeInstanceOf(ForbiddenException);
     });
 
+    it('should reject OWNER role assignment in channel invite', async () => {
+      mockOwnerSetup();
+      usersRepository.findByUsername.mockResolvedValue(mockUser());
+      workspacesRepository.findActiveMemberByUserId.mockResolvedValue(
+        mockWorkspaceMember(),
+      );
+      channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue(
+        null,
+      );
+
+      await expect(
+        service.create(
+          workspaceId,
+          channelId,
+          { identifier: 'bob', role: 'OWNER' as 'ADMIN' | 'MEMBER' },
+          userId,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(channelInvitesRepository.createInvite).not.toHaveBeenCalled();
+    });
+
     it('should reject MEMBER creating channel invite', async () => {
       mockMemberSetup();
 
@@ -574,6 +596,16 @@ describe('ChannelInvitesService', () => {
           entityType: AuditEntityType.CHANNEL_INVITATION,
         }),
       );
+    });
+
+    it('should reject accept for OWNER role invite', async () => {
+      channelInvitesRepository.findPendingById.mockResolvedValue(
+        mockPendingChannelInvite({ role: ChannelRole.OWNER }),
+      );
+
+      await expect(
+        service.acceptById('invite-1', userId, 'alice@example.com'),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('should reject accept when channel is not active', async () => {

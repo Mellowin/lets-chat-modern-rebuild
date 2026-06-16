@@ -35,6 +35,17 @@ describe("MessageAuthor", () => {
     expect(screen.getByText("Unknown user")).toBeInTheDocument();
   });
 
+  it("escapes HTML in displayName and username to prevent XSS", () => {
+    const { container } = render(
+      <MessageAuthor
+        author={{ id: "u1", username: "<script>alert(1)</script>", displayName: "<img src=x onerror=alert(1)>", avatarUrl: null }}
+      />,
+    );
+    expect(container.querySelector("script")).not.toBeInTheDocument();
+    expect(container.querySelector("img")).not.toBeInTheDocument();
+    expect(screen.getByText("<img src=x onerror=alert(1)>")).toBeInTheDocument();
+  });
+
   it("shows avatar image when avatarUrl exists", () => {
     render(
       <MessageAuthor

@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-06-15 (B192 UI polish)  
+> Last updated: 2026-06-15 (B195 security audit)  
 > Code checkpoint: `main`  
 > Docs checkpoint: `main`
 >
@@ -226,7 +226,30 @@ Use these steps to verify core functionality after deploy or before release:
 
 ---
 
-## 10. Known Limitations
+## 10. B195 Security Audit
+
+- **Goal** — perform a focused security audit before adding destructive features (workspace/channel delete). No product features, UI redesign, or mobile work.
+- **Scope** — auth/JWT/sessions, RBAC/IDOR, workspace/channel permissions, invites, global search, uploads/attachments, CORS/env/headers, XSS/rendering safety.
+- **Full report:** [`docs/security-audit.md`](security-audit.md)
+- **Key findings:**
+  - Authorization is enforced server-side for every workspace/channel/DM boundary; changing IDs in URLs does not grant access.
+  - Invites are hashed, expiring, single-use or max-use, and role-restricted (ADMIN/MEMBER only; OWNER assignment rejected).
+  - Global search applies workspace-membership and channel-participation filters before returning results; 1-character queries do not bypass visibility rules.
+  - Attachments use presigned S3 URLs, 10 MB / allow-listed MIME limits, and path-traversal-safe storage keys.
+  - No `dangerouslySetInnerHTML` in the frontend; React text nodes escape user-generated content.
+  - Production CORS is pinned to `https://lets-chat-web.vercel.app`; no wildcard.
+  - `.env`/secrets are gitignored; Render deploy hook uses a GitHub secret.
+- **Fixes applied in B195:**
+  - Disabled Swagger/OpenAPI in production (`apps/api/src/main.ts`) to reduce endpoint enumeration.
+  - Added channel-invite OWNER-role rejection tests.
+  - Added frontend XSS regression tests for author names and search snippets.
+- **Known limitations documented honestly:** no rate limiting, email/username enumeration possible, 15-minute access-token window after password change, public avatar URLs are unguessable but not authenticated, S3 bucket policy dependency, no HTTP security headers yet, console mail provider logs tokens in dev only.
+- **Checks:** API lint/typecheck/test ✅, web lint/typecheck/test/test:pages/build ✅, `build:api:prod` ✅, smoke 10/10 ✅.
+- **Status:** security posture verified and documented; ready for B196 mobile responsiveness and later destructive owner actions.
+
+---
+
+## 11. Known Limitations
 
 - **Invite link QA is manual** — email delivery of targeted invites and end-to-end invite accept flow are not covered by automated E2E tests; manual verification in production (or a local environment with SMTP) is required. Targeted email invites require the recipient's account email to match the invite email exactly.
 - **No slug-based URLs** — routing is strictly UUID-based; slugs are cosmetic only.

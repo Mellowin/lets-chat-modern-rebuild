@@ -109,6 +109,26 @@ describe("GlobalMessageSearch", () => {
     expect(screen.getAllByText("Bob").length).toBeGreaterThanOrEqual(1);
   });
 
+  it("escapes HTML in message content and search highlighting does not inject scripts", async () => {
+    const xssContent = "<script>alert(1)</script>";
+    vi.mocked(searchGlobalMessages).mockResolvedValueOnce({
+      items: [makeChannelResult("msg-xss", xssContent, "PUBLIC")],
+      nextCursor: null,
+    });
+
+    const { container } = render(<GlobalMessageSearch />);
+    await userEvent.click(screen.getByTestId("global-search-open-button"));
+    await userEvent.type(screen.getByTestId("global-search-input"), "script");
+    await userEvent.click(screen.getByTestId("global-search-submit"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("global-search-result-msg-xss")).toBeInTheDocument();
+    });
+    const result = screen.getByTestId("global-search-result-msg-xss");
+    expect(result.textContent).toContain("<script>alert(1)</script>");
+    expect(container.querySelector("script")).not.toBeInTheDocument();
+  });
+
   it("renders public channel label for public channel results", async () => {
     vi.mocked(searchGlobalMessages).mockResolvedValueOnce({
       items: [makeChannelResult("msg-1", "hello", "PUBLIC")],
