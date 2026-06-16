@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-06-16 (B198 owner-only workspace delete production-verified)  
+> Last updated: 2026-06-16 (B199 CI/CD action cleanup complete)  
 > Code checkpoint: `main`  
 > Docs checkpoint: `main`
 >
@@ -349,6 +349,24 @@ Use these steps to verify core functionality after deploy or before release:
   - GitHub Actions CI/deploy run: [#27641586675](https://github.com/Mellowin/lets-chat-modern-rebuild/actions/runs/27641586675) ✅
   - API probes: owner can delete; admin/member get 403; deleted workspace/channel fetch returns 404; workspace/member lists exclude it; global search excludes its messages; workspace search on deleted workspace returns 404; invite accept fails; DMs remain available.
   - UI probe: owner can log in, open a workspace, use the Danger Zone name-confirmation flow, and is redirected to `/dashboard` after deletion.
+
+## 15. B199 CI/CD Action Cleanup
+
+- **Goal** — remove GitHub Actions Node.js 20 runtime deprecation warnings and document the final deployment pipeline before adding more product features.
+- **Scope** — only `.github/workflows/ci.yml` and docs; no backend/frontend behavior changed.
+- **Action upgrades:**
+  - `actions/checkout@v4` → `actions/checkout@v6`
+  - `pnpm/action-setup@v4` → `pnpm/action-setup@v6`
+  - `actions/setup-node@v4` → `actions/setup-node@v6`
+- **Node/pnpm strategy unchanged:** CI still builds with `node-version: 20`; pnpm version is read from `package.json#packageManager` (`pnpm@9.1.0`).
+- **Pipeline safety preserved:**
+  - `ci` job → `migrate` job (`needs: ci`) → `deploy` job (`needs: [ci, migrate]`).
+  - `migrate` requires the `PRODUCTION_DATABASE_URL` secret; if it is missing, `should_deploy=false` and `deploy` is skipped.
+  - `deploy` depends on `needs.migrate.outputs.should_deploy == 'true'` and uses the `RENDER_API_V2_DEPLOY_HOOK_URL` secret.
+  - Render Auto-Deploy remains **Off**.
+  - Render Start Command remains `pnpm --filter api start:prod`.
+- **Docs updated** — `docs/deployment-vercel.md` (action versions, secrets, pipeline order), `docs/project-status.md`.
+- **Production verification** — pending after push.
 
 ## 12. Known Limitations
 

@@ -1,5 +1,8 @@
 name: CI
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [main]
@@ -9,16 +12,17 @@ on:
 
 jobs:
   ci:
+    name: Lint, test and build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: 'pnpm'
@@ -76,13 +80,13 @@ jobs:
       should_deploy: ${{ steps.check.outputs.should_deploy }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 20
           cache: 'pnpm'
@@ -93,6 +97,8 @@ jobs:
       - name: Generate Prisma client
         run: pnpm --filter @lets-chat/database generate
 
+      # Migration must complete successfully before Render is allowed to deploy.
+      # If PRODUCTION_DATABASE_URL is missing, both migration and deploy are skipped.
       - name: Check production database URL secret
         id: check
         env:

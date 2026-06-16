@@ -265,7 +265,7 @@ These are the dashboard settings for the active backend service `lets-chat-api-v
 | Auto-deploy | `Off` | Verified: deploys are triggered only by the GitHub Actions Render Deploy Hook |
 | Plan | `Free` | Cold start ~1 min after sleep |
 
-### Deploy strategy (B190 + B197A)
+### Deploy strategy (B190 + B197A + B199)
 
 GitHub Actions is the source of truth for both migrating the production database and deploying `lets-chat-api-v2`:
 
@@ -276,6 +276,25 @@ GitHub Actions is the source of truth for both migrating the production database
 5. Render starts a new deploy for the latest commit.
 
 If `PRODUCTION_DATABASE_URL` is missing, the `migrate` job prints a clear warning, sets `should_deploy=false`, and the `deploy` job is skipped. This prevents accidentally deploying code that depends on an unmigrated schema.
+
+#### CI/CD action versions (B199)
+
+The workflow was cleaned up in B199 to use Node.js 24-compatible action runtimes and remove deprecation warnings:
+
+| Action | Version | Purpose |
+|--------|---------|---------|
+| `actions/checkout` | `v6` | Repository checkout (Node.js 24 runtime) |
+| `pnpm/action-setup` | `v6` | Install pnpm (reads `packageManager` from `package.json`) |
+| `actions/setup-node` | `v6` | Install Node.js and enable pnpm cache |
+
+The project continues to build with Node.js 20 (`node-version: 20`) for compatibility with the current `engines` field and `@types/node` version. The package manager is pinned to `pnpm@9.1.0` via `package.json#packageManager`, so CI uses the same pnpm major as local development.
+
+Required GitHub secrets remain unchanged:
+
+- `PRODUCTION_DATABASE_URL` — used by the `migrate` job.
+- `RENDER_API_V2_DEPLOY_HOOK_URL` — used by the `deploy` job.
+
+Render Auto-Deploy stays **Off**; the `deploy` job is the only automatic deploy path.
 
 > **Important:** `render.yaml` in this repo is **not authoritative** for the already-created `lets-chat-api-v2` Render service. The actual build/start commands, health-check path, and auto-deploy setting are controlled by the Render dashboard. Keep the dashboard Start Command set to `pnpm --filter api start:prod` and let GitHub Actions handle migrations.
 
