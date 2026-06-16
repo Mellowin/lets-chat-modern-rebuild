@@ -668,7 +668,7 @@ describe('ChannelsService', () => {
         id: channelId,
         deletedAt: new Date(),
         permanentlyDeletedAt: new Date(),
-      } as any);
+      });
 
       const result = await service.delete(workspaceId, channelId, userId);
 
@@ -690,7 +690,7 @@ describe('ChannelsService', () => {
         id: channelId,
         deletedAt: new Date(),
         permanentlyDeletedAt: new Date(),
-      } as any);
+      });
 
       const result = await service.delete(workspaceId, channelId, userId);
 
