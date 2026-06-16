@@ -393,7 +393,16 @@ Use these steps to verify core functionality after deploy or before release:
   - Web: `auth-context.test.tsx` updated to cover startup refresh from expired token, startup refresh after a rejected `/auth/me`, and refresh failure clearing state.
 - **Docs updated** — `docs/security-audit.md`, `docs/portfolio-summary.md`, `README.md` (removed the "no silent token refresh" limitation).
 - **Checks:** API lint/typecheck/test ✅ (745 tests), web lint/typecheck/build ✅, web test ✅ (688 tests with `--retry=2`), web test:pages ✅ (248 tests).
-- **Production verification** — pending push to `main` and Render deploy.
+- **Production verification** — completed 2026-06-16.
+  - GitHub Actions CI/deploy run: [#27647958916](https://github.com/Mellowin/lets-chat-modern-rebuild/actions/runs/27647958916) ✅ — `ci` ✅, `Migrate production database` ✅, `Deploy API v2 to Render` ✅.
+  - `node scripts/smoke-deploy.mjs` public checks 10/10 ✅.
+  - Refresh probe (`scripts/verify-b200-refresh.mjs`) against `https://lets-chat-api-v2.onrender.com/api/v1`:
+    - registered a disposable account via catchmail.io, verified email, and logged in;
+    - `POST /auth/refresh` returned new access and refresh tokens;
+    - `GET /auth/me` with the new access token succeeded;
+    - `POST /auth/logout` succeeded;
+    - reusing the logged-out refresh token returned `401`.
+  - Verified that the refresh endpoint rotates tokens and rejects revoked sessions in production.
 
 ## 12. Known Limitations
 
