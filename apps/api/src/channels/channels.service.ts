@@ -434,22 +434,4 @@ export class ChannelsService {
     await this.channels.restoreChannel(channelId);
     return { success: true };
   }
-
-  async delete(workspaceId: string, channelId: string, userId: string) {
-    const wsRole = await this.workspaces.findMemberRole(workspaceId, userId);
-    if (!wsRole) {
-      throw new NotFoundException('Workspace not found');
-    }
-    if (wsRole !== 'OWNER') {
-      throw new ForbiddenException('Only workspace owner can delete channel');
-    }
-
-    const channel = await this.channels.findByIdIncludingArchived(channelId);
-    if (!channel || channel.workspaceId !== workspaceId) {
-      throw new NotFoundException('Channel not found');
-    }
-
-    await this.channels.permanentlyDeleteChannel(channelId);
-    return { success: true };
-  }
 }

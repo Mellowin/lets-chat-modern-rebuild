@@ -151,7 +151,6 @@ model Channel {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   deletedAt   DateTime?
-  permanentlyDeletedAt DateTime?
 
   // Relations
   workspace     Workspace       @relation(fields: [workspaceId], references: [id])
@@ -166,7 +165,6 @@ model Channel {
 
   @@unique([workspaceId, slug])
   @@index([workspaceId, deletedAt])
-  @@index([workspaceId, permanentlyDeletedAt])
 }
 
 model ChannelMember {

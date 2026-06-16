@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import WorkspaceDetailPage from "./page";
 import { getWorkspace, getWorkspaceMembers, addWorkspaceMember, leaveWorkspace, removeWorkspaceMember, updateWorkspaceMemberRole } from "@/lib/workspaces-api";
 import { createWorkspaceInvite, listWorkspaceInvites } from "@/lib/invites-api";
-import { getChannels, getArchivedChannels, archiveChannel, restoreChannel, deleteChannel } from "@/lib/channels-api";
+import { getChannels, getArchivedChannels, archiveChannel, restoreChannel } from "@/lib/channels-api";
 
 const routerPushMock = vi.fn();
 const mockRouter = { push: routerPushMock };
@@ -46,7 +46,6 @@ vi.mock("@/lib/channels-api", () => ({
   createChannel: vi.fn(),
   archiveChannel: vi.fn(),
   restoreChannel: vi.fn(),
-  deleteChannel: vi.fn(),
 }));
 
 beforeEach(() => {
@@ -251,9 +250,6 @@ describe("WorkspaceDetailPage — locale", () => {
 describe("WorkspaceDetailPage — archived channels", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    mockAuthUser.id = "u1";
-    mockAuthUser.email = "a@b.com";
-    mockAuthUser.username = "alice";
   });
 
   it("shows archived channels list with Restore button for creator", async () => {
@@ -411,66 +407,6 @@ describe("WorkspaceDetailPage — archived channels", () => {
     await userEvent.click(screen.getByRole("button", { name: /Restore/i }));
 
     expect(await screen.findByText(/Only owner can restore channel/i)).toBeInTheDocument();
-
-    confirmSpy.mockRestore();
-  });
-
-  it("shows Delete button for workspace OWNER", async () => {
-    mockWorkspaceData({ archived: [] });
-    vi.mocked(getChannels).mockResolvedValue([
-      { id: "ch1", workspaceId: "ws1", name: "general", slug: "general-slug", description: null, type: "PUBLIC", createdById: "u2", createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", deletedAt: null },
-    ]);
-
-    render(<WorkspaceDetailPage />);
-
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: /Delete/i })).toBeInTheDocument();
-    });
-  });
-
-  it("hides Delete button when user is not workspace OWNER", async () => {
-    mockAuthUser.id = "u2";
-    mockWorkspaceData({ archived: [] });
-    vi.mocked(getWorkspaceMembers).mockResolvedValue([
-      { id: "wm1", workspaceId: "ws1", role: "OWNER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u1", username: "alice", displayName: "Alice" } },
-      { id: "wm2", workspaceId: "ws1", role: "MEMBER", joinedAt: "2024-01-01T00:00:00Z", user: { id: "u2", username: "bob", displayName: "Bob" } },
-    ]);
-    vi.mocked(getChannels).mockResolvedValue([
-      { id: "ch1", workspaceId: "ws1", name: "general", slug: "general-slug", description: null, type: "PUBLIC", createdById: "u2", createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", deletedAt: null },
-    ]);
-
-    render(<WorkspaceDetailPage />);
-
-    await waitFor(() => {
-      expect(screen.getByText("general")).toBeInTheDocument();
-    });
-
-    expect(screen.queryByRole("button", { name: /Delete/i })).not.toBeInTheDocument();
-  });
-
-  it("permanently deletes channel and refreshes both lists on confirm", async () => {
-    mockWorkspaceData({ archived: [] });
-    vi.mocked(getChannels).mockResolvedValue([
-      { id: "ch1", workspaceId: "ws1", name: "general", slug: "general-slug", description: null, type: "PUBLIC", createdById: "u1", createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", deletedAt: null },
-    ]);
-    vi.mocked(deleteChannel).mockResolvedValueOnce({ success: true });
-
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
-
-    render(<WorkspaceDetailPage />);
-
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: /Delete/i })).toBeInTheDocument();
-    });
-
-    vi.mocked(getChannels).mockResolvedValueOnce([]);
-    vi.mocked(getArchivedChannels).mockResolvedValueOnce([]);
-
-    await userEvent.click(screen.getByRole("button", { name: /Delete/i }));
-
-    await waitFor(() => {
-      expect(deleteChannel).toHaveBeenCalledWith("token", "ws1", "ch1");
-    });
 
     confirmSpy.mockRestore();
   });

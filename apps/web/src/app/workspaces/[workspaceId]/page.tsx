@@ -10,7 +10,7 @@ import { MessageAuthor } from "@/components/MessageAuthor";
 import { createWorkspaceInvite } from "@/lib/invites-api";
 import WorkspaceInvitesSection from "@/components/WorkspaceInvitesSection";
 import WorkspaceMessageSearch from "@/components/WorkspaceMessageSearch";
-import { getChannels, getArchivedChannels, createChannel, archiveChannel, restoreChannel, deleteChannel, type Channel, type CreateChannelInput } from "@/lib/channels-api";
+import { getChannels, getArchivedChannels, createChannel, archiveChannel, restoreChannel, type Channel, type CreateChannelInput } from "@/lib/channels-api";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
@@ -66,7 +66,6 @@ export default function WorkspaceDetailPage() {
     { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string }
   >({ kind: "idle" });
   const [archiveError, setArchiveError] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [archivedChannels, setArchivedChannels] = useState<ArchivedChannelsState>({ kind: "idle" });
   const [restoringChannelId, setRestoringChannelId] = useState<string | null>(null);
   const [restoreError, setRestoreError] = useState<string | null>(null);
@@ -219,29 +218,6 @@ export default function WorkspaceDetailPage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : t("workspace.errorArchiveChannelFailed");
       setArchiveError(message);
-    }
-  }
-
-  async function handleDeleteChannel(e: React.MouseEvent, channelId: string, name: string) {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!window.confirm(`${t("workspace.confirmDeleteChannelPrefix")} "${name}"?\n${t("workspace.confirmDeleteChannelBody")}`)) {
-      return;
-    }
-    if (!accessToken || !workspaceId) return;
-    setDeleteError(null);
-    try {
-      await deleteChannel(accessToken, workspaceId, channelId);
-      const [active, archived] = await Promise.all([
-        getChannels(accessToken, workspaceId),
-        getArchivedChannels(accessToken, workspaceId),
-      ]);
-      setChannels({ kind: "success", data: active });
-      setArchivedChannels({ kind: "success", data: archived });
-      window.dispatchEvent(new Event("channels:changed"));
-    } catch (err) {
-      const message = err instanceof Error ? err.message : t("workspace.errorDeleteChannelFailed");
-      setDeleteError(message);
     }
   }
 
@@ -505,15 +481,6 @@ export default function WorkspaceDetailPage() {
             </div>
           )}
 
-          {deleteError && (
-            <div className="mt-3 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm">
-              <div className="flex items-center gap-2 font-medium text-destructive">
-                <span className="h-2 w-2 rounded-full bg-destructive" />
-                {deleteError}
-              </div>
-            </div>
-          )}
-
           {channels.kind === "success" && channels.data.length > 0 && (
             <ul className="mt-3 divide-y divide-zinc-200 dark:divide-zinc-800">
               {channels.data.map((ch) => (
@@ -546,16 +513,6 @@ export default function WorkspaceDetailPage() {
                         className="text-destructive hover:text-destructive"
                       >
                         {t("workspace.archive")}
-                      </Button>
-                    )}
-                    {myRole === "OWNER" && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => handleDeleteChannel(e, ch.id, ch.name)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        {t("workspace.delete")}
                       </Button>
                     )}
                     <Badge variant={ch.type === "PUBLIC" ? "success" : "warning"}>
@@ -834,16 +791,6 @@ export default function WorkspaceDetailPage() {
                         className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
                       >
                         {restoringChannelId === ch.id ? t("workspace.restoring") : t("workspace.restore")}
-                      </Button>
-                    )}
-                    {myRole === "OWNER" && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => handleDeleteChannel(e, ch.id, ch.name)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        {t("workspace.delete")}
                       </Button>
                     )}
                     <Badge variant={ch.type === "PUBLIC" ? "success" : "warning"}>

@@ -111,7 +111,6 @@ export class MessagesSearchService {
         AND m."deletedAt" IS NULL
         AND c."workspaceId" = ${workspaceId}::uuid
         AND c."deletedAt" IS NULL
-        AND c."permanentlyDeletedAt" IS NULL
         AND (
           c.type = 'PUBLIC'
           OR EXISTS (
@@ -161,7 +160,6 @@ export class MessagesSearchService {
           AND wm."userId" = ${userId}::uuid
           AND wm."deletedAt" IS NULL
         WHERE c."deletedAt" IS NULL
-          AND c."permanentlyDeletedAt" IS NULL
           AND (
             c.type = 'PUBLIC'
             OR EXISTS (
