@@ -5,8 +5,10 @@ import {
   HeadBucketCommand,
   ListObjectsV2Command,
   DeleteObjectCommand,
+  GetObjectCommand,
 } from '@aws-sdk/client-s3';
 import { StorageService } from './storage.service';
+import { Readable } from 'stream';
 
 jest.mock('@aws-sdk/client-s3');
 jest.mock('@aws-sdk/s3-request-presigner', () => ({
@@ -54,6 +56,36 @@ describe('StorageService', () => {
     }).compile();
 
     service = moduleRef.get(StorageService);
+  });
+
+  describe('getObject', () => {
+    it('returns object stream, content type and length', async () => {
+      const body = new Readable({ read() {} });
+      s3SendMock.mockResolvedValue({
+        Body: body,
+        ContentType: 'image/png',
+        ContentLength: 1234,
+      });
+
+      const result = await service.getObject('attachments/u1/file.png');
+
+      expect(result.body).toBe(body);
+      expect(result.contentType).toBe('image/png');
+      expect(result.contentLength).toBe(1234);
+      expect(s3SendMock).toHaveBeenCalledWith(expect.any(GetObjectCommand));
+    });
+
+    it('falls back to application/octet-stream when ContentType is missing', async () => {
+      const body = new Readable({ read() {} });
+      s3SendMock.mockResolvedValue({
+        Body: body,
+      });
+
+      const result = await service.getObject('attachments/u1/file.bin');
+
+      expect(result.contentType).toBe('application/octet-stream');
+      expect(result.contentLength).toBe(0);
+    });
   });
 
   describe('listObjects', () => {

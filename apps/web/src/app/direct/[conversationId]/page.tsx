@@ -927,8 +927,8 @@ export default function DirectConversationPage() {
           )}
         </header>
 
-        <div className="mt-4 flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card">
-          <div ref={messagesScrollRef} data-testid="direct-messages-scroll" onScroll={() => { setMessageMenuId(null); setMessageMenuPosition(null); setReactionPickerMessageId(null); setReactionPickerPosition(null); }} className="min-h-0 flex-1 overflow-y-auto bg-gradient-to-br from-secondary via-muted to-background px-4 py-3 dark:from-background dark:via-primary/10 dark:to-background">
+        <div className="mt-4 flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-border/80 bg-card shadow-md">
+          <div ref={messagesScrollRef} data-testid="direct-messages-scroll" onScroll={() => { setMessageMenuId(null); setMessageMenuPosition(null); setReactionPickerMessageId(null); setReactionPickerPosition(null); }} className="min-h-0 flex-1 overflow-y-auto bg-gradient-to-br from-indigo-50 via-slate-100 to-background px-4 py-3 dark:from-slate-950 dark:via-indigo-950/20 dark:to-slate-950">
             <div className="flex w-full max-w-3xl flex-col">
               {messages.kind === "loading" && (
                 <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
@@ -962,7 +962,7 @@ export default function DirectConversationPage() {
                       return [
                         showSeparator ? (
                           <li key="unread-separator" data-testid="direct-unread-separator" className="flex justify-center py-2">
-                            <span className="text-xs font-medium text-muted-foreground px-3 py-1 rounded-full bg-muted border border-border">
+                            <span className="text-xs font-medium text-amber-700 px-3 py-1 rounded-full bg-amber-100 border border-amber-200 dark:bg-amber-900/40 dark:text-amber-400 dark:border-amber-900/60">
                               {t("direct.unreadMessages")}
                             </span>
                           </li>
@@ -1048,8 +1048,8 @@ export default function DirectConversationPage() {
                               }}
                               className={`mt-1 w-fit max-w-full rounded-2xl border px-3 py-2 shadow-sm ${
                                 isOwnMessage
-                                  ? "bg-primary/10 border-primary/20 text-foreground"
-                                  : "bg-card text-foreground border-border"
+                                  ? "bg-gradient-to-br from-indigo-500 to-violet-600 border-indigo-400 text-white shadow-indigo-200 dark:from-indigo-600 dark:to-violet-700 dark:border-indigo-700 dark:shadow-indigo-950/30"
+                                  : "bg-card text-foreground border-border/80 shadow-sm"
                               }`}
                             >
                               {msg.parentId && (
@@ -1086,7 +1086,7 @@ export default function DirectConversationPage() {
                                   })()}
                                 </div>
                               )}
-                              <p className="whitespace-pre-wrap break-words text-sm leading-6 text-foreground">
+                              <p className={`whitespace-pre-wrap break-words text-sm leading-6 ${isOwnMessage ? "text-white" : "text-foreground"}`}>
                                 {msg.content}
                               </p>
                               {msg.reactions && msg.reactions.length > 0 && (
@@ -1124,7 +1124,7 @@ export default function DirectConversationPage() {
             </div>
           </div>
 
-          <form onSubmit={handleSendMessage} data-testid="direct-composer" className="shrink-0 flex flex-col gap-2 border-t border-border bg-card p-4 shadow-sm">
+          <form onSubmit={handleSendMessage} data-testid="direct-composer" className="shrink-0 flex flex-col gap-2 border-t border-indigo-200/60 bg-gradient-to-b from-card to-indigo-50/50 dark:from-card dark:to-indigo-950/20 p-4 shadow-lg">
             {socketError && (
               <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-2.5 text-xs text-destructive">
                 {socketError}

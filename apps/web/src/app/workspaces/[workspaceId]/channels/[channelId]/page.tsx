@@ -35,7 +35,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { getChannel, getChannelMembers, removeChannelMember, archiveChannel, leaveChannel, markChannelRead, type Channel, type ChannelMember } from "@/lib/channels-api";
 import { createChannelInvite } from "@/lib/channel-invites-api";
 
-import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, uploadAttachmentViaProxyWithProgress, getAttachmentDownloadUrl, getMessageContext, type Message, type CreateMessageInput, type UpdateMessageInput, type ReactionSummary, type Attachment, type MessageContextResult, CreateMessageAttachmentInput } from "@/lib/messages-api";
+import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, uploadAttachmentViaProxyWithProgress, getAttachmentFileUrl, getMessageContext, type Message, type CreateMessageInput, type UpdateMessageInput, type ReactionSummary, type Attachment, type MessageContextResult, CreateMessageAttachmentInput } from "@/lib/messages-api";
 import { sendDirectMessage, listDirectConversations, type DirectConversation } from "@/lib/direct-conversations-api";
 import { createSocket } from "@/lib/socket-client";
 import { MessageAuthor } from "@/components/MessageAuthor";
@@ -91,22 +91,8 @@ function AttachmentImagePreview({
   accessToken: string;
   onOpen: (att: Attachment) => void;
 }) {
-  const [url, setUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    getAttachmentDownloadUrl(accessToken, workspaceId, channelId, messageId, attachment.id)
-      .then((res) => {
-        if (!cancelled) setUrl(res.downloadUrl);
-      })
-      .catch(() => {
-        if (!cancelled) setFailed(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [accessToken, workspaceId, channelId, messageId, attachment.id]);
+  const url = getAttachmentFileUrl(accessToken, workspaceId, channelId, messageId, attachment.id);
 
   return (
     <button
@@ -115,13 +101,14 @@ function AttachmentImagePreview({
       data-testid={`message-attachment-image-${messageId}-${attachment.id}`}
       className="block w-fit max-w-full rounded-lg border border-border bg-muted/50 p-1 text-left hover:bg-accent/50 transition-colors"
     >
-      {url && !failed ? (
-        /* eslint-disable-next-line @next/next/no-img-element -- dynamic presigned attachment URLs are intentionally rendered with native img */
+      {!failed ? (
+        /* eslint-disable-next-line @next/next/no-img-element -- attachment file is streamed through the API proxy */
         <img
           src={url}
           alt={attachment.fileName}
           draggable={false}
           className="pointer-events-none max-h-48 rounded-md object-cover"
+          onError={() => setFailed(true)}
         />
       ) : (
         <div className="flex items-center gap-2 px-1.5 py-1 text-xs">
@@ -223,7 +210,6 @@ export default function ChannelDetailPage() {
     "image/jpeg",
     "image/png",
     "image/webp",
-    "image/gif",
     "application/pdf",
     "text/plain",
   ];
@@ -944,7 +930,12 @@ export default function ChannelDetailPage() {
       if (needsUpload.length > 0) {
         const results = await Promise.all(needsUpload.map((a) => uploadOneAttachment(a.id)));
         if (!results.every((r) => r)) {
-          setSendState({ kind: "error", message: t("channel.errorAttachmentUploadFailed") });
+          const failedAttachment = composerAttachmentsRef.current.find((a) => a.status === "failed" && a.error);
+          const detail = failedAttachment?.error;
+          const message = detail
+            ? `${t("channel.errorAttachmentUploadFailed")} ${detail}`
+            : t("channel.errorAttachmentUploadFailed");
+          setSendState({ kind: "error", message });
           return;
         }
       }
@@ -1197,8 +1188,8 @@ export default function ChannelDetailPage() {
   async function handleDownloadAttachment(msg: Message, att: Attachment) {
     if (!accessToken || !workspaceId || !channelId) return;
     try {
-      const result = await getAttachmentDownloadUrl(accessToken, workspaceId, channelId, msg.id, att.id);
-      window.open(result.downloadUrl, "_blank");
+      const url = getAttachmentFileUrl(accessToken, workspaceId, channelId, msg.id, att.id);
+      window.open(url, "_blank");
     } catch (err) {
       const message = err instanceof Error ? err.message : t("channel.errorDownloadFailed");
       alert(message);
@@ -1465,7 +1456,7 @@ export default function ChannelDetailPage() {
           )}
         </div>
 
-        <div ref={messagesScrollRef} onScroll={() => { closeMenuAndPicker(); }} className="min-h-0 flex-1 overflow-y-auto bg-gradient-to-br from-secondary via-muted to-background px-4 py-3 dark:from-background dark:via-primary/10 dark:to-background">
+        <div ref={messagesScrollRef} onScroll={() => { closeMenuAndPicker(); }} className="min-h-0 flex-1 overflow-y-auto bg-gradient-to-br from-indigo-50 via-slate-100 to-background px-4 py-3 dark:from-slate-950 dark:via-indigo-950/20 dark:to-slate-950">
           <div className="flex w-full max-w-3xl flex-col">
             {messages.kind === "loading" && !isContextMode && (
               <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
@@ -1555,8 +1546,8 @@ export default function ChannelDetailPage() {
                             }}
                             className={`mt-1 w-fit max-w-full rounded-2xl border px-3 py-2 shadow-sm ${
                               isOwnMessage
-                                ? "bg-indigo-100 border-indigo-200 text-indigo-950 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-100"
-                                : "bg-card text-foreground border-border"
+                                ? "bg-gradient-to-br from-indigo-500 to-violet-600 border-indigo-400 text-white shadow-indigo-200 dark:from-indigo-600 dark:to-violet-700 dark:border-indigo-700 dark:shadow-indigo-950/30"
+                                : "bg-card text-foreground border-border/80 shadow-sm"
                             }`}
                           >
                           {msg.parentId && (
@@ -1629,7 +1620,7 @@ export default function ChannelDetailPage() {
                             </form>
                           ) : (
                             msg.content.trim().length > 0 && (
-                              <p className="whitespace-pre-wrap break-words text-sm leading-6 text-foreground">
+                              <p className={`whitespace-pre-wrap break-words text-sm leading-6 ${isOwnMessage ? "text-white" : "text-foreground"}`}>
                                 {msg.content}
                               </p>
                             )
@@ -1706,7 +1697,7 @@ export default function ChannelDetailPage() {
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            className={`relative shrink-0 flex flex-col gap-2 border-t border-border/50 bg-card/90 backdrop-blur p-4 shadow-md ${isDragOver ? "ring-2 ring-inset ring-primary" : ""}`}
+            className={`relative shrink-0 flex flex-col gap-2 border-t border-indigo-200/60 bg-gradient-to-b from-card to-indigo-50/50 dark:from-card dark:to-indigo-950/20 p-4 shadow-lg ${isDragOver ? "ring-2 ring-inset ring-primary" : ""}`}
           >
             {isDragOver && (
               <div data-testid="composer-drag-overlay" className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-primary/5 border-2 border-dashed border-primary backdrop-blur-sm">
@@ -1936,7 +1927,7 @@ export default function ChannelDetailPage() {
                   ref={fileInputRef}
                   type="file"
                   multiple
-                  accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain"
+                  accept="image/jpeg,image/png,image/webp,application/pdf,text/plain"
                   onChange={handleFileSelect}
                   className="hidden"
                   data-testid="composer-file-input"

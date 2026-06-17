@@ -8,6 +8,7 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { AvatarUploadService } from './avatar-upload.service';
 import { JwtAccessGuard } from './guards/jwt-access.guard';
+import { JwtAccessQueryGuard } from './guards/jwt-access-query.guard';
 import { RefreshTokensRepository } from './refresh-tokens.repository';
 
 @Module({
@@ -19,6 +20,7 @@ import { RefreshTokensRepository } from './refresh-tokens.repository';
     AuthService,
     AvatarUploadService,
     JwtAccessGuard,
+    JwtAccessQueryGuard,
     RefreshTokensRepository,
   ],
   exports: [
@@ -27,6 +29,7 @@ import { RefreshTokensRepository } from './refresh-tokens.repository';
     AuthService,
     AvatarUploadService,
     JwtAccessGuard,
+    JwtAccessQueryGuard,
     RefreshTokensRepository,
   ],
 })

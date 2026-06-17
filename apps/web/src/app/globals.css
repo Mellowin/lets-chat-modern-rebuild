@@ -1,33 +1,33 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f1f5f9;
-  --background-highlight: #e0e7ff;
+  --background: #eef2f7;
+  --background-highlight: #dbe4ff;
   --foreground: #0f172a;
-  --card: #ffffff;
+  --card: #f8faff;
   --card-foreground: #0f172a;
   --popover: #ffffff;
   --popover-foreground: #0f172a;
   --primary: #4f46e5;
   --primary-foreground: #ffffff;
-  --secondary: #eef2ff;
+  --secondary: #e0e7ff;
   --secondary-foreground: #1e1b4b;
   --muted: #e2e8f0;
   --muted-foreground: #64748b;
-  --accent: #e0e7ff;
+  --accent: #c7d2fe;
   --accent-foreground: #312e81;
   --destructive: #dc2626;
   --destructive-foreground: #ffffff;
-  --border: #cbd5e1;
-  --input: #cbd5e1;
+  --border: #c8d0e0;
+  --input: #c8d0e0;
   --ring: #4f46e5;
   --header: #0f172a;
   --header-foreground: #f8fafc;
   --header-muted: #94a3b8;
-  --sidebar: #1e293b;
+  --sidebar: #172033;
   --sidebar-foreground: #f1f5f9;
   --sidebar-muted: #94a3b8;
-  --sidebar-accent: #334155;
+  --sidebar-accent: #273249;
   --sidebar-accent-foreground: #f8fafc;
   --sidebar-active: #4f46e5;
   --sidebar-active-foreground: #ffffff;
@@ -75,10 +75,10 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0f172a;
+    --background: #0b1120;
     --background-highlight: #1e1b4b;
     --foreground: #f8fafc;
-    --card: #1e293b;
+    --card: #151d2e;
     --card-foreground: #f8fafc;
     --popover: #1e293b;
     --popover-foreground: #f8fafc;
@@ -92,16 +92,16 @@
     --accent-foreground: #e0e7ff;
     --destructive: #ef4444;
     --destructive-foreground: #ffffff;
-    --border: #334155;
-    --input: #334155;
+    --border: #2d3a52;
+    --input: #2d3a52;
     --ring: #6366f1;
     --header: #020617;
     --header-foreground: #f8fafc;
     --header-muted: #94a3b8;
-    --sidebar: #0f172a;
+    --sidebar: #0b1221;
     --sidebar-foreground: #f1f5f9;
     --sidebar-muted: #94a3b8;
-    --sidebar-accent: #1e293b;
+    --sidebar-accent: #1a2438;
     --sidebar-accent-foreground: #f8fafc;
     --sidebar-active: #6366f1;
     --sidebar-active-foreground: #ffffff;
@@ -110,7 +110,9 @@
 
 body {
   background-color: var(--background);
-  background-image: radial-gradient(ellipse 80% 40% at 50% -10%, var(--background-highlight), transparent);
+  background-image:
+    radial-gradient(ellipse 80% 45% at 50% -12%, var(--background-highlight), transparent),
+    radial-gradient(ellipse 60% 30% at 100% 0%, rgba(99, 102, 241, 0.08), transparent);
   background-attachment: fixed;
   color: var(--foreground);
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;

@@ -11,6 +11,7 @@ import {
   DeleteObjectCommand,
   NotFound,
 } from '@aws-sdk/client-s3';
+import type { Readable } from 'stream';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 @Injectable()
@@ -168,5 +169,21 @@ export class StorageService implements OnModuleInit {
         Key: objectKey,
       }),
     );
+  }
+
+  async getObject(objectKey: string) {
+    const response = await this.client.send(
+      new GetObjectCommand({
+        Bucket: this.bucket,
+        Key: objectKey,
+      }),
+    );
+
+    return {
+      body: response.Body as Readable,
+      contentType: response.ContentType ?? 'application/octet-stream',
+      contentLength: response.ContentLength ?? 0,
+      contentDisposition: response.ContentDisposition,
+    };
   }
 }

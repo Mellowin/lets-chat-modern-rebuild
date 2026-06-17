@@ -15,8 +15,9 @@ class FilteredLogger extends ConsoleLogger {
 }
 
 async function bootstrap() {
+  const logger = new FilteredLogger();
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-    logger: new FilteredLogger(),
+    logger,
   });
 
   app.useStaticAssets(join(process.cwd(), 'uploads'), {
@@ -41,8 +42,18 @@ async function bootstrap() {
   );
 
   const corsOrigin = configService.get<string>('CORS_ORIGIN');
+  const allowedOrigins = corsOrigin
+    ? corsOrigin.split(',').map((o) => o.trim())
+    : ['http://localhost:3000', 'http://127.0.0.1:3000'];
+
+  if (configService.get<string>('NODE_ENV') === 'production' && !corsOrigin) {
+    logger.warn(
+      'CORS_ORIGIN is not set in production. Falling back to localhost origins, which will block real frontend requests.',
+    );
+  }
+
   app.enableCors({
-    origin: corsOrigin ?? ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    origin: allowedOrigins,
     credentials: true,
   });
 

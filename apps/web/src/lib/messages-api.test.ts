@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { getMessages, createMessage, updateMessage, deleteMessage, presignAttachmentUpload, uploadAttachmentToPresignedUrl, getAttachmentDownloadUrl, getMessageContext } from "./messages-api";
+import { getMessages, createMessage, updateMessage, deleteMessage, presignAttachmentUpload, uploadAttachmentToPresignedUrl, getAttachmentDownloadUrl, getAttachmentFileUrl, getMessageContext } from "./messages-api";
 
 const API_BASE = "http://localhost:3001/api/v1";
 
@@ -182,6 +182,18 @@ describe("messages-api", () => {
     it("throws with backend error message", async () => {
       vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ message: "Not found" }), { status: 404 }));
       await expect(getAttachmentDownloadUrl("token", "ws1", "ch1", "m1", "a1")).rejects.toThrow("Not found");
+    });
+  });
+
+  describe("getAttachmentFileUrl", () => {
+    it("returns proxied file URL with access token", () => {
+      const result = getAttachmentFileUrl("token", "ws1", "ch1", "m1", "a1");
+      expect(result).toBe(`${API_BASE}/workspaces/ws1/channels/ch1/messages/m1/attachments/a1/file?accessToken=token`);
+    });
+
+    it("encodes access token", () => {
+      const result = getAttachmentFileUrl("tok=en", "ws1", "ch1", "m1", "a1");
+      expect(result).toContain("accessToken=tok%3Den");
     });
   });
 

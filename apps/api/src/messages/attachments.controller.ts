@@ -6,6 +6,8 @@ import {
   Param,
   UseGuards,
   ParseUUIDPipe,
+  Res,
+  StreamableFile,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -22,7 +24,9 @@ import { AttachmentsService } from './attachments.service';
 import { CompleteAttachmentResponseDto } from './dto/complete-attachment-response.dto';
 import { AttachmentDownloadResponseDto } from './dto/attachment-download-response.dto';
 import { AttachmentDownloadUrlResponseDto } from './dto/attachment-download-url-response.dto';
+import type { Response } from 'express';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
+import { JwtAccessQueryGuard } from '../auth/guards/jwt-access-query.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUserResponse } from '../auth/auth.service';
 
@@ -110,5 +114,43 @@ export class AttachmentsController {
       attachmentId,
       user.id,
     );
+  }
+
+  @Get(':attachmentId/file')
+  @ApiOperation({ summary: 'Download attachment file through API proxy' })
+  @ApiOkResponse({ description: 'Attachment file content' })
+  @ApiConflictResponse({ description: 'Upload not completed' })
+  @ApiNotFoundResponse({ description: 'Attachment or message not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @UseGuards(JwtAccessQueryGuard)
+  async downloadFile(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Param('channelId', ParseUUIDPipe) channelId: string,
+    @Param('messageId', ParseUUIDPipe) messageId: string,
+    @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
+    @CurrentUser() user: AuthUserResponse,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const file = await this.attachments.downloadFile(
+      workspaceId,
+      channelId,
+      messageId,
+      attachmentId,
+      user.id,
+    );
+
+    res.setHeader('Content-Type', file.mimeType);
+    if (file.contentLength > 0) {
+      res.setHeader('Content-Length', String(file.contentLength));
+    }
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${file.filename.replace(/"/g, "'")}"`,
+    );
+
+    return new StreamableFile(file.body, {
+      type: file.mimeType,
+      disposition: `inline; filename="${file.filename.replace(/"/g, "'")}"`,
+    });
   }
 }

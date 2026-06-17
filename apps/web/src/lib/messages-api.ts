@@ -292,6 +292,18 @@ export async function getAttachmentDownloadUrl(
   return res.json() as Promise<AttachmentDownloadUrlResponse>;
 }
 
+export function getAttachmentFileUrl(
+  accessToken: string,
+  workspaceId: string,
+  channelId: string,
+  messageId: string,
+  attachmentId: string,
+): string {
+  const base = `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}/file`;
+  const separator = base.includes("?") ? "&" : "?";
+  return `${base}${separator}accessToken=${encodeURIComponent(accessToken)}`;
+}
+
 export async function createMessage(
   accessToken: string,
   workspaceId: string,

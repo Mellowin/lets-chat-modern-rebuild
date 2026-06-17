@@ -239,6 +239,45 @@ export class AttachmentsService {
     };
   }
 
+  async downloadFile(
+    workspaceId: string,
+    channelId: string,
+    messageId: string,
+    attachmentId: string,
+    userId: string,
+  ) {
+    await this.channels.findById(workspaceId, channelId, userId);
+    await this.validateMessage(channelId, messageId);
+
+    const attachment = await this.attachments.findById(attachmentId);
+    if (
+      !attachment ||
+      attachment.messageId !== messageId ||
+      attachment.deletedAt !== null
+    ) {
+      throw new NotFoundException('Attachment not found');
+    }
+
+    let object;
+    try {
+      object = await this.storage.getObject(attachment.storageKey);
+    } catch (error) {
+      if (isAwsNotFoundError(error)) {
+        throw new ConflictException('Upload not completed');
+      }
+      throw error;
+    }
+
+    return {
+      body: object.body,
+      contentType: object.contentType,
+      contentLength: object.contentLength,
+      filename: attachment.filename,
+      mimeType: attachment.mimeType,
+      sizeBytes: attachment.size,
+    };
+  }
+
   private async validateMessage(channelId: string, messageId: string) {
     const message = await this.messages.findById(messageId);
     if (

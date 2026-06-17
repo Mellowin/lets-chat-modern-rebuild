@@ -998,8 +998,9 @@ describe("DirectConversationPage — layout and bubbles", () => {
     });
 
     const bubble = screen.getByTestId("direct-message-bubble-dm1");
-    expect(bubble.className).toContain("bg-primary/10");
-    expect(bubble.className).toContain("border-primary/20");
+    expect(bubble.className).toContain("from-indigo-500");
+    expect(bubble.className).toContain("to-violet-600");
+    expect(bubble.className).toContain("text-white");
   });
 
   it("renders other message with white bubble styling", async () => {

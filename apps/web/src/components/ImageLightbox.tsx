@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { X, Download, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
-import { getAttachmentDownloadUrl, type Attachment } from "@/lib/messages-api";
+import { getAttachmentFileUrl, type Attachment } from "@/lib/messages-api";
 import { useLocale } from "@/lib/locale";
 import { Button } from "@/components/ui/Button";
 
@@ -40,18 +40,18 @@ export default function ImageLightbox({
   const hasNext = index < total - 1;
 
   const loadUrl = useCallback(
-    async (att: Attachment) => {
+    (att: Attachment) => {
       if (urls[att.id] || loading[att.id] || errors[att.id]) return;
       setLoading((prev) => ({ ...prev, [att.id]: true }));
       try {
-        const result = await getAttachmentDownloadUrl(
+        const url = getAttachmentFileUrl(
           accessToken,
           workspaceId,
           channelId,
           messageId,
           att.id,
         );
-        setUrls((prev) => ({ ...prev, [att.id]: result.downloadUrl }));
+        setUrls((prev) => ({ ...prev, [att.id]: url }));
       } catch {
         setErrors((prev) => ({ ...prev, [att.id]: true }));
       } finally {
@@ -189,13 +189,14 @@ export default function ImageLightbox({
             </div>
           )}
           {currentUrl && !currentLoading && !currentError && (
-            /* eslint-disable-next-line @next/next/no-img-element -- lightbox intentionally uses native img for dynamic presigned URLs */
+            /* eslint-disable-next-line @next/next/no-img-element -- lightbox intentionally uses native img for dynamic attachment URLs */
             <img
               src={currentUrl}
               alt={current.fileName}
               draggable={false}
               className="pointer-events-none max-h-full max-w-full object-contain rounded-lg shadow-2xl"
               data-testid="lightbox-image"
+              onError={() => setErrors((prev) => ({ ...prev, [current.id]: true }))}
             />
           )}
         </div>

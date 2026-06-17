@@ -1,5 +1,9 @@
 import { Test } from '@nestjs/testing';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { AttachmentsService } from './attachments.service';
 import { ChannelsService } from '../channels/channels.service';
 import { MessagesRepository } from './messages.repository';
@@ -50,6 +54,7 @@ describe('AttachmentsService', () => {
             putObject: jest.fn(),
             headObject: jest.fn(),
             getPresignedDownloadUrl: jest.fn(),
+            getObject: jest.fn(),
           },
         },
       ],
@@ -513,6 +518,114 @@ describe('AttachmentsService', () => {
           userId,
         ),
       ).rejects.toThrow('Storage error');
+    });
+  });
+
+  describe('downloadFile', () => {
+    it('returns object stream and metadata for valid attachment', async () => {
+      const body = new Readable({ read() {} });
+      channelsService.findById.mockResolvedValue(undefined as never);
+      messagesRepository.findById.mockResolvedValue({
+        id: messageId,
+        channelId,
+        deletedAt: null,
+      } as never);
+      attachmentsRepository.findById.mockResolvedValue({
+        id: attachmentId,
+        messageId,
+        filename: 'doc.pdf',
+        mimeType: 'application/pdf',
+        size: 1234,
+        storageKey: 'internal/key/doc.pdf',
+        deletedAt: null,
+        createdAt: new Date(),
+      } as never);
+      storageService.getObject.mockResolvedValue({
+        body,
+        contentType: 'application/pdf',
+        contentLength: 1234,
+        contentDisposition: undefined,
+      });
+
+      const result = await service.downloadFile(
+        workspaceId,
+        channelId,
+        messageId,
+        attachmentId,
+        userId,
+      );
+
+      expect(result.body).toBe(body);
+      expect(result.contentType).toBe('application/pdf');
+      expect(result.contentLength).toBe(1234);
+      expect(result.filename).toBe('doc.pdf');
+      expect(result.sizeBytes).toBe(1234);
+      expect(storageService.getObject).toHaveBeenCalledWith(
+        'internal/key/doc.pdf',
+      );
+    });
+
+    it('throws NotFound when attachment belongs to another message', async () => {
+      channelsService.findById.mockResolvedValue(undefined as never);
+      messagesRepository.findById.mockResolvedValue({
+        id: messageId,
+        channelId,
+        deletedAt: null,
+      } as never);
+      attachmentsRepository.findById.mockResolvedValue({
+        id: attachmentId,
+        messageId: 'other-message-id',
+        filename: 'doc.pdf',
+        mimeType: 'application/pdf',
+        size: 1234,
+        storageKey: 'internal/key/doc.pdf',
+        deletedAt: null,
+        createdAt: new Date(),
+      } as never);
+
+      await expect(
+        service.downloadFile(
+          workspaceId,
+          channelId,
+          messageId,
+          attachmentId,
+          userId,
+        ),
+      ).rejects.toBeInstanceOf(NotFoundException);
+
+      expect(storageService.getObject).not.toHaveBeenCalled();
+    });
+
+    it('throws ConflictException when storage object is missing', async () => {
+      channelsService.findById.mockResolvedValue(undefined as never);
+      messagesRepository.findById.mockResolvedValue({
+        id: messageId,
+        channelId,
+        deletedAt: null,
+      } as never);
+      attachmentsRepository.findById.mockResolvedValue({
+        id: attachmentId,
+        messageId,
+        filename: 'doc.pdf',
+        mimeType: 'application/pdf',
+        size: 1234,
+        storageKey: 'internal/key/doc.pdf',
+        deletedAt: null,
+        createdAt: new Date(),
+      } as never);
+      const error = new Error('NotFound') as unknown as Record<string, unknown>;
+      error.name = 'NotFound';
+      storageService.getObject.mockRejectedValue(error);
+
+      await expect(
+        service.downloadFile(
+          workspaceId,
+          channelId,
+          messageId,
+          attachmentId,
+          userId,
+        ),
+      ).rejects.toBeInstanceOf(ConflictException);
     });
   });
 });
