@@ -235,7 +235,7 @@ describe("WorkspaceDetailPage — locale", () => {
     await waitFor(() => {
       expect(screen.getByTestId("workspace-danger-zone")).toBeInTheDocument();
     });
-    expect(screen.getByTestId("workspace-delete-header-button")).toBeInTheDocument();
+    expect(screen.getByTestId("workspace-delete-danger-button")).toBeInTheDocument();
     expect(screen.getByTestId("workspace-delete-danger-button")).toBeInTheDocument();
   });
 
@@ -249,7 +249,7 @@ describe("WorkspaceDetailPage — locale", () => {
       expect(screen.getByRole("heading", { name: "Channels" })).toBeInTheDocument();
     });
     expect(screen.queryByTestId("workspace-danger-zone")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("workspace-delete-header-button")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("workspace-delete-danger-button")).not.toBeInTheDocument();
     expect(screen.queryByTestId("workspace-delete-danger-button")).not.toBeInTheDocument();
   });
 
@@ -257,9 +257,9 @@ describe("WorkspaceDetailPage — locale", () => {
     mockWorkspaceData({ archived: [] });
     render(<WorkspaceDetailPage />);
     await waitFor(() => {
-      expect(screen.getByTestId("workspace-delete-header-button")).toBeInTheDocument();
+      expect(screen.getByTestId("workspace-delete-danger-button")).toBeInTheDocument();
     });
-    await userEvent.click(screen.getByTestId("workspace-delete-header-button"));
+    await userEvent.click(screen.getByTestId("workspace-delete-danger-button"));
 
     const confirmButton = screen.getByTestId("workspace-delete-confirm-button");
     expect(confirmButton).toBeDisabled();
@@ -277,9 +277,9 @@ describe("WorkspaceDetailPage — locale", () => {
     vi.mocked(deleteWorkspace).mockResolvedValue({ success: true });
     render(<WorkspaceDetailPage />);
     await waitFor(() => {
-      expect(screen.getByTestId("workspace-delete-header-button")).toBeInTheDocument();
+      expect(screen.getByTestId("workspace-delete-danger-button")).toBeInTheDocument();
     });
-    await userEvent.click(screen.getByTestId("workspace-delete-header-button"));
+    await userEvent.click(screen.getByTestId("workspace-delete-danger-button"));
     await userEvent.type(screen.getByPlaceholderText("Type workspace name to confirm"), "Test Workspace");
     await userEvent.click(screen.getByTestId("workspace-delete-confirm-button"));
 
@@ -294,9 +294,9 @@ describe("WorkspaceDetailPage — locale", () => {
     vi.mocked(deleteWorkspace).mockRejectedValue(new Error("Only owner can delete workspace"));
     render(<WorkspaceDetailPage />);
     await waitFor(() => {
-      expect(screen.getByTestId("workspace-delete-header-button")).toBeInTheDocument();
+      expect(screen.getByTestId("workspace-delete-danger-button")).toBeInTheDocument();
     });
-    await userEvent.click(screen.getByTestId("workspace-delete-header-button"));
+    await userEvent.click(screen.getByTestId("workspace-delete-danger-button"));
     await userEvent.type(screen.getByPlaceholderText("Type workspace name to confirm"), "Test Workspace");
     await userEvent.click(screen.getByTestId("workspace-delete-confirm-button"));
 
