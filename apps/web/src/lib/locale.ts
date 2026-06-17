@@ -222,6 +222,7 @@ export type TranslationKey =
   | "workspace.deleteWorkspaceInputPlaceholder"
   | "workspace.deletingWorkspace"
   | "workspace.errorDeleteWorkspaceFailed"
+  | "workspace.confirmDeleteWorkspace"
   | "channel.backToWorkspace"
   | "invite.loadingInvite"
   | "invite.invitedToJoin"
@@ -874,6 +875,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "workspace.deleteWorkspaceInputPlaceholder": "Type workspace name to confirm",
     "workspace.deletingWorkspace": "Deleting workspace…",
     "workspace.errorDeleteWorkspaceFailed": "Failed to delete workspace",
+    "workspace.confirmDeleteWorkspace": (name: string) => `Are you sure you want to permanently delete workspace "${name}"?`,
     "workspace.confirmLeaveWorkspacePrefix": "Leave workspace",
     "workspace.confirmRemoveMemberPrefix": "Remove",
     "workspace.confirmRemoveMemberSuffix": "from this workspace?",
@@ -1358,6 +1360,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "workspace.deleteWorkspaceInputPlaceholder": "Введіть назву робочого простору для підтвердження",
     "workspace.deletingWorkspace": "Видаляємо робочий простір…",
     "workspace.errorDeleteWorkspaceFailed": "Не вдалося видалити робочий простір",
+    "workspace.confirmDeleteWorkspace": (name: string) => `Ви впевнені, що хочете назавжди видалити робочий простір "${name}"?`,
     "workspace.confirmLeaveWorkspacePrefix": "Покинути робочий простір",
     "workspace.confirmRemoveMemberPrefix": "Вилучити",
     "workspace.confirmRemoveMemberSuffix": "з цього робочого простору?",
@@ -1842,6 +1845,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "workspace.deleteWorkspaceInputPlaceholder": "Введите название рабочего пространства для подтверждения",
     "workspace.deletingWorkspace": "Удаляем рабочее пространство…",
     "workspace.errorDeleteWorkspaceFailed": "Не удалось удалить рабочее пространство",
+    "workspace.confirmDeleteWorkspace": (name: string) => `Вы уверены, что хотите навсегда удалить рабочее пространство "${name}"?`,
     "workspace.confirmLeaveWorkspacePrefix": "Покинуть рабочее пространство",
     "workspace.confirmRemoveMemberPrefix": "Удалить",
     "workspace.confirmRemoveMemberSuffix": "из этого рабочего пространства?",

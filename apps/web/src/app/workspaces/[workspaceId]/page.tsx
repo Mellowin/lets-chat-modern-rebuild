@@ -273,6 +273,10 @@ export default function WorkspaceDetailPage() {
 
   async function handleDeleteWorkspace() {
     if (!accessToken || !workspaceId) return;
+    if (detail.kind !== "success") return;
+    if (!window.confirm(t("workspace.confirmDeleteWorkspace", detail.data.name))) {
+      return;
+    }
     setIsDeletingWorkspace(true);
     setDeleteWorkspaceError(null);
     try {

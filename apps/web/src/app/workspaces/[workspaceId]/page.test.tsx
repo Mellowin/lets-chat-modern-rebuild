@@ -275,6 +275,7 @@ describe("WorkspaceDetailPage — locale", () => {
   it("successful workspace delete redirects to dashboard", async () => {
     mockWorkspaceData({ archived: [] });
     vi.mocked(deleteWorkspace).mockResolvedValue({ success: true });
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
     render(<WorkspaceDetailPage />);
     await waitFor(() => {
       expect(screen.getByTestId("workspace-delete-danger-button")).toBeInTheDocument();
@@ -287,11 +288,13 @@ describe("WorkspaceDetailPage — locale", () => {
       expect(deleteWorkspace).toHaveBeenCalledWith("token", "ws1");
     });
     expect(routerPushMock).toHaveBeenCalledWith("/dashboard");
+    confirmSpy.mockRestore();
   });
 
   it("workspace delete failure shows error", async () => {
     mockWorkspaceData({ archived: [] });
     vi.mocked(deleteWorkspace).mockRejectedValue(new Error("Only owner can delete workspace"));
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
     render(<WorkspaceDetailPage />);
     await waitFor(() => {
       expect(screen.getByTestId("workspace-delete-danger-button")).toBeInTheDocument();
@@ -301,6 +304,23 @@ describe("WorkspaceDetailPage — locale", () => {
     await userEvent.click(screen.getByTestId("workspace-delete-confirm-button"));
 
     expect(await screen.findByText("Only owner can delete workspace")).toBeInTheDocument();
+    confirmSpy.mockRestore();
+  });
+
+  it("cancelling final confirm does not delete workspace", async () => {
+    mockWorkspaceData({ archived: [] });
+    vi.mocked(deleteWorkspace).mockResolvedValue({ success: true });
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    render(<WorkspaceDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByTestId("workspace-delete-danger-button")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByTestId("workspace-delete-danger-button"));
+    await userEvent.type(screen.getByPlaceholderText("Type workspace name to confirm"), "Test Workspace");
+    await userEvent.click(screen.getByTestId("workspace-delete-confirm-button"));
+
+    expect(deleteWorkspace).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
   });
 
   it("shows Ukrainian remove member confirm dialog", async () => {
