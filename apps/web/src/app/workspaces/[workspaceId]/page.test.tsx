@@ -233,9 +233,10 @@ describe("WorkspaceDetailPage — locale", () => {
     mockWorkspaceData({ archived: [] });
     render(<WorkspaceDetailPage />);
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "Danger zone" })).toBeInTheDocument();
+      expect(screen.getByTestId("workspace-danger-zone")).toBeInTheDocument();
     });
-    expect(screen.getByRole("button", { name: "Delete workspace" })).toBeInTheDocument();
+    expect(screen.getByTestId("workspace-delete-header-button")).toBeInTheDocument();
+    expect(screen.getByTestId("workspace-delete-danger-button")).toBeInTheDocument();
   });
 
   it("does not show workspace delete button for non-owner", async () => {
@@ -247,19 +248,20 @@ describe("WorkspaceDetailPage — locale", () => {
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Channels" })).toBeInTheDocument();
     });
-    expect(screen.queryByRole("heading", { name: "Danger zone" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Delete workspace" })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("workspace-danger-zone")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("workspace-delete-header-button")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("workspace-delete-danger-button")).not.toBeInTheDocument();
   });
 
   it("workspace delete confirm button disabled until name matches", async () => {
     mockWorkspaceData({ archived: [] });
     render(<WorkspaceDetailPage />);
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Delete workspace" })).toBeInTheDocument();
+      expect(screen.getByTestId("workspace-delete-header-button")).toBeInTheDocument();
     });
-    await userEvent.click(screen.getByRole("button", { name: "Delete workspace" }));
+    await userEvent.click(screen.getByTestId("workspace-delete-header-button"));
 
-    const confirmButton = screen.getByRole("button", { name: "Delete workspace" });
+    const confirmButton = screen.getByTestId("workspace-delete-confirm-button");
     expect(confirmButton).toBeDisabled();
 
     await userEvent.type(screen.getByPlaceholderText("Type workspace name to confirm"), "Wrong Name");
@@ -275,11 +277,11 @@ describe("WorkspaceDetailPage — locale", () => {
     vi.mocked(deleteWorkspace).mockResolvedValue({ success: true });
     render(<WorkspaceDetailPage />);
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Delete workspace" })).toBeInTheDocument();
+      expect(screen.getByTestId("workspace-delete-header-button")).toBeInTheDocument();
     });
-    await userEvent.click(screen.getByRole("button", { name: "Delete workspace" }));
+    await userEvent.click(screen.getByTestId("workspace-delete-header-button"));
     await userEvent.type(screen.getByPlaceholderText("Type workspace name to confirm"), "Test Workspace");
-    await userEvent.click(screen.getByRole("button", { name: "Delete workspace" }));
+    await userEvent.click(screen.getByTestId("workspace-delete-confirm-button"));
 
     await waitFor(() => {
       expect(deleteWorkspace).toHaveBeenCalledWith("token", "ws1");
@@ -292,11 +294,11 @@ describe("WorkspaceDetailPage — locale", () => {
     vi.mocked(deleteWorkspace).mockRejectedValue(new Error("Only owner can delete workspace"));
     render(<WorkspaceDetailPage />);
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Delete workspace" })).toBeInTheDocument();
+      expect(screen.getByTestId("workspace-delete-header-button")).toBeInTheDocument();
     });
-    await userEvent.click(screen.getByRole("button", { name: "Delete workspace" }));
+    await userEvent.click(screen.getByTestId("workspace-delete-header-button"));
     await userEvent.type(screen.getByPlaceholderText("Type workspace name to confirm"), "Test Workspace");
-    await userEvent.click(screen.getByRole("button", { name: "Delete workspace" }));
+    await userEvent.click(screen.getByTestId("workspace-delete-confirm-button"));
 
     expect(await screen.findByText("Only owner can delete workspace")).toBeInTheDocument();
   });

@@ -497,6 +497,7 @@ export type TranslationKey =
   | "workspace.searchMessages"
   | "workspace.searchInWorkspace"
   | "workspace.searchFailed"
+  | "workspace.searchQueryTooShort"
   | "workspace.noMessagesFound"
   | "workspace.searching";
 
@@ -981,6 +982,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "workspace.searchMessages": "Search messages",
     "workspace.searchInWorkspace": "Search in workspace…",
     "workspace.searchFailed": "Search failed",
+    "workspace.searchQueryTooShort": "Search query must be at least 2 characters.",
     "workspace.noMessagesFound": "No messages found.",
     "workspace.searching": "Searching…",
   },
@@ -1464,6 +1466,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "workspace.searchMessages": "Пошук повідомлень",
     "workspace.searchInWorkspace": "Шукати в робочому просторі…",
     "workspace.searchFailed": "Помилка пошуку",
+    "workspace.searchQueryTooShort": "Запит має містити щонайменше 2 символи.",
     "workspace.noMessagesFound": "Повідомлень не знайдено.",
     "workspace.searching": "Шукаємо…",
   },
@@ -1947,6 +1950,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "workspace.searchMessages": "Поиск сообщений",
     "workspace.searchInWorkspace": "Искать в рабочем пространстве…",
     "workspace.searchFailed": "Ошибка поиска",
+    "workspace.searchQueryTooShort": "Запрос должен содержать минимум 2 символа.",
     "workspace.noMessagesFound": "Сообщений не найдено.",
     "workspace.searching": "Ищем…",
   },

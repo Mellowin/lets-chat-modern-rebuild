@@ -39,6 +39,18 @@ describe("WorkspaceMessageSearch", () => {
     expect(messagesApi.searchWorkspaceMessages).not.toHaveBeenCalled();
   });
 
+  it("shows helpful message and does not call API for a 1-character query", async () => {
+    render(<WorkspaceMessageSearch {...props} />);
+    fireEvent.click(screen.getByTestId("workspace-search-toggle"));
+    fireEvent.change(screen.getByTestId("workspace-search-input"), { target: { value: "a" } });
+    fireEvent.click(screen.getByTestId("workspace-search-submit"));
+
+    await waitFor(() => {
+      expect(screen.getByText(/at least 2 characters/i)).toBeInTheDocument();
+    });
+    expect(messagesApi.searchWorkspaceMessages).not.toHaveBeenCalled();
+  });
+
   it("calls search endpoint with correct params on submit", async () => {
     vi.mocked(messagesApi.searchWorkspaceMessages).mockResolvedValue([]);
     render(<WorkspaceMessageSearch {...props} />);

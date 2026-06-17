@@ -53,9 +53,16 @@ export default function WorkspaceMessageSearch({ workspaceId, accessToken }: Wor
 
   const performSearch = useCallback(
     async (q: string) => {
-      if (!q.trim()) {
+      const trimmed = q.trim();
+      if (!trimmed) {
         setResults([]);
         setStatus("idle");
+        return;
+      }
+      if (trimmed.length < 2) {
+        setErrorMessage(t("workspace.searchQueryTooShort"));
+        setResults([]);
+        setStatus("error");
         return;
       }
       setStatus("loading");

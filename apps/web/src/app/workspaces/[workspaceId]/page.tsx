@@ -18,7 +18,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Users, FolderArchive, MessageSquare } from "lucide-react";
+import { Users, FolderArchive, MessageSquare, AlertTriangle, Trash2 } from "lucide-react";
 
 type DetailState =
   | { kind: "idle" }
@@ -427,7 +427,28 @@ export default function WorkspaceDetailPage() {
       )}
 
       {detail.kind === "success" && (
-        <PageHeader title={detail.data.name} subtitle={detail.data.slug} className="mt-6" />
+        <PageHeader
+          title={detail.data.name}
+          subtitle={detail.data.slug}
+          className="mt-6"
+          actions={
+            myRole === "OWNER" ? (
+              <Button
+                variant="danger"
+                size="sm"
+                data-testid="workspace-delete-header-button"
+                onClick={() => {
+                  setIsDeleteWorkspaceDialogOpen(true);
+                  setDeleteWorkspaceConfirmName("");
+                  setDeleteWorkspaceError(null);
+                }}
+              >
+                <Trash2 size={16} />
+                {t("workspace.deleteWorkspace")}
+              </Button>
+            ) : undefined
+          }
+        />
       )}
 
       {accessToken && (
@@ -879,24 +900,29 @@ export default function WorkspaceDetailPage() {
       </Card>
 
       {myRole === "OWNER" && detail.kind === "success" && (
-        <Card className="border-destructive/20">
+        <Card className="border-destructive/30 bg-destructive/5 shadow-sm" data-testid="workspace-danger-zone">
           <CardHeader>
-            <CardTitle className="text-destructive">{t("workspace.dangerZone")}</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle size={18} />
+              {t("workspace.dangerZone")}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {!isDeleteWorkspaceDialogOpen ? (
               <div className="space-y-3">
-                <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                <p className="text-sm text-muted-foreground">
                   {t("workspace.deleteWorkspaceDescription")}
                 </p>
                 <Button
                   variant="danger"
+                  data-testid="workspace-delete-danger-button"
                   onClick={() => {
                     setIsDeleteWorkspaceDialogOpen(true);
                     setDeleteWorkspaceConfirmName("");
                     setDeleteWorkspaceError(null);
                   }}
                 >
+                  <Trash2 size={16} />
                   {t("workspace.deleteWorkspace")}
                 </Button>
               </div>
@@ -906,7 +932,7 @@ export default function WorkspaceDetailPage() {
                   <p className="font-medium text-destructive">
                     {t("workspace.deleteWorkspaceConfirmPrefix")}: {detail.data.name}
                   </p>
-                  <p className="mt-1 text-zinc-700 dark:text-zinc-300">
+                  <p className="mt-1 text-muted-foreground">
                     {t("workspace.deleteWorkspaceConfirmBody")}
                   </p>
                 </div>
@@ -935,6 +961,7 @@ export default function WorkspaceDetailPage() {
                   </Button>
                   <Button
                     variant="danger"
+                    data-testid="workspace-delete-confirm-button"
                     onClick={handleDeleteWorkspace}
                     disabled={
                       isDeletingWorkspace ||
