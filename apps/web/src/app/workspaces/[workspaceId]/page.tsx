@@ -431,23 +431,6 @@ export default function WorkspaceDetailPage() {
           title={detail.data.name}
           subtitle={detail.data.slug}
           className="mt-6"
-          actions={
-            myRole === "OWNER" ? (
-              <Button
-                variant="danger"
-                size="sm"
-                data-testid="workspace-delete-header-button"
-                onClick={() => {
-                  setIsDeleteWorkspaceDialogOpen(true);
-                  setDeleteWorkspaceConfirmName("");
-                  setDeleteWorkspaceError(null);
-                }}
-              >
-                <Trash2 size={16} />
-                {t("workspace.deleteWorkspace")}
-              </Button>
-            ) : undefined
-          }
         />
       )}
 

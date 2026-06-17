@@ -126,9 +126,22 @@ export class WorkspacesRepository {
   }
 
   async deleteWorkspace(id: string) {
-    return this.prisma.workspace.update({
-      where: { id },
-      data: { deletedAt: new Date(), permanentlyDeletedAt: new Date() },
+    return this.prisma.$transaction(async (tx) => {
+      const workspace = await tx.workspace.findUnique({
+        where: { id },
+        select: { slug: true },
+      });
+      if (!workspace) {
+        return null;
+      }
+      return tx.workspace.update({
+        where: { id },
+        data: {
+          deletedAt: new Date(),
+          permanentlyDeletedAt: new Date(),
+          slug: `${workspace.slug}-deleted-${Date.now()}`,
+        },
+      });
     });
   }
 
