@@ -150,6 +150,17 @@ export class StorageService implements OnModuleInit {
     return objects;
   }
 
+  async putObject(objectKey: string, body: Buffer, contentType: string) {
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: objectKey,
+        Body: body,
+        ContentType: contentType,
+      }),
+    );
+  }
+
   async deleteObject(objectKey: string) {
     await this.client.send(
       new DeleteObjectCommand({

@@ -72,6 +72,14 @@ export interface AttachmentDownloadUrlResponse {
   createdAt: string;
 }
 
+export interface UploadAttachmentViaProxyResponse {
+  storageKey: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  kind: "image" | "file";
+}
+
 export interface UpdateMessageInput {
   content: string;
 }
@@ -192,6 +200,62 @@ export function uploadAttachmentToPresignedUrlWithProgress(
     xhr.open("PUT", uploadUrl);
     xhr.setRequestHeader("Content-Type", file.type);
     xhr.send(file);
+  });
+}
+
+export function uploadAttachmentViaProxyWithProgress(
+  accessToken: string,
+  workspaceId: string,
+  channelId: string,
+  file: File,
+  onProgress: (percent: number) => void,
+): Promise<UploadAttachmentViaProxyResponse> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const formData = new FormData();
+    formData.append("file", file);
+
+    xhr.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable) {
+        const percent = Math.round((event.loaded / event.total) * 100);
+        onProgress(percent);
+      }
+    });
+
+    xhr.addEventListener("load", () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          resolve(data as UploadAttachmentViaProxyResponse);
+        } catch {
+          reject(new Error("Upload failed: invalid server response"));
+        }
+      } else {
+        let message = `Upload failed: ${xhr.status} ${xhr.statusText}`;
+        try {
+          const data = JSON.parse(xhr.responseText);
+          if (data?.message) message = data.message;
+        } catch {
+          // keep default message
+        }
+        reject(new Error(message));
+      }
+    });
+
+    xhr.addEventListener("error", () => {
+      reject(new Error("Upload failed: network error"));
+    });
+
+    xhr.addEventListener("abort", () => {
+      reject(new Error("Upload failed: aborted"));
+    });
+
+    xhr.open(
+      "POST",
+      `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/messages/attachments/upload`,
+    );
+    xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
+    xhr.send(formData);
   });
 }
 

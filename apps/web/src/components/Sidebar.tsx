@@ -53,7 +53,7 @@ function getStoredSectionOrder(): SectionOrder {
 function unreadBadge(count: number, testId?: string) {
   if (count <= 0) return null;
   return (
-    <Badge variant="muted" className="ml-1.5" data-testid={testId}>
+    <Badge variant="muted" className="ml-1.5 !bg-sidebar-accent-foreground/20 !text-sidebar-foreground !border-transparent" data-testid={testId}>
       {count > 99 ? "99+" : count}
     </Badge>
   );
@@ -444,12 +444,12 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
 
   if (authLoading || !isAuthenticated) {
     return (
-      <aside className="hidden sm:flex w-60 shrink-0 border-r border-border bg-card/50 flex-col p-3">
-        <div className="flex items-center gap-2 px-2 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+      <aside className="hidden sm:flex w-60 shrink-0 border-r border-border/50 bg-sidebar text-sidebar-foreground flex-col p-3">
+        <div className="flex items-center gap-2 px-2 py-1 text-xs font-semibold text-sidebar-muted uppercase tracking-wide">
           <Users size={14} />
           {t("sidebar.workspace")}
         </div>
-        <div className="mt-2 px-2 text-sm text-muted-foreground">{t("sidebar.signInToSeeWorkspaces")}</div>
+        <div className="mt-2 px-2 text-sm text-sidebar-muted">{t("sidebar.signInToSeeWorkspaces")}</div>
       </aside>
     );
   }
@@ -459,7 +459,7 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
       <button
         onClick={toggleDirect}
         data-testid="sidebar-direct-toggle"
-        className="flex flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide hover:bg-accent hover:text-accent-foreground transition-colors"
+        className="flex flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold text-sidebar-muted uppercase tracking-wide hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
       >
         <ChevronRight
           size={14}
@@ -476,7 +476,7 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
         }}
         data-testid="sidebar-direct-move"
         aria-label={t(sectionOrder === "direct-first" ? "sidebar.moveDown" : "sidebar.moveUp")}
-        className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+        className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
       >
         {sectionOrder === "direct-first" ? <ArrowDown size={14} /> : <ArrowUp size={14} />}
       </button>
@@ -487,7 +487,7 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
     <div className="flex items-center gap-1">
       <button
         onClick={toggleWorkspaces}
-        className="flex flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide hover:bg-accent hover:text-accent-foreground transition-colors"
+        className="flex flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold text-sidebar-muted uppercase tracking-wide hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
       >
         <ChevronRight
           size={14}
@@ -504,7 +504,7 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
         }}
         data-testid="sidebar-workspaces-move"
         aria-label={t(sectionOrder === "workspaces-first" ? "sidebar.moveDown" : "sidebar.moveUp")}
-        className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+        className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
       >
         {sectionOrder === "workspaces-first" ? <ArrowDown size={14} /> : <ArrowUp size={14} />}
       </button>
@@ -524,8 +524,8 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
                 data-active={pathname?.startsWith("/direct") ? "true" : undefined}
                 className={`flex items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors ${
                   pathname?.startsWith("/direct")
-                    ? "bg-accent text-accent-foreground font-semibold shadow-sm"
-                    : "text-foreground/80 hover:bg-accent hover:text-accent-foreground"
+                    ? "bg-sidebar-active text-sidebar-active-foreground font-semibold shadow-sm"
+                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 }`}
               >
                 <span className="truncate block">{t("sidebar.directMessages")}</span>
@@ -546,10 +546,10 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
                       data-active={isActive ? "true" : undefined}
                       className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
                         isActive
-                          ? "bg-accent text-accent-foreground font-semibold shadow-sm"
+                          ? "bg-sidebar-active text-sidebar-active-foreground font-semibold shadow-sm"
                           : conv.hasUnread
-                            ? "font-medium text-foreground hover:bg-accent hover:text-accent-foreground"
-                            : "text-foreground/80 hover:bg-accent hover:text-accent-foreground"
+                            ? "font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                            : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                       }`}
                     >
                       <span
@@ -577,7 +577,7 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
       {workspacesExpanded && (
         <div className="mt-1">
           {workspaces.kind === "loading" && (
-            <div className="flex items-center gap-2 px-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2 px-2 text-sm text-sidebar-muted">
               <Loader2 size={14} className="animate-spin" />
               {t("sidebar.loading")}
             </div>
@@ -586,7 +586,7 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
             <div className="px-2 text-sm text-destructive">{t("sidebar.failedToLoadWorkspaces")}</div>
           )}
           {workspaces.kind === "success" && workspaces.data.length === 0 && (
-            <div className="px-2 text-sm text-muted-foreground">{t("sidebar.noWorkspacesYet")}</div>
+            <div className="px-2 text-sm text-sidebar-muted">{t("sidebar.noWorkspacesYet")}</div>
           )}
           {workspaces.kind === "success" && workspaces.data.length > 0 && (
             <ul className="space-y-0.5">
@@ -601,8 +601,8 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
                       data-active={isActive ? "true" : undefined}
                       className={`flex w-full items-center gap-1 rounded-md px-2 py-1.5 text-sm transition-colors ${
                         isActive
-                          ? "bg-accent text-accent-foreground font-semibold shadow-sm"
-                          : "text-foreground/80 hover:bg-accent hover:text-accent-foreground"
+                          ? "bg-sidebar-active text-sidebar-active-foreground font-semibold shadow-sm"
+                          : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                       }`}
                     >
                       <ChevronRight
@@ -619,15 +619,15 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
                           data-active={pathname === `/workspaces/${ws.id}` ? "true" : undefined}
                           className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-sm transition-colors ${
                             pathname === `/workspaces/${ws.id}`
-                              ? "bg-accent text-accent-foreground font-semibold shadow-sm"
-                              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                              ? "bg-sidebar-active text-sidebar-active-foreground font-semibold shadow-sm"
+                              : "text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                           }`}
                         >
                           <Globe size={12} />
                           <span className="truncate block">{t("sidebar.overview")}</span>
                         </Link>
                         {workspaceChannels[ws.id]?.kind === "loading" && (
-                          <div className="flex items-center gap-2 px-2 text-xs text-muted-foreground">
+                          <div className="flex items-center gap-2 px-2 text-xs text-sidebar-muted">
                             <Loader2 size={12} className="animate-spin" />
                             {t("sidebar.loading")}
                           </div>
@@ -639,7 +639,7 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
                           const chState = workspaceChannels[ws.id];
                           if (chState?.kind !== "success") return null;
                           if (chState.data.length === 0) {
-                            return <div className="px-2 text-xs text-muted-foreground">{t("sidebar.noChannelsYet")}</div>;
+                            return <div className="px-2 text-xs text-sidebar-muted">{t("sidebar.noChannelsYet")}</div>;
                           }
                           return (
                             <ul className="space-y-0.5">
@@ -653,10 +653,10 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
                                       data-active={isChActive ? "true" : undefined}
                                       className={`flex items-center justify-between rounded-md px-2 py-1 text-sm transition-colors ${
                                         isChActive
-                                          ? "bg-accent text-accent-foreground font-semibold shadow-sm"
+                                          ? "bg-sidebar-active text-sidebar-active-foreground font-semibold shadow-sm"
                                           : ch.hasUnread
-                                            ? "font-medium text-foreground hover:bg-accent hover:text-accent-foreground"
-                                            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                                            ? "font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                                            : "text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                                       }`}
                                     >
                                       <span className="flex items-center gap-1.5 truncate">
@@ -690,16 +690,16 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
 
   return (
     <aside
-      className={`fixed inset-y-0 left-0 top-14 z-40 w-64 -translate-x-full transform transition-transform duration-200 ease-in-out border-r border-border bg-card/50 flex flex-col p-3 overflow-y-auto sm:static sm:inset-auto sm:top-auto sm:z-auto sm:translate-x-0 sm:w-60 sm:shrink-0 ${mobileOpen ? "translate-x-0" : ""}`}
+      className={`fixed inset-y-0 left-0 top-14 z-40 w-64 -translate-x-full transform transition-transform duration-200 ease-in-out border-r border-border/50 bg-sidebar text-sidebar-foreground flex flex-col p-3 overflow-y-auto sm:static sm:inset-auto sm:top-auto sm:z-auto sm:translate-x-0 sm:w-60 sm:shrink-0 ${mobileOpen ? "translate-x-0" : ""}`}
       data-testid="sidebar"
     >
       <div className="space-y-5">
         {totalUnread > 0 && (
           <div
             data-testid="sidebar-global-unread"
-            className="flex items-center justify-between rounded-lg bg-accent px-3 py-2"
+            className="flex items-center justify-between rounded-lg bg-sidebar-accent px-3 py-2"
           >
-            <span className="text-xs font-medium text-accent-foreground">
+            <span className="text-xs font-medium text-sidebar-accent-foreground">
               {t("sidebar.unread")}
             </span>
             {unreadBadge(totalUnread)}

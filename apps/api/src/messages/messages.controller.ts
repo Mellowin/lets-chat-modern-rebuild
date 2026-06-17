@@ -8,9 +8,14 @@ import {
   Param,
   Query,
   UseGuards,
+  UseInterceptors,
   ParseUUIDPipe,
   HttpCode,
   HttpStatus,
+  UploadedFile,
+  ParseFilePipe,
+  MaxFileSizeValidator,
+  FileTypeValidator,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -34,6 +39,8 @@ import { SearchChannelMessagesQueryDto } from './dto/search-channel-messages-que
 import { MessageContextQueryDto } from './dto/message-context-query.dto';
 import { PresignAttachmentDto } from './dto/presign-attachment.dto';
 import { PresignAttachmentUploadResponseDto } from './dto/presign-attachment-upload-response.dto';
+import { UploadAttachmentResponseDto } from './dto/upload-attachment-response.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUserResponse } from '../auth/auth.service';
@@ -179,5 +186,34 @@ export class MessagesController {
     @CurrentUser() user: AuthUserResponse,
   ) {
     return this.attachments.prepareUpload(workspaceId, channelId, dto, user.id);
+  }
+
+  @Post('attachments/upload')
+  @ApiOperation({ summary: 'Upload an attachment through the API proxy' })
+  @ApiCreatedResponse({
+    description: 'Attachment uploaded',
+    type: UploadAttachmentResponseDto,
+  })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiNotFoundResponse({ description: 'Workspace or channel not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadAttachment(
+    @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
+    @Param('channelId', ParseUUIDPipe) channelId: string,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 10 * 1024 * 1024 }),
+          new FileTypeValidator({
+            fileType: /^(image\/(png|jpeg|webp)|application\/pdf|text\/plain)$/,
+          }),
+        ],
+      }),
+    )
+    file: Express.Multer.File,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.attachments.uploadFile(workspaceId, channelId, file, user.id);
   }
 }

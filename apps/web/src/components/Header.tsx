@@ -30,7 +30,7 @@ export default function Header({ onMenuToggle }: HeaderProps) {
   }, []);
 
   return (
-    <header className="flex items-center justify-between h-14 px-3 sm:px-4 border-b border-border bg-card/50 backdrop-blur supports-[backdrop-filter]:bg-card/50 shrink-0">
+    <header className="flex items-center justify-between h-14 px-3 sm:px-4 border-b border-border/50 bg-header text-header-foreground shrink-0 shadow-sm">
       <div className="flex items-center gap-2">
         {onMenuToggle && (
           <Button
@@ -48,7 +48,7 @@ export default function Header({ onMenuToggle }: HeaderProps) {
         <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
           <MessageSquare size={16} strokeWidth={2.5} />
         </div>
-        <span className="font-semibold text-sm tracking-tight">lets-chat</span>
+        <span className="font-semibold text-sm tracking-tight text-header-foreground">lets-chat</span>
         {globalUnread > 0 && (
           <span
             data-testid="header-global-unread"
@@ -63,7 +63,7 @@ export default function Header({ onMenuToggle }: HeaderProps) {
       <div className="flex items-center gap-2">
         {isAuthenticated && <GlobalMessageSearch />}
         {isLoading ? (
-          <span className="text-xs text-muted-foreground">{t("header.loading")}</span>
+          <span className="text-xs text-header-muted">{t("header.loading")}</span>
         ) : isAuthenticated && user ? (
           <>
             <div className="flex items-center gap-2 pr-2">
@@ -72,13 +72,13 @@ export default function Header({ onMenuToggle }: HeaderProps) {
                 name={user.displayName || user.username}
                 size="sm"
               />
-              <span className="hidden sm:inline text-sm text-muted-foreground">
+              <span className="hidden sm:inline text-sm text-header-muted">
                 {user.displayName || user.username}
               </span>
             </div>
             <Link
               href="/profile"
-              className="inline-flex items-center justify-center gap-1.5 rounded-lg px-3 h-8 text-xs font-medium text-foreground hover:bg-accent hover:text-accent-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg px-3 h-8 text-xs font-medium text-header-foreground hover:bg-white/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-header"
             >
               <User size={14} />
               {t("header.profile")}
@@ -87,7 +87,7 @@ export default function Header({ onMenuToggle }: HeaderProps) {
               variant="secondary"
               size="sm"
               onClick={() => logout()}
-              className="gap-1.5"
+              className="gap-1.5 bg-header-foreground/10 text-header-foreground hover:bg-header-foreground/20 border-transparent"
             >
               <LogOut size={14} />
               {t("header.logout")}
@@ -97,13 +97,13 @@ export default function Header({ onMenuToggle }: HeaderProps) {
           <>
             <Link
               href="/login"
-              className="inline-flex items-center justify-center rounded-lg px-3 h-8 text-xs font-medium text-foreground hover:bg-accent hover:text-accent-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className="inline-flex items-center justify-center rounded-lg px-3 h-8 text-xs font-medium text-header-foreground hover:bg-white/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-header"
             >
               {t("header.signIn")}
             </Link>
             <Link
               href="/register"
-              className="inline-flex items-center justify-center rounded-lg px-3 h-8 text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className="inline-flex items-center justify-center rounded-lg px-3 h-8 text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-header"
             >
               {t("header.createAccount")}
             </Link>

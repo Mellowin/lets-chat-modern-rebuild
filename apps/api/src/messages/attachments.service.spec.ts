@@ -5,6 +5,7 @@ import { ChannelsService } from '../channels/channels.service';
 import { MessagesRepository } from './messages.repository';
 import { AttachmentsRepository } from './attachments.repository';
 import { StorageService } from '../storage/storage.service';
+import { Readable } from 'stream';
 
 describe('AttachmentsService', () => {
   let service: AttachmentsService;
@@ -46,6 +47,7 @@ describe('AttachmentsService', () => {
           provide: StorageService,
           useValue: {
             getPresignedUploadUrl: jest.fn(),
+            putObject: jest.fn(),
             headObject: jest.fn(),
             getPresignedDownloadUrl: jest.fn(),
           },
@@ -202,6 +204,134 @@ describe('AttachmentsService', () => {
       ).rejects.toBeInstanceOf(NotFoundException);
 
       expect(storageService.getPresignedUploadUrl).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('uploadFile', () => {
+    function makeFile(
+      props: Partial<Express.Multer.File> = {},
+    ): Express.Multer.File {
+      return {
+        fieldname: 'file',
+        originalname: 'test.png',
+        encoding: '7bit',
+        mimetype: 'image/png',
+        size: 1234,
+        buffer: Buffer.from('png'),
+        destination: '',
+        filename: '',
+        path: '',
+        stream: new Readable({ read() {} }),
+        ...props,
+      };
+    }
+
+    it('uploads a valid image and returns metadata', async () => {
+      channelsService.findById.mockResolvedValue(undefined as never);
+      storageService.putObject.mockResolvedValue(undefined);
+
+      const result = await service.uploadFile(
+        workspaceId,
+        channelId,
+        makeFile({
+          originalname: 'photo.png',
+          mimetype: 'image/png',
+          size: 1234,
+        }),
+        userId,
+      );
+
+      expect(result.fileName).toBe('photo.png');
+      expect(result.mimeType).toBe('image/png');
+      expect(result.sizeBytes).toBe(1234);
+      expect(result.kind).toBe('image');
+      expect(result.storageKey).toContain(userId);
+      expect(result.storageKey).toContain('attachments/');
+      expect(storageService.putObject).toHaveBeenCalledWith(
+        expect.stringContaining('attachments/'),
+        expect.any(Buffer),
+        'image/png',
+      );
+    });
+
+    it('uploads a valid PDF and returns kind file', async () => {
+      channelsService.findById.mockResolvedValue(undefined as never);
+      storageService.putObject.mockResolvedValue(undefined);
+
+      const result = await service.uploadFile(
+        workspaceId,
+        channelId,
+        makeFile({
+          originalname: 'doc.pdf',
+          mimetype: 'application/pdf',
+          size: 5678,
+        }),
+        userId,
+      );
+
+      expect(result.kind).toBe('file');
+      expect(result.mimeType).toBe('application/pdf');
+    });
+
+    it('throws BadRequest for unsupported MIME and does not call storage', async () => {
+      channelsService.findById.mockResolvedValue(undefined as never);
+
+      await expect(
+        service.uploadFile(
+          workspaceId,
+          channelId,
+          makeFile({
+            originalname: 'evil.exe',
+            mimetype: 'application/x-msdownload',
+          }),
+          userId,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(storageService.putObject).not.toHaveBeenCalled();
+    });
+
+    it('throws BadRequest for oversized file and does not call storage', async () => {
+      channelsService.findById.mockResolvedValue(undefined as never);
+
+      await expect(
+        service.uploadFile(
+          workspaceId,
+          channelId,
+          makeFile({ size: 20 * 1024 * 1024 }),
+          userId,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(storageService.putObject).not.toHaveBeenCalled();
+    });
+
+    it('produces safe storageKey for path traversal filename', async () => {
+      channelsService.findById.mockResolvedValue(undefined as never);
+      storageService.putObject.mockResolvedValue(undefined);
+
+      const result = await service.uploadFile(
+        workspaceId,
+        channelId,
+        makeFile({ originalname: '../../evil.png' }),
+        userId,
+      );
+
+      expect(result.storageKey).not.toContain('../../');
+      expect(result.storageKey).not.toBe('../../evil.png');
+      expect(result.storageKey).toContain('.._.._evil.png');
+    });
+
+    it('propagates NotFound when channel access is denied', async () => {
+      channelsService.findById.mockRejectedValue(
+        new NotFoundException('Channel not found'),
+      );
+
+      await expect(
+        service.uploadFile(workspaceId, channelId, makeFile(), userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+
+      expect(storageService.putObject).not.toHaveBeenCalled();
     });
   });
 

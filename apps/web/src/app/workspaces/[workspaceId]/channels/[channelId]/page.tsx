@@ -35,7 +35,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { getChannel, getChannelMembers, removeChannelMember, archiveChannel, leaveChannel, markChannelRead, type Channel, type ChannelMember } from "@/lib/channels-api";
 import { createChannelInvite } from "@/lib/channel-invites-api";
 
-import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, presignAttachmentUpload, uploadAttachmentToPresignedUrlWithProgress, getAttachmentDownloadUrl, getMessageContext, type Message, type CreateMessageInput, type UpdateMessageInput, type ReactionSummary, type Attachment, type MessageContextResult, CreateMessageAttachmentInput } from "@/lib/messages-api";
+import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, uploadAttachmentViaProxyWithProgress, getAttachmentDownloadUrl, getMessageContext, type Message, type CreateMessageInput, type UpdateMessageInput, type ReactionSummary, type Attachment, type MessageContextResult, CreateMessageAttachmentInput } from "@/lib/messages-api";
 import { sendDirectMessage, listDirectConversations, type DirectConversation } from "@/lib/direct-conversations-api";
 import { createSocket } from "@/lib/socket-client";
 import { MessageAuthor } from "@/components/MessageAuthor";
@@ -74,11 +74,6 @@ function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function classifyAttachmentKind(mimeType: string): "image" | "file" {
-  if (mimeType.startsWith("image/")) return "image";
-  return "file";
 }
 
 function AttachmentImagePreview({
@@ -875,14 +870,10 @@ export default function ChannelDetailPage() {
     composerAttachmentsRef.current = setUploading(composerAttachmentsRef.current);
 
     try {
-      const presign = await presignAttachmentUpload(accessToken, workspaceId, channelId, {
-        filename: att.file.name,
-        mimeType: att.file.type,
-        sizeBytes: att.file.size,
-      });
-
-      await uploadAttachmentToPresignedUrlWithProgress(
-        presign.uploadUrl,
+      const uploadResult = await uploadAttachmentViaProxyWithProgress(
+        accessToken,
+        workspaceId,
+        channelId,
         att.file,
         (percent) => {
           const setProgress = (prev: ComposerAttachment[]) =>
@@ -901,11 +892,11 @@ export default function ChannelDetailPage() {
                 progress: 100,
                 error: null,
                 result: {
-                  storageKey: presign.storageKey,
-                  fileName: att.file.name,
-                  mimeType: att.file.type,
-                  sizeBytes: att.file.size,
-                  kind: classifyAttachmentKind(att.file.type),
+                  storageKey: uploadResult.storageKey,
+                  fileName: uploadResult.fileName,
+                  mimeType: uploadResult.mimeType,
+                  sizeBytes: uploadResult.sizeBytes,
+                  kind: uploadResult.kind,
                 },
               }
             : a,
@@ -1439,9 +1430,9 @@ export default function ChannelDetailPage() {
         </>
       )}
 
-      <div className="mt-4 flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card">
+      <div className="mt-4 flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-border/50 bg-card/95 shadow-md">
         {contextMode.kind === "active" && (
-          <div className="shrink-0 border-b border-border bg-muted/50 px-4 py-2">
+          <div className="shrink-0 border-b border-border/50 bg-muted/60 px-4 py-2">
             <Button
               variant="secondary"
               size="sm"
@@ -1564,7 +1555,7 @@ export default function ChannelDetailPage() {
                             }}
                             className={`mt-1 w-fit max-w-full rounded-2xl border px-3 py-2 shadow-sm ${
                               isOwnMessage
-                                ? "bg-primary/10 border-primary/20 text-foreground"
+                                ? "bg-indigo-100 border-indigo-200 text-indigo-950 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-100"
                                 : "bg-card text-foreground border-border"
                             }`}
                           >
@@ -1715,7 +1706,7 @@ export default function ChannelDetailPage() {
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            className={`relative shrink-0 flex flex-col gap-2 border-t border-border bg-card p-4 shadow-sm ${isDragOver ? "ring-2 ring-inset ring-primary" : ""}`}
+            className={`relative shrink-0 flex flex-col gap-2 border-t border-border/50 bg-card/90 backdrop-blur p-4 shadow-md ${isDragOver ? "ring-2 ring-inset ring-primary" : ""}`}
           >
             {isDragOver && (
               <div data-testid="composer-drag-overlay" className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-primary/5 border-2 border-dashed border-primary backdrop-blur-sm">

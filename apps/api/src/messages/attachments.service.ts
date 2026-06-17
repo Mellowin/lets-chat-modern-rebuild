@@ -36,6 +36,19 @@ export class AttachmentsService {
     private readonly storage: StorageService,
   ) {}
 
+  private validateAttachmentFile(file: Express.Multer.File) {
+    if (!(ALLOWED_MIME_TYPES as readonly string[]).includes(file.mimetype)) {
+      throw new BadRequestException(
+        `Unsupported attachment type: ${file.mimetype}`,
+      );
+    }
+
+    const maxSize = 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      throw new BadRequestException('File exceeds maximum size of 10 MB');
+    }
+  }
+
   async prepareUpload(
     workspaceId: string,
     channelId: string,
@@ -69,6 +82,29 @@ export class AttachmentsService {
       sizeBytes: dto.sizeBytes,
       kind: classifyAttachmentKind(dto.mimeType),
       expiresInSeconds,
+    };
+  }
+
+  async uploadFile(
+    workspaceId: string,
+    channelId: string,
+    file: Express.Multer.File,
+    userId: string,
+  ) {
+    await this.channels.findById(workspaceId, channelId, userId);
+    this.validateAttachmentFile(file);
+
+    const sanitized = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const storageKey = `attachments/${userId}/${randomUUID()}-${sanitized}`;
+
+    await this.storage.putObject(storageKey, file.buffer, file.mimetype);
+
+    return {
+      storageKey,
+      fileName: file.originalname,
+      mimeType: file.mimetype,
+      sizeBytes: file.size,
+      kind: classifyAttachmentKind(file.mimetype),
     };
   }
 

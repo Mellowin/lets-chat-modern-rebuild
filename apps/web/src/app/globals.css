@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc;
-  --background-highlight: #eef2ff;
+  --background: #f1f5f9;
+  --background-highlight: #e0e7ff;
   --foreground: #0f172a;
   --card: #ffffff;
   --card-foreground: #0f172a;
@@ -12,15 +12,25 @@
   --primary-foreground: #ffffff;
   --secondary: #eef2ff;
   --secondary-foreground: #1e1b4b;
-  --muted: #f1f5f9;
+  --muted: #e2e8f0;
   --muted-foreground: #64748b;
   --accent: #e0e7ff;
   --accent-foreground: #312e81;
   --destructive: #dc2626;
   --destructive-foreground: #ffffff;
-  --border: #e2e8f0;
-  --input: #e2e8f0;
+  --border: #cbd5e1;
+  --input: #cbd5e1;
   --ring: #4f46e5;
+  --header: #0f172a;
+  --header-foreground: #f8fafc;
+  --header-muted: #94a3b8;
+  --sidebar: #1e293b;
+  --sidebar-foreground: #f1f5f9;
+  --sidebar-muted: #94a3b8;
+  --sidebar-accent: #334155;
+  --sidebar-accent-foreground: #f8fafc;
+  --sidebar-active: #4f46e5;
+  --sidebar-active-foreground: #ffffff;
   --radius: 0.625rem;
 }
 
@@ -45,6 +55,16 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-header: var(--header);
+  --color-header-foreground: var(--header-foreground);
+  --color-header-muted: var(--header-muted);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-active: var(--sidebar-active);
+  --color-sidebar-active-foreground: var(--sidebar-active-foreground);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -75,6 +95,16 @@
     --border: #334155;
     --input: #334155;
     --ring: #6366f1;
+    --header: #020617;
+    --header-foreground: #f8fafc;
+    --header-muted: #94a3b8;
+    --sidebar: #0f172a;
+    --sidebar-foreground: #f1f5f9;
+    --sidebar-muted: #94a3b8;
+    --sidebar-accent: #1e293b;
+    --sidebar-accent-foreground: #f8fafc;
+    --sidebar-active: #6366f1;
+    --sidebar-active-foreground: #ffffff;
   }
 }
 
