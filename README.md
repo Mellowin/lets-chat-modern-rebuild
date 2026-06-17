@@ -83,7 +83,7 @@ See [`docs/portfolio-demo.md`](docs/portfolio-demo.md) for a step-by-step demo g
 | Suite | Count | Status |
 |-------|-------|--------|
 | API Unit Tests | 745 (34 suites) | ✅ passing |
-| Web Unit Tests | 688 (31 files) | ✅ passing |
+| Web Unit Tests | 689 (31 files) | ✅ passing |
 | Web Page Tests | 248 (2 files) | ✅ passing |
 | E2E Security Smoke Tests | 7 (2 suites) | ✅ passing locally |
 
@@ -212,13 +212,35 @@ pnpm --filter web build
 
 ---
 
+## Production Verification
+
+After deploy, run the verification pack against the live production URLs:
+
+```bash
+# Public smoke — safe, no secrets
+pnpm verify:prod:public
+
+# Authenticated auth flow (creates one disposable Mail.tm account)
+pnpm verify:prod:auth
+
+# Permission/destructive checks — requires explicit flag
+VERIFY_PERMISSIONS_ENABLE_DESTRUCTIVE=1 pnpm verify:prod:permissions
+
+# Playwright browser sanity
+pnpm verify:prod:browser
+```
+
+See [`docs/production-verification.md`](docs/production-verification.md) for full details, env vars, and the manual GitHub Actions workflow.
+
+---
+
 ## Current Limitations
 
 > This is a **portfolio-grade rebuild**, not production-ready software.
 
 - **Free Render instance may cold-start** — first request after sleep can take ~1 min
-- **E2E tests are local-only** — CI workflow lacks a PostgreSQL service
-- **No broad E2E coverage** beyond private-channel authorization smoke tests
+- **Local E2E tests still require Docker PostgreSQL** — not yet in CI
+- **Production verification scripts** cover post-deploy smoke/auth/permissions/browser sanity; they do not replace full E2E coverage
 - **Presence is in-memory** — no Redis Socket.io adapter yet
 - **No push/browser notifications** yet
 - **No cursor pagination** — limit-based pagination for messages and logs

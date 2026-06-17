@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-06-16 (B199 CI/CD action cleanup complete)  
+> Last updated: 2026-06-17 (B203 production verification pack complete)  
 > Code checkpoint: `main`  
 > Docs checkpoint: `main`
 >
@@ -409,7 +409,31 @@ Use these steps to verify core functionality after deploy or before release:
     - revoked the current refresh token and reloaded with expired access token → `sessionStorage` cleared and UI showed auth required;
     - no tokens were printed to the browser console.
 
-## 12. Known Limitations
+## 12. B203 Production Verification Automation Pack
+
+- **Goal** — create a clean, repeatable production verification pack for portfolio/stability without adding product features.
+- **Scripts added:**
+  - `scripts/verify-production-public.mjs` — public smoke wrapper (10/10 checks).
+  - `scripts/verify-production-auth.mjs` — register, verify email, login, refresh, logout, revoked-token rejection.
+  - `scripts/verify-production-permissions.mjs` — owner/member workspace and channel permissions; destructive delete tests require `VERIFY_PERMISSIONS_ENABLE_DESTRUCTIVE=1`.
+  - `scripts/verify-production-browser.mjs` — Playwright desktop + mobile sanity, B202C search validation, owner/non-owner delete UI.
+  - `scripts/lib/verify-helpers.mjs` — shared Mail.tm + API helpers; no tokens/passwords printed.
+- **Package scripts:**
+  - `pnpm verify:prod:public`
+  - `pnpm verify:prod:auth`
+  - `pnpm verify:prod:permissions`
+  - `pnpm verify:prod:browser`
+  - `pnpm verify:prod:all`
+- **GitHub Actions:** `.github/workflows/production-verify.yml` is manual-only (`workflow_dispatch`) with selectable suites; no automatic destructive tests.
+- **Docs:** `docs/production-verification.md` created; `docs/final-qa-checklist.md` and `docs/project-status.md` updated.
+- **Safety:** no hardcoded passwords; no committed credentials; disposable accounts named with timestamp; workspaces deleted after verification; public smoke requires no secrets.
+- **Verification result (2026-06-17):**
+  - `pnpm verify:prod:public` — 10/10 ✅
+  - `pnpm verify:prod:auth` — 5/5 ✅
+  - `VERIFY_PERMISSIONS_ENABLE_DESTRUCTIVE=1 pnpm verify:prod:permissions` — 17/17 ✅
+  - `pnpm verify:prod:browser` — 9/9 ✅
+
+## 13. Known Limitations
 
 - **Invite link QA is manual** — email delivery of targeted invites and end-to-end invite accept flow are not covered by automated E2E tests; manual verification in production (or a local environment with SMTP) is required. Targeted email invites require the recipient's account email to match the invite email exactly.
 - **No slug-based URLs** — routing is strictly UUID-based; slugs are cosmetic only.

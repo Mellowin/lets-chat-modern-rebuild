@@ -1,0 +1,65 @@
+name: Production Verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      public:
+        description: "Run public smoke (safe, no secrets)"
+        type: boolean
+        default: true
+      auth:
+        description: "Run authenticated auth/register/refresh/logout flow"
+        type: boolean
+        default: false
+      permissions:
+        description: "Run permission/destructive tests (creates and deletes workspace/channel)"
+        type: boolean
+        default: false
+      browser:
+        description: "Run Playwright browser sanity checks"
+        type: boolean
+        default: false
+
+env:
+  VERIFY_WEB_BASE: ${{ vars.VERIFICATION_WEB_URL || 'https://lets-chat-web.vercel.app' }}
+  VERIFY_API_BASE: ${{ vars.VERIFICATION_API_URL || 'https://lets-chat-api-v2.onrender.com/api/v1' }}
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Public production smoke
+        if: ${{ inputs.public }}
+        run: pnpm verify:prod:public
+        env:
+          WEB_URL: ${{ env.VERIFY_WEB_BASE }}
+          API_URL: ${{ env.VERIFY_API_BASE }}
+
+      - name: Authenticated auth flow
+        if: ${{ inputs.auth }}
+        run: pnpm verify:prod:auth
+
+      - name: Permission and destructive-action checks
+        if: ${{ inputs.permissions }}
+        run: pnpm verify:prod:permissions
+        env:
+          VERIFY_PERMISSIONS_ENABLE_DESTRUCTIVE: "1"
+
+      - name: Playwright browser sanity
+        if: ${{ inputs.browser }}
+        run: pnpm verify:prod:browser

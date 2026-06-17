@@ -28,9 +28,9 @@ Passed: 10/10
 | Suite | Count | Result |
 |-------|-------|--------|
 | API unit tests | 745 (34 suites) | ✅ pass |
-| Web unit tests | 688 (31 files) | ✅ pass |
+| Web unit tests | 689 (31 files) | ✅ pass |
 | Web page tests | 248 (2 files) | ✅ pass |
-| E2E smoke tests | 7 (2 suites) | ⬜ local-only |
+| E2E smoke tests | 7 (2 suites) | ⬜ local-only (CI lacks PostgreSQL service) |
 
 **Commands run:**
 
@@ -138,10 +138,35 @@ GET /api/v1/health → ok
 
 ---
 
-## 9. Known Limitations (Accurate & Honest)
+## 9. B203 Production Verification Pack
+
+| # | Check | Result |
+|---|-------|--------|
+| 9.1 | `scripts/verify-production-public.mjs` passes (wraps smoke-deploy) | ✅ 10/10 |
+| 9.2 | `scripts/verify-production-auth.mjs` passes (register/verify/login/refresh/logout) | ✅ 5/5 |
+| 9.3 | `scripts/verify-production-permissions.mjs` passes with destructive flag | ✅ 17/17 |
+| 9.4 | `scripts/verify-production-browser.mjs` passes (desktop + mobile sanity) | ✅ 9/9 |
+| 9.5 | No hardcoded passwords or committed tokens | ✅ |
+| 9.6 | Destructive tests require explicit env flag | ✅ |
+| 9.7 | `.github/workflows/production-verify.yml` is manual-only (`workflow_dispatch`) | ✅ |
+| 9.8 | `docs/production-verification.md` documents scripts, env vars, and safety | ✅ |
+
+**Commands run:**
+
+```bash
+pnpm verify:prod:public
+pnpm verify:prod:auth
+VERIFY_PERMISSIONS_ENABLE_DESTRUCTIVE=1 pnpm verify:prod:permissions
+pnpm verify:prod:browser
+```
+
+---
+
+## 10. Known Limitations (Accurate & Honest)
 
 - Render free tier cold start (~1 minute after idle).
-- E2E tests local-only; CI lacks a PostgreSQL service container.
+- Local E2E tests still require Docker PostgreSQL; they are not yet in CI.
+- Production verification scripts create disposable Mail.tm accounts that cannot be self-deleted.
 - Real Gmail delivery requires verified Resend domain; otherwise console/dev mode.
 - Presence is in-memory; no Redis Socket.io adapter yet.
 - No cursor pagination; limit-based pagination for messages/logs.

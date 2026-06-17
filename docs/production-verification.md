@@ -1,0 +1,101 @@
+# Production Verification Pack
+
+This document describes the repeatable production verification scripts introduced in **B203**. The goal is to move from ad-hoc manual checks to a documented, runnable pack that supports portfolio/demo confidence and post-deploy stability.
+
+---
+
+## Scripts
+
+All scripts are located in `scripts/` and are exposed as root package scripts.
+
+| Script | Command | What it verifies | Data created | Cleanup |
+|---|---|---|---|---|
+| **Public smoke** | `pnpm verify:prod:public` | Wraps `scripts/smoke-deploy.mjs`. Public web/API endpoints, protected auth rejections, avatar fallback. | None | N/A |
+| **Auth flow** | `pnpm verify:prod:auth` | Registers a disposable Mail.tm account, verifies email, logs in, refreshes tokens, validates new token, logs out, confirms revoked refresh token is rejected. | One disposable account | None (API has no self-delete) |
+| **Permissions** | `pnpm verify:prod:permissions` | Owner vs member permissions: workspace/channel creation, channel invite/accept, member cannot delete channel, owner can delete channel/workspace, deleted content is invisible and excluded from search. | Owner account, member account, one workspace, one channel | Workspace is deleted at the end when destructive tests are enabled |
+| **Browser sanity** | `pnpm verify:prod:browser` | Playwright checks: public login page, authenticated dashboard/workspace/channel, B202C workspace-search validation, owner delete affordances, non-owner hidden delete UI, mobile viewport smoke. | Owner account, member account, one workspace, one channel | Workspace is deleted at the end |
+| **All** | `pnpm verify:prod:all` | Runs public → auth → permissions → browser sequentially. | Same as above | Same as above |
+
+---
+
+## Required environment variables
+
+All scripts default to the production URLs. Override only when needed.
+
+| Variable | Default | Used by |
+|---|---|---|
+| `WEB_URL` / `VERIFY_WEB_BASE` | `https://lets-chat-web.vercel.app` | public smoke, browser |
+| `API_URL` / `VERIFY_API_BASE` | `https://lets-chat-api-v2.onrender.com/api/v1` | all scripts |
+| `VERIFY_MAIL_BASE` | `https://api.mail.tm` | auth, permissions, browser |
+| `VERIFY_PASSWORD` | random per run | auth, permissions, browser |
+| `VERIFY_PERMISSIONS_ENABLE_DESTRUCTIVE` | unset | permissions (must be `1` to run delete tests) |
+
+**Do not commit `VERIFY_PASSWORD` or any token.** Scripts never print tokens, passwords, or DB URLs to the console.
+
+---
+
+## Safety notes
+
+- **Public smoke** is safe to run at any time and can run on every push if desired.
+- **Auth flow** creates a single disposable Mail.tm account. The account remains in the production database but has no workspaces, channels, or memberships. It cannot self-delete.
+- **Permissions** only performs destructive actions (channel delete, workspace delete) when `VERIFY_PERMISSIONS_ENABLE_DESTRUCTIVE=1` is set. The seeded workspace is deleted at the end.
+- **Browser** creates disposable accounts and a workspace, then deletes the workspace at the end.
+- All disposable accounts are named with a timestamp and a `verify` prefix so they are easy to identify in logs.
+
+---
+
+## Running locally
+
+```bash
+# Public only — no secrets, no side effects
+pnpm verify:prod:public
+
+# Auth flow — creates one disposable account
+pnpm verify:prod:auth
+
+# Permission checks without destructive tests
+pnpm verify:prod:permissions
+
+# Permission checks including channel/workspace delete
+VERIFY_PERMISSIONS_ENABLE_DESTRUCTIVE=1 pnpm verify:prod:permissions
+
+# Browser sanity — requires Playwright
+pnpm verify:prod:browser
+
+# Full pack (respects the destructive flag)
+VERIFY_PERMISSIONS_ENABLE_DESTRUCTIVE=1 pnpm verify:prod:all
+```
+
+---
+
+## GitHub Actions
+
+`.github/workflows/production-verify.yml` is a **manual-only** workflow (`workflow_dispatch`). It does **not** run automatically on push. Choose which suites to run via the workflow inputs.
+
+Repository variables that can be set:
+
+- `VERIFICATION_WEB_URL` — override the frontend URL.
+- `VERIFICATION_API_URL` — override the API URL.
+
+If the variables are missing, the workflow uses the production defaults.
+
+---
+
+## Known limitations
+
+- Mail.tm has rate limits. Running the full pack repeatedly from the same IP in a short window may hit `429 Too Many Requests`. Wait a few seconds between runs if this happens.
+- Disposable accounts cannot be deleted through the API. They accumulate over time but remain harmless (no workspaces/channels/memberships).
+- Browser checks rely on production `data-testid` attributes. If the UI changes, the selectors may need updating.
+- The pack verifies behavior against the live production deployment. Do not run destructive tests against a shared staging environment that other people are using.
+
+---
+
+## Portfolio/demo value
+
+Having a runnable verification pack means the project can demonstrate:
+
+- repeatable post-deploy smoke checks;
+- automated auth/session refresh validation;
+- permission boundary checks for destructive owner actions;
+- cross-browser/mobile sanity checks;
+- clear safety boundaries between read-only and destructive verification.
