@@ -583,7 +583,7 @@ export default function WorkspaceDetailPage() {
                         variant="ghost"
                         size="sm"
                         onClick={(e) => handleArchiveChannel(e, ch.id, ch.name)}
-                        className="text-amber-600 hover:bg-amber-500/10 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300"
+                        className="!text-amber-600 hover:bg-amber-500/10 hover:!text-amber-600 dark:!text-amber-400 dark:hover:!text-amber-300"
                       >
                         {t("workspace.archive")}
                       </Button>
@@ -594,7 +594,7 @@ export default function WorkspaceDetailPage() {
                         size="sm"
                         onClick={() => handleDeleteChannel(ch.id, ch.name)}
                         disabled={deletingChannelId === ch.id}
-                        className="text-red-600 hover:bg-red-500/10 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
+                        className="!text-red-600 hover:bg-red-500/10 hover:!text-red-600 dark:!text-red-400 dark:hover:!text-red-300"
                       >
                         {deletingChannelId === ch.id ? t("workspace.deleting") : t("workspace.delete")}
                       </Button>
@@ -883,7 +883,7 @@ export default function WorkspaceDetailPage() {
                         size="sm"
                         onClick={() => handleDeleteChannel(ch.id, ch.name)}
                         disabled={deletingChannelId === ch.id}
-                        className="text-red-600 hover:bg-red-500/10 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
+                        className="!text-red-600 hover:bg-red-500/10 hover:!text-red-600 dark:!text-red-400 dark:hover:!text-red-300"
                       >
                         {deletingChannelId === ch.id ? t("workspace.deleting") : t("workspace.delete")}
                       </Button>
