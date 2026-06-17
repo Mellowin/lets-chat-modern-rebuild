@@ -193,6 +193,7 @@ export default function GlobalMessageSearch() {
         onClick={handleOpen}
         data-testid="global-search-open-button"
         aria-label={t("header.searchAllMessages")}
+        className="text-header-foreground hover:bg-white/10 hover:text-header-foreground"
       >
         <Search size={16} />
         <span className="hidden sm:inline">{t("header.searchAllMessages")}</span>

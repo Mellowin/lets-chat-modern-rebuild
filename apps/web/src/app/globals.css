@@ -118,6 +118,24 @@ body {
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
+/* Chat canvas background (Telegram-style green) */
+.chat-canvas {
+  background-color: #e3f0e7;
+  background-image:
+    radial-gradient(circle at 25% 25%, rgba(0, 0, 0, 0.04) 1.5px, transparent 2px),
+    radial-gradient(circle at 75% 75%, rgba(0, 0, 0, 0.04) 1.5px, transparent 2px);
+  background-size: 40px 40px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .chat-canvas {
+    background-color: #10241a;
+    background-image:
+      radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.05) 1.5px, transparent 2px),
+      radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.05) 1.5px, transparent 2px);
+  }
+}
+
 /* Scrollbar polish */
 ::-webkit-scrollbar {
   width: 8px;

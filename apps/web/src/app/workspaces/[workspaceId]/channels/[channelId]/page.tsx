@@ -1456,7 +1456,7 @@ export default function ChannelDetailPage() {
           )}
         </div>
 
-        <div ref={messagesScrollRef} onScroll={() => { closeMenuAndPicker(); }} className="min-h-0 flex-1 overflow-y-auto bg-gradient-to-br from-indigo-50 via-slate-100 to-background px-4 py-3 dark:from-slate-950 dark:via-indigo-950/20 dark:to-slate-950">
+        <div ref={messagesScrollRef} onScroll={() => { closeMenuAndPicker(); }} className="chat-canvas min-h-0 flex-1 overflow-y-auto px-4 py-3">
           <div className="flex w-full max-w-3xl flex-col">
             {messages.kind === "loading" && !isContextMode && (
               <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
