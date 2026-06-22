@@ -20,6 +20,7 @@ import {
   Send,
   Smile,
   Trash2,
+  UploadCloud,
   Users,
   X,
 } from "lucide-react";
@@ -74,6 +75,46 @@ function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+const ALLOWED_ATTACHMENT_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+  "text/plain",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
+
+const EXTENSION_MIME_MAP: Record<string, string> = {
+  ".doc": "application/msword",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".pdf": "application/pdf",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".txt": "text/plain",
+};
+
+function getAttachmentMimeType(file: File): string {
+  if (file.type) return file.type;
+  const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+  return EXTENSION_MIME_MAP[ext] || "application/octet-stream";
+}
+
+function isAllowedAttachmentFile(file: File): boolean {
+  if (ALLOWED_ATTACHMENT_TYPES.includes(file.type)) return true;
+  const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+  const mapped = EXTENSION_MIME_MAP[ext];
+  return mapped ? ALLOWED_ATTACHMENT_TYPES.includes(mapped) : false;
+}
+
+function normalizeAttachmentFile(file: File): File {
+  const type = getAttachmentMimeType(file);
+  if (type === file.type) return file;
+  return new File([file], file.name, { type, lastModified: file.lastModified });
 }
 
 function AttachmentImagePreview({
@@ -246,13 +287,6 @@ export default function ChannelDetailPage() {
   }, [composerAttachments]);
   const quickEmojis = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
 
-  const ALLOWED_ATTACHMENT_TYPES = [
-    "image/jpeg",
-    "image/png",
-    "image/webp",
-    "application/pdf",
-    "text/plain",
-  ];
   const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
   const MAX_ATTACHMENTS = 5;
 
@@ -667,6 +701,18 @@ export default function ChannelDetailPage() {
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  useEffect(() => {
+    function preventDefault(e: DragEvent) {
+      e.preventDefault();
+    }
+    window.addEventListener("dragover", preventDefault);
+    window.addEventListener("drop", preventDefault);
+    return () => {
+      window.removeEventListener("dragover", preventDefault);
+      window.removeEventListener("drop", preventDefault);
+    };
   }, []);
 
   function appendMessage(msg: Message) {
@@ -1140,8 +1186,10 @@ export default function ChannelDetailPage() {
 
     if (files.length === 0) return;
 
-    const validFiles = files.filter((f) => {
-      if (!ALLOWED_ATTACHMENT_TYPES.includes(f.type)) return false;
+    const normalizedFiles = files.map(normalizeAttachmentFile);
+
+    const validFiles = normalizedFiles.filter((f) => {
+      if (!isAllowedAttachmentFile(f)) return false;
       if (f.size > MAX_ATTACHMENT_SIZE) return false;
       return true;
     });
@@ -1154,7 +1202,7 @@ export default function ChannelDetailPage() {
     }
 
     if (validFiles.length === 0) {
-      if (files.some((f) => !ALLOWED_ATTACHMENT_TYPES.includes(f.type))) {
+      if (files.some((f) => !isAllowedAttachmentFile(normalizeAttachmentFile(f)))) {
         setAttachmentError(t("channel.errorInvalidAttachmentType"));
       } else {
         setAttachmentError(t("channel.errorAttachmentTooLarge"));
@@ -1468,7 +1516,14 @@ export default function ChannelDetailPage() {
         </>
       )}
 
-      <div className="mt-4 flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-lg">
+      <div
+        data-testid="channel-chat-panel"
+        onDragOver={handleDragOver}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className="relative mt-4 flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-lg"
+      >
         {contextMode.kind === "active" && (
           <div className="shrink-0 border-b border-border/50 bg-muted/60 px-4 py-2">
             <Button
@@ -1736,21 +1791,23 @@ export default function ChannelDetailPage() {
           </div>
         </div>
 
-        
-                {channel.kind === "success" && (
+        {isDragOver && (
+          <div
+            data-testid="channel-drop-overlay"
+            className="pointer-events-none absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-primary bg-primary/10 backdrop-blur-sm"
+          >
+            <UploadCloud size={48} className="text-primary" />
+            <span className="text-lg font-semibold text-primary">
+              {t("channel.dropFilesHere")}
+            </span>
+          </div>
+        )}
+
+        {channel.kind === "success" && (
           <form
             onSubmit={handleSendMessage}
-            onDragOver={handleDragOver}
-            onDragEnter={handleDragEnter}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            className={`relative shrink-0 flex flex-col gap-2 border-t border-indigo-300/60 bg-gradient-to-b from-card to-indigo-100/60 dark:from-card dark:to-indigo-950/30 p-4 shadow-lg ${isDragOver ? "ring-2 ring-inset ring-primary" : ""}`}
+            className="relative shrink-0 flex flex-col gap-2 border-t border-indigo-300/60 bg-gradient-to-b from-card to-indigo-100/60 dark:from-card dark:to-indigo-950/30 p-4 shadow-lg"
           >
-            {isDragOver && (
-              <div data-testid="composer-drag-overlay" className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-primary/5 border-2 border-dashed border-primary backdrop-blur-sm">
-                <span className="text-sm font-medium text-primary">Drop files here</span>
-              </div>
-            )}
             {replyTargetId && (
               <div className="flex items-start justify-between gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2">
                 <div className="min-w-0 flex-1">
@@ -1974,7 +2031,7 @@ export default function ChannelDetailPage() {
                   ref={fileInputRef}
                   type="file"
                   multiple
-                  accept="image/jpeg,image/png,image/webp,application/pdf,text/plain"
+                  accept="image/jpeg,image/png,image/webp,application/pdf,text/plain,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.doc,.docx"
                   onChange={handleFileSelect}
                   className="hidden"
                   data-testid="composer-file-input"

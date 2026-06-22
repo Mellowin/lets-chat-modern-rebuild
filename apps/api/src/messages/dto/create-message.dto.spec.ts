@@ -98,6 +98,22 @@ describe('CreateMessageDto', () => {
     expect(errors[0].property).toBe('attachments');
   });
 
+  it('accepts DOCX attachment', async () => {
+    const errors = await validateDto({
+      attachments: [
+        {
+          storageKey: 'attachments/user-id/uuid-file.docx',
+          fileName: 'document.docx',
+          mimeType:
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          sizeBytes: 1234,
+          kind: 'file',
+        },
+      ],
+    });
+    expect(errors).toHaveLength(0);
+  });
+
   it('rejects unsupported MIME in attachment', async () => {
     const errors = await validateDto({
       attachments: [

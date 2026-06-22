@@ -19,7 +19,8 @@
     "verify:prod:auth": "node scripts/verify-production-auth.mjs",
     "verify:prod:permissions": "node scripts/verify-production-permissions.mjs",
     "verify:prod:browser": "node scripts/verify-production-browser.mjs",
-    "verify:prod:all": "pnpm verify:prod:public && pnpm verify:prod:auth && pnpm verify:prod:permissions && pnpm verify:prod:browser"
+    "verify:prod:attachments": "node scripts/verify-production-attachments.mjs",
+    "verify:prod:all": "pnpm verify:prod:public && pnpm verify:prod:auth && pnpm verify:prod:permissions && pnpm verify:prod:browser && pnpm verify:prod:attachments"
   },
   "dependencies": {
     "@types/node": "^20.14.0"

@@ -206,7 +206,8 @@ export class MessagesController {
         validators: [
           new MaxFileSizeValidator({ maxSize: 10 * 1024 * 1024 }),
           new FileTypeValidator({
-            fileType: /^(image\/(png|jpeg|webp)|application\/pdf|text\/plain)$/,
+            fileType:
+              /^(image\/(png|jpeg|webp)|application\/pdf|text\/plain|application\/msword|application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document)$/,
           }),
         ],
       }),

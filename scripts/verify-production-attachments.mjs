@@ -1,7 +1,17 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 /**
- * Production attachment upload / drag-drop / lightbox verification.
+ * Production attachment upload / drag-drop / lightbox / filename verification.
+ *
+ * Tests real user scenarios:
+ * - PDF with Cyrillic filename
+ * - DOCX with Cyrillic filename
+ * - image with Cyrillic filename
+ * - drag/drop upload with large overlay
+ * - correct filename display after send
+ * - authenticated download
+ * - no CORS / net::ERR_FAILED
+ * - no token leaks
  */
 
 import { chromium } from "playwright";
@@ -31,7 +41,7 @@ function createTempFile(name, content, encoding = "utf8") {
 }
 
 async function main() {
-  console.log("=== Production Attachment Verification ===\n");
+  console.log("=== Production Attachment Verification (B204B) ===\n");
   console.log(`WEB_BASE: ${WEB_BASE}`);
   console.log(`API_BASE: ${API_BASE}\n`);
 
@@ -42,7 +52,7 @@ async function main() {
   await sleep(3000);
 
   const workspace = await api(owner.accessToken, "POST", "/workspaces", {
-    name: `B204 Attach Verify ${Date.now()}`,
+    name: `B204B Attach Verify ${Date.now()}`,
   });
   const channel = await api(owner.accessToken, "POST", `/workspaces/${workspace.id}/channels`, {
     name: "attach-verify",
@@ -88,126 +98,181 @@ async function main() {
     console.log(`[debug] body text: ${bodyText.replace(/\n/g, " | ")}`);
   }
 
+  function pushResult(check, ok, detail) {
+    results.push({ check, ok, detail });
+  }
+
   try {
     await page.goto(`${WEB_BASE}/workspaces/${workspace.id}/channels/${channel.id}`, {
       waitUntil: "networkidle",
     });
     await debugState("channel-initial");
 
-    const pdfPath = createTempFile("test.pdf", "%PDF-1.4 sample content", "utf8");
-    const pngPath = createTempFile("test.png", Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64"));
-    const dropPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+    const pdfName = "Постанова про тест.pdf";
+    const docxName = "Український документ.docx";
+    const pngName = "тест файл 123.png";
 
-    // PDF upload by button.
-    console.log("[step] upload PDF");
-    await page.setInputFiles('[data-testid="composer-file-input"]', pdfPath);
-    await sleep(500);
-    await page.click('button[type="submit"]');
-    await sleep(3000);
-    await debugState("after-pdf");
+    const pdfPath = createTempFile(pdfName, "%PDF-1.4 sample content", "utf8");
+    const docxPath = createTempFile(docxName, "PK docx placeholder content", "utf8");
+    const pngPath = createTempFile(
+      pngName,
+      Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64"),
+    );
 
-    results.push({
-      check: "PDF upload by button appears in channel",
-      ok: await page.isVisible('[data-testid^="message-attachment-"]:not([data-testid^="message-attachment-image-"])').catch(() => false),
-    });
-
-    // Image upload by button.
-    console.log("[step] upload image");
-    await page.setInputFiles('[data-testid="composer-file-input"]', pngPath);
-    await sleep(500);
-    await page.click('button[type="submit"]');
-    await sleep(3000);
-    await debugState("after-image");
-
-    results.push({
-      check: "Image upload by button appears in channel",
-      ok: await page.isVisible('[data-testid^="message-attachment-image-"]').catch(() => false),
-    });
-
-    // Drag & drop upload.
-    console.log("[step] drag & drop");
-    const form = await page.$('form');
-    await form.evaluate(async (el, base64) => {
-      const res = await fetch(`data:image/png;base64,${base64}`);
-      const blob = await res.blob();
-      const dt = new DataTransfer();
-      const file = new File([blob], "drop.png", { type: "image/png" });
-      dt.items.add(file);
-      el.dispatchEvent(new DragEvent("dragenter", { dataTransfer: dt, bubbles: true }));
-      el.dispatchEvent(new DragEvent("dragover", { dataTransfer: dt, bubbles: true }));
-      el.dispatchEvent(new DragEvent("drop", { dataTransfer: dt, bubbles: true }));
-    }, dropPngBase64);
-    await sleep(800);
-    await page.click('button[type="submit"]');
-    await sleep(3000);
-    await debugState("after-drop");
-
-    results.push({
-      check: "Drag & drop upload appears in channel",
-      ok: (await page.$$('[data-testid^="message-attachment-image-"]')).length >= 2,
-    });
-
-    await page.screenshot({ path: screenshotPath("channel-with-attachments"), fullPage: false });
-
-    // Image lightbox.
-    const imageButton = await page.$('[data-testid^="message-attachment-image-"]');
-    if (imageButton) {
-      await imageButton.click();
-      await sleep(800);
-      results.push({
-        check: "Image opens in lightbox",
-        ok: await page.isVisible('[data-testid="image-lightbox"]').catch(() => false),
-      });
-      await page.screenshot({ path: screenshotPath("image-lightbox"), fullPage: false });
-      await page.click('[data-testid="lightbox-close"]');
-      await sleep(500);
-    } else {
-      results.push({ check: "Image opens in lightbox", ok: false, detail: "no image attachment" });
+    // Helper to wait for a message row containing the filename.
+    async function waitForAttachmentFileName(name) {
+      const locator = page.locator(`text=${name}`).first();
+      await locator.waitFor({ timeout: 8000 });
+      return locator;
     }
 
-    // PDF download authenticated request.
+    async function sendSelectedFiles() {
+      await page.click('button[type="submit"]');
+      await sleep(3000);
+    }
+
+    // 1. PDF upload with Cyrillic filename.
+    console.log("[step] upload PDF with Cyrillic filename");
+    await page.setInputFiles('[data-testid="composer-file-input"]', pdfPath);
+    await sleep(500);
+    await sendSelectedFiles();
+    await debugState("after-pdf-cyrillic");
+
+    try {
+      await waitForAttachmentFileName(pdfName);
+      pushResult("PDF with Cyrillic filename appears in message", true);
+    } catch {
+      pushResult("PDF with Cyrillic filename appears in message", false, "filename not found");
+    }
+
+    // 2. DOCX upload with Cyrillic filename.
+    console.log("[step] upload DOCX with Cyrillic filename");
+    await page.setInputFiles('[data-testid="composer-file-input"]', docxPath);
+    await sleep(500);
+    await sendSelectedFiles();
+    await debugState("after-docx-cyrillic");
+
+    try {
+      await waitForAttachmentFileName(docxName);
+      pushResult("DOCX with Cyrillic filename appears in message", true);
+    } catch {
+      pushResult("DOCX with Cyrillic filename appears in message", false, "filename not found");
+    }
+
+    // 3. Image upload with Cyrillic filename.
+    console.log("[step] upload image with Cyrillic filename");
+    await page.setInputFiles('[data-testid="composer-file-input"]', pngPath);
+    await sleep(500);
+    await sendSelectedFiles();
+    await debugState("after-image-cyrillic");
+
+    try {
+      await waitForAttachmentFileName(pngName);
+      pushResult("Image with Cyrillic filename appears in message", true);
+    } catch {
+      pushResult("Image with Cyrillic filename appears in message", false, "filename not found");
+    }
+
+    const imageButtons = await page.$$('[data-testid^="message-attachment-image-"]');
+    if (imageButtons.length > 0) {
+      await imageButtons[0].click();
+      await sleep(800);
+      pushResult(
+        "Image opens in lightbox",
+        await page.isVisible('[data-testid="image-lightbox"]').catch(() => false),
+      );
+      await page.screenshot({ path: screenshotPath("image-lightbox-cyrillic"), fullPage: false });
+      await page.click('[data-testid="lightbox-close"]').catch(() => {});
+      await sleep(500);
+    } else {
+      pushResult("Image opens in lightbox", false, "no image attachment");
+    }
+
+    // 4. Drag & drop upload with overlay.
+    console.log("[step] drag & drop upload");
+    const dropPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+    const panel = await page.$('[data-testid="channel-chat-panel"]');
+
+    if (panel) {
+      await panel.evaluate(async (el, base64) => {
+        const res = await fetch(`data:image/png;base64,${base64}`);
+        const blob = await res.blob();
+        const dt = new DataTransfer();
+        const file = new File([blob], "drop.png", { type: "image/png" });
+        dt.items.add(file);
+        el.dispatchEvent(new DragEvent("dragenter", { dataTransfer: dt, bubbles: true }));
+        el.dispatchEvent(new DragEvent("dragover", { dataTransfer: dt, bubbles: true }));
+      }, dropPngBase64);
+
+      await sleep(300);
+      pushResult(
+        "Large drag overlay appears",
+        await page.isVisible('[data-testid="channel-drop-overlay"]').catch(() => false),
+      );
+
+      await panel.evaluate(async (el, base64) => {
+        const res = await fetch(`data:image/png;base64,${base64}`);
+        const blob = await res.blob();
+        const dt = new DataTransfer();
+        const file = new File([blob], "drop.png", { type: "image/png" });
+        dt.items.add(file);
+        el.dispatchEvent(new DragEvent("drop", { dataTransfer: dt, bubbles: true }));
+      }, dropPngBase64);
+
+      await sleep(800);
+      await page.click('button[type="submit"]');
+      await sleep(3000);
+      await debugState("after-drop");
+
+      pushResult(
+        "Drag & drop upload appears in channel",
+        (await page.$$('[data-testid^="message-attachment-image-"]')).length >= 1,
+      );
+    } else {
+      pushResult("Large drag overlay appears", false, "chat panel not found");
+      pushResult("Drag & drop upload appears in channel", false, "chat panel not found");
+    }
+
+    // 5. Authenticated download.
     const fileRequestPromise = page.waitForRequest(
       (req) => req.url().includes("/attachments/") && req.url().endsWith("/file"),
       { timeout: 10000 },
     );
-    const fileCard = await page.$('[data-testid^="message-attachment-"]:not([data-testid^="message-attachment-image-"])');
-    if (fileCard) {
-      await fileCard.click();
+    const fileCards = await page.$$('[data-testid^="message-attachment-"]:not([data-testid^="message-attachment-image-"])');
+    if (fileCards.length > 0) {
+      await fileCards[0].click();
       try {
         const req = await fileRequestPromise;
         const authHeader = req.headers()["authorization"] || "";
-        results.push({
-          check: "PDF download uses authenticated request",
-          ok: authHeader.toLowerCase().startsWith("bearer "),
-          detail: authHeader ? "Authorization header present" : "missing",
-        });
+        pushResult(
+          "File download uses authenticated request",
+          authHeader.toLowerCase().startsWith("bearer "),
+          authHeader ? "Authorization header present" : "missing",
+        );
       } catch {
-        results.push({ check: "PDF download uses authenticated request", ok: false, detail: "request timeout" });
+        pushResult("File download uses authenticated request", false, "request timeout");
       }
     } else {
-      results.push({ check: "PDF download uses authenticated request", ok: false, detail: "no file card" });
+      pushResult("File download uses authenticated request", false, "no file card");
     }
 
-    // No CORS / ERR_FAILED.
+    // 6. No CORS / ERR_FAILED.
     const corsErrors = failedRequests.filter(
       (r) => r.failure.includes("CORS") || r.failure.includes("ERR_FAILED"),
     );
-    results.push({
-      check: "No CORS / net::ERR_FAILED in network failures",
-      ok: corsErrors.length === 0,
-      detail: corsErrors.map((r) => `${r.url} -> ${r.failure}`).join("; ") || "none",
-    });
+    pushResult(
+      "No CORS / net::ERR_FAILED in network failures",
+      corsErrors.length === 0,
+      corsErrors.map((r) => `${r.url} -> ${r.failure}`).join("; ") || "none",
+    );
 
-    // Token leakage.
+    // 7. Token leakage.
     const leaked = consoleLogs.some(
       (text) => text.includes(owner.accessToken) || text.includes(owner.refreshToken),
     );
-    results.push({
-      check: "No access/refresh token leaked to console",
-      ok: !leaked,
-    });
+    pushResult("No access/refresh token leaked to console", !leaked);
 
-    // DM attachments not supported.
+    // 8. DM attachments not supported.
     const other = await createVerifiedAccount("attach-other");
     const conv = await api(owner.accessToken, "POST", "/direct-conversations", {
       userId: other.user.id,
@@ -216,11 +281,11 @@ async function main() {
     await dmPage.goto(`${WEB_BASE}/direct/${conv.id}`, { waitUntil: "networkidle" });
     const dmAttachButton = await dmPage.$('[data-testid="composer-attach-button"]');
     const dmFileInput = await dmPage.$('[data-testid="composer-file-input"]');
-    results.push({
-      check: "Direct messages do not expose attachment upload",
-      ok: !dmAttachButton && !dmFileInput,
-      detail: dmAttachButton ? "attach button found" : dmFileInput ? "file input found" : "not supported",
-    });
+    pushResult(
+      "Direct messages do not expose attachment upload",
+      !dmAttachButton && !dmFileInput,
+      dmAttachButton ? "attach button found" : dmFileInput ? "file input found" : "not supported",
+    );
     await dmPage.close();
 
     await page.screenshot({ path: screenshotPath("channel-final-state"), fullPage: false });

@@ -321,6 +321,7 @@ export type TranslationKey =
   | "channel.attachmentReady"
   | "channel.attachmentUploaded"
   | "channel.errorAttachmentUploadFailed"
+  | "channel.dropFilesHere"
   | "channel.lightboxTitle"
   | "channel.lightboxClose"
   | "channel.lightboxPrevious"
@@ -782,6 +783,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.attachmentReady": "Ready",
     "channel.attachmentUploaded": "Uploaded",
     "channel.errorAttachmentUploadFailed": "Attachment upload failed. Please try again.",
+    "channel.dropFilesHere": "Drop file here to upload",
     "channel.lightboxTitle": "Image preview",
     "channel.lightboxClose": "Close preview",
     "channel.lightboxPrevious": "Previous image",
@@ -1267,6 +1269,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.attachmentReady": "Готово",
     "channel.attachmentUploaded": "Завантажено",
     "channel.errorAttachmentUploadFailed": "Не вдалося завантажити вкладення. Спробуйте ще раз.",
+    "channel.dropFilesHere": "Перетягніть файл сюди для завантаження",
     "channel.lightboxTitle": "Перегляд зображення",
     "channel.lightboxClose": "Закрити перегляд",
     "channel.lightboxPrevious": "Попереднє зображення",
@@ -1752,6 +1755,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.attachmentReady": "Готово",
     "channel.attachmentUploaded": "Загружено",
     "channel.errorAttachmentUploadFailed": "Не удалось загрузить вложение. Попробуйте ещё раз.",
+    "channel.dropFilesHere": "Перетащите файл сюда для загрузки",
     "channel.lightboxTitle": "Просмотр изображения",
     "channel.lightboxClose": "Закрыть просмотр",
     "channel.lightboxPrevious": "Предыдущее изображение",

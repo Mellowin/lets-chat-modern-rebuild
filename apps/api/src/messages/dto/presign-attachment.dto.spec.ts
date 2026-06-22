@@ -24,6 +24,25 @@ describe('PresignAttachmentDto', () => {
     expect(errors).toHaveLength(0);
   });
 
+  it('passes with valid Word .doc MIME type', async () => {
+    const dto = createDto({
+      mimeType: 'application/msword',
+      filename: 'document.doc',
+    });
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(0);
+  });
+
+  it('passes with valid Word .docx MIME type', async () => {
+    const dto = createDto({
+      mimeType:
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      filename: 'document.docx',
+    });
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(0);
+  });
+
   it('fails with unsupported MIME type', async () => {
     const dto = createDto({ mimeType: 'application/zip' });
     const errors = await validate(dto);

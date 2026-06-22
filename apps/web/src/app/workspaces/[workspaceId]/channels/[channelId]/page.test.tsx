@@ -3491,53 +3491,54 @@ describe("ChannelDetailPage — forward", () => {
       expect(screen.queryByTestId("composer-attachment-preview-0")).not.toBeInTheDocument();
     });
 
-    it("drag-over shows visual drag state", async () => {
+    it("drag-over shows large visual drop overlay over chat panel", async () => {
       mockChannelAndMessages([], []);
       render(<ChannelDetailPage />);
       await waitFor(() => {
-        expect(screen.getByTestId("composer-attach-button")).toBeInTheDocument();
+        expect(screen.getByTestId("channel-chat-panel")).toBeInTheDocument();
       });
 
-      const form = screen.getByTestId("composer-attach-button").closest("form")!;
-      fireEvent.dragEnter(form, { dataTransfer: { types: ["Files"] } });
+      const panel = screen.getByTestId("channel-chat-panel");
+      fireEvent.dragEnter(panel, { dataTransfer: { types: ["Files"] } });
 
       await waitFor(() => {
-        expect(screen.getByTestId("composer-drag-overlay")).toBeInTheDocument();
+        expect(screen.getByTestId("channel-drop-overlay")).toBeInTheDocument();
       });
+      expect(screen.getByText("Drop file here to upload")).toBeInTheDocument();
 
-      fireEvent.dragLeave(form);
+      fireEvent.dragLeave(panel);
 
       await waitFor(() => {
-        expect(screen.queryByTestId("composer-drag-overlay")).not.toBeInTheDocument();
+        expect(screen.queryByTestId("channel-drop-overlay")).not.toBeInTheDocument();
       });
     });
 
-    it("dropping valid image adds preview", async () => {
+    it("dropping valid image on chat panel adds preview", async () => {
       mockChannelAndMessages([], []);
       render(<ChannelDetailPage />);
       await waitFor(() => {
-        expect(screen.getByTestId("composer-attach-button")).toBeInTheDocument();
+        expect(screen.getByTestId("channel-chat-panel")).toBeInTheDocument();
       });
 
       const file = new File(["content"], "drop.png", { type: "image/png" });
-      const form = screen.getByTestId("composer-attach-button").closest("form")!;
-      fireEvent.drop(form, { dataTransfer: { files: [file] } });
+      const panel = screen.getByTestId("channel-chat-panel");
+      fireEvent.drop(panel, { dataTransfer: { files: [file] } });
 
       await waitFor(() => {
         expect(screen.getByTestId("composer-attachment-preview-0")).toBeInTheDocument();
       });
     });
 
-    it("dropping invalid MIME shows error", async () => {
+    it("dropping invalid MIME on chat panel shows error", async () => {
       mockChannelAndMessages([], []);
       render(<ChannelDetailPage />);
       await waitFor(() => {
-        expect(screen.getByTestId("composer-attach-button")).toBeInTheDocument();
+        expect(screen.getByTestId("channel-chat-panel")).toBeInTheDocument();
       });
 
       const file = new File(["content"], "evil.exe", { type: "application/x-msdownload" });
-      const form = screen.getByTestId("composer-attach-button").closest("form")!;
-      fireEvent.drop(form, { dataTransfer: { files: [file] } });
+      const panel = screen.getByTestId("channel-chat-panel");
+      fireEvent.drop(panel, { dataTransfer: { files: [file] } });
 
       await waitFor(() => {
         expect(screen.getByText("Invalid file type")).toBeInTheDocument();
@@ -3546,16 +3547,16 @@ describe("ChannelDetailPage — forward", () => {
       expect(screen.queryByTestId("composer-attachment-preview-0")).not.toBeInTheDocument();
     });
 
-    it("dropping more than 5 files rejects extras and shows error", async () => {
+    it("dropping more than 5 files on chat panel rejects extras and shows error", async () => {
       mockChannelAndMessages([], []);
       render(<ChannelDetailPage />);
       await waitFor(() => {
-        expect(screen.getByTestId("composer-attach-button")).toBeInTheDocument();
+        expect(screen.getByTestId("channel-chat-panel")).toBeInTheDocument();
       });
 
       const files = Array.from({ length: 6 }, (_, i) => new File(["c"], `f${i}.txt`, { type: "text/plain" }));
-      const form = screen.getByTestId("composer-attach-button").closest("form")!;
-      fireEvent.drop(form, { dataTransfer: { files } });
+      const panel = screen.getByTestId("channel-chat-panel");
+      fireEvent.drop(panel, { dataTransfer: { files } });
 
       await waitFor(() => {
         expect(screen.getByText("Maximum 5 attachments allowed")).toBeInTheDocument();
@@ -3563,17 +3564,17 @@ describe("ChannelDetailPage — forward", () => {
       expect(screen.queryByTestId("composer-attachment-chip-0")).not.toBeInTheDocument();
     });
 
-    it("dropping mixed valid and invalid files adds valid and shows error", async () => {
+    it("dropping mixed valid and invalid files on chat panel adds valid and shows error", async () => {
       mockChannelAndMessages([], []);
       render(<ChannelDetailPage />);
       await waitFor(() => {
-        expect(screen.getByTestId("composer-attach-button")).toBeInTheDocument();
+        expect(screen.getByTestId("channel-chat-panel")).toBeInTheDocument();
       });
 
       const validFile = new File(["c"], "valid.txt", { type: "text/plain" });
       const invalidFile = new File(["c"], "evil.exe", { type: "application/x-msdownload" });
-      const form = screen.getByTestId("composer-attach-button").closest("form")!;
-      fireEvent.drop(form, { dataTransfer: { files: [validFile, invalidFile] } });
+      const panel = screen.getByTestId("channel-chat-panel");
+      fireEvent.drop(panel, { dataTransfer: { files: [validFile, invalidFile] } });
 
       await waitFor(() => {
         expect(screen.getByTestId("composer-attachment-chip-0")).toBeInTheDocument();
@@ -4314,5 +4315,190 @@ describe("ChannelDetailPage — message context mode", () => {
     expect(screen.getByText("first")).toBeInTheDocument();
     expect(screen.getByText("second")).toBeInTheDocument();
     expect(screen.queryByText("old message")).not.toBeInTheDocument();
+  });
+});
+
+
+describe("ChannelDetailPage — attachments", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.setItem("accessToken", "token");
+    vi.clearAllMocks();
+    socketOnMock.mockReset();
+    socketEmitMock.mockReset();
+    socketDisconnectMock.mockReset();
+    Object.keys(socketHandlers).forEach((k) => delete socketHandlers[k]);
+    window.alert = vi.fn();
+  });
+
+  const docxFile = new File(
+    ["docx-content"],
+    "document.docx",
+    { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" },
+  );
+
+  it("accepts DOCX file selection and includes it in message send", async () => {
+    mockChannelAndMessages([]);
+    vi.mocked(createMessage).mockResolvedValueOnce({
+      id: "m1",
+      channelId: "ch1",
+      content: "",
+      parentId: null,
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      editedAt: null,
+      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      reactions: [],
+      attachments: [
+        {
+          id: "a1",
+          fileName: "document.docx",
+          mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          sizeBytes: docxFile.size,
+          kind: "file",
+          createdAt: "2024-01-01T00:00:00Z",
+        },
+      ],
+    });
+
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByTestId("composer-file-input")).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByTestId("composer-file-input"), {
+      target: { files: [docxFile] },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("document.docx")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Send/i }));
+
+    await waitFor(() => {
+      expect(createMessage).toHaveBeenCalled();
+    });
+
+    const input = vi.mocked(createMessage).mock.calls[0][3];
+    expect(input.attachments).toHaveLength(1);
+    expect(input.attachments?.[0].fileName).toBe("document.docx");
+  });
+
+  it("shows localized error for unsupported file type", async () => {
+    mockChannelAndMessages([]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByTestId("composer-file-input")).toBeInTheDocument();
+    });
+
+    const exeFile = new File(["exe"], "evil.exe", { type: "application/x-msdownload" });
+    fireEvent.change(screen.getByTestId("composer-file-input"), {
+      target: { files: [exeFile] },
+    });
+
+    expect(await screen.findByText(/Invalid file type/i)).toBeInTheDocument();
+  });
+
+  it("shows Ukrainian error for unsupported file type", async () => {
+    localStorage.setItem("lets-chat:locale", "uk");
+    mockChannelAndMessages([]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByTestId("composer-file-input")).toBeInTheDocument();
+    });
+
+    const exeFile = new File(["exe"], "evil.exe", { type: "application/x-msdownload" });
+    fireEvent.change(screen.getByTestId("composer-file-input"), {
+      target: { files: [exeFile] },
+    });
+
+    expect(await screen.findByText(/Неприпустимий тип файлу/i)).toBeInTheDocument();
+  });
+
+  it("shows Russian error for unsupported file type", async () => {
+    localStorage.setItem("lets-chat:locale", "ru");
+    mockChannelAndMessages([]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByTestId("composer-file-input")).toBeInTheDocument();
+    });
+
+    const exeFile = new File(["exe"], "evil.exe", { type: "application/x-msdownload" });
+    fireEvent.change(screen.getByTestId("composer-file-input"), {
+      target: { files: [exeFile] },
+    });
+
+    expect(await screen.findByText(/Недопустимый тип файла/i)).toBeInTheDocument();
+  });
+
+  it("renders sent attachment with Cyrillic filename", async () => {
+    mockChannelAndMessages([
+      {
+        id: "m1",
+        channelId: "ch1",
+        content: "",
+        parentId: null,
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+        reactions: [],
+        attachments: [
+          {
+            id: "a1",
+            fileName: "Постанова про тест.pdf",
+            mimeType: "application/pdf",
+            sizeBytes: 1234,
+            kind: "file",
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        ],
+      },
+    ]);
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Постанова про тест.pdf")).toBeInTheDocument();
+    });
+  });
+
+  it("downloads file attachment using authenticated fetch", async () => {
+    mockChannelAndMessages([
+      {
+        id: "m1",
+        channelId: "ch1",
+        content: "",
+        parentId: null,
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+        reactions: [],
+        attachments: [
+          {
+            id: "a1",
+            fileName: "doc.pdf",
+            mimeType: "application/pdf",
+            sizeBytes: 1234,
+            kind: "file",
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        ],
+      },
+    ]);
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("message-attachment-m1-a1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("message-attachment-m1-a1"));
+
+    await waitFor(() => {
+      expect(fetchAttachmentFile).toHaveBeenCalledWith("token", "ws1", "ch1", "m1", "a1");
+    });
   });
 });

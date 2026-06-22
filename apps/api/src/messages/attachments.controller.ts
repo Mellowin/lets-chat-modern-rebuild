@@ -20,7 +20,10 @@ import {
   ApiUnauthorizedResponse,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
-import { AttachmentsService } from './attachments.service';
+import {
+  AttachmentsService,
+  encodeContentDisposition,
+} from './attachments.service';
 import { CompleteAttachmentResponseDto } from './dto/complete-attachment-response.dto';
 import { AttachmentDownloadResponseDto } from './dto/attachment-download-response.dto';
 import { AttachmentDownloadUrlResponseDto } from './dto/attachment-download-url-response.dto';
@@ -143,12 +146,11 @@ export class AttachmentsController {
     }
     res.setHeader(
       'Content-Disposition',
-      `inline; filename="${file.filename.replace(/"/g, "'")}"`,
+      encodeContentDisposition(file.filename),
     );
 
     return new StreamableFile(file.body, {
       type: file.mimeType,
-      disposition: `inline; filename="${file.filename.replace(/"/g, "'")}"`,
     });
   }
 }

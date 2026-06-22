@@ -20,6 +20,27 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
+export function decodeMultipartFilename(originalname: string): string {
+  const hasLatin1Mojibake = [...originalname].some((char) => {
+    const code = char.charCodeAt(0);
+    return code >= 0x80 && code <= 0xff;
+  });
+  if (hasLatin1Mojibake) {
+    return Buffer.from(originalname, 'latin1').toString('utf8');
+  }
+  return originalname;
+}
+
+export function sanitizeStorageFilename(filename: string): string {
+  return filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+}
+
+export function encodeContentDisposition(filename: string): string {
+  const asciiFallback = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const utf8 = encodeURIComponent(filename);
+  return `inline; filename="${asciiFallback}"; filename*=UTF-8''${utf8}`;
+}
+
 function isAwsNotFoundError(error: unknown): boolean {
   if (!isRecord(error)) return false;
   if (error.name === 'NotFound') return true;
@@ -68,7 +89,7 @@ export class AttachmentsService {
       throw new BadRequestException('File exceeds maximum size of 10 MB');
     }
 
-    const sanitized = dto.filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const sanitized = sanitizeStorageFilename(dto.filename);
     const storageKey = `attachments/${userId}/${randomUUID()}-${sanitized}`;
 
     const { uploadUrl, expiresInSeconds } =
@@ -94,14 +115,15 @@ export class AttachmentsService {
     await this.channels.findById(workspaceId, channelId, userId);
     this.validateAttachmentFile(file);
 
-    const sanitized = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const decodedOriginalName = decodeMultipartFilename(file.originalname);
+    const sanitized = sanitizeStorageFilename(decodedOriginalName);
     const storageKey = `attachments/${userId}/${randomUUID()}-${sanitized}`;
 
     await this.storage.putObject(storageKey, file.buffer, file.mimetype);
 
     return {
       storageKey,
-      fileName: file.originalname,
+      fileName: decodedOriginalName,
       mimeType: file.mimetype,
       sizeBytes: file.size,
       kind: classifyAttachmentKind(file.mimetype),

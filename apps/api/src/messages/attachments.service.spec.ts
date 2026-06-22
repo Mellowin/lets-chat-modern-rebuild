@@ -127,6 +127,31 @@ describe('AttachmentsService', () => {
       expect(result.kind).toBe('file');
     });
 
+    it('returns kind file for a valid DOCX', async () => {
+      channelsService.findById.mockResolvedValue(undefined as never);
+      storageService.getPresignedUploadUrl.mockResolvedValue({
+        uploadUrl: 'http://minio/upload',
+        objectKey:
+          'attachments/11111111-1111-1111-1111-111111111111/uuid-doc.docx',
+        expiresInSeconds: 300,
+      });
+
+      const result = await service.prepareUpload(
+        workspaceId,
+        channelId,
+        {
+          filename: 'document.docx',
+          mimeType:
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          sizeBytes: 1024,
+        },
+        userId,
+      );
+
+      expect(result.kind).toBe('file');
+      expect(result.fileName).toBe('document.docx');
+    });
+
     it('throws BadRequest for unsupported MIME and does not call storage', async () => {
       channelsService.findById.mockResolvedValue(undefined as never);
 
@@ -276,6 +301,52 @@ describe('AttachmentsService', () => {
 
       expect(result.kind).toBe('file');
       expect(result.mimeType).toBe('application/pdf');
+    });
+
+    it('uploads a valid DOCX and returns kind file', async () => {
+      channelsService.findById.mockResolvedValue(undefined as never);
+      storageService.putObject.mockResolvedValue(undefined);
+
+      const result = await service.uploadFile(
+        workspaceId,
+        channelId,
+        makeFile({
+          originalname: 'document.docx',
+          mimetype:
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          size: 1024,
+        }),
+        userId,
+      );
+
+      expect(result.kind).toBe('file');
+      expect(result.mimeType).toBe(
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      );
+    });
+
+    it('preserves Cyrillic filename decoded from multipart latin1 mojibake', async () => {
+      channelsService.findById.mockResolvedValue(undefined as never);
+      storageService.putObject.mockResolvedValue(undefined);
+
+      const cyrillicName = 'Постанова про тест.pdf';
+      const latin1Mojibake = Buffer.from(cyrillicName, 'utf8').toString(
+        'latin1',
+      );
+
+      const result = await service.uploadFile(
+        workspaceId,
+        channelId,
+        makeFile({
+          originalname: latin1Mojibake,
+          mimetype: 'application/pdf',
+          size: 5678,
+        }),
+        userId,
+      );
+
+      expect(result.fileName).toBe(cyrillicName);
+      expect(result.storageKey).not.toContain(cyrillicName);
     });
 
     it('throws BadRequest for unsupported MIME and does not call storage', async () => {
