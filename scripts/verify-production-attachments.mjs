@@ -264,6 +264,15 @@ async function main() {
       }
     }
 
+    async function waitForComposerEmpty(timeout = 30000) {
+      const start = Date.now();
+      while (Date.now() - start < timeout) {
+        if ((await countComposerAttachments()) === 0) return;
+        await sleep(500);
+      }
+      throw new Error("Composer attachments did not clear after send");
+    }
+
     // 1. PDF upload with Cyrillic filename.
     console.log("[step] upload PDF with Cyrillic filename");
     await page.setInputFiles('[data-testid="composer-file-input"]', pdfPath);
@@ -480,6 +489,7 @@ async function main() {
     await page.setInputFiles('[data-testid="composer-file-input"]', largePdfPath);
     await sleep(500);
     await sendSelectedFiles();
+    await waitForComposerEmpty();
     await debugState("after-large-pdf");
 
     try {
@@ -493,6 +503,7 @@ async function main() {
     await page.setInputFiles('[data-testid="composer-file-input"]', largeMp4Path);
     await sleep(500);
     await sendSelectedFiles();
+    await waitForComposerEmpty();
     await debugState("after-large-mp4");
 
     try {
