@@ -36,9 +36,18 @@ function screenshotPath(name) {
 function createTempFile(name, content, encoding = "utf8") {
   const dir = tmpdir();
   const path = join(dir, name);
-  writeFileSync(path, content, encoding);
+  if (Buffer.isBuffer(content)) {
+    writeFileSync(path, content);
+  } else {
+    writeFileSync(path, content, encoding);
+  }
   return path;
 }
+
+// Minimal valid DOCX (ZIP with required OOXML parts) so server-side magic-byte validation passes.
+const MIN_DOCX_BASE64 =
+  "UEsDBBQAAAAIAC2k1lx5bjPX6AAAAK0BAAATAAAAW0NvbnRlbnRfVHlwZXNdLnhtbH1QyU7DMBD9FWuuKHHggBCK0wPLETiUDxjZk8SqN3nc0v49Tlt6QIXjzFv1+tXeO7GjzDYGBbdtB4KCjsaGScHn+rV5AMEFg0EXAyk4EMNq6NeHRCyqNrCCuZT0KCXrmTxyGxOFiowxeyz1zJNMqDc4kbzrunupYygUSlMWDxj6Zxpx64p42df3qUcmxyCeTsQlSwGm5KzGUnG5C+ZXSnNOaKvyyOHZJr6pBJBXExbk74Cz7r0Ok60h8YG5vKGvLPkVs5Em6q2vyvZ/mys94zhaTRf94pZy1MRcF/euvSAebfjpL49zD99QSwMEFAAAAAgALaTWXJv9N+qtAAAAKQEAAAsAAABfcmVscy8ucmVsc43POw7CMAwG4KtE3mlaBoRQ0y4IqSsqB7ASN61oHkrCo7cnAwNFDIy2f3+W6/ZpZnanECdnBVRFCYysdGqyWsClP232wGJCq3B2lgQsFKFt6jPNmPJKHCcfWTZsFDCm5A+cRzmSwVg4TzZPBhcMplwGzT3KK2ri27Lc8fBpwNpknRIQOlUB6xdP/9huGCZJRydvhmz6ceIrkWUMmpKAhwuKq3e7yCzwpuarF5sXUEsDBBQAAAAIAC2k1lzp+cGTewAAAJsAAAAcAAAAd29yZC9fcmVscy9kb2N1bWVudC54bWwucmVsc1XMQQ4CIQyF4auQ7h3QhTEGmJ0HMHqAZqYCkSmEEqO3l6UuX/68z87vLasXNUmFHewnA4p4KWvi4OB+u+xOoKQjr5gLk4MPCczeXiljHxeJqYoaBouD2Hs9ay1LpA1lKpV4lEdpG/YxW9AVlycG0gdjjrr9GuCt/kP9F1BLAwQUAAAACAAtpNZcQtZan5oAAADOAAAAEQAAAHdvcmQvZG9jdW1lbnQueG1sRY5BDsIgEEWvQmZvqS6MaUrdGQ+gB0AY2yYwQwCtvb1QF27en8n8vEx//ngn3hjTzKRg37QgkAzbmUYF99tldwKRsiarHRMqWDHBeeiXzrJ5eaQsioBStyiYcg6dlMlM6HVqOCCV25Oj17mscZQLRxsiG0yp+L2Th7Y9Sq9ngqp8sF1rhopYkYcrOse9rGNl3Bg2/ury/8rwBVBLAQIUABQAAAAIAC2k1lx5bjPX6AAAAK0BAAATAAAAAAAAAAAAAACAAQAAAABbQ29udGVudF9UeXBlc10ueG1sUEsBAhQAFAAAAAgALaTWXJv9N+qtAAAAKQEAAAsAAAAAAAAAAAAAAIABGQEAAF9yZWxzLy5yZWxzUEsBAhQAFAAAAAgALaTWXOn5wZN7AAAAmwAAABwAAAAAAAAAAAAAAIAB7wEAAHdvcmQvX3JlbHMvZG9jdW1lbnQueG1sLnJlbHNQSwECFAAUAAAACAAtpNZcQtZan5oAAADOAAAAEQAAAAAAAAAAAAAAgAGkAgAAd29yZC9kb2N1bWVudC54bWxQSwUGAAAAAAQABAADAQAAbQMAAAAA";
+
 
 async function main() {
   console.log("=== Production Attachment Verification (B204B) ===\n");
@@ -113,16 +122,23 @@ async function main() {
     const pngName = "тест файл 123.png";
 
     const pdfPath = createTempFile(pdfName, "%PDF-1.4 sample content", "utf8");
-    const docxPath = createTempFile(docxName, "PK docx placeholder content", "utf8");
+    const docxPath = createTempFile(docxName, Buffer.from(MIN_DOCX_BASE64, "base64"));
     const pngPath = createTempFile(
       pngName,
       Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64"),
     );
 
-    // Helper to wait for a message row containing the filename.
+    // Helper to wait for a non-image attachment filename in a message row.
     async function waitForAttachmentFileName(name) {
       const locator = page.locator(`text=${name}`).first();
       await locator.waitFor({ timeout: 8000 });
+      return locator;
+    }
+
+    // Helper to wait for an image attachment to finish loading (alt text is set on the <img>).
+    async function waitForImageAttachment(name) {
+      const locator = page.locator(`[data-testid^="message-attachment-image-"] img[alt="${name}"]`).first();
+      await locator.waitFor({ timeout: 15000 });
       return locator;
     }
 
@@ -167,13 +183,13 @@ async function main() {
     await debugState("after-image-cyrillic");
 
     try {
-      await waitForAttachmentFileName(pngName);
+      await waitForImageAttachment(pngName);
       pushResult("Image with Cyrillic filename appears in message", true);
     } catch {
       pushResult("Image with Cyrillic filename appears in message", false, "filename not found");
     }
 
-    const imageButtons = await page.$$('[data-testid^="message-attachment-image-"]');
+    const imageButtons = await page.locator('[data-testid^="message-attachment-image-"]').all();
     if (imageButtons.length > 0) {
       await imageButtons[0].click();
       await sleep(800);
@@ -222,11 +238,16 @@ async function main() {
       await sleep(800);
       await page.click('button[type="submit"]');
       await sleep(3000);
+      try {
+        await waitForImageAttachment("drop.png");
+      } catch {
+        // fall through; the assertion below will report the failure
+      }
       await debugState("after-drop");
 
       pushResult(
         "Drag & drop upload appears in channel",
-        (await page.$$('[data-testid^="message-attachment-image-"]')).length >= 1,
+        (await page.locator('[data-testid^="message-attachment-image-"] img').all()).length >= 1,
       );
     } else {
       pushResult("Large drag overlay appears", false, "chat panel not found");
