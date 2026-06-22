@@ -35,7 +35,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { getChannel, getChannelMembers, removeChannelMember, archiveChannel, leaveChannel, markChannelRead, type Channel, type ChannelMember } from "@/lib/channels-api";
 import { createChannelInvite } from "@/lib/channel-invites-api";
 
-import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, uploadAttachmentViaProxyWithProgress, getAttachmentFileUrl, getMessageContext, type Message, type CreateMessageInput, type UpdateMessageInput, type ReactionSummary, type Attachment, type MessageContextResult, CreateMessageAttachmentInput } from "@/lib/messages-api";
+import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, uploadAttachmentViaProxyWithProgress, fetchAttachmentFile, getAttachmentFileObjectUrl, getMessageContext, type Message, type CreateMessageInput, type UpdateMessageInput, type ReactionSummary, type Attachment, type MessageContextResult, CreateMessageAttachmentInput } from "@/lib/messages-api";
 import { sendDirectMessage, listDirectConversations, type DirectConversation } from "@/lib/direct-conversations-api";
 import { createSocket } from "@/lib/socket-client";
 import { MessageAuthor } from "@/components/MessageAuthor";
@@ -91,8 +91,43 @@ function AttachmentImagePreview({
   accessToken: string;
   onOpen: (att: Attachment) => void;
 }) {
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
-  const url = getAttachmentFileUrl(accessToken, workspaceId, channelId, messageId, attachment.id);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    let createdUrl: string | null = null;
+
+    async function load() {
+      try {
+        const url = await getAttachmentFileObjectUrl(
+          accessToken,
+          workspaceId,
+          channelId,
+          messageId,
+          attachment.id,
+        );
+        if (!cancelled) {
+          createdUrl = url;
+          setObjectUrl(url);
+        } else {
+          URL.revokeObjectURL(url);
+        }
+      } catch {
+        if (!cancelled) setFailed(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void load();
+
+    return () => {
+      cancelled = true;
+      if (createdUrl) URL.revokeObjectURL(createdUrl);
+    };
+  }, [accessToken, workspaceId, channelId, messageId, attachment.id]);
 
   return (
     <button
@@ -101,21 +136,26 @@ function AttachmentImagePreview({
       data-testid={`message-attachment-image-${messageId}-${attachment.id}`}
       className="block w-fit max-w-full rounded-lg border border-border bg-muted/50 p-1 text-left hover:bg-accent/50 transition-colors"
     >
-      {!failed ? (
-        /* eslint-disable-next-line @next/next/no-img-element -- attachment file is streamed through the API proxy */
-        <img
-          src={url}
-          alt={attachment.fileName}
-          draggable={false}
-          className="pointer-events-none max-h-48 rounded-md object-cover"
-          onError={() => setFailed(true)}
-        />
-      ) : (
+      {loading ? (
+        <div className="flex items-center gap-2 px-1.5 py-1 text-xs">
+          <Loader2 size={16} className="animate-spin text-muted-foreground" />
+          <span className="text-muted-foreground">Loading…</span>
+        </div>
+      ) : failed || !objectUrl ? (
         <div className="flex items-center gap-2 px-1.5 py-1 text-xs">
           <ImageIcon size={16} className="text-muted-foreground" />
           <span className="truncate font-medium text-foreground">{attachment.fileName}</span>
           <span className="shrink-0 text-muted-foreground">{formatFileSize(attachment.sizeBytes)}</span>
         </div>
+      ) : (
+        /* eslint-disable-next-line @next/next/no-img-element -- attachment file is streamed through the API proxy */
+        <img
+          src={objectUrl}
+          alt={attachment.fileName}
+          draggable={false}
+          className="pointer-events-none max-h-48 rounded-md object-cover"
+          onError={() => setFailed(true)}
+        />
       )}
     </button>
   );
@@ -1188,8 +1228,15 @@ export default function ChannelDetailPage() {
   async function handleDownloadAttachment(msg: Message, att: Attachment) {
     if (!accessToken || !workspaceId || !channelId) return;
     try {
-      const url = getAttachmentFileUrl(accessToken, workspaceId, channelId, msg.id, att.id);
-      window.open(url, "_blank");
+      const blob = await fetchAttachmentFile(accessToken, workspaceId, channelId, msg.id, att.id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = att.fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     } catch (err) {
       const message = err instanceof Error ? err.message : t("channel.errorDownloadFailed");
       alert(message);
@@ -1421,7 +1468,7 @@ export default function ChannelDetailPage() {
         </>
       )}
 
-      <div className="mt-4 flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-border/50 bg-card/95 shadow-md">
+      <div className="mt-4 flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-lg">
         {contextMode.kind === "active" && (
           <div className="shrink-0 border-b border-border/50 bg-muted/60 px-4 py-2">
             <Button
@@ -1546,8 +1593,8 @@ export default function ChannelDetailPage() {
                             }}
                             className={`mt-1 w-fit max-w-full rounded-2xl border px-3 py-2 shadow-sm ${
                               isOwnMessage
-                                ? "bg-gradient-to-br from-indigo-500 to-violet-600 border-indigo-400 text-white shadow-indigo-200 dark:from-indigo-600 dark:to-violet-700 dark:border-indigo-700 dark:shadow-indigo-950/30"
-                                : "bg-card text-foreground border-border/80 shadow-sm"
+                                ? "bg-gradient-to-br from-indigo-600 to-violet-700 border-indigo-500 text-white shadow-indigo-200 dark:from-indigo-600 dark:to-violet-800 dark:border-indigo-700 dark:shadow-indigo-950/30"
+                                : "bg-card text-foreground border-border shadow-sm"
                             }`}
                           >
                           {msg.parentId && (
@@ -1630,7 +1677,7 @@ export default function ChannelDetailPage() {
                               {msg.attachments.map((att) =>
                                 att.kind === "image" ? (
                                   <AttachmentImagePreview
-                                    key={att.id}
+                                    key={`${att.id}-${accessToken}`}
                                     attachment={att}
                                     messageId={msg.id}
                                     workspaceId={workspaceId}
@@ -1697,7 +1744,7 @@ export default function ChannelDetailPage() {
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            className={`relative shrink-0 flex flex-col gap-2 border-t border-indigo-200/60 bg-gradient-to-b from-card to-indigo-50/50 dark:from-card dark:to-indigo-950/20 p-4 shadow-lg ${isDragOver ? "ring-2 ring-inset ring-primary" : ""}`}
+            className={`relative shrink-0 flex flex-col gap-2 border-t border-indigo-300/60 bg-gradient-to-b from-card to-indigo-100/60 dark:from-card dark:to-indigo-950/30 p-4 shadow-lg ${isDragOver ? "ring-2 ring-inset ring-primary" : ""}`}
           >
             {isDragOver && (
               <div data-testid="composer-drag-overlay" className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-primary/5 border-2 border-dashed border-primary backdrop-blur-sm">

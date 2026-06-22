@@ -1,35 +1,35 @@
 @import "tailwindcss";
 
 :root {
-  --background: #eef2f7;
-  --background-highlight: #dbe4ff;
+  --background: #dfe6f0;
+  --background-highlight: #c7d2fe;
   --foreground: #0f172a;
-  --card: #f8faff;
+  --card: #ffffff;
   --card-foreground: #0f172a;
   --popover: #ffffff;
   --popover-foreground: #0f172a;
-  --primary: #4f46e5;
+  --primary: #4338ca;
   --primary-foreground: #ffffff;
-  --secondary: #e0e7ff;
+  --secondary: #dbe4ff;
   --secondary-foreground: #1e1b4b;
-  --muted: #e2e8f0;
-  --muted-foreground: #64748b;
+  --muted: #d6dee9;
+  --muted-foreground: #55627a;
   --accent: #c7d2fe;
   --accent-foreground: #312e81;
-  --destructive: #dc2626;
+  --destructive: #e11d48;
   --destructive-foreground: #ffffff;
-  --border: #c8d0e0;
-  --input: #c8d0e0;
-  --ring: #4f46e5;
-  --header: #0f172a;
+  --border: #b8c2d4;
+  --input: #b8c2d4;
+  --ring: #4338ca;
+  --header: #020617;
   --header-foreground: #f8fafc;
   --header-muted: #94a3b8;
-  --sidebar: #172033;
+  --sidebar: #0b1221;
   --sidebar-foreground: #f1f5f9;
   --sidebar-muted: #94a3b8;
-  --sidebar-accent: #273249;
+  --sidebar-accent: #1e293b;
   --sidebar-accent-foreground: #f8fafc;
-  --sidebar-active: #4f46e5;
+  --sidebar-active: #4338ca;
   --sidebar-active-foreground: #ffffff;
   --radius: 0.625rem;
 }
@@ -75,10 +75,10 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0b1120;
+    --background: #070a14;
     --background-highlight: #1e1b4b;
     --foreground: #f8fafc;
-    --card: #151d2e;
+    --card: #111827;
     --card-foreground: #f8fafc;
     --popover: #1e293b;
     --popover-foreground: #f8fafc;
@@ -90,7 +90,7 @@
     --muted-foreground: #94a3b8;
     --accent: #312e81;
     --accent-foreground: #e0e7ff;
-    --destructive: #ef4444;
+    --destructive: #f43f5e;
     --destructive-foreground: #ffffff;
     --border: #2d3a52;
     --input: #2d3a52;
@@ -98,7 +98,7 @@
     --header: #020617;
     --header-foreground: #f8fafc;
     --header-muted: #94a3b8;
-    --sidebar: #0b1221;
+    --sidebar: #080c16;
     --sidebar-foreground: #f1f5f9;
     --sidebar-muted: #94a3b8;
     --sidebar-accent: #1a2438;
@@ -118,21 +118,21 @@ body {
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
-/* Chat canvas background (Telegram-style green) */
+/* Chat canvas background (stronger Telegram-style green) */
 .chat-canvas {
-  background-color: #e3f0e7;
+  background-color: #c8e6d0;
   background-image:
-    radial-gradient(circle at 25% 25%, rgba(0, 0, 0, 0.04) 1.5px, transparent 2px),
-    radial-gradient(circle at 75% 75%, rgba(0, 0, 0, 0.04) 1.5px, transparent 2px);
+    radial-gradient(circle at 25% 25%, rgba(0, 0, 0, 0.06) 1.5px, transparent 2px),
+    radial-gradient(circle at 75% 75%, rgba(0, 0, 0, 0.06) 1.5px, transparent 2px);
   background-size: 40px 40px;
 }
 
 @media (prefers-color-scheme: dark) {
   .chat-canvas {
-    background-color: #10241a;
+    background-color: #0c261b;
     background-image:
-      radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.05) 1.5px, transparent 2px),
-      radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.05) 1.5px, transparent 2px);
+      radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.07) 1.5px, transparent 2px),
+      radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.07) 1.5px, transparent 2px);
   }
 }
 

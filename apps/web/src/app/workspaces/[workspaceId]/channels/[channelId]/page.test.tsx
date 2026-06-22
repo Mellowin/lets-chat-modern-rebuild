@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import ChannelDetailPage from "./page";
 import { getChannel, getChannelMembers, addChannelMember, removeChannelMember, leaveChannel, archiveChannel, markChannelRead, type ChannelMember } from "@/lib/channels-api";
 import { createChannelInvite } from "@/lib/channel-invites-api";
-import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, uploadAttachmentViaProxyWithProgress, getAttachmentFileUrl, getMessageContext, searchChannelMessages, Message } from "@/lib/messages-api";
+import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, uploadAttachmentViaProxyWithProgress, fetchAttachmentFile, getAttachmentFileObjectUrl, getMessageContext, searchChannelMessages, Message } from "@/lib/messages-api";
 import { sendDirectMessage, listDirectConversations } from "@/lib/direct-conversations-api";
 
 const socketHandlers: Record<string, (...args: unknown[]) => void> = {};
@@ -63,7 +63,8 @@ vi.mock("@/lib/messages-api", () => ({
       kind: file.type.startsWith("image/") ? "image" : "file",
     });
   }),
-  getAttachmentFileUrl: vi.fn(() => "http://api/file"),
+  getAttachmentFileObjectUrl: vi.fn(() => Promise.resolve("http://api/file")),
+  fetchAttachmentFile: vi.fn(() => Promise.resolve(new Blob(["file"], { type: "application/octet-stream" }))),
   getMessageContext: vi.fn(),
   searchChannelMessages: vi.fn(),
 }));
@@ -3177,8 +3178,10 @@ describe("ChannelDetailPage — forward", () => {
 
   describe("attachments", () => {
     afterEach(() => {
-      vi.mocked(getAttachmentFileUrl).mockReset();
-      vi.mocked(getAttachmentFileUrl).mockReturnValue("http://minio/img");
+      vi.mocked(getAttachmentFileObjectUrl).mockReset();
+      vi.mocked(getAttachmentFileObjectUrl).mockResolvedValue("http://minio/img");
+      vi.mocked(fetchAttachmentFile).mockReset();
+      vi.mocked(fetchAttachmentFile).mockResolvedValue(new Blob(["file"], { type: "application/octet-stream" }));
     });
     const ownMessageWithAttachment: Message = {
       ...ownMessage,
@@ -3420,10 +3423,8 @@ describe("ChannelDetailPage — forward", () => {
       expect(screen.getByText("5.5 KB")).toBeInTheDocument();
     });
 
-    it("clicking attachment calls download-url API and opens URL", async () => {
+    it("clicking attachment fetches file blob for download", async () => {
       mockChannelAndMessages([ownMessageWithAttachment], []);
-      vi.mocked(getAttachmentFileUrl).mockReturnValueOnce("http://minio/download");
-      const openMock = vi.spyOn(window, "open").mockImplementation(() => null);
 
       render(<ChannelDetailPage />);
       await waitFor(() => {
@@ -3433,10 +3434,8 @@ describe("ChannelDetailPage — forward", () => {
       await userEvent.click(screen.getByTestId("message-attachment-m1-a1"));
 
       await waitFor(() => {
-        expect(getAttachmentFileUrl).toHaveBeenCalledWith("token", "ws1", "ch1", "m1", "a1");
+        expect(fetchAttachmentFile).toHaveBeenCalledWith("token", "ws1", "ch1", "m1", "a1");
       });
-      expect(openMock).toHaveBeenCalledWith("http://minio/download", "_blank");
-      openMock.mockRestore();
     });
 
     it("selecting image file shows thumbnail preview", async () => {
@@ -3593,7 +3592,7 @@ describe("ChannelDetailPage — forward", () => {
         sizeBytes: 7,
         kind: "image",
       });
-      vi.mocked(getAttachmentFileUrl).mockReturnValue("http://minio/img");
+      vi.mocked(getAttachmentFileObjectUrl).mockResolvedValue("http://minio/img");
       const createdMsg: Message = {
         id: "m2",
         channelId: "ch1",
@@ -3659,7 +3658,7 @@ describe("ChannelDetailPage — forward", () => {
         ],
       };
       mockChannelAndMessages([msgWithImage], []);
-      vi.mocked(getAttachmentFileUrl).mockReturnValueOnce("http://minio/img");
+      vi.mocked(getAttachmentFileObjectUrl).mockResolvedValueOnce("http://minio/img");
 
       render(<ChannelDetailPage />);
       await waitFor(() => {
@@ -3687,7 +3686,7 @@ describe("ChannelDetailPage — forward", () => {
         ],
       };
       mockChannelAndMessages([msgWithImage], []);
-      vi.mocked(getAttachmentFileUrl).mockReturnValueOnce("http://minio/img");
+      vi.mocked(getAttachmentFileObjectUrl).mockResolvedValueOnce("http://minio/img");
 
       render(<ChannelDetailPage />);
       await waitFor(() => {
@@ -3718,7 +3717,7 @@ describe("ChannelDetailPage — forward", () => {
         ],
       };
       mockChannelAndMessages([msgWithImage], []);
-      vi.mocked(getAttachmentFileUrl).mockReturnValueOnce("http://minio/img");
+      vi.mocked(getAttachmentFileObjectUrl).mockResolvedValueOnce("http://minio/img");
 
       render(<ChannelDetailPage />);
       await waitFor(() => {
@@ -3752,7 +3751,7 @@ describe("ChannelDetailPage — forward", () => {
         ],
       };
       mockChannelAndMessages([msgWithImage], []);
-      vi.mocked(getAttachmentFileUrl).mockReturnValueOnce("http://minio/img");
+      vi.mocked(getAttachmentFileObjectUrl).mockResolvedValueOnce("http://minio/img");
 
       render(<ChannelDetailPage />);
       await waitFor(() => {
@@ -3786,7 +3785,7 @@ describe("ChannelDetailPage — forward", () => {
         ],
       };
       mockChannelAndMessages([msgWithImage], []);
-      vi.mocked(getAttachmentFileUrl).mockReturnValueOnce("http://minio/img");
+      vi.mocked(getAttachmentFileObjectUrl).mockResolvedValueOnce("http://minio/img");
 
       render(<ChannelDetailPage />);
       await waitFor(() => {
@@ -3828,8 +3827,8 @@ describe("ChannelDetailPage — forward", () => {
         ],
       };
       mockChannelAndMessages([msgWithImages], []);
-      vi.mocked(getAttachmentFileUrl).mockImplementation((_t, _w, _c, _m, attachmentId) => {
-        return attachmentId === "a1" ? "http://minio/one" : "http://minio/two";
+      vi.mocked(getAttachmentFileObjectUrl).mockImplementation((_t, _w, _c, _m, attachmentId) => {
+        return Promise.resolve(attachmentId === "a1" ? "http://minio/one" : "http://minio/two");
       });
 
       render(<ChannelDetailPage />);
@@ -3870,8 +3869,8 @@ describe("ChannelDetailPage — forward", () => {
         ],
       };
       mockChannelAndMessages([msgWithImages], []);
-      vi.mocked(getAttachmentFileUrl).mockImplementation((_t, _w, _c, _m, attachmentId) => {
-        return attachmentId === "a1" ? "http://minio/one" : "http://minio/two";
+      vi.mocked(getAttachmentFileObjectUrl).mockImplementation((_t, _w, _c, _m, attachmentId) => {
+        return Promise.resolve(attachmentId === "a1" ? "http://minio/one" : "http://minio/two");
       });
 
       render(<ChannelDetailPage />);
@@ -3920,8 +3919,8 @@ describe("ChannelDetailPage — forward", () => {
         ],
       };
       mockChannelAndMessages([msgWithImages], []);
-      vi.mocked(getAttachmentFileUrl).mockImplementation((_t, _w, _c, _m, attachmentId) => {
-        return attachmentId === "a1" ? "http://minio/one" : "http://minio/two";
+      vi.mocked(getAttachmentFileObjectUrl).mockImplementation((_t, _w, _c, _m, attachmentId) => {
+        return Promise.resolve(attachmentId === "a1" ? "http://minio/one" : "http://minio/two");
       });
 
       render(<ChannelDetailPage />);
@@ -3960,7 +3959,7 @@ describe("ChannelDetailPage — forward", () => {
         ],
       };
       mockChannelAndMessages([msgWithImage], []);
-      vi.mocked(getAttachmentFileUrl).mockReturnValueOnce("http://minio/img");
+      vi.mocked(getAttachmentFileObjectUrl).mockResolvedValueOnce("http://minio/img");
 
       render(<ChannelDetailPage />);
       await waitFor(() => {
@@ -3976,7 +3975,7 @@ describe("ChannelDetailPage — forward", () => {
       expect(screen.queryByText(/\/ 1/)).not.toBeInTheDocument();
     });
 
-    it("lightbox download button triggers download", async () => {
+    it("lightbox download button fetches file blob", async () => {
       const msgWithImage: Message = {
         ...ownMessage,
         content: "",
@@ -3992,8 +3991,7 @@ describe("ChannelDetailPage — forward", () => {
         ],
       };
       mockChannelAndMessages([msgWithImage], []);
-      vi.mocked(getAttachmentFileUrl).mockReturnValueOnce("http://minio/img");
-      const openMock = vi.spyOn(window, "open").mockImplementation(() => null);
+      vi.mocked(getAttachmentFileObjectUrl).mockResolvedValue("http://minio/img");
 
       render(<ChannelDetailPage />);
       await waitFor(() => {
@@ -4007,10 +4005,8 @@ describe("ChannelDetailPage — forward", () => {
       await userEvent.click(screen.getByTestId("lightbox-download"));
 
       await waitFor(() => {
-        expect(getAttachmentFileUrl).toHaveBeenCalledWith("token", "ws1", "ch1", "m1", "a2");
+        expect(fetchAttachmentFile).toHaveBeenCalledWith("token", "ws1", "ch1", "m1", "a2");
       });
-      expect(openMock).toHaveBeenCalledWith("http://minio/img", "_blank");
-      openMock.mockRestore();
     });
 
     it("lightbox shows error when image URL fails to load", async () => {
@@ -4029,7 +4025,7 @@ describe("ChannelDetailPage — forward", () => {
         ],
       };
       mockChannelAndMessages([msgWithImage], []);
-      vi.mocked(getAttachmentFileUrl).mockReturnValue("http://minio/img");
+      vi.mocked(getAttachmentFileObjectUrl).mockResolvedValue("http://minio/img");
 
       render(<ChannelDetailPage />);
       await waitFor(() => {

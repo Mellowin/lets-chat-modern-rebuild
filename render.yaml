@@ -18,5 +18,9 @@ services:
         value: 3001
       - key: API_URL
         value: https://lets-chat-api-v2.onrender.com/api/v1
+      - key: APP_WEB_URL
+        value: https://lets-chat-web.vercel.app
+      - key: CORS_ORIGIN
+        value: https://lets-chat-web.vercel.app
     healthCheckPath: /api/v1/health
     autoDeploy: false

@@ -690,7 +690,7 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
 
   return (
     <aside
-      className={`fixed inset-y-0 left-0 top-14 z-40 w-64 -translate-x-full transform transition-transform duration-200 ease-in-out border-r border-indigo-500/10 bg-gradient-to-b from-sidebar via-sidebar to-indigo-950/30 text-sidebar-foreground flex flex-col p-3 overflow-y-auto sm:static sm:inset-auto sm:top-auto sm:z-auto sm:translate-x-0 sm:w-60 sm:shrink-0 ${mobileOpen ? "translate-x-0" : ""}`}
+      className={`fixed inset-y-0 left-0 top-14 z-40 w-64 -translate-x-full transform transition-transform duration-200 ease-in-out border-r border-indigo-500/20 bg-gradient-to-b from-sidebar via-sidebar to-indigo-950/50 text-sidebar-foreground flex flex-col p-3 overflow-y-auto sm:static sm:inset-auto sm:top-auto sm:z-auto sm:translate-x-0 sm:w-60 sm:shrink-0 ${mobileOpen ? "translate-x-0" : ""}`}
       data-testid="sidebar"
     >
       <div className="space-y-5">

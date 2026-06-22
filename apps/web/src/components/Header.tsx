@@ -30,7 +30,7 @@ export default function Header({ onMenuToggle }: HeaderProps) {
   }, []);
 
   return (
-    <header className="flex items-center justify-between h-14 px-3 sm:px-4 border-b border-indigo-500/20 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-header-foreground shrink-0 shadow-md">
+    <header className="flex items-center justify-between h-14 px-3 sm:px-4 border-b border-indigo-400/30 bg-gradient-to-r from-slate-950 via-indigo-950 to-slate-950 text-header-foreground shrink-0 shadow-md">
       <div className="flex items-center gap-2">
         {onMenuToggle && (
           <Button

@@ -292,16 +292,57 @@ export async function getAttachmentDownloadUrl(
   return res.json() as Promise<AttachmentDownloadUrlResponse>;
 }
 
-export function getAttachmentFileUrl(
+export async function fetchAttachmentFile(
   accessToken: string,
   workspaceId: string,
   channelId: string,
   messageId: string,
   attachmentId: string,
-): string {
-  const base = `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}/file`;
-  const separator = base.includes("?") ? "&" : "?";
-  return `${base}${separator}accessToken=${encodeURIComponent(accessToken)}`;
+): Promise<Blob> {
+  const url = `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}/file`;
+
+  const res = await authFetch(
+    url,
+    {
+      method: "GET",
+      headers: {
+        Accept: "*/*",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+    { timeoutMs: 60_000 },
+  );
+
+  if (!res.ok) {
+    let message = `Failed to download file: ${res.status} ${res.statusText}`;
+    try {
+      const body = await res.json();
+      if (body?.message) message = body.message;
+      else if (body?.error) message = body.error;
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+
+  return res.blob();
+}
+
+export async function getAttachmentFileObjectUrl(
+  accessToken: string,
+  workspaceId: string,
+  channelId: string,
+  messageId: string,
+  attachmentId: string,
+): Promise<string> {
+  const blob = await fetchAttachmentFile(
+    accessToken,
+    workspaceId,
+    channelId,
+    messageId,
+    attachmentId,
+  );
+  return URL.createObjectURL(blob);
 }
 
 export async function createMessage(

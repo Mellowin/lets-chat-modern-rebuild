@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { getMessages, createMessage, updateMessage, deleteMessage, presignAttachmentUpload, uploadAttachmentToPresignedUrl, getAttachmentDownloadUrl, getAttachmentFileUrl, getMessageContext } from "./messages-api";
+import { getMessages, createMessage, updateMessage, deleteMessage, presignAttachmentUpload, uploadAttachmentToPresignedUrl, getAttachmentDownloadUrl, fetchAttachmentFile, getAttachmentFileObjectUrl, getMessageContext } from "./messages-api";
 
 const API_BASE = "http://localhost:3001/api/v1";
 
@@ -185,15 +185,39 @@ describe("messages-api", () => {
     });
   });
 
-  describe("getAttachmentFileUrl", () => {
-    it("returns proxied file URL with access token", () => {
-      const result = getAttachmentFileUrl("token", "ws1", "ch1", "m1", "a1");
-      expect(result).toBe(`${API_BASE}/workspaces/ws1/channels/ch1/messages/m1/attachments/a1/file?accessToken=token`);
+  describe("fetchAttachmentFile", () => {
+    it("fetches file with Authorization header", async () => {
+      const blob = new Blob(["image"], { type: "image/png" });
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(blob, { status: 200 }));
+
+      const result = await fetchAttachmentFile("token", "ws1", "ch1", "m1", "a1");
+
+      expect(fetch).toHaveBeenCalledWith(
+        `${API_BASE}/workspaces/ws1/channels/ch1/messages/m1/attachments/a1/file`,
+        expect.objectContaining({
+          method: "GET",
+          headers: expect.objectContaining({ Authorization: "Bearer token" }),
+        }),
+      );
+      expect(result).toBeInstanceOf(Blob);
     });
 
-    it("encodes access token", () => {
-      const result = getAttachmentFileUrl("tok=en", "ws1", "ch1", "m1", "a1");
-      expect(result).toContain("accessToken=tok%3Den");
+    it("throws with backend error message", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ message: "Not found" }), { status: 404 }));
+      await expect(fetchAttachmentFile("token", "ws1", "ch1", "m1", "a1")).rejects.toThrow("Not found");
+    });
+  });
+
+  describe("getAttachmentFileObjectUrl", () => {
+    it("returns a blob object URL", async () => {
+      const blob = new Blob(["image"], { type: "image/png" });
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(blob, { status: 200 }));
+      URL.createObjectURL = vi.fn(() => "blob:mock-url");
+
+      const result = await getAttachmentFileObjectUrl("token", "ws1", "ch1", "m1", "a1");
+
+      expect(result).toBe("blob:mock-url");
+      expect(URL.createObjectURL).toHaveBeenCalled();
     });
   });
 

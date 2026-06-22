@@ -26,7 +26,6 @@ import { AttachmentDownloadResponseDto } from './dto/attachment-download-respons
 import { AttachmentDownloadUrlResponseDto } from './dto/attachment-download-url-response.dto';
 import type { Response } from 'express';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
-import { JwtAccessQueryGuard } from '../auth/guards/jwt-access-query.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUserResponse } from '../auth/auth.service';
 
@@ -122,7 +121,6 @@ export class AttachmentsController {
   @ApiConflictResponse({ description: 'Upload not completed' })
   @ApiNotFoundResponse({ description: 'Attachment or message not found' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
-  @UseGuards(JwtAccessQueryGuard)
   async downloadFile(
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
     @Param('channelId', ParseUUIDPipe) channelId: string,

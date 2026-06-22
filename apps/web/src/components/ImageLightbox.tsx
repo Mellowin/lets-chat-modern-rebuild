@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { X, Download, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
-import { getAttachmentFileUrl, type Attachment } from "@/lib/messages-api";
+import { getAttachmentFileObjectUrl, type Attachment } from "@/lib/messages-api";
 import { useLocale } from "@/lib/locale";
 import { Button } from "@/components/ui/Button";
 
@@ -32,7 +32,6 @@ export default function ImageLightbox({
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState<Record<string, boolean>>({});
   const [errors, setErrors] = useState<Record<string, boolean>>({});
-  const containerRef = useRef<HTMLDivElement>(null);
 
   const current = attachments[index];
   const total = attachments.length;
@@ -40,18 +39,22 @@ export default function ImageLightbox({
   const hasNext = index < total - 1;
 
   const loadUrl = useCallback(
-    (att: Attachment) => {
+    async (att: Attachment) => {
       if (urls[att.id] || loading[att.id] || errors[att.id]) return;
       setLoading((prev) => ({ ...prev, [att.id]: true }));
       try {
-        const url = getAttachmentFileUrl(
+        const url = await getAttachmentFileObjectUrl(
           accessToken,
           workspaceId,
           channelId,
           messageId,
           att.id,
         );
-        setUrls((prev) => ({ ...prev, [att.id]: url }));
+        setUrls((prev) => {
+          const prevUrl = prev[att.id];
+          if (prevUrl) URL.revokeObjectURL(prevUrl);
+          return { ...prev, [att.id]: url };
+        });
       } catch {
         setErrors((prev) => ({ ...prev, [att.id]: true }));
       } finally {
@@ -74,6 +77,15 @@ export default function ImageLightbox({
       void loadUrl(attachments[index + 1]);
     }
   }, [hasNext, index, attachments, loadUrl]);
+
+  useEffect(() => {
+    return () => {
+      setUrls((prev) => {
+        Object.values(prev).forEach((url) => URL.revokeObjectURL(url));
+        return prev;
+      });
+    };
+  }, []);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -105,7 +117,6 @@ export default function ImageLightbox({
 
   return (
     <div
-      ref={containerRef}
       role="dialog"
       aria-modal="true"
       aria-label={t("channel.lightboxTitle")}
