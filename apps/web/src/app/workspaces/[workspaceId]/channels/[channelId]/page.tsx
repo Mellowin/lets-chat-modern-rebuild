@@ -9,6 +9,12 @@ import {
   Check,
   Copy,
   Edit3,
+  File as FileIcon,
+  FileArchive,
+  FileAudio,
+  FileSpreadsheet,
+  FileText,
+  FileVideo,
   Forward,
   ImageIcon,
   Loader2,
@@ -16,6 +22,7 @@ import {
   MessageSquare,
   MoreHorizontal,
   Paperclip,
+  Presentation,
   Reply,
   Send,
   Smile,
@@ -78,24 +85,89 @@ function formatFileSize(bytes: number): string {
 }
 
 const ALLOWED_ATTACHMENT_TYPES = [
+  // images
   "image/jpeg",
   "image/png",
   "image/webp",
+  "image/gif",
+  // documents
   "application/pdf",
   "text/plain",
+  "application/rtf",
+  "text/rtf",
+  // Microsoft Word
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  // Microsoft Excel
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "text/csv",
+  "application/csv",
+  // Microsoft PowerPoint
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  // OpenDocument
+  "application/vnd.oasis.opendocument.text",
+  "application/vnd.oasis.opendocument.spreadsheet",
+  "application/vnd.oasis.opendocument.presentation",
+  // archives
+  "application/zip",
+  "application/x-7z-compressed",
+  "application/vnd.rar",
+  "application/x-rar-compressed",
+  // video
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
+  "video/x-msvideo",
+  "video/x-matroska",
+  // audio
+  "audio/mpeg",
+  "audio/wav",
+  "audio/ogg",
+  "audio/mp4",
 ];
 
 const EXTENSION_MIME_MAP: Record<string, string> = {
-  ".doc": "application/msword",
-  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  ".pdf": "application/pdf",
+  // images
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
   ".webp": "image/webp",
+  ".gif": "image/gif",
+  // documents
+  ".pdf": "application/pdf",
   ".txt": "text/plain",
+  ".rtf": "application/rtf",
+  // Microsoft Word
+  ".doc": "application/msword",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  // Microsoft Excel
+  ".xls": "application/vnd.ms-excel",
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".csv": "text/csv",
+  // Microsoft PowerPoint
+  ".ppt": "application/vnd.ms-powerpoint",
+  ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  // OpenDocument
+  ".odt": "application/vnd.oasis.opendocument.text",
+  ".ods": "application/vnd.oasis.opendocument.spreadsheet",
+  ".odp": "application/vnd.oasis.opendocument.presentation",
+  // archives
+  ".zip": "application/zip",
+  ".7z": "application/x-7z-compressed",
+  ".rar": "application/vnd.rar",
+  // video
+  ".mp4": "video/mp4",
+  ".webm": "video/webm",
+  ".mov": "video/quicktime",
+  ".avi": "video/x-msvideo",
+  ".mkv": "video/x-matroska",
+  // audio
+  ".mp3": "audio/mpeg",
+  ".wav": "audio/wav",
+  ".ogg": "audio/ogg",
+  ".m4a": "audio/mp4",
 };
 
 function getAttachmentMimeType(file: File): string {
@@ -115,6 +187,81 @@ function normalizeAttachmentFile(file: File): File {
   const type = getAttachmentMimeType(file);
   if (type === file.type) return file;
   return new File([file], file.name, { type, lastModified: file.lastModified });
+}
+
+function getAttachmentTypeInfo(mimeType: string) {
+  if (mimeType.startsWith("image/")) {
+    return { icon: ImageIcon, label: "Image" };
+  }
+  if (
+    mimeType === "application/msword" ||
+    mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    mimeType === "application/vnd.oasis.opendocument.text"
+  ) {
+    return { icon: FileText, label: "Word" };
+  }
+  if (
+    mimeType === "application/vnd.ms-excel" ||
+    mimeType === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+    mimeType === "text/csv" ||
+    mimeType === "application/csv" ||
+    mimeType === "application/vnd.oasis.opendocument.spreadsheet"
+  ) {
+    return { icon: FileSpreadsheet, label: "Excel" };
+  }
+  if (
+    mimeType === "application/vnd.ms-powerpoint" ||
+    mimeType === "application/vnd.openxmlformats-officedocument.presentationml.presentation" ||
+    mimeType === "application/vnd.oasis.opendocument.presentation"
+  ) {
+    return { icon: Presentation, label: "PowerPoint" };
+  }
+  if (
+    mimeType === "application/zip" ||
+    mimeType === "application/x-7z-compressed" ||
+    mimeType === "application/vnd.rar" ||
+    mimeType === "application/x-rar-compressed"
+  ) {
+    return { icon: FileArchive, label: "Archive" };
+  }
+  if (mimeType.startsWith("video/")) {
+    return { icon: FileVideo, label: "Video" };
+  }
+  if (mimeType.startsWith("audio/")) {
+    return { icon: FileAudio, label: "Audio" };
+  }
+  if (mimeType === "application/pdf") {
+    return { icon: FileText, label: "PDF" };
+  }
+  return { icon: FileIcon, label: "File" };
+}
+
+function AttachmentFileCard({
+  attachment,
+  message,
+  onDownload,
+}: {
+  attachment: Attachment;
+  message: Message;
+  onDownload: (msg: Message, att: Attachment) => void;
+}) {
+  const { icon: Icon, label } = getAttachmentTypeInfo(attachment.mimeType);
+
+  return (
+    <button
+      key={attachment.id}
+      onClick={() => onDownload(message, attachment)}
+      data-testid={`message-attachment-${message.id}-${attachment.id}`}
+      className="flex w-fit max-w-full items-center gap-2 rounded-lg border border-border bg-muted/50 px-2.5 py-1.5 text-left text-xs hover:bg-accent/50 transition-colors"
+    >
+      <Icon size={16} className="shrink-0 text-muted-foreground" />
+      <span className="truncate font-medium text-foreground">{attachment.fileName}</span>
+      <span className="shrink-0 text-muted-foreground">{formatFileSize(attachment.sizeBytes)}</span>
+      <span className="shrink-0 rounded bg-primary/10 px-1 py-0.5 text-[10px] font-medium text-primary">
+        {label}
+      </span>
+    </button>
+  );
 }
 
 function AttachmentImagePreview({
@@ -1745,16 +1892,12 @@ export default function ChannelDetailPage() {
                                     }}
                                   />
                                 ) : (
-                                  <button
+                                  <AttachmentFileCard
                                     key={att.id}
-                                    onClick={() => handleDownloadAttachment(msg, att)}
-                                    data-testid={`message-attachment-${msg.id}-${att.id}`}
-                                    className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-2.5 py-1.5 text-left text-xs hover:bg-accent/50 transition-colors"
-                                  >
-                                    <Paperclip size={14} className="text-muted-foreground" />
-                                    <span className="truncate font-medium text-foreground">{att.fileName}</span>
-                                    <span className="shrink-0 text-muted-foreground">{formatFileSize(att.sizeBytes)}</span>
-                                  </button>
+                                    attachment={att}
+                                    message={msg}
+                                    onDownload={handleDownloadAttachment}
+                                  />
                                 ),
                               )}
                             </div>
@@ -2031,7 +2174,7 @@ export default function ChannelDetailPage() {
                   ref={fileInputRef}
                   type="file"
                   multiple
-                  accept="image/jpeg,image/png,image/webp,application/pdf,text/plain,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.doc,.docx"
+                  accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain,application/rtf,text/rtf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,application/csv,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.oasis.opendocument.text,application/vnd.oasis.opendocument.spreadsheet,application/vnd.oasis.opendocument.presentation,application/zip,application/x-7z-compressed,application/vnd.rar,application/x-rar-compressed,video/mp4,video/webm,video/quicktime,video/x-msvideo,video/x-matroska,audio/mpeg,audio/wav,audio/ogg,audio/mp4,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.odt,.ods,.odp,.zip,.7z,.rar,.png,.jpg,.jpeg,.webp,.gif,.pdf,.txt,.rtf,.mp4,.webm,.mov,.avi,.mkv,.mp3,.wav,.ogg,.m4a"
                   onChange={handleFileSelect}
                   className="hidden"
                   data-testid="composer-file-input"

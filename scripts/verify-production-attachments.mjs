@@ -3,10 +3,10 @@
 /**
  * Production attachment upload / drag-drop / lightbox / filename verification.
  *
- * Tests real user scenarios:
- * - PDF with Cyrillic filename
- * - DOCX with Cyrillic filename
+ * Tests real user scenarios for B204C expanded file type support:
+ * - PDF, DOCX, XLSX, XLS, PPTX, ZIP with Cyrillic filenames
  * - image with Cyrillic filename
+ * - unsupported dangerous file rejection with friendly error
  * - drag/drop upload with large overlay
  * - correct filename display after send
  * - authenticated download
@@ -48,9 +48,21 @@ function createTempFile(name, content, encoding = "utf8") {
 const MIN_DOCX_BASE64 =
   "UEsDBBQAAAAIAC2k1lx5bjPX6AAAAK0BAAATAAAAW0NvbnRlbnRfVHlwZXNdLnhtbH1QyU7DMBD9FWuuKHHggBCK0wPLETiUDxjZk8SqN3nc0v49Tlt6QIXjzFv1+tXeO7GjzDYGBbdtB4KCjsaGScHn+rV5AMEFg0EXAyk4EMNq6NeHRCyqNrCCuZT0KCXrmTxyGxOFiowxeyz1zJNMqDc4kbzrunupYygUSlMWDxj6Zxpx64p42df3qUcmxyCeTsQlSwGm5KzGUnG5C+ZXSnNOaKvyyOHZJr6pBJBXExbk74Cz7r0Ok60h8YG5vKGvLPkVs5Em6q2vyvZ/mys94zhaTRf94pZy1MRcF/euvSAebfjpL49zD99QSwMEFAAAAAgALaTWXJv9N+qtAAAAKQEAAAsAAABfcmVscy8ucmVsc43POw7CMAwG4KtE3mlaBoRQ0y4IqSsqB7ASN61oHkrCo7cnAwNFDIy2f3+W6/ZpZnanECdnBVRFCYysdGqyWsClP232wGJCq3B2lgQsFKFt6jPNmPJKHCcfWTZsFDCm5A+cRzmSwVg4TzZPBhcMplwGzT3KK2ri27Lc8fBpwNpknRIQOlUB6xdP/9huGCZJRydvhmz6ceIrkWUMmpKAhwuKq3e7yCzwpuarF5sXUEsDBBQAAAAIAC2k1lzp+cGTewAAAJsAAAAcAAAAd29yZC9fcmVscy9kb2N1bWVudC54bWwucmVsc1XMQQ4CIQyF4auQ7h3QhTEGmJ0HMHqAZqYCkSmEEqO3l6UuX/68z87vLasXNUmFHewnA4p4KWvi4OB+u+xOoKQjr5gLk4MPCczeXiljHxeJqYoaBouD2Hs9ay1LpA1lKpV4lEdpG/YxW9AVlycG0gdjjrr9GuCt/kP9F1BLAwQUAAAACAAtpNZcQtZan5oAAADOAAAAEQAAAHdvcmQvZG9jdW1lbnQueG1sRY5BDsIgEEWvQmZvqS6MaUrdGQ+gB0AY2yYwQwCtvb1QF27en8n8vEx//ngn3hjTzKRg37QgkAzbmUYF99tldwKRsiarHRMqWDHBeeiXzrJ5eaQsioBStyiYcg6dlMlM6HVqOCCV25Oj17mscZQLRxsiG0yp+L2Th7Y9Sq9ngqp8sF1rhopYkYcrOse9rGNl3Bg2/ury/8rwBVBLAQIUABQAAAAIAC2k1lx5bjPX6AAAAK0BAAATAAAAAAAAAAAAAACAAQAAAABbQ29udGVudF9UeXBlc10ueG1sUEsBAhQAFAAAAAgALaTWXJv9N+qtAAAAKQEAAAsAAAAAAAAAAAAAAIABGQEAAF9yZWxzLy5yZWxzUEsBAhQAFAAAAAgALaTWXOn5wZN7AAAAmwAAABwAAAAAAAAAAAAAAIAB7wEAAHdvcmQvX3JlbHMvZG9jdW1lbnQueG1sLnJlbHNQSwECFAAUAAAACAAtpNZcQtZan5oAAADOAAAAEQAAAAAAAAAAAAAAgAGkAgAAd29yZC9kb2N1bWVudC54bWxQSwUGAAAAAAQABAADAQAAbQMAAAAA";
 
+// Minimal valid XLSX (ZIP with required OOXML spreadsheet parts).
+const MIN_XLSX_BASE64 =
+  "UEsDBBQAAAAIACSs1lyb3ZcU7gAAAKUBAAATAAAAW0NvbnRlbnRfVHlwZXNdLnhtbH2QzU7DMBCEX8XyFcUOPSCEkvRQyhE4lAdY7E1ixX/yuiV9e5y0XFDhZK1nZr/RNtvZWXbCRCb4lt+LmjP0Kmjjh5Z/HF6qR84og9dgg8eWn5H4tmsO54jEStZTy8ec45OUpEZ0QCJE9EXpQ3KQy5gGGUFNMKDc1PWDVMFn9LnKyw7eNc/Yw9Fmtp/L96VHQkuc7S7GhdVyiNEaBbno8uT1L0p1JYiSXD00mkh3xcDlTcKi/A245t7KYZLRyN4h5VdwxSVnK79Cmj5DmMT/S260DH1vFOqgjq5EBMWEoGlEzM6K9RUOjP/pLdczd99QSwMEFAAAAAgAJKzWXJja64uuAAAAJwEAAAsAAABfcmVscy8ucmVsc43PwQ6CMAwG4FdZepeBB2MMg4sx4WrwAeZWBgHWZZsKb++OYjx4bPr3+9OyXuaJPdGHgayAIsuBoVWkB2sE3NrL7ggsRGm1nMiigBUD1FV5xUnGdBL6wQWWDBsE9DG6E+dB9TjLkJFDmzYd+VnGNHrDnVSjNMj3eX7g/tOArckaLcA3ugDWrg7/sanrBoVnUo8ZbfxR8ZVIsvQGo4Bl4i/y451ozBIKvCr55sHqDVBLAwQUAAAACAAkrNZc6fnBk3sAAACbAAAAGgAAAHhsL19yZWxzL3dvcmtib29rLnhtbC5yZWxzVcxBDgIhDIXhq5DuHdCFMQaYnQcweoBmpgKRKYQSo7eXpS5f/rzPzu8tqxc1SYUd7CcDingpa+Lg4H677E6gpCOvmAuTgw8JzN5eKWMfF4mpihoGi4PYez1rLUukDWUqlXiUR2kb9jFb0BWXJwbSB2OOuv0a4K3+Q/0XUEsDBBQAAAAIACSs1lwsLY5LugAAABsBAAAPAAAAeGwvd29ya2Jvb2sueG1sjY/BbsJADER/ZeU7bOgBoSgJF1SJM+UDtlmHrMjakb1Q+PsaWu6cZmzLejPN9pYnd0XRxNTCalmBQ+o5Jjq1cPz6XGzAaQkUw8SELdxRYds1Pyznb+azs3fSFsZS5tp77UfMQZc8I9llYMmh2Cgnr7NgiDoiljz5j6pa+xwSQdc8d/qvjkI2zOHhV4Z+6D5aMnBSJzOyj+af2FreAfMwpB533F8yUvkjC06hWGMd06zgu8a/QvhXs+4XUEsBAhQAFAAAAAgAJKzWXJvdlxTuAAAApQEAABMAAAAAAAAAAAAAAIABAAAAAFtDb250ZW50X1R5cGVzXS54bWxQSwECFAAUAAAACAAkrNZcmNrri64AAAAnAQAACwAAAAAAAAAAAAAAgAEfAQAAX3JlbHMvLnJlbHNQSwECFAAUAAAACAAkrNZc6fnBk3sAAACbAAAAGgAAAAAAAAAAAAAAgAH2AQAAeGwvX3JlbHMvd29ya2Jvb2sueG1sLnJlbHNQSwECFAAUAAAACAAkrNZcLC2OS7oAAAAbAQAADwAAAAAAAAAAAAAAgAGpAgAAeGwvd29ya2Jvb2sueG1sUEsFBgAAAAAEAAQA/wAAAJADAAAAAA==";
+
+// Minimal valid PPTX (ZIP with required OOXML presentation parts).
+const MIN_PPTX_BASE64 =
+  "UEsDBBQAAAAIACSs1lye0ypc6QAAALIBAAATAAAAW0NvbnRlbnRfVHlwZXNdLnhtbH2QzU7DMBCEX8XyFcUOHBBCcXrg5wgcygOsnE1i4T95t1X79jhpkQAVjuv5Zma93eYQvNhjIZeikdeqlQKjTYOLk5Hv2+fmTgpiiAP4FNHII5Lc9N32mJFE9UYycmbO91qTnTEAqZQxVmVMJQDXsUw6g/2ACfVN295qmyJj5IaXDNl3jzjCzrN4OtTn0x4FPUnxcAKXLiMhZ+8scNX1Pg6/Wppzg6rOlaHZZbqqgNQXGxbl74Kz77UeprgBxRsUfoFQKZ0z61yQqm9l1f9JF1ZN4+gsDsnuQrWo72HB/xhVABe/PqHXm/efUEsDBBQAAAAIACSs1lwbyrjurgAAACwBAAALAAAAX3JlbHMvLnJlbHONz80KwjAMB/BXKbm7Tg8ism4XEXaV+QClzbri+kFTxb29xZMTDx6T/PMLabqnm9kDE9ngBWyrGhh6FbT1RsB1OG8OwChLr+UcPApYkKBrmwvOMpcVmmwkVgxPAqac45FzUhM6SVWI6MtkDMnJXMpkeJTqJg3yXV3vefo0YG2yXgtIvd4CG5aI/9hhHK3CU1B3hz7/OPGVKLJMBrOAGDOPCak03+mqyMDbhq++bF9QSwMEFAAAAAgAJKzWXOn5wZN7AAAAmwAAAB8AAABwcHQvX3JlbHMvcHJlc2VudGF0aW9uLnhtbC5yZWxzVcxBDgIhDIXhq5DuHdCFMQaYnQcweoBmpgKRKYQSo7eXpS5f/rzPzu8tqxc1SYUd7CcDingpa+Lg4H677E6gpCOvmAuTgw8JzN5eKWMfF4mpihoGi4PYez1rLUukDWUqlXiUR2kb9jFb0BWXJwbSB2OOuv0a4K3+Q/0XUEsDBBQAAAAIACSs1lw/iNzHhAAAALYAAAAUAAAAcHB0L3ByZXNlbnRhdGlvbi54bWxdjEEKwjAQAL8S9m5TPYiEpL0VBI/6gNCsbSHZhOwi+nvjrXgchhk7vlNUL6y8ZXJw7HpQSHMOGy0OHvfpcAHF4in4mAkdfJBhHGwxpSIjiZcWqjYhNsXBKlKM1jyvmDx3uSA198w1eWlYF73vUtSnvj/r5DeC35RjuIYby2D1H+yz4QtQSwECFAAUAAAACAAkrNZcntMqXOkAAACyAQAAEwAAAAAAAAAAAAAAgAEAAAAAW0NvbnRlbnRfVHlwZXNdLnhtbFBLAQIUABQAAAAIACSs1lwbyrjurgAAACwBAAALAAAAAAAAAAAAAACAARoBAABfcmVscy8ucmVsc1BLAQIUABQAAAAIACSs1lzp+cGTewAAAJsAAAAfAAAAAAAAAAAAAACAAfEBAABwcHQvX3JlbHMvcHJlc2VudGF0aW9uLnhtbC5yZWxzUEsBAhQAFAAAAAgAJKzWXD+I3MeEAAAAtgAAABQAAAAAAAAAAAAAAIABqQIAAHBwdC9wcmVzZW50YXRpb24ueG1sUEsFBgAAAAAEAAQACQEAAF8DAAAAAA==";
+
+// Minimal valid ZIP archive.
+const MIN_ZIP_BASE64 =
+  "UEsDBBQAAAAIACSs1lxqUpXmEQAAAA8AAAAKAAAAcmVhZG1lLnR4dEssSs7ILEtVSM7PK0nNKwEAUEsBAhQAFAAAAAgAJKzWXGpSleYRAAAADwAAAAoAAAAAAAAAAAAAAIABAAAAAHJlYWRtZS50eHRQSwUGAAAAAAEAAQA4AAAAOQAAAAAA";
+
 
 async function main() {
-  console.log("=== Production Attachment Verification (B204B) ===\n");
+  console.log("=== Production Attachment Verification (B204C) ===\n");
   console.log(`WEB_BASE: ${WEB_BASE}`);
   console.log(`API_BASE: ${API_BASE}\n`);
 
@@ -123,6 +135,12 @@ async function main() {
 
     const pdfPath = createTempFile(pdfName, "%PDF-1.4 sample content", "utf8");
     const docxPath = createTempFile(docxName, Buffer.from(MIN_DOCX_BASE64, "base64"));
+    const xlsxName = "Звіт.xlsx";
+    const xlsxPath = createTempFile(xlsxName, Buffer.from(MIN_XLSX_BASE64, "base64"));
+    const pptxName = "Презентація.pptx";
+    const pptxPath = createTempFile(pptxName, Buffer.from(MIN_PPTX_BASE64, "base64"));
+    const zipName = "Архів.zip";
+    const zipPath = createTempFile(zipName, Buffer.from(MIN_ZIP_BASE64, "base64"));
     const pngPath = createTempFile(
       pngName,
       Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64"),
@@ -175,7 +193,68 @@ async function main() {
       pushResult("DOCX with Cyrillic filename appears in message", false, "filename not found");
     }
 
-    // 3. Image upload with Cyrillic filename.
+    // 3. XLSX upload with Cyrillic filename.
+    console.log("[step] upload XLSX with Cyrillic filename");
+    await page.setInputFiles('[data-testid="composer-file-input"]', xlsxPath);
+    await sleep(500);
+    await sendSelectedFiles();
+    await debugState("after-xlsx-cyrillic");
+
+    try {
+      await waitForAttachmentFileName(xlsxName);
+      pushResult("XLSX with Cyrillic filename appears in message", true);
+    } catch {
+      pushResult("XLSX with Cyrillic filename appears in message", false, "filename not found");
+    }
+
+    // 4. PPTX upload with Cyrillic filename.
+    console.log("[step] upload PPTX with Cyrillic filename");
+    await page.setInputFiles('[data-testid="composer-file-input"]', pptxPath);
+    await sleep(500);
+    await sendSelectedFiles();
+    await debugState("after-pptx-cyrillic");
+
+    try {
+      await waitForAttachmentFileName(pptxName);
+      pushResult("PPTX with Cyrillic filename appears in message", true);
+    } catch {
+      pushResult("PPTX with Cyrillic filename appears in message", false, "filename not found");
+    }
+
+    // 5. ZIP upload with Cyrillic filename.
+    console.log("[step] upload ZIP with Cyrillic filename");
+    await page.setInputFiles('[data-testid="composer-file-input"]', zipPath);
+    await sleep(500);
+    await sendSelectedFiles();
+    await debugState("after-zip-cyrillic");
+
+    try {
+      await waitForAttachmentFileName(zipName);
+      pushResult("ZIP with Cyrillic filename appears in message", true);
+    } catch {
+      pushResult("ZIP with Cyrillic filename appears in message", false, "filename not found");
+    }
+
+    // 6. Unsupported dangerous file rejected with a friendly error.
+    console.log("[step] reject unsupported .exe upload");
+    const exeName = "dangerous.exe";
+    const exePath = createTempFile(exeName, Buffer.from("TVqQAAMAAAAEAAAA//8AALgAAAAA", "base64"));
+    await page.setInputFiles('[data-testid="composer-file-input"]', exePath);
+    await sleep(500);
+
+    const exeErrorVisible = await page
+      .locator("text=/file type is not supported/i")
+      .first()
+      .isVisible()
+      .catch(() => false);
+    const exeFileChip = await page.locator('[data-testid^="composer-attachment-chip-"]').count();
+    pushResult(
+      "Dangerous .exe file is rejected with friendly error",
+      exeErrorVisible && exeFileChip === 0,
+      exeErrorVisible ? "error shown" : "no error shown",
+    );
+
+    // 7. Image upload with Cyrillic filename.
     console.log("[step] upload image with Cyrillic filename");
     await page.setInputFiles('[data-testid="composer-file-input"]', pngPath);
     await sleep(500);
@@ -204,7 +283,7 @@ async function main() {
       pushResult("Image opens in lightbox", false, "no image attachment");
     }
 
-    // 4. Drag & drop upload with overlay.
+    // 8. Drag & drop upload with overlay.
     console.log("[step] drag & drop upload");
     const dropPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
     const panel = await page.$('[data-testid="channel-chat-panel"]');
@@ -254,7 +333,7 @@ async function main() {
       pushResult("Drag & drop upload appears in channel", false, "chat panel not found");
     }
 
-    // 5. Authenticated download.
+    // 9. Authenticated download.
     const fileRequestPromise = page.waitForRequest(
       (req) => req.url().includes("/attachments/") && req.url().endsWith("/file"),
       { timeout: 10000 },
@@ -277,7 +356,7 @@ async function main() {
       pushResult("File download uses authenticated request", false, "no file card");
     }
 
-    // 6. No CORS / ERR_FAILED.
+    // 10. No CORS / ERR_FAILED.
     const corsErrors = failedRequests.filter(
       (r) => r.failure.includes("CORS") || r.failure.includes("ERR_FAILED"),
     );
@@ -287,13 +366,13 @@ async function main() {
       corsErrors.map((r) => `${r.url} -> ${r.failure}`).join("; ") || "none",
     );
 
-    // 7. Token leakage.
+    // 11. Token leakage.
     const leaked = consoleLogs.some(
       (text) => text.includes(owner.accessToken) || text.includes(owner.refreshToken),
     );
     pushResult("No access/refresh token leaked to console", !leaked);
 
-    // 8. DM attachments not supported.
+    // 12. DM attachments not supported.
     const other = await createVerifiedAccount("attach-other");
     const conv = await api(owner.accessToken, "POST", "/direct-conversations", {
       userId: other.user.id,

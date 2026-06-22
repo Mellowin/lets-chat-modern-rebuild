@@ -13,9 +13,6 @@ import {
   HttpCode,
   HttpStatus,
   UploadedFile,
-  ParseFilePipe,
-  MaxFileSizeValidator,
-  FileTypeValidator,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -201,18 +198,7 @@ export class MessagesController {
   async uploadAttachment(
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
     @Param('channelId', ParseUUIDPipe) channelId: string,
-    @UploadedFile(
-      new ParseFilePipe({
-        validators: [
-          new MaxFileSizeValidator({ maxSize: 10 * 1024 * 1024 }),
-          new FileTypeValidator({
-            fileType:
-              /^(image\/(png|jpeg|webp)|application\/pdf|text\/plain|application\/msword|application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document)$/,
-          }),
-        ],
-      }),
-    )
-    file: Express.Multer.File,
+    @UploadedFile() file: Express.Multer.File,
     @CurrentUser() user: AuthUserResponse,
   ) {
     return this.attachments.uploadFile(workspaceId, channelId, file, user.id);

@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -9,10 +8,12 @@ import { ChannelsService } from '../channels/channels.service';
 import { MessagesRepository } from './messages.repository';
 import { AttachmentsRepository } from './attachments.repository';
 import { StorageService } from '../storage/storage.service';
+import { PresignAttachmentDto } from './dto/presign-attachment.dto';
 import {
-  PresignAttachmentDto,
-  ALLOWED_MIME_TYPES,
-} from './dto/presign-attachment.dto';
+  validateAttachmentFile,
+  validateAttachmentMetadata,
+  assertAttachmentAllowed,
+} from './attachment-validation';
 import { classifyAttachmentKind } from './messages.service';
 import { randomUUID } from 'crypto';
 
@@ -57,17 +58,11 @@ export class AttachmentsService {
     private readonly storage: StorageService,
   ) {}
 
-  private validateAttachmentFile(file: Express.Multer.File) {
-    if (!(ALLOWED_MIME_TYPES as readonly string[]).includes(file.mimetype)) {
-      throw new BadRequestException(
-        `Unsupported attachment type: ${file.mimetype}`,
-      );
-    }
-
-    const maxSize = 10 * 1024 * 1024;
-    if (file.size > maxSize) {
-      throw new BadRequestException('File exceeds maximum size of 10 MB');
-    }
+  private async validateUploadedFile(
+    file: Express.Multer.File,
+  ): Promise<string> {
+    const result = await validateAttachmentFile(file);
+    return assertAttachmentAllowed(result);
   }
 
   async prepareUpload(
@@ -78,16 +73,12 @@ export class AttachmentsService {
   ) {
     await this.channels.findById(workspaceId, channelId, userId);
 
-    if (!(ALLOWED_MIME_TYPES as readonly string[]).includes(dto.mimeType)) {
-      throw new BadRequestException(
-        `Unsupported attachment type: ${dto.mimeType}`,
-      );
-    }
-
-    const maxSize = 10 * 1024 * 1024;
-    if (dto.sizeBytes > maxSize) {
-      throw new BadRequestException('File exceeds maximum size of 10 MB');
-    }
+    const metadataResult = validateAttachmentMetadata(
+      dto.filename,
+      dto.mimeType,
+      dto.sizeBytes,
+    );
+    assertAttachmentAllowed(metadataResult);
 
     const sanitized = sanitizeStorageFilename(dto.filename);
     const storageKey = `attachments/${userId}/${randomUUID()}-${sanitized}`;
@@ -113,20 +104,20 @@ export class AttachmentsService {
     userId: string,
   ) {
     await this.channels.findById(workspaceId, channelId, userId);
-    this.validateAttachmentFile(file);
+    const normalizedMimeType = await this.validateUploadedFile(file);
 
     const decodedOriginalName = decodeMultipartFilename(file.originalname);
     const sanitized = sanitizeStorageFilename(decodedOriginalName);
     const storageKey = `attachments/${userId}/${randomUUID()}-${sanitized}`;
 
-    await this.storage.putObject(storageKey, file.buffer, file.mimetype);
+    await this.storage.putObject(storageKey, file.buffer, normalizedMimeType);
 
     return {
       storageKey,
       fileName: decodedOriginalName,
-      mimeType: file.mimetype,
+      mimeType: normalizedMimeType,
       sizeBytes: file.size,
-      kind: classifyAttachmentKind(file.mimetype),
+      kind: classifyAttachmentKind(normalizedMimeType),
     };
   }
 

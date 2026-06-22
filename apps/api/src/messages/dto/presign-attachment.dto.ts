@@ -9,16 +9,12 @@ import {
   IsIn,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
+import {
+  ALLOWED_MIME_TYPES,
+  MAX_ATTACHMENT_SIZE_BYTES,
+} from '../attachment-validation';
 
-export const ALLOWED_MIME_TYPES = [
-  'image/png',
-  'image/jpeg',
-  'image/webp',
-  'application/pdf',
-  'text/plain',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-] as const;
+export { ALLOWED_MIME_TYPES };
 
 export class PresignAttachmentDto {
   @ApiProperty({ example: 'document.pdf' })
@@ -38,6 +34,6 @@ export class PresignAttachmentDto {
   @ApiProperty({ example: 123456 })
   @IsInt()
   @Min(1)
-  @Max(10 * 1024 * 1024)
+  @Max(MAX_ATTACHMENT_SIZE_BYTES)
   sizeBytes: number;
 }

@@ -43,8 +43,27 @@ describe('PresignAttachmentDto', () => {
     expect(errors).toHaveLength(0);
   });
 
+  it('passes with valid Excel .xlsx MIME type', async () => {
+    const dto = createDto({
+      mimeType:
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      filename: 'budget.xlsx',
+    });
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(0);
+  });
+
+  it('passes with valid archive MIME type', async () => {
+    const dto = createDto({
+      mimeType: 'application/zip',
+      filename: 'files.zip',
+    });
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(0);
+  });
+
   it('fails with unsupported MIME type', async () => {
-    const dto = createDto({ mimeType: 'application/zip' });
+    const dto = createDto({ mimeType: 'application/x-msdownload' });
     const errors = await validate(dto);
     expect(errors.some((e) => e.property === 'mimeType')).toBe(true);
   });

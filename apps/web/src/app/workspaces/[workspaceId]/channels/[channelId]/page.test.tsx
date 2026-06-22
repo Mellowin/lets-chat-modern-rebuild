@@ -3235,7 +3235,7 @@ describe("ChannelDetailPage — forward", () => {
       fireEvent.change(input, { target: { files: [file] } });
 
       await waitFor(() => {
-        expect(screen.getByText("Invalid file type")).toBeInTheDocument();
+        expect(screen.getByText(/This file type is not supported/i)).toBeInTheDocument();
       });
       expect(screen.queryByTestId("composer-attachment-chip-0")).not.toBeInTheDocument();
     });
@@ -3541,7 +3541,7 @@ describe("ChannelDetailPage — forward", () => {
       fireEvent.drop(panel, { dataTransfer: { files: [file] } });
 
       await waitFor(() => {
-        expect(screen.getByText("Invalid file type")).toBeInTheDocument();
+        expect(screen.getByText(/This file type is not supported/i)).toBeInTheDocument();
       });
       expect(screen.queryByTestId("composer-attachment-chip-0")).not.toBeInTheDocument();
       expect(screen.queryByTestId("composer-attachment-preview-0")).not.toBeInTheDocument();
@@ -4385,6 +4385,144 @@ describe("ChannelDetailPage — attachments", () => {
     expect(input.attachments?.[0].fileName).toBe("document.docx");
   });
 
+  it("accepts XLSX file selection and includes it in message send", async () => {
+    mockChannelAndMessages([]);
+    vi.mocked(createMessage).mockResolvedValueOnce({
+      id: "m1",
+      channelId: "ch1",
+      content: "",
+      parentId: null,
+      createdAt: "2024-01-01T00:00:00Z",
+      updatedAt: "2024-01-01T00:00:00Z",
+      editedAt: null,
+      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
+      reactions: [],
+      attachments: [
+        {
+          id: "a1",
+          fileName: "budget.xlsx",
+          mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          sizeBytes: 2048,
+          kind: "file",
+          createdAt: "2024-01-01T00:00:00Z",
+        },
+      ],
+    } as unknown as Message);
+
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByTestId("composer-file-input")).toBeInTheDocument();
+    });
+
+    const xlsxFile = new File(
+      ["xlsx-content"],
+      "budget.xlsx",
+      { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
+    );
+
+    fireEvent.change(screen.getByTestId("composer-file-input"), {
+      target: { files: [xlsxFile] },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("budget.xlsx")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: /Send/i }));
+
+    await waitFor(() => {
+      expect(createMessage).toHaveBeenCalled();
+    });
+
+    const input = vi.mocked(createMessage).mock.calls[0][3];
+    expect(input.attachments).toHaveLength(1);
+    expect(input.attachments?.[0].fileName).toBe("budget.xlsx");
+  });
+
+  it("shows file picker accept attribute with expanded formats", async () => {
+    mockChannelAndMessages([]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByTestId("composer-file-input")).toBeInTheDocument();
+    });
+
+    const input = screen.getByTestId("composer-file-input") as HTMLInputElement;
+    expect(input.accept).toContain(".xlsx");
+    expect(input.accept).toContain(".xls");
+    expect(input.accept).toContain(".pptx");
+    expect(input.accept).toContain(".zip");
+    expect(input.accept).toContain(".mp4");
+    expect(input.accept).toContain(".mp3");
+  });
+
+  it("renders attachment cards with type labels for Office, archive, video and audio", async () => {
+    mockChannelAndMessages([
+      {
+        id: "m1",
+        channelId: "ch1",
+        content: "",
+        parentId: null,
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+        reactions: [],
+        attachments: [
+          {
+            id: "a1",
+            fileName: "budget.xlsx",
+            mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            sizeBytes: 1024,
+            kind: "file",
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+          {
+            id: "a2",
+            fileName: "slides.pptx",
+            mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            sizeBytes: 1024,
+            kind: "file",
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+          {
+            id: "a3",
+            fileName: "archive.zip",
+            mimeType: "application/zip",
+            sizeBytes: 1024,
+            kind: "file",
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+          {
+            id: "a4",
+            fileName: "clip.mp4",
+            mimeType: "video/mp4",
+            sizeBytes: 1024,
+            kind: "file",
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+          {
+            id: "a5",
+            fileName: "song.mp3",
+            mimeType: "audio/mpeg",
+            sizeBytes: 1024,
+            kind: "file",
+            createdAt: "2024-01-01T00:00:00Z",
+          },
+        ],
+      },
+    ]);
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Excel")).toBeInTheDocument();
+    });
+    expect(screen.getByText("PowerPoint")).toBeInTheDocument();
+    expect(screen.getByText("Archive")).toBeInTheDocument();
+    expect(screen.getByText("Video")).toBeInTheDocument();
+    expect(screen.getByText("Audio")).toBeInTheDocument();
+  });
+
   it("shows localized error for unsupported file type", async () => {
     mockChannelAndMessages([]);
     render(<ChannelDetailPage />);
@@ -4397,7 +4535,7 @@ describe("ChannelDetailPage — attachments", () => {
       target: { files: [exeFile] },
     });
 
-    expect(await screen.findByText(/Invalid file type/i)).toBeInTheDocument();
+    expect(await screen.findByText(/This file type is not supported/i)).toBeInTheDocument();
   });
 
   it("shows Ukrainian error for unsupported file type", async () => {
@@ -4413,7 +4551,7 @@ describe("ChannelDetailPage — attachments", () => {
       target: { files: [exeFile] },
     });
 
-    expect(await screen.findByText(/Неприпустимий тип файлу/i)).toBeInTheDocument();
+    expect(await screen.findByText(/не підтримується/i)).toBeInTheDocument();
   });
 
   it("shows Russian error for unsupported file type", async () => {
@@ -4429,7 +4567,7 @@ describe("ChannelDetailPage — attachments", () => {
       target: { files: [exeFile] },
     });
 
-    expect(await screen.findByText(/Недопустимый тип файла/i)).toBeInTheDocument();
+    expect(await screen.findByText(/не поддерживается/i)).toBeInTheDocument();
   });
 
   it("renders sent attachment with Cyrillic filename", async () => {
