@@ -60,6 +60,15 @@ const MIN_PPTX_BASE64 =
 const MIN_ZIP_BASE64 =
   "UEsDBBQAAAAIACSs1lxqUpXmEQAAAA8AAAAKAAAAcmVhZG1lLnR4dEssSs7ILEtVSM7PK0nNKwEAUEsBAhQAFAAAAAgAJKzWXGpSleYRAAAADwAAAAoAAAAAAAAAAAAAAIABAAAAAHJlYWRtZS50eHRQSwUGAAAAAAEAAQA4AAAAOQAAAAAA";
 
+// Minimal valid MP4 (ftyp atom with brand "isom").
+const MIN_MP4_BASE64 = "AAAAGGZ0eXBpc29tAAAAAGlzb21tcDQx";
+
+// Minimal valid MP3 (MPEG audio sync word).
+const MIN_MP3_BASE64 = "//uQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+
+// Legacy Excel .xls stub with an OLE/CFB header (browsers typically declare it as vnd.ms-excel).
+const MIN_XLS_BASE64 = "0M8R4KGxGuEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+
 
 async function main() {
   console.log("=== Production Attachment Verification (B204C) ===\n");
@@ -141,6 +150,16 @@ async function main() {
     const pptxPath = createTempFile(pptxName, Buffer.from(MIN_PPTX_BASE64, "base64"));
     const zipName = "Архів.zip";
     const zipPath = createTempFile(zipName, Buffer.from(MIN_ZIP_BASE64, "base64"));
+
+    const mp4Name = "Відео.mp4";
+    const mp4Path = createTempFile(mp4Name, Buffer.from(MIN_MP4_BASE64, "base64"));
+
+    const mp3Name = "Аудіо.mp3";
+    const mp3Path = createTempFile(mp3Name, Buffer.from(MIN_MP3_BASE64, "base64"));
+
+    const xlsName = "Старий_звіт.xls";
+    const xlsPath = createTempFile(xlsName, Buffer.from(MIN_XLS_BASE64, "base64"));
+
     const pngPath = createTempFile(
       pngName,
       Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64"),
@@ -235,7 +254,49 @@ async function main() {
       pushResult("ZIP with Cyrillic filename appears in message", false, "filename not found");
     }
 
-    // 6. Unsupported dangerous file rejected with a friendly error.
+    // 6. MP4 video upload with Cyrillic filename.
+    console.log("[step] upload MP4 video with Cyrillic filename");
+    await page.setInputFiles('[data-testid="composer-file-input"]', mp4Path);
+    await sleep(500);
+    await sendSelectedFiles();
+    await debugState("after-mp4-cyrillic");
+
+    try {
+      await waitForAttachmentFileName(mp4Name);
+      pushResult("MP4 video with Cyrillic filename appears in message", true);
+    } catch {
+      pushResult("MP4 video with Cyrillic filename appears in message", false, "filename not found");
+    }
+
+    // 7. MP3 audio upload with Cyrillic filename.
+    console.log("[step] upload MP3 audio with Cyrillic filename");
+    await page.setInputFiles('[data-testid="composer-file-input"]', mp3Path);
+    await sleep(500);
+    await sendSelectedFiles();
+    await debugState("after-mp3-cyrillic");
+
+    try {
+      await waitForAttachmentFileName(mp3Name);
+      pushResult("MP3 audio with Cyrillic filename appears in message", true);
+    } catch {
+      pushResult("MP3 audio with Cyrillic filename appears in message", false, "filename not found");
+    }
+
+    // 8. Legacy XLS upload with Cyrillic filename.
+    console.log("[step] upload legacy XLS with Cyrillic filename");
+    await page.setInputFiles('[data-testid="composer-file-input"]', xlsPath);
+    await sleep(500);
+    await sendSelectedFiles();
+    await debugState("after-xls-cyrillic");
+
+    try {
+      await waitForAttachmentFileName(xlsName);
+      pushResult("Legacy XLS with Cyrillic filename appears in message", true);
+    } catch {
+      pushResult("Legacy XLS with Cyrillic filename appears in message", false, "filename not found");
+    }
+
+    // 9. Unsupported dangerous file rejected with a friendly error.
     console.log("[step] reject unsupported .exe upload");
     const exeName = "dangerous.exe";
     const exePath = createTempFile(exeName, Buffer.from("TVqQAAMAAAAEAAAA//8AALgAAAAA", "base64"));
@@ -283,7 +344,7 @@ async function main() {
       pushResult("Image opens in lightbox", false, "no image attachment");
     }
 
-    // 8. Drag & drop upload with overlay.
+    // 11. Drag & drop upload with overlay.
     console.log("[step] drag & drop upload");
     const dropPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
     const panel = await page.$('[data-testid="channel-chat-panel"]');
@@ -333,7 +394,7 @@ async function main() {
       pushResult("Drag & drop upload appears in channel", false, "chat panel not found");
     }
 
-    // 9. Authenticated download.
+    // 12. Authenticated download.
     const fileRequestPromise = page.waitForRequest(
       (req) => req.url().includes("/attachments/") && req.url().endsWith("/file"),
       { timeout: 10000 },
@@ -356,7 +417,7 @@ async function main() {
       pushResult("File download uses authenticated request", false, "no file card");
     }
 
-    // 10. No CORS / ERR_FAILED.
+    // 13. No CORS / ERR_FAILED.
     const corsErrors = failedRequests.filter(
       (r) => r.failure.includes("CORS") || r.failure.includes("ERR_FAILED"),
     );
@@ -366,13 +427,13 @@ async function main() {
       corsErrors.map((r) => `${r.url} -> ${r.failure}`).join("; ") || "none",
     );
 
-    // 11. Token leakage.
+    // 14. Token leakage.
     const leaked = consoleLogs.some(
       (text) => text.includes(owner.accessToken) || text.includes(owner.refreshToken),
     );
     pushResult("No access/refresh token leaked to console", !leaked);
 
-    // 12. DM attachments not supported.
+    // 15. DM attachments not supported.
     const other = await createVerifiedAccount("attach-other");
     const conv = await api(owner.accessToken, "POST", "/direct-conversations", {
       userId: other.user.id,
