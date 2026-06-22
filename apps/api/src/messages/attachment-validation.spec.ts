@@ -6,7 +6,6 @@ import {
   DANGEROUS_ATTACHMENT_EXTENSIONS,
   MAX_ATTACHMENTS_PER_MESSAGE,
   MAX_IMAGE_ATTACHMENTS_PER_MESSAGE,
-  MAX_TOTAL_ATTACHMENT_SIZE_BYTES,
 } from './attachment-validation';
 
 describe('AttachmentValidation', () => {
@@ -200,7 +199,12 @@ describe('AttachmentValidation', () => {
 
     it('accepts image files within category limit', async () => {
       const result = await validateAttachmentFile(
-        makeFile('photo.png', 'image/png', Buffer.from('png'), 24 * 1024 * 1024),
+        makeFile(
+          'photo.png',
+          'image/png',
+          Buffer.from('png'),
+          24 * 1024 * 1024,
+        ),
       );
       expect(result.allowed).toBe(true);
     });
@@ -260,7 +264,10 @@ describe('AttachmentValidation', () => {
 
     it('rejects mixed batches above 10 even when under image limit', () => {
       const items = Array.from({ length: 15 }, (_, i) =>
-        makeItem(i % 2 === 0 ? 'image/png' : 'application/pdf', 1 * 1024 * 1024),
+        makeItem(
+          i % 2 === 0 ? 'image/png' : 'application/pdf',
+          1 * 1024 * 1024,
+        ),
       );
       const result = validateAttachmentBatch(items);
       expect(result.allowed).toBe(false);
