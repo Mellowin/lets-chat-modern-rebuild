@@ -188,7 +188,7 @@ describe("messages-api", () => {
   describe("fetchAttachmentFile", () => {
     it("fetches file with Authorization header", async () => {
       const blob = new Blob(["image"], { type: "image/png" });
-      const response = new Response(blob, { status: 200 });
+      const response = new Response(null, { status: 200 });
       response.blob = async () => blob;
       vi.mocked(fetch).mockResolvedValueOnce(response);
 
@@ -213,7 +213,7 @@ describe("messages-api", () => {
   describe("getAttachmentFileObjectUrl", () => {
     it("returns a blob object URL", async () => {
       const blob = new Blob(["image"], { type: "image/png" });
-      const response = new Response(blob, { status: 200 });
+      const response = new Response(null, { status: 200 });
       response.blob = async () => blob;
       vi.mocked(fetch).mockResolvedValueOnce(response);
       URL.createObjectURL = vi.fn(() => "blob:mock-url");
