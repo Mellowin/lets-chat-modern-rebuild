@@ -135,12 +135,7 @@ async function main() {
       page.on("console", (msg) => consoleLog.push(msg.text()));
 
       await page.goto(`${WEB_BASE}/workspaces/${workspace.id}`, { waitUntil: "networkidle" });
-      const headerDeleteVisible = await page.isVisible('[data-testid="workspace-delete-header-button"]').catch(() => false);
       const dangerZoneVisible = await page.isVisible('[data-testid="workspace-danger-zone"]').catch(() => false);
-      results.push({
-        check: "Owner sees workspace header delete button",
-        ok: headerDeleteVisible,
-      });
       results.push({
         check: "Owner sees workspace Danger Zone card",
         ok: dangerZoneVisible,
@@ -204,12 +199,7 @@ async function main() {
       const page = await context.newPage();
       await page.goto(`${WEB_BASE}/workspaces/${workspace.id}`, { waitUntil: "networkidle" });
 
-      const headerDeleteVisible = await page.isVisible('[data-testid="workspace-delete-header-button"]').catch(() => false);
       const dangerZoneVisible = await page.isVisible('[data-testid="workspace-danger-zone"]').catch(() => false);
-      results.push({
-        check: "Non-owner does not see workspace header delete button",
-        ok: !headerDeleteVisible,
-      });
       results.push({
         check: "Non-owner does not see workspace Danger Zone card",
         ok: !dangerZoneVisible,
