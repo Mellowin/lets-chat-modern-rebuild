@@ -9,6 +9,7 @@ import {
   IsIn,
 } from 'class-validator';
 import { ALLOWED_MIME_TYPES } from './presign-attachment.dto';
+import { MAX_ATTACHMENT_SIZE_BYTES } from '../attachment-validation';
 
 export class CreateMessageAttachmentDto {
   @ApiProperty({ example: 'attachments/user-id/uuid-file.png' })
@@ -31,7 +32,7 @@ export class CreateMessageAttachmentDto {
   @ApiProperty({ example: 1234 })
   @IsInt()
   @Min(1)
-  @Max(10 * 1024 * 1024)
+  @Max(MAX_ATTACHMENT_SIZE_BYTES)
   sizeBytes: number;
 
   @ApiProperty({ example: 'image', enum: ['image', 'file'] })

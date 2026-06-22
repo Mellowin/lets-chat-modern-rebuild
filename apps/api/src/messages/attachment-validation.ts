@@ -1,72 +1,38 @@
 import { BadRequestException } from '@nestjs/common';
+import {
+  ALLOWED_ATTACHMENT_EXTENSIONS,
+  ALLOWED_ATTACHMENT_MIME_TYPES,
+  DANGEROUS_ATTACHMENT_EXTENSIONS,
+  EXTENSION_TO_MIME_TYPE,
+  MAX_ATTACHMENT_SIZE_BYTES,
+  MAX_ATTACHMENTS_PER_MESSAGE,
+  MAX_IMAGE_ATTACHMENTS_PER_MESSAGE,
+  MAX_TOTAL_ATTACHMENT_SIZE_BYTES,
+  getAttachmentCategory,
+  getAttachmentExtension,
+  getCategoryMaxSizeBytes,
+  isAllowedAttachmentExtension,
+  isDangerousAttachmentExtension,
+  type AllowedAttachmentExtension,
+  type AttachmentCategory,
+} from '@lets-chat/shared';
 
-export const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
+export {
+  ALLOWED_ATTACHMENT_EXTENSIONS,
+  ALLOWED_ATTACHMENT_MIME_TYPES as ALLOWED_MIME_TYPES,
+  DANGEROUS_ATTACHMENT_EXTENSIONS,
+  MAX_ATTACHMENT_SIZE_BYTES,
+  MAX_ATTACHMENTS_PER_MESSAGE,
+  MAX_IMAGE_ATTACHMENTS_PER_MESSAGE,
+  MAX_TOTAL_ATTACHMENT_SIZE_BYTES,
+};
 
-export const ALLOWED_ATTACHMENT_EXTENSIONS = [
-  // images
-  '.png',
-  '.jpg',
-  '.jpeg',
-  '.webp',
-  '.gif',
-  // documents
-  '.pdf',
-  '.txt',
-  '.rtf',
-  // Microsoft Word
-  '.doc',
-  '.docx',
-  // Microsoft Excel
-  '.xls',
-  '.xlsx',
-  '.csv',
-  // Microsoft PowerPoint
-  '.ppt',
-  '.pptx',
-  // OpenDocument
-  '.odt',
-  '.ods',
-  '.odp',
-  // archives
-  '.zip',
-  '.7z',
-  '.rar',
-  // video
-  '.mp4',
-  '.webm',
-  '.mov',
-  '.avi',
-  '.mkv',
-  // audio
-  '.mp3',
-  '.wav',
-  '.ogg',
-  '.m4a',
-] as const;
+const CANONICAL_EXTENSION_TO_MIME_TYPE = EXTENSION_TO_MIME_TYPE;
 
-export type AllowedAttachmentExtension =
-  (typeof ALLOWED_ATTACHMENT_EXTENSIONS)[number];
-
-export const DANGEROUS_ATTACHMENT_EXTENSIONS = [
-  '.exe',
-  '.bat',
-  '.cmd',
-  '.sh',
-  '.ps1',
-  '.js',
-  '.mjs',
-  '.ts',
-  '.html',
-  '.htm',
-  '.php',
-  '.jar',
-  '.dll',
-  '.scr',
-  '.svg',
-  '.com',
-  '.vbs',
-] as const;
-
+/**
+ * Extension -> accepted MIME types, including aliases. This preserves the
+ * existing validation behaviour while keeping the canonical map in one place.
+ */
 export const EXTENSION_TO_MIME_TYPES: Record<
   AllowedAttachmentExtension,
   readonly string[]
@@ -109,8 +75,6 @@ export const EXTENSION_TO_MIME_TYPES: Record<
   '.m4a': ['audio/mp4'],
 };
 
-export const ALLOWED_MIME_TYPES = Object.values(EXTENSION_TO_MIME_TYPES).flat();
-
 const LEGACY_OFFICE_EXTENSIONS = new Set<AllowedAttachmentExtension>([
   '.doc',
   '.xls',
@@ -133,11 +97,19 @@ const LEGACY_OFFICE_MIME_TYPES = new Set([
   'application/msword',
   'application/vnd.ms-excel',
   'application/vnd.ms-powerpoint',
+  'application/x-cfb',
 ]);
+
+export type AttachmentValidationErrorCode =
+  | 'UNSUPPORTED_FILE_TYPE'
+  | 'FILE_TOO_LARGE'
+  | 'TOTAL_ATTACHMENTS_TOO_LARGE'
+  | 'TOO_MANY_ATTACHMENTS';
 
 export interface AttachmentValidationResult {
   allowed: boolean;
   normalizedMimeType: string;
+  code?: AttachmentValidationErrorCode;
   reason?: string;
 }
 
@@ -145,20 +117,40 @@ export interface AttachmentFileLike {
   originalname: string;
   mimetype: string;
   size: number;
-  buffer: Buffer;
+  buffer?: Buffer;
+  path?: string;
+}
+
+export interface AttachmentBatchItem {
+  mimeType: string;
+  sizeBytes: number;
 }
 
 function getExtension(filename: string): string {
-  const lastDot = filename.lastIndexOf('.');
-  return lastDot === -1 ? '' : filename.slice(lastDot).toLowerCase();
+  return getAttachmentExtension(filename);
 }
 
-function isDangerousExtension(ext: string): boolean {
-  return (DANGEROUS_ATTACHMENT_EXTENSIONS as readonly string[]).includes(ext);
+function getCategoryForFile(
+  filename: string,
+  mimeType: string,
+): AttachmentCategory {
+  const declared = (mimeType || '').toLowerCase();
+  if (ALLOWED_ATTACHMENT_MIME_TYPES.includes(declared)) {
+    return getAttachmentCategory(declared);
+  }
+  const ext = getExtension(filename);
+  if (isAllowedAttachmentExtension(ext)) {
+    const canonical = CANONICAL_EXTENSION_TO_MIME_TYPE[ext];
+    return getAttachmentCategory(canonical);
+  }
+  return getAttachmentCategory(declared);
 }
 
-function isAllowedExtension(ext: string): ext is AllowedAttachmentExtension {
-  return (ALLOWED_ATTACHMENT_EXTENSIONS as readonly string[]).includes(ext);
+function getCategoryMaxSizeBytesForFile(
+  filename: string,
+  mimeType: string,
+): number {
+  return getCategoryMaxSizeBytes(getCategoryForFile(filename, mimeType));
 }
 
 function hasExecutableSignature(buffer: Buffer): boolean {
@@ -174,7 +166,9 @@ function hasExecutableSignature(buffer: Buffer): boolean {
 
 type FileTypeResult = { mime: string } | undefined;
 
-async function detectMimeType(buffer: Buffer): Promise<string | undefined> {
+async function detectMimeTypeFromBuffer(
+  buffer: Buffer,
+): Promise<string | undefined> {
   try {
     const { fileTypeFromBuffer } = (await import('file-type')) as {
       fileTypeFromBuffer: (buffer: Buffer) => Promise<FileTypeResult>;
@@ -186,86 +180,173 @@ async function detectMimeType(buffer: Buffer): Promise<string | undefined> {
   }
 }
 
+async function detectMimeTypeFromPath(
+  filePath: string,
+): Promise<string | undefined> {
+  try {
+    const { fileTypeFromFile } = (await import('file-type')) as {
+      fileTypeFromFile: (path: string) => Promise<FileTypeResult>;
+    };
+    const result = await fileTypeFromFile(filePath);
+    return result?.mime;
+  } catch {
+    return undefined;
+  }
+}
+
+function getDetectedMimeType(
+  file: AttachmentFileLike,
+): Promise<string | undefined> {
+  if (file.buffer && file.buffer.length > 0) {
+    return detectMimeTypeFromBuffer(file.buffer);
+  }
+  if (file.path) {
+    return detectMimeTypeFromPath(file.path);
+  }
+  return Promise.resolve(undefined);
+}
+
+function makeResult(
+  allowed: boolean,
+  normalizedMimeType: string,
+  code?: AttachmentValidationErrorCode,
+  reason?: string,
+): AttachmentValidationResult {
+  return { allowed, normalizedMimeType, code, reason };
+}
+
+function getHardSizeLimit(): number {
+  return MAX_ATTACHMENT_SIZE_BYTES;
+}
+
 export function validateAttachmentMetadata(
   filename: string,
   mimeType: string,
   sizeBytes: number,
 ): AttachmentValidationResult {
-  if (sizeBytes > MAX_ATTACHMENT_SIZE_BYTES) {
-    return {
-      allowed: false,
-      normalizedMimeType: mimeType,
-      reason: 'File exceeds maximum size of 10 MB',
-    };
-  }
-
+  const declared = (mimeType || '').toLowerCase();
   const ext = getExtension(filename);
 
-  if (isDangerousExtension(ext) || !isAllowedExtension(ext)) {
-    return {
-      allowed: false,
-      normalizedMimeType: mimeType,
-      reason: 'Unsupported file type',
-    };
+  if (isDangerousAttachmentExtension(ext)) {
+    return makeResult(
+      false,
+      declared,
+      'UNSUPPORTED_FILE_TYPE',
+      'Unsupported file type',
+    );
+  }
+
+  if (!isAllowedAttachmentExtension(ext)) {
+    return makeResult(
+      false,
+      declared,
+      'UNSUPPORTED_FILE_TYPE',
+      'Unsupported file type',
+    );
+  }
+
+  // Reject files that exceed the hard cap before we do anything else.
+  if (sizeBytes > getHardSizeLimit()) {
+    return makeResult(
+      false,
+      declared,
+      'FILE_TOO_LARGE',
+      'File exceeds maximum allowed size',
+    );
+  }
+
+  const categoryMax = getCategoryMaxSizeBytesForFile(filename, mimeType);
+  if (sizeBytes > categoryMax) {
+    return makeResult(
+      false,
+      declared,
+      'FILE_TOO_LARGE',
+      `File exceeds maximum size for this file type`,
+    );
   }
 
   const expectedMimes = EXTENSION_TO_MIME_TYPES[ext];
-  const declared = mimeType.toLowerCase();
 
   if (expectedMimes.includes(declared)) {
-    return { allowed: true, normalizedMimeType: declared };
+    return makeResult(true, declared);
   }
 
   // Some browsers/clients send empty or generic MIME types; accept if extension
   // is in the whitelist and the client did not send a dangerous MIME.
   if (!declared || declared === 'application/octet-stream') {
-    return { allowed: true, normalizedMimeType: expectedMimes[0] };
+    return makeResult(true, expectedMimes[0]);
   }
 
   // Legacy Office CFB/OLE files are magic-byte ambiguous; accept by extension.
   if (LEGACY_OFFICE_EXTENSIONS.has(ext)) {
-    return { allowed: true, normalizedMimeType: expectedMimes[0] };
+    return makeResult(true, expectedMimes[0]);
   }
 
-  return {
-    allowed: false,
-    normalizedMimeType: declared,
-    reason: 'Unsupported file type',
-  };
+  return makeResult(
+    false,
+    declared,
+    'UNSUPPORTED_FILE_TYPE',
+    'Unsupported file type',
+  );
 }
 
 export async function validateAttachmentFile(
   file: AttachmentFileLike,
 ): Promise<AttachmentValidationResult> {
-  if (file.size > MAX_ATTACHMENT_SIZE_BYTES) {
-    return {
-      allowed: false,
-      normalizedMimeType: file.mimetype,
-      reason: 'File exceeds maximum size of 10 MB',
-    };
-  }
-
+  const declared = (file.mimetype || '').toLowerCase();
   const ext = getExtension(file.originalname);
 
-  if (isDangerousExtension(ext) || !isAllowedExtension(ext)) {
-    return {
-      allowed: false,
-      normalizedMimeType: file.mimetype,
-      reason: 'Unsupported file type',
-    };
+  if (isDangerousAttachmentExtension(ext)) {
+    return makeResult(
+      false,
+      declared,
+      'UNSUPPORTED_FILE_TYPE',
+      'Unsupported file type',
+    );
   }
 
-  if (hasExecutableSignature(file.buffer)) {
-    return {
-      allowed: false,
-      normalizedMimeType: file.mimetype,
-      reason: 'Unsupported file type',
-    };
+  if (!isAllowedAttachmentExtension(ext)) {
+    return makeResult(
+      false,
+      declared,
+      'UNSUPPORTED_FILE_TYPE',
+      'Unsupported file type',
+    );
+  }
+
+  if (file.size > getHardSizeLimit()) {
+    return makeResult(
+      false,
+      declared,
+      'FILE_TOO_LARGE',
+      'File exceeds maximum allowed size',
+    );
+  }
+
+  const categoryMax = getCategoryMaxSizeBytesForFile(
+    file.originalname,
+    file.mimetype,
+  );
+  if (file.size > categoryMax) {
+    return makeResult(
+      false,
+      declared,
+      'FILE_TOO_LARGE',
+      'File exceeds maximum size for this file type',
+    );
+  }
+
+  if (file.buffer && hasExecutableSignature(file.buffer)) {
+    return makeResult(
+      false,
+      declared,
+      'UNSUPPORTED_FILE_TYPE',
+      'Unsupported file type',
+    );
   }
 
   const expectedMimes = EXTENSION_TO_MIME_TYPES[ext];
-  const declared = (file.mimetype || '').toLowerCase();
-  const detected = await detectMimeType(file.buffer);
+  const detected = await getDetectedMimeType(file);
 
   const declaredMatches = expectedMimes.includes(declared);
   const detectedMatches = detected ? expectedMimes.includes(detected) : false;
@@ -273,7 +354,7 @@ export async function validateAttachmentFile(
   // Images, PDF, plain text, etc. — magic bytes and declared MIME should agree
   // with the extension.
   if (detectedMatches) {
-    return { allowed: true, normalizedMimeType: detected! };
+    return makeResult(true, detected!);
   }
 
   // OOXML files are ZIP archives internally. file-type may identify them as the
@@ -286,34 +367,36 @@ export async function validateAttachmentFile(
       detected !== 'application/zip' &&
       !OOXML_MIME_TYPES.has(detected)
     ) {
-      return {
-        allowed: false,
-        normalizedMimeType: declared,
-        reason: 'Unsupported file type',
-      };
+      return makeResult(
+        false,
+        declared,
+        'UNSUPPORTED_FILE_TYPE',
+        'Unsupported file type',
+      );
     }
-    return { allowed: true, normalizedMimeType: expectedMimes[0] };
+    return makeResult(true, expectedMimes[0]);
   }
 
   // Legacy Office CFB/OLE containers are often mis-detected as application/msword
-  // regardless of whether they are Word, Excel, or PowerPoint. Trust the
-  // extension for these formats.
+  // or application/x-cfb regardless of whether they are Word, Excel, or
+  // PowerPoint. Trust the extension for these formats.
   if (LEGACY_OFFICE_EXTENSIONS.has(ext)) {
     if (detected && LEGACY_OFFICE_MIME_TYPES.has(detected)) {
-      return { allowed: true, normalizedMimeType: expectedMimes[0] };
+      return makeResult(true, expectedMimes[0]);
     }
     if (
       declaredMatches ||
       !declared ||
       declared === 'application/octet-stream'
     ) {
-      return { allowed: true, normalizedMimeType: expectedMimes[0] };
+      return makeResult(true, expectedMimes[0]);
     }
-    return {
-      allowed: false,
-      normalizedMimeType: declared,
-      reason: 'Unsupported file type',
-    };
+    return makeResult(
+      false,
+      declared,
+      'UNSUPPORTED_FILE_TYPE',
+      'Unsupported file type',
+    );
   }
 
   // Plain text formats (txt, csv, rtf) may not have reliable magic bytes.
@@ -326,18 +409,61 @@ export async function validateAttachmentFile(
       declared.startsWith('text/') ||
       declared === 'application/csv')
   ) {
-    return { allowed: true, normalizedMimeType: expectedMimes[0] };
+    return makeResult(true, expectedMimes[0]);
   }
 
   if (declaredMatches) {
-    return { allowed: true, normalizedMimeType: declared };
+    return makeResult(true, declared);
   }
 
-  return {
-    allowed: false,
-    normalizedMimeType: declared,
-    reason: 'Unsupported file type',
-  };
+  return makeResult(
+    false,
+    declared,
+    'UNSUPPORTED_FILE_TYPE',
+    'Unsupported file type',
+  );
+}
+
+/**
+ * Validate a batch of attachments for a single message.
+ * Enforces count limits and total size cap.
+ */
+export function validateAttachmentBatch(
+  items: AttachmentBatchItem[],
+): AttachmentValidationResult {
+  if (items.length === 0) {
+    return makeResult(true, '');
+  }
+
+  const allImage = items.every(
+    (item) => getAttachmentCategory(item.mimeType) === 'image',
+  );
+  const maxCount = allImage
+    ? MAX_IMAGE_ATTACHMENTS_PER_MESSAGE
+    : MAX_ATTACHMENTS_PER_MESSAGE;
+
+  if (items.length > maxCount) {
+    return makeResult(
+      false,
+      '',
+      'TOO_MANY_ATTACHMENTS',
+      allImage
+        ? `You can attach up to ${MAX_IMAGE_ATTACHMENTS_PER_MESSAGE} images per message`
+        : `You can attach up to ${MAX_ATTACHMENTS_PER_MESSAGE} files per message`,
+    );
+  }
+
+  const totalSize = items.reduce((sum, item) => sum + item.sizeBytes, 0);
+  if (totalSize > MAX_TOTAL_ATTACHMENT_SIZE_BYTES) {
+    return makeResult(
+      false,
+      '',
+      'TOTAL_ATTACHMENTS_TOO_LARGE',
+      `Total attachment size must not exceed ${MAX_TOTAL_ATTACHMENT_SIZE_BYTES / (1024 * 1024)} MB`,
+    );
+  }
+
+  return makeResult(true, '');
 }
 
 export function assertAttachmentAllowed(
@@ -349,4 +475,12 @@ export function assertAttachmentAllowed(
     );
   }
   return result.normalizedMimeType;
+}
+
+export function assertAttachmentBatchAllowed(
+  result: AttachmentValidationResult,
+): void {
+  if (!result.allowed) {
+    throw new BadRequestException(result.reason || 'Invalid attachment batch');
+  }
 }

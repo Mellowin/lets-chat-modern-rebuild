@@ -46,6 +46,18 @@ import { createChannelInvite } from "@/lib/channel-invites-api";
 import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, uploadAttachmentViaProxyWithProgress, fetchAttachmentFile, getAttachmentFileObjectUrl, getMessageContext, type Message, type CreateMessageInput, type UpdateMessageInput, type ReactionSummary, type Attachment, type MessageContextResult, CreateMessageAttachmentInput } from "@/lib/messages-api";
 import { sendDirectMessage, listDirectConversations, type DirectConversation } from "@/lib/direct-conversations-api";
 import { createSocket } from "@/lib/socket-client";
+import {
+  ALLOWED_ATTACHMENT_MIME_TYPES as ALLOWED_ATTACHMENT_TYPES,
+  EXTENSION_TO_MIME_TYPE as EXTENSION_MIME_MAP,
+  MAX_ATTACHMENTS_PER_MESSAGE,
+  MAX_IMAGE_ATTACHMENTS_PER_MESSAGE,
+  MAX_TOTAL_ATTACHMENT_SIZE_BYTES,
+  ATTACHMENT_CATEGORY_MAX_SIZE_BYTES,
+  getAttachmentCategory,
+  getAttachmentMimeType,
+  getAttachmentExtension,
+  isAllowedAttachmentExtension,
+} from "@lets-chat/shared";
 import { MessageAuthor } from "@/components/MessageAuthor";
 import ChannelMessageSearch from "@/components/ChannelMessageSearch";
 import ImageLightbox from "@/components/ImageLightbox";
@@ -84,107 +96,18 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-const ALLOWED_ATTACHMENT_TYPES = [
-  // images
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/gif",
-  // documents
-  "application/pdf",
-  "text/plain",
-  "application/rtf",
-  "text/rtf",
-  // Microsoft Word
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  // Microsoft Excel
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "text/csv",
-  "application/csv",
-  // Microsoft PowerPoint
-  "application/vnd.ms-powerpoint",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  // OpenDocument
-  "application/vnd.oasis.opendocument.text",
-  "application/vnd.oasis.opendocument.spreadsheet",
-  "application/vnd.oasis.opendocument.presentation",
-  // archives
-  "application/zip",
-  "application/x-7z-compressed",
-  "application/vnd.rar",
-  "application/x-rar-compressed",
-  // video
-  "video/mp4",
-  "video/webm",
-  "video/quicktime",
-  "video/x-msvideo",
-  "video/x-matroska",
-  // audio
-  "audio/mpeg",
-  "audio/wav",
-  "audio/ogg",
-  "audio/mp4",
-];
 
-const EXTENSION_MIME_MAP: Record<string, string> = {
-  // images
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".webp": "image/webp",
-  ".gif": "image/gif",
-  // documents
-  ".pdf": "application/pdf",
-  ".txt": "text/plain",
-  ".rtf": "application/rtf",
-  // Microsoft Word
-  ".doc": "application/msword",
-  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  // Microsoft Excel
-  ".xls": "application/vnd.ms-excel",
-  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  ".csv": "text/csv",
-  // Microsoft PowerPoint
-  ".ppt": "application/vnd.ms-powerpoint",
-  ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  // OpenDocument
-  ".odt": "application/vnd.oasis.opendocument.text",
-  ".ods": "application/vnd.oasis.opendocument.spreadsheet",
-  ".odp": "application/vnd.oasis.opendocument.presentation",
-  // archives
-  ".zip": "application/zip",
-  ".7z": "application/x-7z-compressed",
-  ".rar": "application/vnd.rar",
-  // video
-  ".mp4": "video/mp4",
-  ".webm": "video/webm",
-  ".mov": "video/quicktime",
-  ".avi": "video/x-msvideo",
-  ".mkv": "video/x-matroska",
-  // audio
-  ".mp3": "audio/mpeg",
-  ".wav": "audio/wav",
-  ".ogg": "audio/ogg",
-  ".m4a": "audio/mp4",
-};
-
-function getAttachmentMimeType(file: File): string {
-  if (file.type) return file.type;
-  const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
-  return EXTENSION_MIME_MAP[ext] || "application/octet-stream";
-}
 
 function isAllowedAttachmentFile(file: File): boolean {
   if (ALLOWED_ATTACHMENT_TYPES.includes(file.type)) return true;
-  const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+  const ext = getAttachmentExtension(file.name);
+  if (!isAllowedAttachmentExtension(ext)) return false;
   const mapped = EXTENSION_MIME_MAP[ext];
   return mapped ? ALLOWED_ATTACHMENT_TYPES.includes(mapped) : false;
 }
 
 function normalizeAttachmentFile(file: File): File {
-  const type = getAttachmentMimeType(file);
+  const type = getAttachmentMimeType(file.name, file.type);
   if (type === file.type) return file;
   return new File([file], file.name, { type, lastModified: file.lastModified });
 }
@@ -433,9 +356,6 @@ export default function ChannelDetailPage() {
     composerAttachmentsRef.current = composerAttachments;
   }, [composerAttachments]);
   const quickEmojis = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
-
-  const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
-  const MAX_ATTACHMENTS = 5;
 
   const filePreviews = useMemo(() => {
     const map = new Map<string, string>();
@@ -1328,42 +1248,85 @@ export default function ChannelDetailPage() {
     }
   }
 
+  function getFileCategoryMaxSize(file: File): number {
+    const mime = getAttachmentMimeType(file.name, file.type);
+    const category = getAttachmentCategory(mime);
+    return ATTACHMENT_CATEGORY_MAX_SIZE_BYTES[category];
+  }
+
   function validateAndAddFiles(files: File[]) {
     setAttachmentError(null);
 
     if (files.length === 0) return;
 
     const normalizedFiles = files.map(normalizeAttachmentFile);
+    const accepted: File[] = [];
+    let hasTypeReject = false;
+    let hasSizeReject = false;
 
-    const validFiles = normalizedFiles.filter((f) => {
-      if (!isAllowedAttachmentFile(f)) return false;
-      if (f.size > MAX_ATTACHMENT_SIZE) return false;
-      return true;
-    });
+    for (const file of normalizedFiles) {
+      if (!isAllowedAttachmentFile(file)) {
+        hasTypeReject = true;
+        continue;
+      }
+      if (file.size > getFileCategoryMaxSize(file)) {
+        hasSizeReject = true;
+        continue;
+      }
+      accepted.push(file);
+    }
 
-    const hasInvalid = validFiles.length < files.length;
+    const projectedCount = composerAttachments.length + accepted.length;
+    const existingAllImage = composerAttachments.every(
+      (att) =>
+        getAttachmentCategory(
+          getAttachmentMimeType(att.file.name, att.file.type),
+        ) === "image",
+    );
+    const acceptedAllImage = accepted.every(
+      (file) =>
+        getAttachmentCategory(getAttachmentMimeType(file.name, file.type)) ===
+        "image",
+    );
+    const allImage = existingAllImage && acceptedAllImage;
+    const countLimit = allImage
+      ? MAX_IMAGE_ATTACHMENTS_PER_MESSAGE
+      : MAX_ATTACHMENTS_PER_MESSAGE;
 
-    if (composerAttachments.length + validFiles.length > MAX_ATTACHMENTS) {
+    if (projectedCount > countLimit) {
       setAttachmentError(t("channel.errorTooManyAttachments"));
       return;
     }
 
-    if (validFiles.length === 0) {
-      if (files.some((f) => !isAllowedAttachmentFile(normalizeAttachmentFile(f)))) {
+    const existingTotalSize = composerAttachments.reduce(
+      (sum, att) => sum + att.file.size,
+      0,
+    );
+    const acceptedTotalSize = accepted.reduce((sum, file) => sum + file.size, 0);
+    const projectedTotalSize = existingTotalSize + acceptedTotalSize;
+    if (projectedTotalSize > MAX_TOTAL_ATTACHMENT_SIZE_BYTES) {
+      setAttachmentError(t("channel.errorAttachmentsTotalTooLarge"));
+      return;
+    }
+
+    if (accepted.length === 0) {
+      if (hasTypeReject) {
         setAttachmentError(t("channel.errorInvalidAttachmentType"));
       } else {
-        setAttachmentError(t("channel.errorAttachmentTooLarge"));
+        setAttachmentError(t("channel.errorAttachmentTooLargeByCategory"));
       }
       return;
     }
 
-    if (hasInvalid) {
-      setAttachmentError(t("channel.errorSomeAttachmentsInvalid"));
+    if (hasTypeReject) {
+      setAttachmentError(t("channel.errorInvalidAttachmentType"));
+    } else if (hasSizeReject) {
+      setAttachmentError(t("channel.errorAttachmentTooLargeByCategory"));
     }
 
     const addFiles = (prev: ComposerAttachment[]) => [
       ...prev,
-      ...validFiles.map((file): ComposerAttachment => ({
+      ...accepted.map((file): ComposerAttachment => ({
         id: crypto.randomUUID(),
         file,
         status: "ready",

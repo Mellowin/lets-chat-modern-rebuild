@@ -84,9 +84,9 @@ describe('CreateMessageDto', () => {
     expect(errors).toHaveLength(0);
   });
 
-  it('rejects more than 5 attachments', async () => {
+  it('rejects more than 20 attachments', async () => {
     const errors = await validateDto({
-      attachments: Array.from({ length: 6 }, (_, i) => ({
+      attachments: Array.from({ length: 21 }, (_, i) => ({
         storageKey: `attachments/user-id/uuid-file-${i}.png`,
         fileName: `file-${i}.png`,
         mimeType: 'image/png',
@@ -130,14 +130,14 @@ describe('CreateMessageDto', () => {
     expect(errors[0].property).toBe('attachments');
   });
 
-  it('rejects oversized attachment', async () => {
+  it('rejects attachment above hard upload cap', async () => {
     const errors = await validateDto({
       attachments: [
         {
           storageKey: 'attachments/user-id/uuid-file.png',
           fileName: 'file.png',
           mimeType: 'image/png',
-          sizeBytes: 20 * 1024 * 1024,
+          sizeBytes: 100 * 1024 * 1024 + 1,
           kind: 'image',
         },
       ],

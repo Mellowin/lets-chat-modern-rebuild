@@ -232,7 +232,7 @@ describe('AttachmentsService', () => {
           {
             filename: 'huge.png',
             mimeType: 'image/png',
-            sizeBytes: 20 * 1024 * 1024,
+            sizeBytes: 30 * 1024 * 1024,
           },
           userId,
         ),
@@ -585,7 +585,7 @@ describe('AttachmentsService', () => {
         service.uploadFile(
           workspaceId,
           channelId,
-          makeFile({ size: 20 * 1024 * 1024 }),
+          makeFile({ size: 30 * 1024 * 1024 }),
           userId,
         ),
       ).rejects.toBeInstanceOf(BadRequestException);

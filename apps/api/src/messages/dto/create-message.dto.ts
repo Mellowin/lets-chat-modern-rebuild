@@ -10,6 +10,7 @@ import {
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { CreateMessageAttachmentDto } from './create-message-attachment.dto';
+import { MAX_IMAGE_ATTACHMENTS_PER_MESSAGE } from '@lets-chat/shared';
 
 export class CreateMessageDto {
   @ApiProperty({ example: 'Hello everyone!', required: false })
@@ -34,6 +35,6 @@ export class CreateMessageDto {
   @IsOptional()
   @ValidateNested({ each: true })
   @Type(() => CreateMessageAttachmentDto)
-  @ArrayMaxSize(5)
+  @ArrayMaxSize(MAX_IMAGE_ATTACHMENTS_PER_MESSAGE)
   attachments?: CreateMessageAttachmentDto[];
 }

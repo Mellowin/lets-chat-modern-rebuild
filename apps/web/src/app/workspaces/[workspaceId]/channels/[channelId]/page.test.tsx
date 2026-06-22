@@ -3240,37 +3240,146 @@ describe("ChannelDetailPage — forward", () => {
       expect(screen.queryByTestId("composer-attachment-chip-0")).not.toBeInTheDocument();
     });
 
-    it("shows error for oversized file and does not add file", async () => {
+    it("shows error for oversized image and does not add file", async () => {
       mockChannelAndMessages([], []);
       render(<ChannelDetailPage />);
       await waitFor(() => {
         expect(screen.getByTestId("composer-attach-button")).toBeInTheDocument();
       });
 
-      const file = new File([new Uint8Array(11 * 1024 * 1024)], "huge.png", { type: "image/png" });
+      const file = new File([new Uint8Array(26 * 1024 * 1024)], "huge.png", { type: "image/png" });
       const input = screen.getByTestId("composer-file-input") as HTMLInputElement;
       await userEvent.upload(input, file);
 
       await waitFor(() => {
-        expect(screen.getByText("File exceeds 10 MB")).toBeInTheDocument();
+        expect(screen.getByText(/File is too large/i)).toBeInTheDocument();
       });
       expect(screen.queryByTestId("composer-attachment-chip-0")).not.toBeInTheDocument();
     });
 
-    it("rejects more than 5 files", async () => {
+    it("rejects more than 10 mixed files", async () => {
       mockChannelAndMessages([], []);
       render(<ChannelDetailPage />);
       await waitFor(() => {
         expect(screen.getByTestId("composer-attach-button")).toBeInTheDocument();
       });
 
-      const files = Array.from({ length: 6 }, (_, i) => new File(["c"], `f${i}.txt`, { type: "text/plain" }));
+      const files = Array.from({ length: 11 }, (_, i) => new File(["c"], `f${i}.txt`, { type: "text/plain" }));
       const input = screen.getByTestId("composer-file-input") as HTMLInputElement;
       await userEvent.upload(input, files);
 
       await waitFor(() => {
-        expect(screen.getByText("Maximum 5 attachments allowed")).toBeInTheDocument();
+        expect(screen.getByText(/up to 10 files/i)).toBeInTheDocument();
       });
+    });
+
+    it("allows up to 20 image files", async () => {
+      mockChannelAndMessages([], []);
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attach-button")).toBeInTheDocument();
+      });
+
+      const files = Array.from(
+        { length: 20 },
+        (_, i) => new File(["c"], `img${i}.png`, { type: "image/png" }),
+      );
+      const input = screen.getByTestId("composer-file-input") as HTMLInputElement;
+      await userEvent.upload(input, files);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attachment-preview-19")).toBeInTheDocument();
+      });
+    });
+
+    it("rejects more than 20 image files", async () => {
+      mockChannelAndMessages([], []);
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attach-button")).toBeInTheDocument();
+      });
+
+      const files = Array.from(
+        { length: 21 },
+        (_, i) => new File(["c"], `img${i}.png`, { type: "image/png" }),
+      );
+      const input = screen.getByTestId("composer-file-input") as HTMLInputElement;
+      await userEvent.upload(input, files);
+
+      await waitFor(() => {
+        expect(screen.getByText(/up to 20 images/i)).toBeInTheDocument();
+      });
+    });
+
+    it("accepts PDF larger than 10 MB and under 50 MB", async () => {
+      mockChannelAndMessages([], []);
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attach-button")).toBeInTheDocument();
+      });
+
+      const file = new File([new Uint8Array(30 * 1024 * 1024)], "big.pdf", { type: "application/pdf" });
+      const input = screen.getByTestId("composer-file-input") as HTMLInputElement;
+      await userEvent.upload(input, file);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attachment-chip-0")).toBeInTheDocument();
+      });
+      expect(screen.getByText("big.pdf")).toBeInTheDocument();
+    });
+
+    it("rejects document above 50 MB", async () => {
+      mockChannelAndMessages([], []);
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attach-button")).toBeInTheDocument();
+      });
+
+      const file = new File([new Uint8Array(51 * 1024 * 1024)], "huge.pdf", { type: "application/pdf" });
+      const input = screen.getByTestId("composer-file-input") as HTMLInputElement;
+      await userEvent.upload(input, file);
+
+      await waitFor(() => {
+        expect(screen.getByText(/File is too large/i)).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId("composer-attachment-chip-0")).not.toBeInTheDocument();
+    });
+
+    it("rejects video above 100 MB", async () => {
+      mockChannelAndMessages([], []);
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attach-button")).toBeInTheDocument();
+      });
+
+      const file = new File([new Uint8Array(101 * 1024 * 1024)], "huge.mp4", { type: "video/mp4" });
+      const input = screen.getByTestId("composer-file-input") as HTMLInputElement;
+      await userEvent.upload(input, file);
+
+      await waitFor(() => {
+        expect(screen.getByText(/File is too large/i)).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId("composer-attachment-chip-0")).not.toBeInTheDocument();
+    });
+
+    it("rejects batch when total size exceeds 150 MB", async () => {
+      mockChannelAndMessages([], []);
+      render(<ChannelDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId("composer-attach-button")).toBeInTheDocument();
+      });
+
+      const files = [
+        new File([new Uint8Array(80 * 1024 * 1024)], "v1.mp4", { type: "video/mp4" }),
+        new File([new Uint8Array(80 * 1024 * 1024)], "v2.mp4", { type: "video/mp4" }),
+      ];
+      const input = screen.getByTestId("composer-file-input") as HTMLInputElement;
+      await userEvent.upload(input, files);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Total attachment size/i)).toBeInTheDocument();
+      });
+      expect(screen.queryByTestId("composer-attachment-chip-0")).not.toBeInTheDocument();
     });
 
     it("sends text + attachment: calls upload, create message, clears files", async () => {
@@ -3547,19 +3656,19 @@ describe("ChannelDetailPage — forward", () => {
       expect(screen.queryByTestId("composer-attachment-preview-0")).not.toBeInTheDocument();
     });
 
-    it("dropping more than 5 files on chat panel rejects extras and shows error", async () => {
+    it("dropping more than 10 files on chat panel rejects extras and shows error", async () => {
       mockChannelAndMessages([], []);
       render(<ChannelDetailPage />);
       await waitFor(() => {
         expect(screen.getByTestId("channel-chat-panel")).toBeInTheDocument();
       });
 
-      const files = Array.from({ length: 6 }, (_, i) => new File(["c"], `f${i}.txt`, { type: "text/plain" }));
+      const files = Array.from({ length: 11 }, (_, i) => new File(["c"], `f${i}.txt`, { type: "text/plain" }));
       const panel = screen.getByTestId("channel-chat-panel");
       fireEvent.drop(panel, { dataTransfer: { files } });
 
       await waitFor(() => {
-        expect(screen.getByText("Maximum 5 attachments allowed")).toBeInTheDocument();
+        expect(screen.getByText(/up to 10 files/i)).toBeInTheDocument();
       });
       expect(screen.queryByTestId("composer-attachment-chip-0")).not.toBeInTheDocument();
     });
@@ -3580,7 +3689,7 @@ describe("ChannelDetailPage — forward", () => {
         expect(screen.getByTestId("composer-attachment-chip-0")).toBeInTheDocument();
       });
       expect(screen.getByText("valid.txt")).toBeInTheDocument();
-      expect(screen.getByText("Some files were invalid and not added")).toBeInTheDocument();
+      expect(screen.getByText(/This file type is not supported/i)).toBeInTheDocument();
       expect(screen.queryByTestId("composer-attachment-chip-1")).not.toBeInTheDocument();
     });
 

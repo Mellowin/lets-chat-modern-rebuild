@@ -68,8 +68,14 @@ describe('PresignAttachmentDto', () => {
     expect(errors.some((e) => e.property === 'mimeType')).toBe(true);
   });
 
-  it('fails when size exceeds 10 MB', async () => {
-    const dto = createDto({ sizeBytes: 10 * 1024 * 1024 + 1 });
+  it('accepts sizes up to the hard upload cap', async () => {
+    const dto = createDto({ sizeBytes: 100 * 1024 * 1024 });
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(0);
+  });
+
+  it('fails when size exceeds the hard upload cap', async () => {
+    const dto = createDto({ sizeBytes: 100 * 1024 * 1024 + 1 });
     const errors = await validate(dto);
     expect(errors.some((e) => e.property === 'sizeBytes')).toBe(true);
   });

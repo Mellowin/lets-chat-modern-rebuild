@@ -38,6 +38,7 @@ import { PresignAttachmentDto } from './dto/presign-attachment.dto';
 import { PresignAttachmentUploadResponseDto } from './dto/presign-attachment-upload-response.dto';
 import { UploadAttachmentResponseDto } from './dto/upload-attachment-response.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { MAX_ATTACHMENT_SIZE_BYTES } from './attachment-validation';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUserResponse } from '../auth/auth.service';
@@ -194,7 +195,13 @@ export class MessagesController {
   @ApiBadRequestResponse({ description: 'Validation failed' })
   @ApiNotFoundResponse({ description: 'Workspace or channel not found' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: {
+        fileSize: MAX_ATTACHMENT_SIZE_BYTES,
+      },
+    }),
+  )
   async uploadAttachment(
     @Param('workspaceId', ParseUUIDPipe) workspaceId: string,
     @Param('channelId', ParseUUIDPipe) channelId: string,

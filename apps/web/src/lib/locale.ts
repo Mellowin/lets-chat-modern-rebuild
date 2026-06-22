@@ -313,6 +313,8 @@ export type TranslationKey =
   | "channel.errorTooManyAttachments"
   | "channel.errorInvalidAttachmentType"
   | "channel.errorAttachmentTooLarge"
+  | "channel.errorAttachmentTooLargeByCategory"
+  | "channel.errorAttachmentsTotalTooLarge"
   | "channel.errorSomeAttachmentsInvalid"
   | "channel.errorDownloadFailed"
   | "channel.attachmentUploading"
@@ -772,9 +774,11 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.messageMenu": "Message actions",
     "channel.attachFile": "Attach file",
     "channel.removeAttachment": "Remove attachment",
-    "channel.errorTooManyAttachments": "Maximum 5 attachments allowed",
+    "channel.errorTooManyAttachments": "You can attach up to 10 files at once, or up to 20 images.",
     "channel.errorInvalidAttachmentType": "This file type is not supported. Allowed: images, PDF, Word, Excel, PowerPoint, archives, video and audio.",
     "channel.errorAttachmentTooLarge": "File exceeds 10 MB",
+    "channel.errorAttachmentTooLargeByCategory": "File is too large. Maximum: video — 100 MB, documents/archives/audio — 50 MB, images — 25 MB.",
+    "channel.errorAttachmentsTotalTooLarge": "Total attachment size must not exceed 150 MB.",
     "channel.errorSomeAttachmentsInvalid": "Some files were invalid and not added",
     "channel.errorDownloadFailed": "Failed to download file",
     "channel.attachmentUploading": "Uploading…",
@@ -1258,9 +1262,11 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.messageMenu": "Дії з повідомленням",
     "channel.attachFile": "Прикріпити файл",
     "channel.removeAttachment": "Видалити вкладення",
-    "channel.errorTooManyAttachments": "Максимум 5 вкладень",
+    "channel.errorTooManyAttachments": "Можна прикріпити до 10 файлів за раз або до 20 зображень.",
     "channel.errorInvalidAttachmentType": "Цей тип файлу не підтримується. Дозволені: зображення, PDF, Word, Excel, PowerPoint, архіви, відео та аудіо.",
     "channel.errorAttachmentTooLarge": "Файл перевищує 10 МБ",
+    "channel.errorAttachmentTooLargeByCategory": "Файл завеликий. Максимум: відео — 100 МБ, документи/архіви/аудіо — 50 МБ, зображення — 25 МБ.",
+    "channel.errorAttachmentsTotalTooLarge": "Загальний розмір вкладень не повинен перевищувати 150 МБ.",
     "channel.errorSomeAttachmentsInvalid": "Деякі файли недійсні та не додані",
     "channel.errorDownloadFailed": "Не вдалося завантажити файл",
     "channel.attachmentUploading": "Завантажуємо…",
@@ -1744,9 +1750,11 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.messageMenu": "Действия с сообщением",
     "channel.attachFile": "Прикрепить файл",
     "channel.removeAttachment": "Удалить вложение",
-    "channel.errorTooManyAttachments": "Максимум 5 вложений",
+    "channel.errorTooManyAttachments": "Можно прикрепить до 10 файлов за раз или до 20 изображений.",
     "channel.errorInvalidAttachmentType": "Этот тип файла не поддерживается. Разрешены: изображения, PDF, Word, Excel, PowerPoint, архивы, видео и аудио.",
     "channel.errorAttachmentTooLarge": "Файл превышает 10 МБ",
+    "channel.errorAttachmentTooLargeByCategory": "Файл слишком большой. Максимум: видео — 100 МБ, документы/архивы/аудио — 50 МБ, изображения — 25 МБ.",
+    "channel.errorAttachmentsTotalTooLarge": "Общий размер вложений не должен превышать 150 МБ.",
     "channel.errorSomeAttachmentsInvalid": "Некоторые файлы недействительны и не добавлены",
     "channel.errorDownloadFailed": "Не удалось скачать файл",
     "channel.attachmentUploading": "Загружаем…",

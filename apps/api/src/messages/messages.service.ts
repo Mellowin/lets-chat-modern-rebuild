@@ -14,6 +14,10 @@ import { UpdateMessageDto } from './dto/update-message.dto';
 import { ListMessagesQueryDto } from './dto/list-messages-query.dto';
 import { SearchChannelMessagesQueryDto } from './dto/search-channel-messages-query.dto';
 import { MessageContextQueryDto } from './dto/message-context-query.dto';
+import {
+  validateAttachmentBatch,
+  assertAttachmentBatchAllowed,
+} from './attachment-validation';
 
 export type AttachmentKind = 'image' | 'file';
 
@@ -165,6 +169,14 @@ export class MessagesService {
           );
         }
       }
+
+      const batchResult = validateAttachmentBatch(
+        dto.attachments.map((a) => ({
+          mimeType: a.mimeType,
+          sizeBytes: a.sizeBytes,
+        })),
+      );
+      assertAttachmentBatchAllowed(batchResult);
     }
 
     const message = await this.messages.createMessage({

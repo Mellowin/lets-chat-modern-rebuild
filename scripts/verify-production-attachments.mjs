@@ -3,7 +3,8 @@
 /**
  * Production attachment upload / drag-drop / lightbox / filename verification.
  *
- * Tests real user scenarios for B204C expanded file type support:
+ * Tests real user scenarios for B204C expanded file type support
+ * and B204D relaxed but safe attachment limits:
  * - PDF, DOCX, XLSX, XLS, PPTX, ZIP with Cyrillic filenames
  * - image with Cyrillic filename
  * - unsupported dangerous file rejection with friendly error
@@ -12,6 +13,10 @@
  * - authenticated download
  * - no CORS / net::ERR_FAILED
  * - no token leaks
+ * - files above 10 MB but within category limits are accepted
+ * - files above category limits are rejected
+ * - 10 mixed / 20 image file count limits
+ * - 150 MB total size limit
  */
 
 import { chromium } from "playwright";
@@ -44,6 +49,15 @@ function createTempFile(name, content, encoding = "utf8") {
   return path;
 }
 
+function createSizedTempFile(name, sizeBytes, header = null) {
+  const buf = Buffer.alloc(sizeBytes);
+  if (header) {
+    const h = Buffer.isBuffer(header) ? header : Buffer.from(header, "utf8");
+    h.copy(buf);
+  }
+  return createTempFile(name, buf);
+}
+
 // Minimal valid DOCX (ZIP with required OOXML parts) so server-side magic-byte validation passes.
 const MIN_DOCX_BASE64 =
   "UEsDBBQAAAAIAC2k1lx5bjPX6AAAAK0BAAATAAAAW0NvbnRlbnRfVHlwZXNdLnhtbH1QyU7DMBD9FWuuKHHggBCK0wPLETiUDxjZk8SqN3nc0v49Tlt6QIXjzFv1+tXeO7GjzDYGBbdtB4KCjsaGScHn+rV5AMEFg0EXAyk4EMNq6NeHRCyqNrCCuZT0KCXrmTxyGxOFiowxeyz1zJNMqDc4kbzrunupYygUSlMWDxj6Zxpx64p42df3qUcmxyCeTsQlSwGm5KzGUnG5C+ZXSnNOaKvyyOHZJr6pBJBXExbk74Cz7r0Ok60h8YG5vKGvLPkVs5Em6q2vyvZ/mys94zhaTRf94pZy1MRcF/euvSAebfjpL49zD99QSwMEFAAAAAgALaTWXJv9N+qtAAAAKQEAAAsAAABfcmVscy8ucmVsc43POw7CMAwG4KtE3mlaBoRQ0y4IqSsqB7ASN61oHkrCo7cnAwNFDIy2f3+W6/ZpZnanECdnBVRFCYysdGqyWsClP232wGJCq3B2lgQsFKFt6jPNmPJKHCcfWTZsFDCm5A+cRzmSwVg4TzZPBhcMplwGzT3KK2ri27Lc8fBpwNpknRIQOlUB6xdP/9huGCZJRydvhmz6ceIrkWUMmpKAhwuKq3e7yCzwpuarF5sXUEsDBBQAAAAIAC2k1lzp+cGTewAAAJsAAAAcAAAAd29yZC9fcmVscy9kb2N1bWVudC54bWwucmVsc1XMQQ4CIQyF4auQ7h3QhTEGmJ0HMHqAZqYCkSmEEqO3l6UuX/68z87vLasXNUmFHewnA4p4KWvi4OB+u+xOoKQjr5gLk4MPCczeXiljHxeJqYoaBouD2Hs9ay1LpA1lKpV4lEdpG/YxW9AVlycG0gdjjrr9GuCt/kP9F1BLAwQUAAAACAAtpNZcQtZan5oAAADOAAAAEQAAAHdvcmQvZG9jdW1lbnQueG1sRY5BDsIgEEWvQmZvqS6MaUrdGQ+gB0AY2yYwQwCtvb1QF27en8n8vEx//ngn3hjTzKRg37QgkAzbmUYF99tldwKRsiarHRMqWDHBeeiXzrJ5eaQsioBStyiYcg6dlMlM6HVqOCCV25Oj17mscZQLRxsiG0yp+L2Th7Y9Sq9ngqp8sF1rhopYkYcrOse9rGNl3Bg2/ury/8rwBVBLAQIUABQAAAAIAC2k1lx5bjPX6AAAAK0BAAATAAAAAAAAAAAAAACAAQAAAABbQ29udGVudF9UeXBlc10ueG1sUEsBAhQAFAAAAAgALaTWXJv9N+qtAAAAKQEAAAsAAAAAAAAAAAAAAIABGQEAAF9yZWxzLy5yZWxzUEsBAhQAFAAAAAgALaTWXOn5wZN7AAAAmwAAABwAAAAAAAAAAAAAAIAB7wEAAHdvcmQvX3JlbHMvZG9jdW1lbnQueG1sLnJlbHNQSwECFAAUAAAACAAtpNZcQtZan5oAAADOAAAAEQAAAAAAAAAAAAAAgAGkAgAAd29yZC9kb2N1bWVudC54bWxQSwUGAAAAAAQABAADAQAAbQMAAAAA";
@@ -71,7 +85,7 @@ const MIN_XLS_BASE64 = "0M8R4KGxGuEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
 
 
 async function main() {
-  console.log("=== Production Attachment Verification (B204C) ===\n");
+  console.log("=== Production Attachment Verification (B204D) ===\n");
   console.log(`WEB_BASE: ${WEB_BASE}`);
   console.log(`API_BASE: ${API_BASE}\n`);
 
@@ -165,23 +179,89 @@ async function main() {
       Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64"),
     );
 
+    // B204D limit verification fixtures.
+    const MB = 1024 * 1024;
+    const pngHeader = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+      "base64",
+    );
+    const mp4Header = Buffer.from(MIN_MP4_BASE64, "base64");
+
+    const largePdfName = "report-12mb.pdf";
+    const largePdfPath = createSizedTempFile(largePdfName, 12 * MB, "%PDF-1.4");
+    const largeMp4Name = "clip-12mb.mp4";
+    const largeMp4Path = createSizedTempFile(largeMp4Name, 12 * MB, mp4Header);
+
+    const hugePngName = "huge-26mb.png";
+    const hugePngPath = createSizedTempFile(hugePngName, 26 * MB, pngHeader);
+    const hugePdfName = "huge-51mb.pdf";
+    const hugePdfPath = createSizedTempFile(hugePdfName, 51 * MB, "%PDF-1.4");
+    const hugeMp4Name = "huge-101mb.mp4";
+    const hugeMp4Path = createSizedTempFile(hugeMp4Name, 101 * MB, mp4Header);
+
+    const mixedSmallFiles = Array.from({ length: 12 }, (_, i) =>
+      createTempFile(`mixed-${i}.txt`, `file ${i}`, "utf8"),
+    );
+    const imageBatchFiles = Array.from({ length: 22 }, (_, i) =>
+      createTempFile(`batch-${i}.png`, pngHeader),
+    );
+    const totalTooLargeFiles = Array.from({ length: 8 }, (_, i) =>
+      createSizedTempFile(`total-${i}.png`, 20 * MB, pngHeader),
+    );
+
     // Helper to wait for a non-image attachment filename in a message row.
-    async function waitForAttachmentFileName(name) {
+    async function waitForAttachmentFileName(name, timeout = 8000) {
       const locator = page.locator(`text=${name}`).first();
-      await locator.waitFor({ timeout: 8000 });
+      await locator.waitFor({ timeout });
       return locator;
     }
 
     // Helper to wait for an image attachment to finish loading (alt text is set on the <img>).
-    async function waitForImageAttachment(name) {
+    async function waitForImageAttachment(name, timeout = 15000) {
       const locator = page.locator(`[data-testid^="message-attachment-image-"] img[alt="${name}"]`).first();
-      await locator.waitFor({ timeout: 15000 });
+      await locator.waitFor({ timeout });
       return locator;
     }
 
     async function sendSelectedFiles() {
       await page.click('button[type="submit"]');
       await sleep(3000);
+    }
+
+    async function countComposerAttachments() {
+      const chips = await page.locator('[data-testid^="composer-attachment-chip-"]').count();
+      const previews = await page.locator('[data-testid^="composer-attachment-preview-"]').count();
+      return chips + previews;
+    }
+
+    async function isVisibleFileTypeError() {
+      return page.locator("text=/file type is not supported/i").first().isVisible().catch(() => false);
+    }
+
+    async function isVisibleLimitError() {
+      return page
+        .locator(
+          "text=/(File is too large|File too large|Maximum|Max|You can attach up to|Total attachment size|exceeds|exceeded|limit)/i",
+        )
+        .first()
+        .isVisible()
+        .catch(() => false);
+    }
+
+    async function clearComposerAttachments() {
+      // Remove every chip/preview we can find; fallback to page reload if UI state is stuck.
+      for (let i = 0; i < 50; i++) {
+        const remove = page.locator('[data-testid^="composer-attachment-remove-"]').first();
+        if (await remove.isVisible().catch(() => false)) {
+          await remove.click();
+          await sleep(150);
+        } else {
+          break;
+        }
+      }
+      if ((await countComposerAttachments()) > 0) {
+        await page.reload({ waitUntil: "networkidle" });
+      }
     }
 
     // 1. PDF upload with Cyrillic filename.
@@ -393,6 +473,112 @@ async function main() {
       pushResult("Large drag overlay appears", false, "chat panel not found");
       pushResult("Drag & drop upload appears in channel", false, "chat panel not found");
     }
+
+    // B204D limit verification checks.
+
+    console.log("[step] B204D: >10 MB PDF within document limit accepted");
+    await page.setInputFiles('[data-testid="composer-file-input"]', largePdfPath);
+    await sleep(500);
+    await sendSelectedFiles();
+    await debugState("after-large-pdf");
+
+    try {
+      await waitForAttachmentFileName(largePdfName, 30000);
+      pushResult("12 MB PDF under document limit is accepted and sent", true);
+    } catch (e) {
+      pushResult("12 MB PDF under document limit is accepted and sent", false, e.message);
+    }
+
+    console.log("[step] B204D: >10 MB MP4 within video limit accepted");
+    await page.setInputFiles('[data-testid="composer-file-input"]', largeMp4Path);
+    await sleep(500);
+    await sendSelectedFiles();
+    await debugState("after-large-mp4");
+
+    try {
+      await waitForAttachmentFileName(largeMp4Name, 30000);
+      pushResult("12 MB MP4 under video limit is accepted and sent", true);
+    } catch (e) {
+      pushResult("12 MB MP4 under video limit is accepted and sent", false, e.message);
+    }
+
+    console.log("[step] B204D: 26 MB PNG rejected over image limit");
+    await page.setInputFiles('[data-testid="composer-file-input"]', hugePngPath);
+    await sleep(500);
+    {
+      const count = await countComposerAttachments();
+      const error = await isVisibleLimitError();
+      pushResult("26 MB PNG rejected over image limit", count === 0 && error, `count=${count}, error=${error}`);
+    }
+    await clearComposerAttachments();
+
+    console.log("[step] B204D: 51 MB PDF rejected over document limit");
+    await page.setInputFiles('[data-testid="composer-file-input"]', hugePdfPath);
+    await sleep(500);
+    {
+      const count = await countComposerAttachments();
+      const error = await isVisibleLimitError();
+      pushResult("51 MB PDF rejected over document limit", count === 0 && error, `count=${count}, error=${error}`);
+    }
+    await clearComposerAttachments();
+
+    console.log("[step] B204D: 101 MB MP4 rejected over video limit");
+    await page.setInputFiles('[data-testid="composer-file-input"]', hugeMp4Path);
+    await sleep(500);
+    {
+      const count = await countComposerAttachments();
+      const error = await isVisibleLimitError();
+      pushResult("101 MB MP4 rejected over video limit", count === 0 && error, `count=${count}, error=${error}`);
+    }
+    await clearComposerAttachments();
+
+    console.log("[step] B204D: 10 mixed files accepted");
+    await page.setInputFiles('[data-testid="composer-file-input"]', mixedSmallFiles.slice(0, 10));
+    await sleep(800);
+    {
+      const count = await countComposerAttachments();
+      pushResult("10 mixed files accepted in composer", count === 10, `count=${count}`);
+    }
+    await clearComposerAttachments();
+
+    console.log("[step] B204D: 11 mixed files rejected");
+    await page.setInputFiles('[data-testid="composer-file-input"]', mixedSmallFiles.slice(0, 11));
+    await sleep(800);
+    {
+      const count = await countComposerAttachments();
+      const error = await isVisibleLimitError();
+      pushResult("11 mixed files rejected", count <= 10 && error, `count=${count}, error=${error}`);
+    }
+    await clearComposerAttachments();
+
+    console.log("[step] B204D: 20 images accepted");
+    await page.setInputFiles('[data-testid="composer-file-input"]', imageBatchFiles.slice(0, 20));
+    await sleep(1000);
+    {
+      const count = await countComposerAttachments();
+      pushResult("20 images accepted in composer", count === 20, `count=${count}`);
+    }
+    await clearComposerAttachments();
+
+    console.log("[step] B204D: 21 images rejected");
+    await page.setInputFiles('[data-testid="composer-file-input"]', imageBatchFiles.slice(0, 21));
+    await sleep(1000);
+    {
+      const count = await countComposerAttachments();
+      const error = await isVisibleLimitError();
+      pushResult("21 images rejected", count <= 20 && error, `count=${count}, error=${error}`);
+    }
+    await clearComposerAttachments();
+
+    console.log("[step] B204D: total size >150 MB rejected");
+    await page.setInputFiles('[data-testid="composer-file-input"]', totalTooLargeFiles);
+    await sleep(1000);
+    {
+      const count = await countComposerAttachments();
+      const error = await isVisibleLimitError();
+      pushResult("Total attachment size over 150 MB rejected", count === 0 && error, `count=${count}, error=${error}`);
+    }
+    await clearComposerAttachments();
 
     // 12. Authenticated download.
     const fileRequestPromise = page.waitForRequest(
