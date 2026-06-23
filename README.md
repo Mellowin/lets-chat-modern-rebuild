@@ -18,6 +18,8 @@ Portfolio guidance:
 - [`docs/portfolio-demo.md`](docs/portfolio-demo.md) — step-by-step demo flow and screenshot checklist.
 - [`docs/demo-script.md`](docs/demo-script.md) — 2–3 minute recruiter narrative.
 - [`docs/interview-notes.md`](docs/interview-notes.md) — resume bullets and interview talking points.
+- [`docs/job-application-kit.md`](docs/job-application-kit.md) — copy-paste content for resumes, cover letters, and recruiter emails.
+- [`docs/final-project-review.md`](docs/final-project-review.md) — final audit, architecture review, and release notes.
 
 ---
 
