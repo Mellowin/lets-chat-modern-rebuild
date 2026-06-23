@@ -91,14 +91,50 @@ describe('Channels E2E Security', () => {
   });
 
   afterAll(async () => {
+    // Clean up the whole workspace and its dependent records so the test DB
+    // stays tidy and the workspace can be deleted without FK violations.
+    const channelIds = (
+      await prisma.channel.findMany({
+        where: { workspaceId: workspace.id },
+        select: { id: true },
+      })
+    ).map((c) => c.id);
+
+    await prisma.auditLog.deleteMany({
+      where: { workspaceId: workspace.id },
+    });
+    await prisma.notification.deleteMany({
+      where: { workspaceId: workspace.id },
+    });
+    await prisma.invitation.deleteMany({
+      where: { workspaceId: workspace.id },
+    });
+    await prisma.channelInvitation.deleteMany({
+      where: { workspaceId: workspace.id },
+    });
+    await prisma.readReceipt.deleteMany({
+      where: { channelId: { in: channelIds } },
+    });
+    await prisma.attachment.deleteMany({
+      where: { message: { channelId: { in: channelIds } } },
+    });
+    await prisma.messageEdit.deleteMany({
+      where: { message: { channelId: { in: channelIds } } },
+    });
+    await prisma.reaction.deleteMany({
+      where: { message: { channelId: { in: channelIds } } },
+    });
     await prisma.message.deleteMany({
-      where: { channelId: privateChannel.id },
+      where: { channelId: { in: channelIds } },
+    });
+    await prisma.channelReadState.deleteMany({
+      where: { workspaceId: workspace.id },
     });
     await prisma.channelMember.deleteMany({
-      where: { channelId: privateChannel.id },
+      where: { channelId: { in: channelIds } },
     });
     await prisma.channel.deleteMany({
-      where: { id: privateChannel.id },
+      where: { workspaceId: workspace.id },
     });
     await prisma.workspaceMember.deleteMany({
       where: { workspaceId: workspace.id },
