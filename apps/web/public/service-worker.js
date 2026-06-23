@@ -50,5 +50,13 @@ function handleNotificationClick(event) {
   );
 }
 
+self.addEventListener('install', (event) => {
+  event.waitUntil(self.skipWaiting());
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
 self.addEventListener('push', handlePush);
 self.addEventListener('notificationclick', handleNotificationClick);
