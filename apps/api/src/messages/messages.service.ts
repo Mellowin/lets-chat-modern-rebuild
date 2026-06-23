@@ -9,6 +9,7 @@ import { WorkspacesRepository } from '../workspaces/workspaces.repository';
 import { ChannelsRepository } from '../channels/channels.repository';
 import { MessagesRepository } from './messages.repository';
 import { WebsocketEventsService } from '../websocket/websocket-events.service';
+import { PushService } from '../push/push.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
 import { ListMessagesQueryDto } from './dto/list-messages-query.dto';
@@ -50,6 +51,7 @@ export class MessagesService {
     private readonly workspaces: WorkspacesRepository,
     private readonly channels: ChannelsRepository,
     private readonly websocketEvents: WebsocketEventsService,
+    private readonly pushService: PushService,
   ) {}
 
   private toMessageResponse(
@@ -195,6 +197,16 @@ export class MessagesService {
 
     const response = this.toMessageResponse(message, userId);
     this.websocketEvents.broadcastMessageCreated(channelId, response);
+
+    this.pushService
+      .notifyChannelMessage(channelId, {
+        id: message.id,
+        content: message.content,
+        authorId: message.authorId,
+      })
+      .catch(() => {
+        // Push notifications are best-effort and must not break messaging.
+      });
 
     return response;
   }

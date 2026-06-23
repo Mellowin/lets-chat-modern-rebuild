@@ -92,6 +92,7 @@ model User {
   directConversationParticipants DirectConversationParticipant[]
   directMessages        DirectMessage[]
   directMessageReactions DirectMessageReaction[]
+  pushSubscriptions     PushSubscription[]
 
   @@index([email])
   @@index([username])
@@ -477,6 +478,22 @@ model DirectMessageReaction {
 
   @@unique([messageId, userId, emoji])
   @@index([messageId])
+  @@index([userId])
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  endpoint  String
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, endpoint])
   @@index([userId])
 }
 

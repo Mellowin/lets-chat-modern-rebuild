@@ -39,6 +39,7 @@ Only `apps/web` is deployed to Vercel. The monorepo root is used for dependency 
 |----------|---------|-------------|
 | `NEXT_PUBLIC_API_URL` | `https://api.example.com/api/v1` | Public API base URL (must include `/api/v1`) |
 | `NEXT_PUBLIC_WS_URL` | `https://api.example.com` | Optional public WebSocket base URL (same origin as API, no path). If omitted or if it points to the deprecated `lets-chat-api-wa43` host, the app derives the socket URL from `NEXT_PUBLIC_API_URL` by stripping `/api/v1`. |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | `BIX...` | Optional public VAPID key. If set, the browser uses it directly instead of calling `GET /push/vapid-public-key`. Must match `VAPID_PUBLIC_KEY` on the API host. |
 
 > **Important:** `NEXT_PUBLIC_*` variables are embedded at build time. Changing them requires a rebuild.
 >
@@ -74,6 +75,9 @@ The API host needs the following env vars (in addition to database credentials):
 | `S3_ACCESS_KEY` | Yes | S3 access key |
 | `S3_SECRET_KEY` | Yes | S3 secret key |
 | `S3_BUCKET` | Yes | Bucket name |
+| `VAPID_PUBLIC_KEY` | No | Public VAPID key for Web Push notifications (B211) |
+| `VAPID_PRIVATE_KEY` | No | Private VAPID key for Web Push notifications (B211) |
+| `VAPID_SUBJECT` | No | Contact URL or `mailto:` for Web Push (B211) |
 | `PORT` | No | Defaults to `3001` |
 | `REDIS_URL` | No | Optional Redis for future adapter |
 

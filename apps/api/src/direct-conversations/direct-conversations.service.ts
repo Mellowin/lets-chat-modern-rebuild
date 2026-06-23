@@ -7,6 +7,7 @@ import {
 import { UsersRepository } from '../users/users.repository';
 import { WebsocketEventsService } from '../websocket/websocket-events.service';
 import { PresenceService } from '../websocket/presence.service';
+import { PushService } from '../push/push.service';
 import { DirectConversationsRepository } from './direct-conversations.repository';
 import { CreateDirectConversationDto } from './dto/create-direct-conversation.dto';
 import { CreateDirectMessageDto } from './dto/create-direct-message.dto';
@@ -19,6 +20,7 @@ export class DirectConversationsService {
     private readonly users: UsersRepository,
     private readonly websocketEvents: WebsocketEventsService,
     private readonly presence: PresenceService,
+    private readonly pushService: PushService,
   ) {}
 
   private makePairKey(userIdA: string, userIdB: string): string {
@@ -286,6 +288,16 @@ export class DirectConversationsService {
       response,
       participants.map((p) => p.userId),
     );
+
+    this.pushService
+      .notifyDirectMessage(conversationId, {
+        id: message.id,
+        content: message.content,
+        authorId: message.authorId,
+      })
+      .catch(() => {
+        // Push notifications are best-effort and must not break messaging.
+      });
 
     return response;
   }

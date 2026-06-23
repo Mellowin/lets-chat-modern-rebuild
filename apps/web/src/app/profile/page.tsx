@@ -3,6 +3,7 @@
 import { useLayoutEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import {
+  Bell,
   ChevronLeft,
   Eye,
   EyeOff,
@@ -40,6 +41,7 @@ import {
 } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { PushNotificationsSection } from "./PushNotificationsSection";
 
 type FormState =
   | { kind: "idle" }
@@ -52,7 +54,7 @@ const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 const LOCALE_OPTIONS: Locale[] = ["en", "uk", "ru"];
 
-type TabKey = "account" | "security" | "sessions" | "language";
+type TabKey = "account" | "security" | "sessions" | "language" | "notifications";
 
 function Alert({
   variant,
@@ -367,6 +369,11 @@ export default function ProfilePage() {
       key: "language",
       label: t("profile.languageSection"),
       icon: <Globe size={16} />,
+    },
+    {
+      key: "notifications",
+      label: t("profile.notifications"),
+      icon: <Bell size={16} />,
     },
   ];
 
@@ -980,6 +987,8 @@ export default function ProfilePage() {
           </Card>
         </div>
       )}
+
+      {activeTab === "notifications" && <PushNotificationsSection />}
 
       {activeTab === "language" && (
         <Card>

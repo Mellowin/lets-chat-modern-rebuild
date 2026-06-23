@@ -456,7 +456,7 @@ Use these steps to verify core functionality after deploy or before release:
 - **Workspace message search is available** — backend endpoint `GET /api/v1/workspaces/:workspaceId/search/messages` plus frontend UI with search panel, results list, load-more pagination, safe query highlighting, attachment-only fallback, and jump-to-message.
 - **Channel message search is available** — backend endpoint `GET /api/v1/workspaces/:workspaceId/channels/:channelId/messages/search` plus frontend UI with search panel, results list, load-more pagination, safe query highlighting, attachment-only fallback, and jump-to-message.
 - **Channel unread counters** — read-state tracking and realtime badge sync are implemented. Limitations:
-  - No push/browser notifications yet
+  - Push notifications are available for new direct messages and channel messages via Profile → Notifications (B211); reaction/mention push notifications are not implemented yet
   - Realtime unread updates are scoped to the active workspace (channels in non-active workspaces update only on next refetch/focus)
   - No per-thread unread counts (only channel-level)
   - Cross-device read sync relies on the next channel-list refetch; other devices do not get immediate badge-clear events
@@ -465,6 +465,19 @@ Use these steps to verify core functionality after deploy or before release:
   - Limitations: channel-only search (no global/workspace-wide search via this endpoint), message content only (attachment filename search is not implemented), no DM search yet.
 
 ---
+
+## B211. Push Notifications Foundation
+
+- **Goal** — add Web Push notifications for new direct messages and channel messages, with explicit user opt-in.
+- **Scope:**
+  - Backend: `PushSubscription` model, `POST /push/subscribe`, `POST /push/unsubscribe`, `GET /push/vapid-public-key`, `PushService` with VAPID configuration.
+  - Frontend: Profile → Notifications tab, service worker push handler, push subscription helpers.
+  - Triggers: new channel messages notify all members except sender; new DMs notify the other participant.
+  - Out of scope: reaction notifications, mention notifications, FCM, auto-permission prompts.
+- **Environment:** `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`.
+- **Migration:** `20260623180000_add_push_subscriptions`.
+- **Tests:** API push service spec, web push section component tests, updated message/direct-conversation service tests.
+- **Docs:** `docs/b211-push-notifications.md`.
 
 ## 9. Orphaned Attachment Cleanup
 

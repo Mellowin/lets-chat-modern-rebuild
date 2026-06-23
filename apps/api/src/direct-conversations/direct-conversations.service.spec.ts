@@ -13,6 +13,7 @@ import {
 import { UsersRepository } from '../users/users.repository';
 import { WebsocketEventsService } from '../websocket/websocket-events.service';
 import { PresenceService } from '../websocket/presence.service';
+import { PushService } from '../push/push.service';
 
 const userId = '11111111-1111-1111-1111-111111111111';
 const otherUserId = '22222222-2222-2222-2222-222222222222';
@@ -143,6 +144,12 @@ describe('DirectConversationsService', () => {
           provide: PresenceService,
           useValue: {
             isUserTracked: jest.fn(),
+          },
+        },
+        {
+          provide: PushService,
+          useValue: {
+            notifyDirectMessage: jest.fn().mockResolvedValue(undefined),
           },
         },
       ],

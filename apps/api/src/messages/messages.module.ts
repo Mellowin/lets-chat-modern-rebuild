@@ -17,6 +17,7 @@ import { SearchController } from './search.controller';
 import { UserSearchController } from './user-search.controller';
 import { StorageModule } from '../storage/storage.module';
 import { WebsocketModule } from '../websocket/websocket.module';
+import { PushModule } from '../push/push.module';
 import { AttachmentsService } from './attachments.service';
 import { AttachmentsRepository } from './attachments.repository';
 import { AttachmentsController } from './attachments.controller';
@@ -29,6 +30,7 @@ import { AttachmentsController } from './attachments.controller';
     ChannelsModule,
     StorageModule,
     WebsocketModule,
+    PushModule,
   ],
   controllers: [
     MessagesController,

@@ -80,6 +80,19 @@ export type TranslationKey =
   | "profile.hidePassword"
   | "profile.accountSettings"
   | "profile.profileSettings"
+  | "profile.notifications"
+  | "profile.pushNotifications"
+  | "profile.pushNotificationsDescription"
+  | "profile.pushNotificationsUnsupported"
+  | "profile.pushNotificationsBlocked"
+  | "profile.pushNotificationsDisabled"
+  | "profile.pushNotificationsEnabled"
+  | "profile.enableNotifications"
+  | "profile.disableNotifications"
+  | "profile.enablingNotifications"
+  | "profile.disablingNotifications"
+  | "profile.notificationsEnabled"
+  | "profile.notificationsDisabled"
   | "dashboard.welcome"
   | "dashboard.signedInAs"
   | "dashboard.profileSettings"
@@ -1076,6 +1089,19 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.hidePassword": "Hide password",
     "profile.accountSettings": "Account settings",
     "profile.profileSettings": "Profile settings",
+    "profile.notifications": "Notifications",
+    "profile.pushNotifications": "Push notifications",
+    "profile.pushNotificationsDescription": "Get notified about new direct messages and channel messages even when the app is closed.",
+    "profile.pushNotificationsUnsupported": "Push notifications are not supported in this browser.",
+    "profile.pushNotificationsBlocked": "Notifications are blocked for this site. Enable them in your browser settings to use push notifications.",
+    "profile.pushNotificationsDisabled": "Push notifications are currently disabled.",
+    "profile.pushNotificationsEnabled": "Push notifications are enabled on this device.",
+    "profile.enableNotifications": "Enable notifications",
+    "profile.disableNotifications": "Disable notifications",
+    "profile.enablingNotifications": "Enabling…",
+    "profile.disablingNotifications": "Disabling…",
+    "profile.notificationsEnabled": "Push notifications enabled.",
+    "profile.notificationsDisabled": "Push notifications disabled.",
     "api.timeoutError": "The server is taking too long to respond. It may be waking up. Please try again in a moment.",
     "api.coldStartHint": "Free Render instances may take up to a minute to wake up.",
     "channel.searchMessages": "Search messages",
@@ -1665,6 +1691,19 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.hidePassword": "Приховати пароль",
     "profile.accountSettings": "Налаштування облікового запису",
     "profile.profileSettings": "Налаштування профілю",
+    "profile.notifications": "Сповіщення",
+    "profile.pushNotifications": "Push-сповіщення",
+    "profile.pushNotificationsDescription": "Отримуйте сповіщення про нові особисті повідомлення та повідомлення в каналах, навіть коли додаток закритий.",
+    "profile.pushNotificationsUnsupported": "Push-сповіщення не підтримуються цим браузером.",
+    "profile.pushNotificationsBlocked": "Сповіщення заблоковані для цього сайту. Увімкніть їх у налаштуваннях браузера, щоб отримувати push-сповіщення.",
+    "profile.pushNotificationsDisabled": "Push-сповіщення наразі вимкнені.",
+    "profile.pushNotificationsEnabled": "Push-сповіщення увімкнені на цьому пристрої.",
+    "profile.enableNotifications": "Увімкнути сповіщення",
+    "profile.disableNotifications": "Вимкнути сповіщення",
+    "profile.enablingNotifications": "Вмикаємо…",
+    "profile.disablingNotifications": "Вимикаємо…",
+    "profile.notificationsEnabled": "Push-сповіщення увімкнено.",
+    "profile.notificationsDisabled": "Push-сповіщення вимкнено.",
     "api.timeoutError": "Сервер відповідає занадто довго. Можливо, він прокидається. Спробуйте ще раз за мить.",
     "api.coldStartHint": "Безкоштовні інстанси Render можуть прокидатися до хвилини.",
     "channel.searchMessages": "Шукати повідомлення",
@@ -2254,6 +2293,19 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.hidePassword": "Скрыть пароль",
     "profile.accountSettings": "Настройки аккаунта",
     "profile.profileSettings": "Настройки профиля",
+    "profile.notifications": "Уведомления",
+    "profile.pushNotifications": "Push-уведомления",
+    "profile.pushNotificationsDescription": "Получайте уведомления о новых личных сообщениях и сообщениях в каналах, даже когда приложение закрыто.",
+    "profile.pushNotificationsUnsupported": "Push-уведомления не поддерживаются этим браузером.",
+    "profile.pushNotificationsBlocked": "Уведомления заблокированы для этого сайта. Включите их в настройках браузера, чтобы получать push-уведомления.",
+    "profile.pushNotificationsDisabled": "Push-уведомления сейчас выключены.",
+    "profile.pushNotificationsEnabled": "Push-уведомления включены на этом устройстве.",
+    "profile.enableNotifications": "Включить уведомления",
+    "profile.disableNotifications": "Выключить уведомления",
+    "profile.enablingNotifications": "Включаем…",
+    "profile.disablingNotifications": "Выключаем…",
+    "profile.notificationsEnabled": "Push-уведомления включены.",
+    "profile.notificationsDisabled": "Push-уведомления выключены.",
     "api.timeoutError": "Сервер слишком долго отвечает. Возможно, он просыпается. Попробуйте ещё раз через минуту.",
     "api.coldStartHint": "Бесплатные инстансы Render могут просыпаться до минуты.",
     "channel.searchMessages": "Искать сообщения",

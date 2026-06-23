@@ -95,6 +95,7 @@ describe("ProfilePage — authenticated", () => {
     expect(screen.getByRole("button", { name: /Security/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Sessions/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Language/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Notifications/i })).toBeInTheDocument();
   });
 
   it("shows account section by default", async () => {
@@ -486,6 +487,18 @@ describe("ProfilePage — authenticated", () => {
 
       expect(localStorage.getItem("lets-chat:locale")).toBe("en");
       expect(screen.getByText(/Selected: English/i)).toBeInTheDocument();
+    });
+  });
+
+  describe("notifications", () => {
+    it("renders push notifications section", async () => {
+      mockAuth();
+      render(<ProfilePage />);
+
+      await openTab("Notifications");
+      await waitFor(() => {
+        expect(screen.getByRole("heading", { name: /Push notifications/i })).toBeInTheDocument();
+      });
     });
   });
 

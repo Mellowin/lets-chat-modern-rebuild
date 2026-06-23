@@ -57,6 +57,7 @@ Portfolio guidance:
 - **Replies & Forwarding** — thread replies and message forwarding between channels.
 - **Reactions** — emoji reactions with toggle/replace behavior.
 - **Read receipts** — per-message seen status.
+- **Push notifications** — Web Push with VAPID for new direct messages and channel messages; opt-in from Profile → Notifications.
 - **Global search** — search across workspaces, channels, and DMs with jump-to-message.
 
 ### Auth & Security
@@ -99,8 +100,8 @@ Portfolio guidance:
 
 | Suite | Count | Status |
 |---|---|---|
-| API unit tests | 802 (35 suites) | ✅ passing |
-| Web unit + page tests | 692 (31 files) | ✅ passing |
+| API unit tests | 810 (36 suites) | ✅ passing |
+| Web unit + page tests | 700 (32 files) | ✅ passing |
 | E2E security smoke tests | 7 (2 suites) | ✅ passing in CI (PostgreSQL service) |
 
 - **CI:** GitHub Actions runs lint, typecheck, unit tests, builds, and API E2E security smoke tests (with a PostgreSQL service container) on every push.
@@ -181,6 +182,14 @@ pnpm install
 ```bash
 cp .env.example .env
 ```
+
+Optional: generate VAPID keys if you want to test push notifications locally:
+
+```bash
+pnpm --filter api push:generate-vapid-keys
+```
+
+Then paste the keys into `.env` as `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and set `VAPID_SUBJECT` to a URL or `mailto:` address you control.
 
 ### 3. Start infrastructure
 
@@ -267,6 +276,7 @@ No secrets, credentials, or DB URLs are committed to the repository.
 - Real email delivery depends on a verified Resend sender domain; otherwise auth emails fall back to console/dev mode.
 
 - Presence is in-memory; a Redis Socket.io adapter would be needed for horizontal scaling.
+- Push notifications require valid VAPID keys in the API environment; without them the app works normally but push opt-in will report that notifications are not configured.
 
 ---
 

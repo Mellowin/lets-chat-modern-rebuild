@@ -30,4 +30,8 @@ export const envValidationSchema = Joi.object({
   S3_SECRET_KEY: Joi.string().required(),
   S3_BUCKET: Joi.string().required(),
   S3_FORCE_PATH_STYLE: Joi.boolean().default(true),
+
+  VAPID_PUBLIC_KEY: Joi.string().optional(),
+  VAPID_PRIVATE_KEY: Joi.string().optional(),
+  VAPID_SUBJECT: Joi.string().uri().optional(),
 });

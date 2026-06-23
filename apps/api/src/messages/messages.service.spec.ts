@@ -14,6 +14,7 @@ import { MessagesRepository } from './messages.repository';
 import { WorkspacesRepository } from '../workspaces/workspaces.repository';
 import { ChannelsRepository } from '../channels/channels.repository';
 import { WebsocketEventsService } from '../websocket/websocket-events.service';
+import { PushService } from '../push/push.service';
 type CreatedMessage = Awaited<ReturnType<MessagesRepository['createMessage']>>;
 type ListedMessage = Awaited<
   ReturnType<MessagesRepository['listForChannel']>
@@ -78,6 +79,12 @@ describe('MessagesService', () => {
             broadcastMessageCreated: jest.fn(),
             broadcastMessageUpdated: jest.fn(),
             broadcastMessageDeleted: jest.fn(),
+          },
+        },
+        {
+          provide: PushService,
+          useValue: {
+            notifyChannelMessage: jest.fn().mockResolvedValue(undefined),
           },
         },
       ],
