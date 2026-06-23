@@ -65,8 +65,8 @@ Use this when the interviewer asks for details.
 
 ### Attachments
 
-- Frontend requests a presigned upload URL from the API.
-- File is uploaded directly to S3-compatible storage.
+- File is uploaded through an authenticated API proxy endpoint.
+- The API validates the file and stores it in S3-compatible storage.
 - Backend validates MIME type, extension, and category-specific size limits.
 - Download goes through `/attachments/:id/download`, which checks the access token and proxies the file.
 - Supports Cyrillic filenames and inline image previews.

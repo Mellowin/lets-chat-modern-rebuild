@@ -47,7 +47,7 @@ Pick the bullets that best match the role you are applying for.
 - Designed **role-based access control** for workspaces and channels (OWNER/ADMIN/MEMBER), enforcing authorization at both HTTP and WebSocket layers.
 - Delivered **real-time messaging** with **Socket.io** rooms, message broadcasts, typing indicators, reactions, replies, and read receipts.
 - Built **global message search** across workspaces, channels, and DMs with highlighting and jump-to-message.
-- Implemented **secure file attachments** through authenticated proxy downloads, presigned uploads, file type validation, and practical category limits.
+- Implemented **secure file attachments** through authenticated API proxy uploads and downloads, file type validation, and practical category limits.
 - Added **EN/UK/RU localization** with Cyrillic username and workspace-name support.
 - Set up **CI/CD** with GitHub Actions, Render Deploy Hooks, and Vercel auto-deploy; production health and smoke checks run after every deploy.
 - Maintained **1,500+ automated tests** (Jest for API, Vitest + Testing Library for Web) with lint and typecheck gates.

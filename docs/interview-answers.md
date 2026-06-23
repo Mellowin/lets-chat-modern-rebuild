@@ -37,10 +37,10 @@ I use JWT access tokens and refresh tokens. Access tokens expire in 15 minutes a
 ## 4. How did you handle file uploads securely?
 
 **EN:**  
-Files are uploaded through a presigned URL flow and stored in S3-compatible object storage. Downloads go through an authenticated API proxy, so there is no public direct link. The backend validates MIME type, extension, and category-specific size limits before accepting the upload, and it supports Cyrillic filenames.
+Files are uploaded through an authenticated API proxy. The backend validates file type, extension, dangerous formats, and size limits before storing the file in S3-compatible object storage. Downloads also go through an authenticated API endpoint, so files are not exposed through public direct links. The app supports Cyrillic filenames.
 
 **UA:**  
-Файли завантажуються через presigned URL і зберігаються в S3-сумісному сховищі. Завантаження проходить через авторизований API-проксі, тому публічних прямих посилань немає. Backend перевіряє MIME-тип, розширення та ліміти розміру для категорії файлів перед прийняттям, а також підтримує кириличні імена файлів.
+Файли завантажуються через авторизований API-проксі. Backend перевіряє тип файлу, розширення, небезпечні формати та ліміти розміру перед збереженням у S3-сумісному сховищі. Завантаження файлів також проходить через авторизований API endpoint, тому файли не доступні через публічні прямі посилання. Додаток підтримує кириличні імена файлів.
 
 ---
 

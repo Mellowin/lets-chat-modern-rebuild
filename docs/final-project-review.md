@@ -79,7 +79,7 @@ secure-collab-platform/
 - **Frontend** uses `authFetch` interceptors, a centralized socket client, and design-system primitives (`Button`, `Input`, `Card`, `Badge`, `Avatar`, etc.).
 - **Backend** uses NestJS guards, services, repositories, and Prisma for data access.
 - **Real-time** uses Socket.io namespaces/rooms per channel and DM, with membership revalidation on every live event.
-- **Storage** uses S3-compatible object storage with presigned uploads and authenticated proxy downloads.
+- **Storage** uses S3-compatible object storage with authenticated API proxy uploads and downloads.
 
 ---
 

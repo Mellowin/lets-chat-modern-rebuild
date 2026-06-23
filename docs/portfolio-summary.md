@@ -28,7 +28,7 @@
 | Frontend | Next.js 16 (App Router), React 19, TypeScript 5, Tailwind CSS 4 |
 | Backend | NestJS 11, TypeScript, Prisma ORM, PostgreSQL 15 |
 | Real-Time | Socket.io 4, Redis-ready presence |
-| Storage | S3-compatible object storage (presigned uploads + authenticated proxy downloads) |
+| Storage | S3-compatible object storage (uploads and downloads through authenticated API proxy) |
 | Testing | Jest (API), Vitest + Testing Library (Web), Supertest (E2E) |
 | CI/CD | GitHub Actions → Render Deploy Hook; Vercel auto-deploy |
 
@@ -45,7 +45,7 @@
 - **Session management** — list active refresh-token sessions, revoke others, protect current session.
 - **Silent token refresh** — backend rotates refresh tokens safely; frontend `authFetch` intercepts 401s and retries without logging the user out.
 - **Invites** — email/username invites and public invite links with usage limits.
-- **File attachments** — drag-and-drop, upload progress, retry, presigned uploads, authenticated downloads, inline image previews.
+- **File attachments** — drag-and-drop, upload progress, retry, authenticated API proxy uploads and downloads, inline image previews.
 - **Audit logging** for member, invite, and ownership actions.
 
 ## Frontend Highlights

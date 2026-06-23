@@ -16,7 +16,7 @@ Concise bullets and talking points for resumes, portfolio reviews, and interview
 - Implemented **JWT authentication** with access/refresh token rotation, bcrypt hashing, and per-device session management.
 - Designed **role-based access control** for workspaces and channels (OWNER/ADMIN/MEMBER), enforcing authorization at both HTTP and WebSocket layers.
 - Delivered **real-time messaging** with **Socket.io** rooms, message broadcasts, typing indicators, reactions, replies, and read receipts.
-- Built **secure file attachments** through authenticated proxy downloads, presigned uploads, file type validation, and practical category limits.
+- Built **secure file attachments** through authenticated API proxy uploads and downloads, file type validation, and practical category limits.
 - Added **EN/UK/RU localization** with Cyrillic username and workspace-name support.
 - Set up **CI/CD** with GitHub Actions, Render Deploy Hooks, and Vercel auto-deploy; production health and smoke checks run after every deploy.
 - Maintained **1,500+ automated tests** (Jest for API, Vitest + Testing Library for Web) with lint and typecheck gates.
@@ -30,7 +30,7 @@ Concise bullets and talking points for resumes, portfolio reviews, and interview
 | Frontend | Next.js 16 (App Router), React 19, TypeScript 5, Tailwind CSS 4 |
 | Backend | NestJS 11, TypeScript, Prisma ORM, PostgreSQL 15 |
 | Real-Time | Socket.io 4, in-memory presence |
-| Storage | S3-compatible object storage (presigned uploads + authenticated downloads) |
+| Storage | S3-compatible object storage (uploads and downloads through authenticated API proxy) |
 | Testing | Jest (API), Vitest + Testing Library (Web), Supertest (E2E) |
 | CI/CD | GitHub Actions → Render Deploy Hook; Vercel auto-deploy |
 
@@ -87,7 +87,7 @@ Concise bullets and talking points for resumes, portfolio reviews, and interview
 
 ### "How did you handle file uploads securely?"
 
-> "Files are uploaded through a presigned flow, stored in S3-compatible object storage, and downloaded through an authenticated API proxy. The backend validates MIME type and size before accepting anything, and dangerous extensions like `.exe` are rejected."
+> "Files are uploaded through an authenticated API proxy. The backend validates file type, extension, and size before storing the file in S3-compatible object storage, and downloads also go through an authenticated API endpoint. Dangerous extensions like `.exe` are rejected."
 
 ### "How do you keep the frontend in sync?"
 

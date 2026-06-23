@@ -40,7 +40,7 @@ Portfolio guidance:
 | **Frontend** | Next.js 16 (App Router), React 19, TypeScript 5, Tailwind CSS 4 |
 | **Backend** | NestJS 11, TypeScript, Prisma ORM, PostgreSQL 15 |
 | **Real-Time** | Socket.io 4, in-memory presence |
-| **Storage** | S3-compatible object storage (presigned uploads + authenticated proxy downloads) |
+| **Storage** | S3-compatible object storage (uploads and downloads through authenticated API proxy) |
 | **Testing** | Jest (API), Vitest + Testing Library (Web), Supertest (E2E) |
 | **CI/CD** | GitHub Actions → Render Deploy Hook; Vercel auto-deploy |
 
