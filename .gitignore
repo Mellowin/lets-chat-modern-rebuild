@@ -12,6 +12,8 @@ out/
 .env
 .env.local
 .env.*.local
+.vapid-keys.tmp
+.vapid-keys.local
 
 # Logs
 *.log
