@@ -1,98 +1,134 @@
-# Secure Team Collaboration Platform
+# lets-chat — Modern Secure Team Collaboration
 
-> Modern full-stack rebuild of the archived [`lets-chat`](https://github.com/sdelements/lets-chat) app, focused on **authentication**, **private-channel authorization**, **real-time messaging**, and **test coverage**.
+> A production-ready, real-time team chat platform rebuilt from the archived [`lets-chat`](https://github.com/sdelements/lets-chat) project. It combines workspaces, public/private channels, direct messages, authenticated file attachments, global search, multi-device session management, and EN/UK/RU localization in a clean, demo-friendly package.
 
 ---
 
-## 🚀 Production Demo
+## 🚀 Live Demo
 
-- **Frontend:** https://lets-chat-web.vercel.app
-- **Backend:** https://lets-chat-api-v2.onrender.com/api/v1
+- **Web:** https://lets-chat-web.vercel.app
+- **API:** https://lets-chat-api-v2.onrender.com/api/v1
 - **WebSocket:** wss://lets-chat-api-v2.onrender.com
+- **Health:** https://lets-chat-api-v2.onrender.com/api/v1/health
 
-See [`docs/portfolio-demo.md`](docs/portfolio-demo.md) for a step-by-step demo guide, [`docs/demo-script.md`](docs/demo-script.md) for a recruiter-ready narrative, and [`docs/portfolio-summary.md`](docs/portfolio-summary.md) for a resume-ready summary, screenshots, and interview talking points.
+> Demo access is available on request — the public deployment is open for registration with a throwaway email.
+
+Portfolio guidance:
+
+- [`docs/portfolio-demo.md`](docs/portfolio-demo.md) — step-by-step demo flow and screenshot checklist.
+- [`docs/demo-script.md`](docs/demo-script.md) — 2–3 minute recruiter narrative.
+- [`docs/interview-notes.md`](docs/interview-notes.md) — resume bullets and interview talking points.
 
 ---
 
 ## Tech Stack
 
 | Layer | Technology |
-|-------|-----------|
-| **Frontend** | Next.js 16 (App Router), React 19, TypeScript 5, Tailwind CSS 4, shadcn/ui |
+|---|---|
+| **Frontend** | Next.js 16 (App Router), React 19, TypeScript 5, Tailwind CSS 4 |
 | **Backend** | NestJS 11, TypeScript, Prisma ORM, PostgreSQL 15 |
 | **Real-Time** | Socket.io 4, in-memory presence |
-| **Storage** | MinIO / S3-style storage module (presigned URLs) |
+| **Storage** | S3-compatible object storage (presigned uploads + authenticated proxy downloads) |
 | **Testing** | Jest (API), Vitest + Testing Library (Web), Supertest (E2E) |
-| **CI/CD** | GitHub Actions — lint, typecheck, tests, builds; Render Deploy Hook after green CI |
+| **CI/CD** | GitHub Actions → Render Deploy Hook; Vercel auto-deploy |
 
 ---
 
-## Key Features
+## ✨ Main Features
 
-### Backend
+### Collaboration
 
-- 🔐 **JWT Auth** — access/refresh token rotation, bcrypt, per-tab sessionStorage, token reuse detection
-- 🏢 **Workspaces** — multi-tenant teams with OWNER/ADMIN/MEMBER roles
-- 💬 **Channels** — public and private with authorization guards
-- 💬 **Messages** — CRUD, soft delete, 15-minute edit window
-- ⚡ **Real-Time** — Socket.io rooms, message broadcasts, typing indicators, presence
-- 💬 **Direct Messages** — 1-to-1 conversations with participant-only access
-- ⚡ **Reactions** — emoji reactions with toggle/replace (one per user)
-- 🔁 **Replies & Forwarding** — thread replies and message forwarding between channels
-- 👁️ **Read Receipts** — message read tracking per user
-- 🔤 **Localization** — English, Ukrainian, Russian
-- 🔒 **WebSocket Security** — typing revalidates channel access; revoked access triggers auto-leave
-- 📋 **Audit Log** — immutable trail for member/invite/ownership actions
-- 📨 **Invites** — token-based email/username invites and public invite links with `maxUses`
-- 📎 **Attachments** — file picker / drag-and-drop, upload progress, retry, presigned URLs, inline image previews, secure downloads
-- 🔍 **Search** — global, workspace, and channel message search with highlighting and jump-to-message
-- 🖥️ **Session Management** — list active sessions, revoke others, current-session protection
+- **Workspaces** — multi-tenant teams with OWNER / ADMIN / MEMBER roles.
+- **Channels** — public and private; private channels return `404` to non-members.
+- **Direct Messages** — 1-to-1 conversations with participant-only access.
+- **Real-time messaging** — live create/update/delete/reaction events via WebSocket rooms.
+- **Replies & Forwarding** — thread replies and message forwarding between channels.
+- **Reactions** — emoji reactions with toggle/replace behavior.
+- **Read receipts** — per-message seen status.
+- **Global search** — search across workspaces, channels, and DMs with jump-to-message.
 
-### Frontend
+### Auth & Security
 
-- 🔐 **Auth Flow** — login, register, logout with sessionStorage isolation
-- 🏢 **Workspaces** — create, list, manage members and roles
-- 💬 **Channels** — public/private, create, archive/restore, role-aware member management
-- ✏️ **Messages** — send (Enter), edit within 15 min, soft delete, reply, forward
-- ⚡ **Live Updates** — message created/updated/deleted/reaction changes via WebSocket
-- 💬 **Direct Messages** — 1-to-1 chat with real-time delivery
-- 🔍 **Search** — global, workspace, and channel message search
-- 📎 **Attachments** — upload images/files with previews, progress, retry
-- 🌍 **Localization** — switch between EN / UK / RU
-- ⌨️ **Typing Indicators** — live typing status in channels and DMs
-- 👁️ **Read Receipts** — message seen status
-- 🖥️ **Session Management** — Profile → Sessions, revoke others, current-session badge
-- 🌐 **Cyrillic Support** — usernames and workspace names with auto-transliteration
-- 🔁 **Silent Token Refresh** — `authFetch` intercepts 401s, rotates tokens once, and retries the original request without logging the user out
+- **JWT auth** — access/refresh token rotation, bcrypt hashing, per-tab `sessionStorage`.
+- **Session management** — list active sessions, revoke others, current-session protection.
+- **Silent token refresh** — `authFetch` intercepts 401s, refreshes once, and retries without logout.
+- **Private-channel security** — non-members receive `404` at REST, WebSocket, and search layers.
+- **Owner-only destructive actions** — workspace/channel delete and archive restricted to OWNER.
+
+### Attachments
+
+- Drag-and-drop or file-picker upload with progress and retry.
+- Authenticated downloads — no direct public URLs.
+- Inline image previews and lightbox.
+- File type validation and practical category limits.
+- Cyrillic filename support.
+
+### Localization
+
+- English, Ukrainian, Russian UI.
+- Cyrillic usernames and workspace names with auto-transliteration to URL slugs.
 
 ---
 
-## Security & Authorization
+## 🛡️ Security & Reliability Highlights
 
-- **Private channels** return `404` for non-members — no information leakage
-- **Message edit** restricted to author and 15-minute window
-- **Message delete** restricted to author, admins, and owners
-- **Direct messages** accessible only to conversation participants
-- **Channel update/archive** enforced by role (OWNER/ADMIN only)
-- **WebSocket typing** revalidates membership on every event; revoked access forces room leave and presence cleanup
+- Private channels leak no existence, title, or membership data to outsiders.
+- Message edit is restricted to the author within a 15-minute window.
+- Message delete is restricted to author, admins, and owners.
+- Direct messages are accessible only to the two participants.
+- WebSocket events revalidate channel/DM membership on the server.
+- Auth endpoints return generic success messages to avoid account enumeration.
+- Production database migration runs before API deploy.
+- Automated smoke and attachment verification scripts run after every deploy.
 
 ---
 
-## Testing & CI
+## 🧪 Testing & CI
 
 | Suite | Count | Status |
-|-------|-------|--------|
-| API Unit Tests | 745 (34 suites) | ✅ passing |
-| Web Unit Tests | 689 (31 files) | ✅ passing |
-| Web Page Tests | 248 (2 files) | ✅ passing |
-| E2E Security Smoke Tests | 7 (2 suites) | ✅ passing locally |
+|---|---|---|
+| API unit tests | 802 (35 suites) | ✅ passing |
+| Web unit + page tests | 692 (31 files) | ✅ passing |
+| E2E security smoke tests | 7 (2 suites) | ✅ passing locally |
 
-- **CI:** GitHub Actions green for unit tests, builds, and lint
-- **E2E:** requires Docker PostgreSQL; not yet integrated into CI workflow
+- **CI:** GitHub Actions runs lint, typecheck, tests, and builds on every push.
+- **Deploy:** Render deploy hook fires only after green CI; Vercel builds the frontend in parallel.
+- **Verification:** `scripts/smoke-deploy.mjs` and `scripts/verify-production-attachments.mjs` run against production after deploy.
 
 ---
 
-## Project Structure
+## 📸 Screenshots
+
+All screenshots were captured from the live production deployment after the B206 visual polish pass.
+
+### Desktop
+
+| Screen | Preview |
+|---|---|
+| Login | ![Login](docs/portfolio-media/screenshots/desktop/01-login.jpg) |
+| Dashboard | ![Dashboard](docs/portfolio-media/screenshots/desktop/02-dashboard.jpg) |
+| Workspace overview | ![Workspace](docs/portfolio-media/screenshots/desktop/03-workspace.jpg) |
+| Channel messages | ![Channel messages](docs/portfolio-media/screenshots/desktop/04-channel-messages.jpg) |
+| Channel attachments | ![Attachments](docs/portfolio-media/screenshots/desktop/05-channel-attachments.jpg) |
+| Drag & drop overlay | ![Drag and drop](docs/portfolio-media/screenshots/desktop/06-drag-drop-overlay.jpg) |
+| Direct messages | ![DM](docs/portfolio-media/screenshots/desktop/07-direct-messages.jpg) |
+| Profile sessions | ![Profile sessions](docs/portfolio-media/screenshots/desktop/08-profile-sessions.jpg) |
+| Global search | ![Search](docs/portfolio-media/screenshots/desktop/09-search-results.jpg) |
+
+### Mobile
+
+| Screen | Preview |
+|---|---|
+| Dashboard | ![Mobile dashboard](docs/portfolio-media/screenshots/mobile/01-dashboard.jpg) |
+| Workspace | ![Mobile workspace](docs/portfolio-media/screenshots/mobile/02-workspace.jpg) |
+| Channel | ![Mobile channel](docs/portfolio-media/screenshots/mobile/03-channel.jpg) |
+| Composer | ![Mobile composer](docs/portfolio-media/screenshots/mobile/04-composer.jpg) |
+| Attachment card | ![Mobile attachment](docs/portfolio-media/screenshots/mobile/05-attachment-card.jpg) |
+| Direct messages | ![Mobile DM](docs/portfolio-media/screenshots/mobile/06-direct-messages.jpg) |
+
+---
+
+## 📁 Project Structure
 
 ```
 secure-collab-platform/
@@ -103,16 +139,18 @@ secure-collab-platform/
 │   ├── shared/              # Shared types & utilities
 │   └── database/            # Prisma schema, client, migrations
 ├── docker-compose.yml       # PostgreSQL, Redis, MinIO
+├── scripts/                 # Smoke/verification scripts
 ├── docs/
-│   ├── project-status.md    # Current state & QA results
-│   ├── portfolio-demo.md    # Portfolio demo guide & screenshots checklist
+│   ├── portfolio-demo.md
+│   ├── demo-script.md
+│   ├── interview-notes.md
 │   └── ...
 └── README.md
 ```
 
 ---
 
-## Quick Start
+## 🏁 Quick Start
 
 ### Prerequisites
 
@@ -162,18 +200,6 @@ pnpm --filter api start:dev
 pnpm --filter web dev
 ```
 
-**Environment variable (if needed):**
-
-```powershell
-# PowerShell
-$env:DATABASE_URL="postgresql://postgres:postgres@localhost:5432/letschat?schema=public"
-```
-
-```bash
-# Bash / macOS / Linux
-export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/letschat?schema=public"
-```
-
 **Verify:**
 
 - Health: `GET http://localhost:3001/api/v1/health`
@@ -182,7 +208,7 @@ export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/letschat?sche
 
 ---
 
-## Running Tests
+## 🧪 Running Tests
 
 ```bash
 # API unit tests
@@ -191,99 +217,45 @@ pnpm --filter api test
 # API E2E tests (requires Docker PostgreSQL)
 pnpm --filter api test:e2e
 
-# Web unit tests
+# Web unit + page tests
 pnpm --filter web test
 
-# Web page-level tests
-pnpm --filter web test:pages
-
 # Lint
-pnpm --filter api lint
 pnpm --filter web lint
+pnpm --filter api lint
 
-# Type check
-pnpm --filter api typecheck
+# Typecheck
 pnpm --filter web typecheck
-
-# Build
-pnpm --filter api build
-pnpm --filter web build
+pnpm --filter api typecheck
 ```
 
 ---
 
-## Production Verification
-
-After deploy, run the verification pack against the live production URLs:
-
-```bash
-# Public smoke — safe, no secrets
-pnpm verify:prod:public
-
-# Authenticated auth flow (creates one disposable Mail.tm account)
-pnpm verify:prod:auth
-
-# Permission/destructive checks — requires explicit flag
-VERIFY_PERMISSIONS_ENABLE_DESTRUCTIVE=1 pnpm verify:prod:permissions
-
-# Playwright browser sanity
-pnpm verify:prod:browser
-```
-
-See [`docs/production-verification.md`](docs/production-verification.md) for full details, env vars, and the manual GitHub Actions workflow.
-
----
-
-## Current Limitations
-
-> This is a **portfolio-grade rebuild**, not production-ready software.
-
-- **Free Render instance may cold-start** — first request after sleep can take ~1 min
-- **Local E2E tests still require Docker PostgreSQL** — not yet in CI
-- **Production verification scripts** cover post-deploy smoke/auth/permissions/browser sanity; they do not replace full E2E coverage
-- **Presence is in-memory** — no Redis Socket.io adapter yet
-- **No push/browser notifications** yet
-- **No cursor pagination** — limit-based pagination for messages and logs
-- **Email delivery depends on a verified Resend domain** — otherwise auth flows use console/dev mode
-- **API-domain favicon 404** is harmless
-- **Disposable QA test account** (`b188-session-test-1781544153@web-library.net`) remains in production but has no workspaces, DMs, or channel memberships
-
----
-
-## Deployment
-
-See [`docs/deployment-vercel.md`](docs/deployment-vercel.md) for full instructions.
+## 🚢 Deploy Flow
 
 ```text
-push main
-    ↓
-GitHub Actions CI (lint, typecheck, tests, builds)
-    ↓
-Deploy API v2 to Render job → POST Render Deploy Hook
-    ↓
-Render deploys lets-chat-api-v2
-    ↓
-GET /api/v1/health → ok
+push main → GitHub Actions (lint/typecheck/test/build)
+                ↓
+      Migrate production database
+                ↓
+      Deploy API v2 to Render
+                ↓
+      Vercel production deploy
+                ↓
+      smoke-deploy.mjs + verify-production-attachments.mjs
 ```
 
-- **Frontend** (`apps/web`) → Vercel (auto-deploys on `main`)
-- **Backend** (`apps/api`) → Render `lets-chat-api-v2` via GitHub Actions hook only (Auto-Deploy disabled)
-- **Old service** `lets-chat-api-wa43` is decommissioned and returns 404
-- **Database** → External PostgreSQL 15+
+No secrets, credentials, or DB URLs are committed to the repository.
 
 ---
 
-## Roadmap
+## ⚠️ Known Limitations
 
-- [x] Add portfolio screenshots and demo script
-- [ ] Record short demo video (screen recording) for portfolio
-- [ ] Integrate E2E tests into CI with PostgreSQL service
-- [ ] Redis Socket.io adapter for multi-server presence
-- [ ] Cursor-based pagination for messages and audit logs
-- [ ] Push/browser notifications
+- Render free tier cold start can take ~1 minute after idle.
+- Real email delivery depends on a verified Resend sender domain; otherwise auth emails fall back to console/dev mode.
+- E2E tests run locally only; CI does not yet spin up PostgreSQL for them.
+- Presence is in-memory; a Redis Socket.io adapter would be needed for horizontal scaling.
 
 ---
 
-## License
-
-MIT (same as original lets-chat)
+Built for portfolio/demo presentation. See [`docs/portfolio-demo.md`](docs/portfolio-demo.md) for the full walkthrough.

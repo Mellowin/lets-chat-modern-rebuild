@@ -1,12 +1,12 @@
-# Recruiter Demo Script — lets-chat-modern-rebuild
+# Demo Script — lets-chat-modern-rebuild
 
-Use this script when presenting the project to recruiters, hiring managers, or in a portfolio review. It tells a coherent story in about three minutes and highlights the engineering decisions behind the features.
+Use this script when presenting the project to recruiters, hiring managers, or in a portfolio review. It tells a coherent story in about **2–3 minutes** and highlights the engineering decisions behind the features.
 
 ---
 
 ## What This Project Is
 
-`lets-chat-modern-rebuild` is a full-stack, real-time team chat application — a modern rebuild of the archived `lets-chat` open-source project. It supports workspaces, public/private channels, direct messages, file attachments, global search, multi-device session management, and EN/UK/RU localization.
+`lets-chat-modern-rebuild` is a full-stack, real-time team chat application — a modern rebuild of the archived `lets-chat` open-source project. It supports workspaces, public/private channels, direct messages, authenticated file attachments, global search, multi-device session management, and EN/UK/RU localization.
 
 It is intentionally **portfolio-grade**: the scope is large enough to show real architecture, authorization, real-time messaging, testing, and CI/CD, while remaining small enough to reason about in an interview.
 
@@ -16,12 +16,13 @@ It is intentionally **portfolio-grade**: the scope is large enough to show real 
 - Backend API: https://lets-chat-api-v2.onrender.com/api/v1
 - WebSocket: wss://lets-chat-api-v2.onrender.com
 
-Screenshots: [`docs/portfolio-media/`](portfolio-media/)  
-Summary & resume bullets: [`docs/portfolio-summary.md`](portfolio-summary.md)
+Screenshots: [`docs/portfolio-media/screenshots/`](portfolio-media/screenshots/)  
+Demo guide: [`docs/portfolio-demo.md`](portfolio-demo.md)  
+Interview notes: [`docs/interview-notes.md`](interview-notes.md)
 
 ---
 
-## 60-Second Overview (Elevator Pitch)
+## 30-Second Elevator Pitch
 
 > "I rebuilt `lets-chat` as a modern Slack-like team chat app. Users can create workspaces, join public or private channels, send direct messages, upload files, search across every conversation, and manage active sessions.
 >
@@ -31,32 +32,75 @@ Summary & resume bullets: [`docs/portfolio-summary.md`](portfolio-summary.md)
 
 ---
 
-## 3-Minute Demo Path
+## 2–3 Minute Demo Script
 
-**Setup**
+### 0:00–0:10 — Intro
 
-1. Open https://lets-chat-web.vercel.app.
-2. Wait for the backend cold-start hint to clear if the Render instance was idle (~30–60 s).
-3. Register a new account, or log in if you already have one.
+Open https://lets-chat-web.vercel.app and log in.
 
-**The walkthrough**
+> "This is a real-time team collaboration app. I'm logged in as Diana, the owner of the `Acme Product Team` workspace."
 
-| Time | Step | What to say |
-|------|------|-------------|
-| 0:00 | **Create a workspace** | "I create a workspace with a Cyrillic name — `Моя Команда`. The backend transliterates it to a URL-safe Latin slug, `moya-komanda`." |
-| 0:20 | **Create a channel and a DM** | "Inside the workspace I create a public channel. I also start a direct message with another user." |
-| 0:35 | **Send and interact with messages** | "I send a message, add an emoji reaction, reply to a message, and edit within the 15-minute window." |
-| 0:50 | **Real-time in a second browser** | "Now I open an incognito window as a second user. Every message, edit, delete, reply, and reaction appears live because each channel and DM is a Socket.io room." |
-| 1:10 | **Private channel security** | "If I create a private channel and the second user isn't a member, they get a 404 — not a 403. The app intentionally leaks no information about the channel's existence." |
-| 1:25 | **Global search** | "I search for a single character like `к`. The search spans workspaces, channels, and DMs, and clicking a result jumps straight to that message." |
-| 1:40 | **Session management** | "I go to Profile → Sessions. I can see every active device session. I click 'Revoke all other sessions' and the second browser is signed out while my current tab stays logged in." |
-| 1:55 | **Silent token refresh** | "Behind the scenes, if my access token expires while the tab is open, the frontend intercepts the 401, refreshes once, and retries the request — I never see a login screen." |
-| 2:10 | **CI/CD** | "Every push to `main` runs the full GitHub Actions pipeline. Only after tests and builds pass does the Render deploy hook fire. Vercel builds the frontend in parallel." |
-| 2:25 | **Test coverage** | "The project has over 1,681 automated tests: 745 API unit tests, 688 web unit tests, and 248 page-level tests, plus local E2E smoke tests for authorization." |
+### 0:10–0:30 — Dashboard & Workspaces
 
-**Closing line**
+Navigate to the dashboard.
 
-> "So this project shows end-to-end full-stack ownership: auth, authorization, real-time messaging, search, file uploads, session management, testing, and production deployment."
+> "From the dashboard I can see my workspaces, create a new one, and manage invitations. Workspaces have OWNER, ADMIN, and MEMBER roles, and destructive actions like delete or archive are owner-only."
+
+Optional: create a workspace with a Cyrillic name and show the auto-generated Latin slug.
+
+### 0:30–1:00 — Channels & Messages
+
+Open the `general` channel.
+
+> "Inside the workspace we have channels. Here's a short release-planning thread: a question from Diana, a reply from Alex, and a follow-up. Replies are nested under the parent message. I can edit within 15 minutes, delete, react, or forward to another channel."
+
+Point out:
+
+- polished message bubbles;
+- reply preview with the original author;
+- real-time feel (if a second browser is open).
+
+### 1:00–1:30 — Attachments & Drag-and-Drop
+
+Scroll to the attachment messages or upload a new file.
+
+> "Files are uploaded through an authenticated proxy. The backend validates the file type and size, then stores it in S3-compatible object storage. Downloads require a valid access token, so attachments aren't publicly accessible."
+
+Demonstrate:
+
+- a PDF card;
+- an inline image preview;
+- an Excel/Word card;
+- a file with a Cyrillic filename;
+- drag-and-drop into the composer.
+
+### 1:30–1:50 — Search & Direct Messages
+
+Open global search and type `release`.
+
+> "Search spans workspaces, channels, and DMs. Clicking a result jumps straight to the message context."
+
+Switch to the direct-message conversation with Alex.
+
+> "Direct messages are 1-to-1, participant-only, and also delivered in real time through Socket.io rooms."
+
+### 1:50–2:10 — Profile, Sessions & Security
+
+Open **Profile → Sessions**.
+
+> "Here I can see every active refresh-token session. The current session is protected. I can revoke all other sessions, which signs out every other device without affecting this tab."
+
+> "Behind the scenes, if my access token expires while the tab is open, the frontend intercepts the 401, refreshes once, and retries the original request — I never see a login screen."
+
+### 2:10–2:30 — Production Pipeline
+
+Show the GitHub Actions run or describe it.
+
+> "Every push to `main` runs the full GitHub Actions pipeline: lint, typecheck, tests, builds, then a production database migration, then the Render deploy hook for the API. Vercel deploys the frontend in parallel. After deploy, automated scripts hit public endpoints and verify attachments end-to-end."
+
+### 2:30–2:40 — Closing
+
+> "So this project shows end-to-end full-stack ownership: auth, authorization, real-time messaging, secure file uploads, search, session management, localization, testing, and production deployment."
 
 ---
 
@@ -101,7 +145,7 @@ Use this section when an interviewer asks "How did you think about security?"
 
 ### "How do you deploy safely?"
 
-> "Render Auto-Deploy is disabled. The only automatic path is GitHub Actions → Render deploy hook. That means the API never deploys unless lint, typecheck, tests, and builds all pass. The frontend deploys through Vercel in parallel. After deploy, a smoke script hits 10 public and protected endpoints to confirm health."
+> "Render Auto-Deploy is disabled. The only automatic path is GitHub Actions → Render deploy hook. That means the API never deploys unless lint, typecheck, tests, and builds all pass. The frontend deploys through Vercel in parallel. After deploy, smoke and attachment verification scripts run against production."
 
 ### "Why sessionStorage instead of localStorage?"
 
@@ -113,13 +157,13 @@ Use this section when an interviewer asks "How did you think about security?"
 
 These are not excuses; they are intentional scope boundaries and next steps.
 
-- **Render free tier cold start** — the backend can take ~1 minute to wake up after idle. The frontend shows a cold-start hint.
+- **Render free tier cold start** — the backend can take ~1 minute to wake up after idle.
 - **E2E tests are local-only** — CI does not yet spin up PostgreSQL for the 7 Supertest smoke tests.
 - **Email delivery** — real Gmail delivery requires a verified Resend sender domain; otherwise auth emails fall back to console/dev mode.
 - **Presence is in-memory** — there is no Redis Socket.io adapter yet, so presence doesn't scale across multiple backend instances.
 - **No cursor pagination** — messages and audit logs use limit-based pagination.
 - **No push notifications** — browser/push notifications for mentions and DMs are not implemented.
-- **No demo video yet** — only screenshots are included; a short screen recording is on the roadmap.
+- **No demo video yet** — screenshots are included; a short screen recording is on the roadmap.
 
 ---
 
@@ -128,5 +172,4 @@ These are not excuses; they are intentional scope boundaries and next steps.
 - [ ] Backend is awake: https://lets-chat-api-v2.onrender.com/api/v1/health returns `status: ok`.
 - [ ] Frontend loads: https://lets-chat-web.vercel.app returns 200 with HTML.
 - [ ] You have a second browser or incognito window ready for real-time/session tests.
-- [ ] You have a throwaway email/username ready for registration.
-- [ ] You know the live test counts if asked: **745 API / 688 web / 248 page tests**.
+- [ ] You have a throwaway email/username ready for registration, or request demo access.

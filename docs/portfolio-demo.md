@@ -1,34 +1,57 @@
 # Portfolio Demo Guide
 
-This guide helps present the project to recruiters, hiring managers, or in a portfolio. It focuses on the live production deployment and the features that are stable enough to demonstrate.
+This guide presents the project to recruiters, hiring managers, or portfolio reviewers. It focuses on the live production deployment and the features that are stable enough to demonstrate.
 
-> **B192 UI Polish:** The app received a visual redesign pass — cleaner layout, improved cards/buttons/inputs, polished message bubbles, search modals, and auth/profile screens. Screenshots taken after this pass should look portfolio-ready.
->
-> **B196 Mobile Responsiveness:** The app was polished for mobile and tablet viewports. All demo screens are usable down to 375 px wide, and the authenticated shell uses a mobile drawer for navigation.
+> **B206 Visual Polish:** All authenticated screens received a final visual pass — modern cards, consistent buttons/badges, polished message bubbles, attachment cards, composer, drag/drop overlay, and mobile layouts. The screenshots in `docs/portfolio-media/screenshots/` were captured after this pass.
 
 ---
 
 ## Production Links
 
 | Component | URL |
-|-----------|-----|
+|---|---|
 | Frontend | https://lets-chat-web.vercel.app |
 | Backend API | https://lets-chat-api-v2.onrender.com/api/v1 |
 | WebSocket | wss://lets-chat-api-v2.onrender.com |
 | Health | https://lets-chat-api-v2.onrender.com/api/v1/health |
 
-> **Note:** The backend runs on Render's free tier. If the instance has been idle, the first request may take ~1 minute to wake up. Subsequent requests are fast.
+> The backend runs on Render's free tier. If the instance has been idle, the first request may take ~1 minute to wake up. Subsequent requests are fast.
+
+---
+
+## Demo Scenario: Acme Product Team
+
+A ready-made demo workspace is used for screenshots and videos:
+
+- **Workspace:** `Acme Product Team`
+- **Channels:**
+  - `general` — team announcements and daily chat
+  - `design-review` — UI/UX feedback and mockups
+  - `release-plan` — release coordination
+  - `docs-and-files` — documents and shared files
+  - `random` — off-topic conversations
+- **Demo users:**
+  - `Diana Demova` (workspace owner)
+  - `Alex Coder` (workspace member)
+- **Sample content:**
+  - Short release-planning discussion in `general`.
+  - Thread-like reply under a message.
+  - PDF release notes.
+  - PNG dashboard mockup.
+  - XLSX roadmap spreadsheet.
+  - DOCX file with a Cyrillic filename (`Український документ.docx`).
+  - Direct message conversation between Diana and Alex.
+
+> Demo credentials are not committed publicly. If you need a live demo account, request access from the project owner.
 
 ---
 
 ## How to Open the Demo
 
 1. Open https://lets-chat-web.vercel.app in a browser.
-2. Wait for the backend to wake up if it is cold (the frontend shows a cold-start hint).
+2. Wait for the backend to wake up if it is cold (check the health endpoint above).
 3. Register a new account or log in.
-4. Verify your email if you want to test email flows (production uses Resend; a verified domain is required for real delivery).
-
-For a quick, repeatable demo, register a throwaway account with a fake email and use the console/dev email mode, or use two browsers/incognito windows to test multi-user real-time behavior.
+4. Create a workspace, or request access to the prepared demo workspace.
 
 ---
 
@@ -38,7 +61,7 @@ For a quick, repeatable demo, register a throwaway account with a fake email and
 
 - Register with a Cyrillic username (e.g., `Валера`) and a workspace name like `Моя Команда`.
 - Log in/out.
-- Open two browser tabs/windows and confirm each tab has its own session (sessionStorage isolation).
+- Open two browser tabs/windows and confirm each tab has its own session (`sessionStorage` isolation).
 
 ### 2. Workspaces
 
@@ -74,7 +97,7 @@ For a quick, repeatable demo, register a throwaway account with a fake email and
 ### 6. Search
 
 - Use the header search to find messages across all workspaces, channels, and DMs.
-- Try a 1-character query (e.g., `к`) to show substring search.
+- Try a short query (e.g., `release`) to show scoped search.
 - Click a result to jump to the message in its channel or DM.
 
 ### 7. Session Management
@@ -89,61 +112,63 @@ For a quick, repeatable demo, register a throwaway account with a fake email and
 - In a channel, click the paperclip or drag-and-drop files into the composer.
 - Upload images and non-image files.
 - See upload progress, retry on failure, and inline image previews in the message list.
-- Click an image to view it (lightbox if implemented).
+- Click an image to view it in the lightbox.
+- Upload a file with a Cyrillic name to show filename preservation.
 
 ### 9. Localization
 
-- Switch the UI language between English, Ukrainian, and Russian from the profile settings.
+- Switch the UI language between English, Ukrainian, and Russian from **Profile → Language**.
 
 ---
 
 ## Suggested Demo Flow (5–7 Minutes)
 
-1. Open the app and register/login.
+1. Open the app and register/log in.
 2. Create a workspace with a Cyrillic name; show slug transliteration.
 3. Create a channel and a DM.
-4. Send a few messages, add a reaction, and edit one message.
+4. Send a few messages, add a reaction, reply to a message, and edit one within 15 minutes.
 5. Open a second browser/incognito window with a different user; show real-time updates.
-6. Demonstrate global search with a short query.
-7. Open Profile → Sessions and revoke the other session.
-8. Mention the silent token refresh story: close a tab, come back later, and the app renews the session without asking for a password.
-9. Mention the CI/CD flow and point to the GitHub Actions / Render setup.
+6. Upload a file or image and point out the authenticated download.
+7. Demonstrate global search with a short query.
+8. Open Profile → Sessions and revoke the other session.
+9. Mention silent token refresh and the CI/CD pipeline.
 
 For a scripted recruiter narrative, see [`docs/demo-script.md`](demo-script.md).
 
 ---
 
-## Recommended Screenshots Checklist
+## Screenshot Checklist
 
-Use this list when preparing portfolio visuals. The repo already contains a starter set in [`docs/portfolio-media/`](portfolio-media/); replace or extend them with your own branding if desired.
+Final screenshots are stored in `docs/portfolio-media/screenshots/`.
 
-### Available now in `docs/portfolio-media/`
+### Desktop (1280×900)
 
-- [x] **Login page** — clean auth UI (`login.png`).
-- [x] **Dashboard** — workspace list and create form (`dashboard.png`).
-- [x] **Workspace overview** — channels, members, invites, archived channels (`workspace.png`).
-- [x] **Channel chat** — messages, reactions, composer (`channel.png`).
-- [x] **Direct message** — 1-to-1 chat (`dm.png`).
-- [x] **Global search modal** — search results with source labels (`global-search.png`).
-- [x] **Profile → Sessions** — session list with current badge and revoke button (`profile-sessions.png`).
-- [x] **Mobile channel** — composer and message bubbles usable (`mobile-channel.png`).
+- [x] Login page — `desktop/01-login.jpg`
+- [x] Dashboard — `desktop/02-dashboard.jpg`
+- [x] Workspace overview — `desktop/03-workspace.jpg`
+- [x] Channel with messages — `desktop/04-channel-messages.jpg`
+- [x] Channel with attachment cards — `desktop/05-channel-attachments.jpg`
+- [x] Drag & drop overlay — `desktop/06-drag-drop-overlay.jpg`
+- [x] Direct messages — `desktop/07-direct-messages.jpg`
+- [x] Profile sessions — `desktop/08-profile-sessions.jpg`
+- [x] Global search — `desktop/09-search-results.jpg`
 
-### Still to capture / optional
+### Mobile (390×844)
 
-- [ ] **Registration page** — Cyrillic username and workspace name.
-- [ ] **Reply thread** — reply under a parent message.
-- [ ] **Mobile login** (375–390 px wide) — centered card, no overflow.
-- [ ] **Mobile dashboard** — cards stack cleanly.
-- [ ] **Mobile workspace overview** — channel/member/invite cards fit.
-- [ ] **Mobile global search** — full-screen modal with readable results.
-- [ ] **Mobile DM** — conversation fits narrow viewport.
-- [ ] **Mobile profile sessions** — tabs scroll, cards stack.
-- [ ] **Tablet channel / dashboard** (768×1024) — balanced sidebar and content.
-- [ ] **Profile → Language switcher** — EN/UK/RU.
-- [ ] **Attachment upload** — file picker or inline image preview.
-- [ ] **GitHub Actions CI green** — screenshot of passing `CI` and `Deploy API v2 to Render` jobs.
-- [ ] **Render dashboard** — `lets-chat-api-v2` showing Live status (optional).
-- [ ] **Short demo video / screen recording** — 60–90 seconds walking through the recruiter demo path.
+- [x] Dashboard — `mobile/01-dashboard.jpg`
+- [x] Workspace overview — `mobile/02-workspace.jpg`
+- [x] Channel — `mobile/03-channel.jpg`
+- [x] Composer — `mobile/04-composer.jpg`
+- [x] Attachment card — `mobile/05-attachment-card.jpg`
+- [x] Direct messages — `mobile/06-direct-messages.jpg`
+
+### Optional / next captures
+
+- [ ] Registration page with Cyrillic username.
+- [ ] Profile language switcher showing EN/UK/RU.
+- [ ] Image lightbox.
+- [ ] GitHub Actions green run screenshot.
+- [ ] Short demo video (60–90 seconds).
 
 ---
 
@@ -151,7 +176,7 @@ Use this list when preparing portfolio visuals. The repo already contains a star
 
 - **Cold start:** The Render free instance may sleep; the first load can take ~1 minute.
 - **Email delivery:** Real Gmail delivery only works if the Resend sender domain is verified; otherwise auth emails fall back to console/dev mode.
-- **Disposable QA account:** `b188-session-test-1781544153@web-library.net` may still exist in production but has no workspaces, DMs, or channel memberships.
+- **Disposable QA accounts:** Any temporary Mail.tm accounts created during visual QA have no long-lived workspaces or data.
 
 ---
 
