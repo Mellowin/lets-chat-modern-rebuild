@@ -79,6 +79,8 @@ Repository variables that can be set:
 
 If the variables are missing, the workflow uses the production defaults.
 
+The main `CI` workflow also runs the API E2E security smoke tests (`apps/api/test/*.e2e-spec.ts`) against a temporary PostgreSQL service container on every push, before any production migration or deploy.
+
 ---
 
 ## Known limitations

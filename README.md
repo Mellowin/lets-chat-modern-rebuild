@@ -91,9 +91,9 @@ Portfolio guidance:
 |---|---|---|
 | API unit tests | 802 (35 suites) | ✅ passing |
 | Web unit + page tests | 692 (31 files) | ✅ passing |
-| E2E security smoke tests | 7 (2 suites) | ✅ passing locally |
+| E2E security smoke tests | 7 (2 suites) | ✅ passing in CI (PostgreSQL service) |
 
-- **CI:** GitHub Actions runs lint, typecheck, tests, and builds on every push.
+- **CI:** GitHub Actions runs lint, typecheck, unit tests, builds, and API E2E security smoke tests (with a PostgreSQL service container) on every push.
 - **Deploy:** Render deploy hook fires only after green CI; Vercel builds the frontend in parallel.
 - **Verification:** `scripts/smoke-deploy.mjs` and `scripts/verify-production-attachments.mjs` run against production after deploy.
 
@@ -255,7 +255,7 @@ No secrets, credentials, or DB URLs are committed to the repository.
 
 - Render free tier cold start can take ~1 minute after idle.
 - Real email delivery depends on a verified Resend sender domain; otherwise auth emails fall back to console/dev mode.
-- E2E tests run locally only; CI does not yet spin up PostgreSQL for them.
+
 - Presence is in-memory; a Redis Socket.io adapter would be needed for horizontal scaling.
 
 ---

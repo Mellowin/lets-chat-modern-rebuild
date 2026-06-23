@@ -71,9 +71,71 @@ jobs:
           NEXT_PUBLIC_API_URL: 'https://api.example.com/api/v1'
           NEXT_PUBLIC_WS_URL: 'https://api.example.com'
 
+  api-e2e:
+    name: API E2E security smoke tests
+    needs: ci
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lets_chat_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @lets-chat/database generate
+
+      - name: Build shared package
+        run: pnpm --filter @lets-chat/shared build
+
+      - name: Build database package
+        run: pnpm --filter @lets-chat/database build
+
+      - name: Apply migrations to test database
+        env:
+          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/lets_chat_test?schema=public'
+        run: pnpm --filter @lets-chat/database migrate:deploy
+
+      - name: Run API E2E tests
+        env:
+          NODE_ENV: test
+          DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/lets_chat_test?schema=public'
+          JWT_ACCESS_SECRET: 'ci-test-jwt-access-secret-min-32-characters-long'
+          JWT_REFRESH_SECRET: 'ci-test-jwt-refresh-secret-min-32-characters-long'
+          S3_ENDPOINT: 'http://localhost:9000'
+          S3_ACCESS_KEY: 'minioadmin'
+          S3_SECRET_KEY: 'minioadmin'
+          S3_BUCKET: 'letschat-uploads'
+          MAIL_PROVIDER: console
+          APP_WEB_URL: 'http://localhost:3000'
+        run: pnpm --filter api test:e2e
+
   migrate:
     name: Migrate production database
-    needs: ci
+    needs: [ci, api-e2e]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     outputs:
@@ -124,7 +186,7 @@ jobs:
 
   deploy:
     name: Deploy API v2 to Render
-    needs: [ci, migrate]
+    needs: [ci, migrate, api-e2e]
     runs-on: ubuntu-latest
     if: |
       github.ref == 'refs/heads/main' &&

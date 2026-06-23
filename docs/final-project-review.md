@@ -104,10 +104,10 @@ secure-collab-platform/
 |---|---|---|
 | API unit tests | 802 (35 suites) | Jest |
 | Web unit + page tests | 692 (31 files) | Vitest + Testing Library |
-| E2E security smoke tests | 7 (2 suites) | Supertest (local-only) |
+| E2E security smoke tests | 7 (2 suites) | Supertest (CI + local) |
 
 - All unit and page tests pass in CI.
-- E2E tests run locally against a Docker PostgreSQL instance.
+- E2E tests now run in CI against a temporary PostgreSQL service container before production migration and deploy.
 - TypeScript strict checking is enabled for both apps.
 - ESLint is configured and enforced in CI.
 
@@ -119,6 +119,7 @@ secure-collab-platform/
 push main
   → GitHub Actions
       → lint / typecheck / test / build
+      → API E2E security smoke tests (PostgreSQL service container)
       → migrate production database
       → trigger Render deploy hook
       → API deploy on Render
@@ -160,7 +161,7 @@ Full details: [`docs/production-verification.md`](production-verification.md).
 
 - **Render free-tier cold start** — the backend can take ~1 minute to wake after idle.
 - **Email delivery** — real inbox delivery requires a verified Resend sender domain; otherwise auth emails fall back to console/dev mode.
-- **E2E tests are local-only** — CI does not yet spin up PostgreSQL for the 7 Supertest smoke tests.
+
 - **Presence is in-memory** — scaling Socket.io across multiple API instances would require a Redis adapter.
 - **No push/browser notifications** — mentions and DMs do not yet trigger OS-level notifications.
 - **No message cursor pagination** — messages and audit logs use limit-based pagination.
