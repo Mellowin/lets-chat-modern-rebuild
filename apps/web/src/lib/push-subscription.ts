@@ -76,6 +76,11 @@ export async function subscribeToPush(accessToken: string): Promise<void> {
     throw new Error("Failed to register service worker.");
   }
 
+  // Wait for the service worker to become active before subscribing. Calling
+  // pushManager.subscribe on a registration without an active worker fails in
+  // fresh browser profiles/incognito contexts.
+  await navigator.serviceWorker.ready;
+
   const existing = await registration.pushManager.getSubscription();
   if (existing) {
     await existing.unsubscribe();
