@@ -477,7 +477,7 @@ export default function WorkspaceDetailPage() {
                 name="channel-type"
                 value={channelType}
                 onChange={(e) => setChannelType(e.target.value as "PUBLIC" | "PRIVATE")}
-                aria-label="Channel type"
+                aria-label={t("workspace.channelType")}
                 className="w-40"
               >
                 <option value="PUBLIC">{t("workspace.publicChannel")}</option>

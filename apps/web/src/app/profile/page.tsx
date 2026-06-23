@@ -793,7 +793,7 @@ export default function ProfilePage() {
                           )}
                           {currentSession.ipAddress && (
                             <p className="text-xs text-muted-foreground">
-                              IP: {currentSession.ipAddress}
+                              {t("profile.ipLabel")} {currentSession.ipAddress}
                             </p>
                           )}
                         </div>
@@ -880,7 +880,7 @@ export default function ProfilePage() {
                                     )}
                                     {session.ipAddress && (
                                       <span className="text-xs text-muted-foreground">
-                                        IP: {session.ipAddress}
+                                        {t("profile.ipLabel")} {session.ipAddress}
                                       </span>
                                     )}
                                   </div>

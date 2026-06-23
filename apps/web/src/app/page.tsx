@@ -31,7 +31,7 @@ export default function Home() {
   return (
     <div className="flex flex-col items-start p-6 sm:p-10 max-w-3xl">
       <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
-        lets-chat — Modern Rebuild
+        {t("home.title")}
       </h1>
       <p className="mt-2 text-zinc-600 dark:text-zinc-400">
         {t("home.description")}

@@ -182,6 +182,7 @@ export type TranslationKey =
   | "workspace.channelDescription"
   | "workspace.publicChannel"
   | "workspace.privateChannel"
+  | "workspace.channelType"
   | "workspace.create"
   | "workspace.creating"
   | "workspace.channels"
@@ -481,6 +482,7 @@ export type TranslationKey =
   | "profile.noInactiveSessions"
   | "profile.showInactiveSessions"
   | "profile.sessionDevice"
+  | "profile.ipLabel"
   | "profile.createdAt"
   | "profile.expiresAt"
   | "api.timeoutError"
@@ -537,6 +539,7 @@ export type TranslationKey =
   | "errors.newPasswordMustDiffer"
   | "errors.tooManyRequests"
   | "home.description"
+  | "home.title"
   | "home.projectStatus"
   | "home.backendStatus"
   | "home.verifyApi"
@@ -757,6 +760,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "workspace.channelDescription": "Description (optional)",
     "workspace.publicChannel": "Public",
     "workspace.privateChannel": "Private",
+    "workspace.channelType": "Channel type",
     "workspace.create": "Create",
     "workspace.creating": "Creating…",
     "workspace.channels": "Channels",
@@ -1056,6 +1060,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.noInactiveSessions": "No revoked or expired sessions",
     "profile.showInactiveSessions": "Show revoked and expired sessions",
     "profile.sessionDevice": "Device",
+    "profile.ipLabel": "IP:",
     "profile.createdAt": "Created",
     "profile.expiresAt": "Expires",
     "profile.account": "Account",
@@ -1123,6 +1128,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "errors.newPasswordMustDiffer": "New password must differ from current.",
     "errors.tooManyRequests": "Too many requests. Please wait a moment.",
     "home.description": "Secure team collaboration platform. Backend infrastructure is bootstrapped and ready.",
+    "home.title": "lets-chat — Modern Rebuild",
     "home.projectStatus": "Project status",
     "home.backendStatus": "Backend Status",
     "home.verifyApi": "Verify the API is reachable",
@@ -1342,6 +1348,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "workspace.channelDescription": "Опис (необовʼязково)",
     "workspace.publicChannel": "Публічний",
     "workspace.privateChannel": "Приватний",
+    "workspace.channelType": "Тип каналу",
     "workspace.create": "Створити",
     "workspace.creating": "Створюємо…",
     "workspace.channels": "Канали",
@@ -1641,6 +1648,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.noInactiveSessions": "Немає відкликаних або протермінованих сесій",
     "profile.showInactiveSessions": "Показати відкликані та протерміновані сесії",
     "profile.sessionDevice": "Пристрій",
+    "profile.ipLabel": "IP:",
     "profile.createdAt": "Створено",
     "profile.expiresAt": "Завершується",
     "profile.account": "Обліковий запис",
@@ -1708,6 +1716,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "errors.newPasswordMustDiffer": "Новий пароль має відрізнятися від поточного.",
     "errors.tooManyRequests": "Забагато запитів. Зачекайте трохи.",
     "home.description": "Безпечна платформа для командної співпраці. Бекенд-інфраструктура готова до роботи.",
+    "home.title": "lets-chat — Сучасна версія",
     "home.projectStatus": "Статус проєкту",
     "home.backendStatus": "Статус бекенду",
     "home.verifyApi": "Перевірте доступність API",
@@ -1927,6 +1936,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "workspace.channelDescription": "Описание (необязательно)",
     "workspace.publicChannel": "Публичный",
     "workspace.privateChannel": "Приватный",
+    "workspace.channelType": "Тип канала",
     "workspace.create": "Создать",
     "workspace.creating": "Создаём…",
     "workspace.channels": "Каналы",
@@ -2226,6 +2236,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.noInactiveSessions": "Нет отозванных или истёкших сессий",
     "profile.showInactiveSessions": "Показать отозванные и истёкшие сессии",
     "profile.sessionDevice": "Устройство",
+    "profile.ipLabel": "IP:",
     "profile.createdAt": "Создана",
     "profile.expiresAt": "Истекает",
     "profile.account": "Аккаунт",
@@ -2293,6 +2304,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "errors.newPasswordMustDiffer": "Новый пароль должен отличаться от текущего.",
     "errors.tooManyRequests": "Слишком много запросов. Подождите немного.",
     "home.description": "Безопасная платформа для командного взаимодействия. Бэкенд-инфраструктура готова к работе.",
+    "home.title": "lets-chat — Современная версия",
     "home.projectStatus": "Статус проекта",
     "home.backendStatus": "Статус бэкенда",
     "home.verifyApi": "Проверьте доступность API",
