@@ -2,10 +2,19 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { Loader2, MessageSquare } from "lucide-react";
 import { getHealth, type HealthResponse } from "@/lib/api";
 import { getApiOrigin } from "@/lib/env";
 import { useLocale } from "@/lib/locale";
 import { localizeApiError } from "@/lib/api-errors";
+import { Button } from "@/components/ui/Button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/Card";
 
 type HealthState =
   | { kind: "idle" }
@@ -29,62 +38,63 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-col items-start p-6 sm:p-10 max-w-3xl">
-      <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
-        {t("home.title")}
-      </h1>
-      <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-        {t("home.description")}
-      </p>
-
-      <div className="mt-6 flex items-center gap-3">
-        <Link
-          href="/login"
-          className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
-        >
-          {t("header.signIn")}
-        </Link>
-        <Link
-          href="/register"
-          className="inline-flex items-center justify-center rounded-lg border border-zinc-300 dark:border-zinc-700 px-4 py-2 text-sm font-medium hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
-        >
-          {t("header.createAccount")}
-        </Link>
-        <Link
-          href="/project-status"
-          className="inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-        >
-          {t("home.projectStatus")}
-        </Link>
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6 sm:p-10">
+      <div className="flex flex-col gap-2">
+        <div className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/10">
+          <MessageSquare className="h-5 w-5" />
+        </div>
+        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
+          {t("home.title")}
+        </h1>
+        <p className="text-muted-foreground">
+          {t("home.description")}
+        </p>
       </div>
 
-      <div className="mt-8 w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 p-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-sm font-semibold">{t("home.backendStatus")}</h2>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-              {t("home.verifyApi")}
-            </p>
-          </div>
-          <button
-            onClick={handleCheck}
-            disabled={health.kind === "loading"}
-            className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60 disabled:cursor-not-allowed dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
-          >
-            {health.kind === "loading" ? t("home.checking") : t("home.checkApiHealth")}
-          </button>
-        </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <Button asChild>
+          <Link href="/login">{t("header.signIn")}</Link>
+        </Button>
+        <Button asChild variant="secondary">
+          <Link href="/register">{t("header.createAccount")}</Link>
+        </Button>
+        <Button asChild variant="ghost">
+          <Link href="/project-status">{t("home.projectStatus")}</Link>
+        </Button>
+      </div>
 
-        <div className="mt-4">
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <CardTitle>{t("home.backendStatus")}</CardTitle>
+              <CardDescription>{t("home.verifyApi")}</CardDescription>
+            </div>
+            <Button
+              onClick={handleCheck}
+              disabled={health.kind === "loading"}
+            >
+              {health.kind === "loading" ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {t("home.checking")}
+                </>
+              ) : (
+                t("home.checkApiHealth")
+              )}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
           {health.kind === "idle" && (
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            <p className="text-sm text-muted-foreground">
               {t("home.clickToCheck")}
             </p>
           )}
 
           {health.kind === "loading" && (
-            <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
-              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
               {t("home.contactingBackend")}
             </div>
           )}
@@ -126,8 +136,8 @@ export default function Home() {
               </p>
             </div>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

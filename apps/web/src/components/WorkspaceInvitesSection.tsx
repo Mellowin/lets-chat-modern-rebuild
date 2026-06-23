@@ -222,16 +222,18 @@ export default function WorkspaceInvitesSection({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
-          <UserPlus size={18} aria-hidden />
+          <div className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+            <UserPlus size={16} aria-hidden />
+          </div>
           {t("workspace.invites")}
         </CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleCreate} className="flex flex-col gap-4">
-          <div className="flex flex-wrap gap-2">
+          <div className="inline-flex w-fit gap-1 rounded-lg border border-border bg-muted/40 p-1">
             <Button
               type="button"
-              variant={inviteType === "public" ? "primary" : "secondary"}
+              variant={inviteType === "public" ? "secondary" : "ghost"}
               size="sm"
               onClick={() => {
                 setInviteType("public");
@@ -243,7 +245,7 @@ export default function WorkspaceInvitesSection({
             </Button>
             <Button
               type="button"
-              variant={inviteType === "targeted" ? "primary" : "secondary"}
+              variant={inviteType === "targeted" ? "secondary" : "ghost"}
               size="sm"
               onClick={() => {
                 setInviteType("targeted");
@@ -255,7 +257,7 @@ export default function WorkspaceInvitesSection({
             </Button>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-start gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
             <Select
               id="invite-role"
               name="invite-role"
@@ -306,7 +308,7 @@ export default function WorkspaceInvitesSection({
 
         {createState.kind === "success" && createState.token && (
           <SuccessAlert message={createState.message} className="mt-4">
-            <div className="mt-2 flex flex-col sm:flex-row items-start sm:items-center gap-2">
+            <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
               <Input
                 id="invite-link"
                 name="invite-link"
@@ -352,27 +354,38 @@ export default function WorkspaceInvitesSection({
           <>
             {activeInvites.length > 0 && (
               <div className="mt-4">
-                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   {t("workspace.active")}
                 </h3>
-                <ul className="mt-2 divide-y divide-border">
+                <ul className="mt-2 flex flex-col gap-2">
                   {activeInvites.map((inv) => (
                     <li
                       key={inv.id}
-                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 py-2"
+                      className="flex flex-col gap-2 rounded-xl border border-border bg-card/60 p-3 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="min-w-0 text-sm">
-                        <p className="font-medium">
-                          {inv.email || t("workspace.publicInviteLink")}
+                        <p className="truncate font-medium text-foreground">
+                          {inv.email || (
+                            <span className="inline-flex items-center gap-1.5">
+                              <Link2 size={13} aria-hidden className="text-primary" />
+                              {t("workspace.publicInviteLink")}
+                            </span>
+                          )}
                         </p>
-                        <p className="text-xs text-muted-foreground">
-                          {t("workspace.inviteRole")}:{" "}
-                          <Badge variant="default">{getRoleLabel(inv.role, t)}</Badge> ·{" "}
-                          {inv.maxUses != null
-                            ? `${inv.usesCount} / ${inv.maxUses} ${t("workspace.uses")}`
-                            : `${t("workspace.uses")}: ${inv.usesCount}`}
-                          · {t("workspace.expires")}:{" "}
-                          {new Date(inv.expiresAt).toLocaleDateString()}
+                        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                          <span>
+                            {t("workspace.inviteRole")}:{" "}
+                            <Badge variant={inv.role === "ADMIN" ? "info" : "default"}>{getRoleLabel(inv.role, t)}</Badge>
+                          </span>
+                          <span>
+                            {inv.maxUses != null
+                              ? `${inv.usesCount} / ${inv.maxUses} ${t("workspace.uses")}`
+                              : `${t("workspace.uses")}: ${inv.usesCount}`}
+                          </span>
+                          <span>
+                            {t("workspace.expires")}:{" "}
+                            {new Date(inv.expiresAt).toLocaleDateString()}
+                          </span>
                         </p>
                       </div>
                       <Button
@@ -381,6 +394,7 @@ export default function WorkspaceInvitesSection({
                         size="sm"
                         onClick={() => handleRevoke(inv.id)}
                         disabled={revokingId === inv.id}
+                        className="w-fit text-destructive hover:bg-destructive/10 hover:text-destructive"
                       >
                         <XCircle size={14} aria-hidden />
                         {revokingId === inv.id
@@ -395,27 +409,33 @@ export default function WorkspaceInvitesSection({
 
             {pastInvites.length > 0 && (
               <div className="mt-4">
-                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   {t("workspace.past")}
                 </h3>
-                <ul className="mt-2 divide-y divide-border">
+                <ul className="mt-2 flex flex-col gap-2">
                   {pastInvites.map((inv) => (
                     <li
                       key={inv.id}
-                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 py-2"
+                      className="flex flex-col gap-1 rounded-xl border border-border/60 bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="min-w-0 text-sm">
-                        <p className="font-medium">
+                        <p className="truncate font-medium text-muted-foreground">
                           {inv.email || t("workspace.publicInviteLink")}
                         </p>
-                        <p className="text-xs text-muted-foreground">
-                          {t("workspace.inviteRole")}:{" "}
-                          <Badge variant="muted">{getRoleLabel(inv.role, t)}</Badge> ·{" "}
-                          {inv.maxUses != null
-                            ? `${inv.usesCount} / ${inv.maxUses} ${t("workspace.uses")}`
-                            : `${t("workspace.uses")}: ${inv.usesCount}`}
-                          · {t("workspace.expires")}:{" "}
-                          {new Date(inv.expiresAt).toLocaleDateString()} ·{" "}
+                        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                          <span>
+                            {t("workspace.inviteRole")}:{" "}
+                            <Badge variant="muted">{getRoleLabel(inv.role, t)}</Badge>
+                          </span>
+                          <span>
+                            {inv.maxUses != null
+                              ? `${inv.usesCount} / ${inv.maxUses} ${t("workspace.uses")}`
+                              : `${t("workspace.uses")}: ${inv.usesCount}`}
+                          </span>
+                          <span>
+                            {t("workspace.expires")}:{" "}
+                            {new Date(inv.expiresAt).toLocaleDateString()}
+                          </span>
                           <Badge variant="muted">{getInviteStatusLabel(inv.status, t)}</Badge>
                         </p>
                       </div>

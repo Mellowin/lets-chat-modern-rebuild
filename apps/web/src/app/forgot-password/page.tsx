@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, Loader2, Mail, XCircle } from "lucide-react";
+import { CheckCircle2, Loader2, Mail, MessageSquare, XCircle } from "lucide-react";
 import { forgotPassword } from "@/lib/auth-api";
 import { useLocale } from "@/lib/locale";
 import { localizeApiError } from "@/lib/api-errors";
@@ -50,6 +50,16 @@ function Alert({
   );
 }
 
+function BrandHero() {
+  return (
+    <div className="mb-5 flex flex-col items-center text-center">
+      <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/10 shadow-sm">
+        <MessageSquare className="h-6 w-6" />
+      </div>
+    </div>
+  );
+}
+
 export default function ForgotPasswordPage() {
   const { t } = useLocale();
   const [email, setEmail] = useState("");
@@ -71,7 +81,8 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="flex flex-1 items-center justify-center p-4 sm:p-6">
+    <div className="flex flex-1 flex-col items-center justify-center p-4 sm:p-6">
+      <BrandHero />
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <CardTitle>{t("auth.forgotPasswordTitle")}</CardTitle>
@@ -101,6 +112,7 @@ export default function ForgotPasswordPage() {
 
             <Button
               type="submit"
+              variant="primary"
               className="w-full"
               disabled={formState.kind === "loading" || formState.kind === "sent"}
             >

@@ -118,21 +118,21 @@ body {
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
-/* Chat canvas background (stronger Telegram-style green) */
+/* Chat canvas background — subtle slate/blue dot pattern */
 .chat-canvas {
-  background-color: #c8e6d0;
+  background-color: var(--background);
   background-image:
-    radial-gradient(circle at 25% 25%, rgba(0, 0, 0, 0.06) 1.5px, transparent 2px),
-    radial-gradient(circle at 75% 75%, rgba(0, 0, 0, 0.06) 1.5px, transparent 2px);
+    radial-gradient(circle at 25% 25%, rgba(99, 102, 241, 0.07) 1.5px, transparent 2px),
+    radial-gradient(circle at 75% 75%, rgba(99, 102, 241, 0.07) 1.5px, transparent 2px);
   background-size: 40px 40px;
 }
 
 @media (prefers-color-scheme: dark) {
   .chat-canvas {
-    background-color: #0c261b;
+    background-color: var(--background);
     background-image:
-      radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.07) 1.5px, transparent 2px),
-      radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.07) 1.5px, transparent 2px);
+      radial-gradient(circle at 25% 25%, rgba(99, 102, 241, 0.12) 1.5px, transparent 2px),
+      radial-gradient(circle at 75% 75%, rgba(99, 102, 241, 0.12) 1.5px, transparent 2px);
   }
 }
 

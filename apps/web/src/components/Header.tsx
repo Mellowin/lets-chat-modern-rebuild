@@ -30,8 +30,8 @@ export default function Header({ onMenuToggle }: HeaderProps) {
   }, []);
 
   return (
-    <header className="flex items-center justify-between h-14 px-3 sm:px-4 border-b border-indigo-400/30 bg-gradient-to-r from-slate-950 via-indigo-950 to-slate-950 text-header-foreground shrink-0 shadow-md">
-      <div className="flex items-center gap-2">
+    <header className="flex h-14 shrink-0 items-center justify-between border-b border-indigo-400/20 bg-gradient-to-r from-slate-950 via-indigo-950 to-slate-950 px-3 text-header-foreground shadow-md backdrop-blur-sm sm:px-4">
+      <div className="flex min-w-0 items-center gap-2">
         {onMenuToggle && (
           <Button
             variant="ghost"
@@ -39,74 +39,78 @@ export default function Header({ onMenuToggle }: HeaderProps) {
             onClick={onMenuToggle}
             aria-label={t("header.openMenu")}
             data-testid="mobile-menu-button"
-            className="sm:hidden"
+            className="shrink-0 text-header-foreground hover:bg-white/10 hover:text-header-foreground sm:hidden"
           >
             <Menu size={18} />
           </Button>
         )}
-        <Link href={isAuthenticated ? "/dashboard" : "/"} className="flex items-center gap-2 group">
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <MessageSquare size={16} strokeWidth={2.5} />
-        </div>
-        <span className="font-semibold text-sm tracking-tight text-header-foreground">lets-chat</span>
-        {globalUnread > 0 && (
-          <span
-            data-testid="header-global-unread"
-            className="inline-flex h-4 min-w-[1.25rem] items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-bold text-destructive-foreground"
-          >
-            {globalUnread > 99 ? "99+" : globalUnread}
+        <Link
+          href={isAuthenticated ? "/dashboard" : "/"}
+          className="group flex min-w-0 items-center gap-2 rounded-lg pr-2 transition-transform active:scale-[0.98]"
+        >
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-indigo-400 text-primary-foreground shadow-sm ring-1 ring-white/10 transition-shadow group-hover:shadow-md group-hover:ring-white/20">
+            <MessageSquare size={16} strokeWidth={2.5} />
+          </div>
+          <span className="text-sm font-semibold tracking-tight text-header-foreground">
+            lets-chat
           </span>
-        )}
-      </Link>
+          {globalUnread > 0 && (
+            <span
+              data-testid="header-global-unread"
+              className="inline-flex h-4 min-w-[1.25rem] shrink-0 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-bold text-destructive-foreground shadow-sm ring-1 ring-white/10"
+            >
+              {globalUnread > 99 ? "99+" : globalUnread}
+            </span>
+          )}
+        </Link>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
         {isAuthenticated && <GlobalMessageSearch />}
         {isLoading ? (
           <span className="text-xs text-header-muted">{t("header.loading")}</span>
         ) : isAuthenticated && user ? (
           <>
-            <div className="flex items-center gap-2 pr-2">
-              <Avatar
-                src={user.avatarUrl}
-                name={user.displayName || user.username}
-                size="sm"
-              />
-              <span className="hidden sm:inline text-sm text-header-muted">
+            <div className="flex items-center gap-2 pr-1 sm:pr-2">
+              <Avatar src={user.avatarUrl} name={user.displayName || user.username} size="sm" />
+              <span className="hidden max-w-[8rem] truncate text-sm text-header-muted sm:inline">
                 {user.displayName || user.username}
               </span>
             </div>
-            <Link
-              href="/profile"
-              className="inline-flex items-center justify-center gap-1.5 rounded-lg px-3 h-8 text-xs font-medium text-header-foreground hover:bg-white/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-header"
+            <Button
+              variant="ghost"
+              size="sm"
+              asChild
+              className="text-header-foreground hover:bg-white/10 hover:text-header-foreground"
             >
-              <User size={14} />
-              {t("header.profile")}
-            </Link>
+              <Link href="/profile" aria-label={t("header.profile")}>
+                <User size={14} />
+                <span className="hidden sm:inline">{t("header.profile")}</span>
+              </Link>
+            </Button>
             <Button
               variant="secondary"
               size="sm"
               onClick={() => logout()}
-              className="gap-1.5 bg-header-foreground/10 text-header-foreground hover:bg-header-foreground/20 border-transparent"
+              className="gap-1.5 border-transparent bg-header-foreground/10 text-header-foreground hover:bg-header-foreground/20"
             >
               <LogOut size={14} />
-              {t("header.logout")}
+              <span className="hidden sm:inline">{t("header.logout")}</span>
             </Button>
           </>
         ) : (
           <>
-            <Link
-              href="/login"
-              className="inline-flex items-center justify-center rounded-lg px-3 h-8 text-xs font-medium text-header-foreground hover:bg-white/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-header"
+            <Button
+              variant="ghost"
+              size="sm"
+              asChild
+              className="text-header-foreground hover:bg-white/10 hover:text-header-foreground"
             >
-              {t("header.signIn")}
-            </Link>
-            <Link
-              href="/register"
-              className="inline-flex items-center justify-center rounded-lg px-3 h-8 text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-header"
-            >
-              {t("header.createAccount")}
-            </Link>
+              <Link href="/login">{t("header.signIn")}</Link>
+            </Button>
+            <Button variant="primary" size="sm" asChild>
+              <Link href="/register">{t("header.createAccount")}</Link>
+            </Button>
           </>
         )}
       </div>

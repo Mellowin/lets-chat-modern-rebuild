@@ -261,12 +261,13 @@ export default function DirectMessagesPage() {
 
   return (
     <div className="flex flex-col p-6 sm:p-10 max-w-3xl">
-      <PageHeader title={t("direct.title")} />
+      <PageHeader title={t("direct.title")} subtitle={t("direct.subtitle")} />
 
       {/* Start chat form */}
       <Card className="mt-6">
         <CardHeader>
           <CardTitle className="text-base">{t("direct.startChat")}</CardTitle>
+          <CardDescription>{t("direct.startChatDescription")}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleStart} className="flex flex-col sm:flex-row items-start gap-3">
@@ -324,30 +325,32 @@ export default function DirectMessagesPage() {
             <EmptyState
               icon={Mail}
               title={t("direct.noConversations")}
+              description={t("direct.noConversationsDescription")}
             />
           ) : (
-            <ul className="divide-y divide-border">
+            <ul className="space-y-2">
               {conversations.data.map((conv) => {
                 const other = conv.otherParticipant;
                 const name = other?.displayName || other?.username || t("messageAuthor.unknownUser");
                 return (
                   <li
                     key={conv.id}
-                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 py-3 -mx-2 px-2 rounded-lg hover:bg-accent/50 transition-colors"
+                    className="group rounded-xl border border-border/80 bg-gradient-to-br from-card via-card to-indigo-50/30 shadow-sm transition-all hover:border-primary/30 hover:shadow-md dark:to-indigo-950/10"
                   >
                     <Link
                       href={`/direct/${conv.id}`}
-                      className="flex items-center gap-3 flex-1 min-w-0"
+                      className="flex items-center gap-3 p-3 min-w-0"
                     >
                       <div
                         data-testid={`direct-list-presence-${conv.id}`}
-                        className="relative"
+                        className="relative shrink-0"
                       >
                         <Avatar
                           src={other?.avatarUrl}
                           name={name}
                           size="md"
                           alt={name}
+                          className="ring-2 ring-border group-hover:ring-primary/20 transition-all"
                         />
                         <span
                           data-testid={`direct-list-presence-dot-${conv.id}`}
@@ -359,7 +362,7 @@ export default function DirectMessagesPage() {
                         />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-foreground truncate">{name}</p>
+                        <p className="text-sm font-semibold text-foreground truncate">{name}</p>
                         {conv.lastMessage ? (
                           <p className="text-xs text-muted-foreground truncate">
                             {conv.lastMessage.content}
@@ -371,7 +374,7 @@ export default function DirectMessagesPage() {
                         )}
                       </div>
                       {conv.unreadCount > 0 && (
-                        <Badge variant="default">
+                        <Badge variant="default" className="shrink-0">
                           {conv.unreadCount > 99 ? "99+" : conv.unreadCount}
                         </Badge>
                       )}

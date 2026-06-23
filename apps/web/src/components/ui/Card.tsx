@@ -7,7 +7,7 @@ export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 export function Card({ children, className = "", ...props }: CardProps) {
   return (
     <div
-      className={`rounded-xl border border-border bg-card text-card-foreground shadow-md ${className}`}
+      className={`group overflow-hidden rounded-xl border border-border bg-gradient-to-br from-card via-card to-muted/40 text-card-foreground shadow-md transition-shadow hover:shadow-lg dark:to-muted/20 ${className}`}
       {...props}
     >
       {children}
@@ -16,23 +16,23 @@ export function Card({ children, className = "", ...props }: CardProps) {
 }
 
 export function CardHeader({ children, className = "" }: CardProps) {
-  return <div className={`flex flex-col gap-1.5 p-6 ${className}`}>{children}</div>;
+  return <div className={`flex flex-col gap-1.5 p-5 sm:p-6 ${className}`}>{children}</div>;
 }
 
 export function CardTitle({ children, className = "" }: CardProps) {
-  return <h3 className={`text-lg font-semibold leading-none tracking-tight ${className}`}>{children}</h3>;
+  return <h3 className={`text-base sm:text-lg font-semibold leading-tight tracking-tight ${className}`}>{children}</h3>;
 }
 
 export function CardDescription({ children, className = "" }: CardProps) {
-  return <p className={`text-sm text-muted-foreground ${className}`}>{children}</p>;
+  return <p className={`text-sm text-muted-foreground leading-relaxed ${className}`}>{children}</p>;
 }
 
 export function CardContent({ children, className = "" }: CardProps) {
-  return <div className={`p-6 pt-0 ${className}`}>{children}</div>;
+  return <div className={`p-5 pt-0 sm:p-6 sm:pt-0 ${className}`}>{children}</div>;
 }
 
 export function CardFooter({ children, className = "" }: CardProps) {
-  return <div className={`flex items-center p-6 pt-0 ${className}`}>{children}</div>;
+  return <div className={`flex items-center p-5 pt-0 sm:p-6 sm:pt-0 ${className}`}>{children}</div>;
 }
 
 Card.Header = CardHeader;

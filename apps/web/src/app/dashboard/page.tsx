@@ -33,6 +33,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import {
   Loader2,
@@ -42,6 +43,8 @@ import {
   Building2,
   Archive,
   Settings,
+  ArrowRight,
+  MessageSquareText,
 } from "lucide-react";
 
 type WorkspacesState =
@@ -94,7 +97,7 @@ function ErrorAlert({
 
 function Spinner({ text }: { text: string }) {
   return (
-    <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+    <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
       <Loader2 className="h-4 w-4 animate-spin" />
       {text}
     </div>
@@ -351,7 +354,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6 sm:p-10 max-w-3xl">
+    <div className="flex flex-col gap-6 p-5 sm:p-8 lg:p-10 max-w-3xl">
       <PageHeader
         title={`${t("dashboard.welcome")}, ${user?.displayName || user?.username}`}
         subtitle={`${t("dashboard.signedInAs")} ${user?.email}.`}
@@ -368,7 +371,7 @@ export default function DashboardPage() {
       <div>
         <Link
           href="/profile"
-          className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+          className="inline-flex items-center gap-2 rounded-lg border border-border bg-card/80 px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-sm hover:bg-accent hover:text-accent-foreground transition-colors"
         >
           <Settings size={14} aria-hidden />
           {t("dashboard.profileSettings")}
@@ -379,7 +382,9 @@ export default function DashboardPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Plus size={18} aria-hidden />
+            <div className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <Plus size={16} aria-hidden />
+            </div>
             {t("dashboard.createWorkspace")}
           </CardTitle>
         </CardHeader>
@@ -421,7 +426,9 @@ export default function DashboardPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Inbox size={18} aria-hidden />
+            <div className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+              <Inbox size={16} aria-hidden />
+            </div>
             {t("dashboard.pendingInvitations")}
           </CardTitle>
         </CardHeader>
@@ -437,14 +444,14 @@ export default function DashboardPage() {
               {inviteActionError && (
                 <ErrorAlert message={inviteActionError} className="mb-3" />
               )}
-              <ul className="divide-y divide-border">
+              <ul className="flex flex-col gap-2">
                 {invites.data.map((inv) => (
                   <li
                     key={inv.id}
-                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 py-3"
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-border bg-card/60 p-3 shadow-sm transition-colors hover:bg-accent/30"
                   >
                     <div className="min-w-0 space-y-0.5">
-                      <p className="text-sm font-medium">{inv.workspace.name}</p>
+                      <p className="text-sm font-semibold text-foreground">{inv.workspace.name}</p>
                       <p className="text-xs text-muted-foreground">
                         {t("dashboard.invitedBy")}{" "}
                         {inv.invitedBy.displayName?.trim()
@@ -452,7 +459,10 @@ export default function DashboardPage() {
                           : `@${inv.invitedBy.username}`}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {t("dashboard.joinAs")} {getRoleLabel(inv.role, t)}
+                        {t("dashboard.joinAs")}{" "}
+                        <Badge variant={inv.role === "ADMIN" ? "info" : "default"}>
+                          {getRoleLabel(inv.role, t)}
+                        </Badge>
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
@@ -484,7 +494,9 @@ export default function DashboardPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Mail size={18} aria-hidden />
+            <div className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400">
+              <Mail size={16} aria-hidden />
+            </div>
             {t("dashboard.pendingChannelInvitations")}
           </CardTitle>
         </CardHeader>
@@ -503,17 +515,20 @@ export default function DashboardPage() {
               {channelInviteActionError && (
                 <ErrorAlert message={channelInviteActionError} className="mb-3" />
               )}
-              <ul className="divide-y divide-border">
+              <ul className="flex flex-col gap-2">
                 {channelInvites.data.map((inv) => (
                   <li
                     key={inv.id}
-                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 py-3"
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-border bg-card/60 p-3 shadow-sm transition-colors hover:bg-accent/30"
                   >
                     <div className="min-w-0 space-y-0.5">
-                      <p className="text-sm font-medium">
-                        {inv.workspace.name}
+                      <p className="text-sm font-semibold text-foreground">
+                        <span className="text-muted-foreground">{inv.workspace.name}</span>
                         <span className="mx-1.5 text-muted-foreground">·</span>
-                        <span className="text-foreground">{inv.channel.name}</span>
+                        <span className="inline-flex items-center gap-1">
+                          <MessageSquareText size={13} aria-hidden className="text-primary" />
+                          {inv.channel.name}
+                        </span>
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {t("dashboard.invitedBy")}{" "}
@@ -522,7 +537,10 @@ export default function DashboardPage() {
                           : `@${inv.invitedBy.username}`}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {t("dashboard.joinAs")} {getRoleLabel(inv.role, t)}
+                        {t("dashboard.joinAs")}{" "}
+                        <Badge variant={inv.role === "ADMIN" ? "info" : "default"}>
+                          {getRoleLabel(inv.role, t)}
+                        </Badge>
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
@@ -560,7 +578,9 @@ export default function DashboardPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Building2 size={18} aria-hidden />
+            <div className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+              <Building2 size={16} aria-hidden />
+            </div>
             {t("dashboard.yourWorkspaces")}
           </CardTitle>
         </CardHeader>
@@ -574,33 +594,43 @@ export default function DashboardPage() {
           ) : (
             <>
               {archiveError && <ErrorAlert message={archiveError} className="mb-3" />}
-              <ul className="divide-y divide-border">
+              <ul className="grid gap-3 sm:grid-cols-2">
                 {workspaces.data.map((ws) => (
                   <li
                     key={ws.id}
-                    className="group flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 py-3 hover:bg-accent/50 -mx-2 px-2 rounded-md transition-colors"
+                    className="group relative overflow-hidden rounded-xl border border-border bg-gradient-to-br from-card via-card to-muted/30 p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md dark:to-muted/10"
                   >
-                    <Link href={`/workspaces/${ws.id}`} className="flex-1 min-w-0">
-                      <div>
-                        <p className="text-sm font-medium">{ws.name}</p>
-                        <p className="text-xs text-muted-foreground">{ws.slug}</p>
+                    <Link
+                      href={`/workspaces/${ws.id}`}
+                      className="block"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-foreground">{ws.name}</p>
+                          <p className="truncate text-xs text-muted-foreground">{ws.slug}</p>
+                        </div>
+                        <ArrowRight
+                          size={16}
+                          aria-hidden
+                          className="mt-0.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground"
+                        />
+                      </div>
+                      <div className="mt-3 flex items-center justify-between gap-2">
+                        <span className="text-[11px] text-muted-foreground">
+                          {new Date(ws.createdAt).toLocaleDateString()}
+                        </span>
+                        {ws.ownerId === user?.id && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => handleArchiveWorkspace(e, ws.id, ws.name)}
+                          >
+                            {t("dashboard.archive")}
+                          </Button>
+                        )}
                       </div>
                     </Link>
-                    <div className="flex items-center gap-3 shrink-0 ml-2">
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(ws.createdAt).toLocaleDateString()}
-                      </span>
-                      {ws.ownerId === user?.id && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => handleArchiveWorkspace(e, ws.id, ws.name)}
-                        >
-                          {t("dashboard.archive")}
-                        </Button>
-                      )}
-                    </div>
                   </li>
                 ))}
               </ul>
@@ -613,7 +643,9 @@ export default function DashboardPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Archive size={18} aria-hidden />
+            <div className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+              <Archive size={16} aria-hidden />
+            </div>
             {t("dashboard.archivedWorkspaces")}
           </CardTitle>
         </CardHeader>
@@ -633,11 +665,11 @@ export default function DashboardPage() {
               {restoreError && (
                 <ErrorAlert message={restoreError} className="mb-3" />
               )}
-              <ul className="divide-y divide-border">
+              <ul className="flex flex-col gap-2">
                 {archivedWorkspaces.data.map((ws) => (
                   <li
                     key={ws.id}
-                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 py-3 hover:bg-accent/50 -mx-2 px-2 rounded-md transition-colors"
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-xl border border-border/60 bg-muted/30 p-3 transition-colors hover:bg-muted/50"
                   >
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-muted-foreground">
@@ -650,7 +682,7 @@ export default function DashboardPage() {
                           : ""}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0 ml-2">
+                    <div className="flex items-center gap-2 shrink-0">
                       <Button
                         type="button"
                         variant="secondary"

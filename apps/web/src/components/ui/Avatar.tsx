@@ -21,7 +21,7 @@ export function Avatar({ src, alt = "", name, size = "md", className = "" }: Ava
 
   return (
     <div
-      className={`relative shrink-0 overflow-hidden rounded-full bg-muted flex items-center justify-center ${sizes[size]} ${className}`}
+      className={`relative shrink-0 overflow-hidden rounded-full bg-muted ring-1 ring-border flex items-center justify-center ${sizes[size]} ${className}`}
       aria-label={resolved ? undefined : alt || undefined}
       role={resolved ? undefined : "img"}
     >

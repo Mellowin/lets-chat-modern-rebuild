@@ -8,6 +8,7 @@ import {
   ExternalLink,
   Globe,
   Layers,
+  MessageSquare,
   Server,
 } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
@@ -58,7 +59,12 @@ export default function ProjectStatusContent() {
       </Link>
 
       <PageHeader
-        title={t("projectStatus.title")}
+        title={
+          <span className="flex items-center gap-2">
+            <MessageSquare className="h-6 w-6 text-primary" />
+            {t("projectStatus.title")}
+          </span>
+        }
         subtitle={t("projectStatus.subtitle")}
         actions={
           <Badge variant="warning">

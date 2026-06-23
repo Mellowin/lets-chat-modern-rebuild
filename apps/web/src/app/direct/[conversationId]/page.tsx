@@ -888,44 +888,48 @@ export default function DirectConversationPage() {
   return (
     <div className="flex h-[calc(100vh-4rem)] min-w-0 w-full max-w-none flex-col gap-4 overflow-hidden p-4 sm:p-6">
       <main className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden">
-        <header className="shrink-0 flex items-center gap-3">
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/direct">
-              <ArrowLeft size={16} className="mr-1" />
-              {t("direct.backToDirectMessages")}
-            </Link>
-          </Button>
-          {conversation.kind === "success" && conversation.data?.otherParticipant && (
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Avatar
-                  src={conversation.data.otherParticipant.avatarUrl}
-                  name={conversation.data.otherParticipant.displayName || conversation.data.otherParticipant.username}
-                  size="md"
-                  alt=""
-                />
-                <span
-                  data-testid="direct-presence-dot"
-                  className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-background ${
-                    presenceStatus === "online"
-                      ? "bg-primary"
-                      : "bg-muted-foreground"
-                  }`}
-                />
+        <header className="shrink-0 rounded-xl border border-border/80 bg-gradient-to-br from-card via-card to-indigo-50/30 p-3 shadow-sm dark:to-indigo-950/10">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/direct">
+                <ArrowLeft size={16} className="mr-1" />
+                {t("direct.backToDirectMessages")}
+              </Link>
+            </Button>
+            {conversation.kind === "success" && conversation.data?.otherParticipant && (
+              <div className="flex items-center gap-3">
+                <div className="relative shrink-0">
+                  <Avatar
+                    src={conversation.data.otherParticipant.avatarUrl}
+                    name={conversation.data.otherParticipant.displayName || conversation.data.otherParticipant.username}
+                    size="md"
+                    alt=""
+                    className="ring-2 ring-border"
+                  />
+                  <span
+                    data-testid="direct-presence-dot"
+                    className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-card ${
+                      presenceStatus === "online"
+                        ? "bg-emerald-500"
+                        : "bg-muted-foreground"
+                    }`}
+                  />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground truncate">
+                    {conversation.data.otherParticipant.displayName || conversation.data.otherParticipant.username || t("messageAuthor.unknownUser")}
+                  </p>
+                  <p
+                    data-testid="direct-presence-status"
+                    className="text-[11px] text-muted-foreground flex items-center gap-1"
+                  >
+                    <span className={`inline-block h-1.5 w-1.5 rounded-full ${presenceStatus === "online" ? "bg-emerald-500" : "bg-muted-foreground"}`} />
+                    {presenceStatus === "online" ? t("direct.online") : t("direct.offline")}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground">
-                  {conversation.data.otherParticipant.displayName || conversation.data.otherParticipant.username || t("messageAuthor.unknownUser")}
-                </p>
-                <p
-                  data-testid="direct-presence-status"
-                  className="text-[10px] text-muted-foreground flex items-center gap-1"
-                >
-                  {presenceStatus === "online" ? t("direct.online") : t("direct.offline")}
-                </p>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </header>
 
         <div className="mt-4 flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-border/80 bg-card shadow-md">
@@ -1040,7 +1044,7 @@ export default function DirectConversationPage() {
                               <MoreHorizontal size={14} />
                             </Button>
                           </div>
-                          <div data-testid={`direct-message-bubble-wrap-${msg.id}`} className={isOwnMessage ? "ml-4 sm:ml-44" : ""}>
+                          <div data-testid={`direct-message-bubble-wrap-${msg.id}`} className={isOwnMessage ? "ml-4 sm:ml-32 md:ml-44" : ""}>
                             <div
                               data-testid={`direct-message-bubble-${msg.id}`}
                               onContextMenu={(e) => {
@@ -1125,7 +1129,7 @@ export default function DirectConversationPage() {
             </div>
           </div>
 
-          <form onSubmit={handleSendMessage} data-testid="direct-composer" className="shrink-0 flex flex-col gap-2 border-t border-indigo-200/60 bg-gradient-to-b from-card to-indigo-50/50 dark:from-card dark:to-indigo-950/20 p-4 shadow-lg">
+          <form onSubmit={handleSendMessage} data-testid="direct-composer" className="shrink-0 flex flex-col gap-2 border-t border-indigo-200/60 bg-gradient-to-b from-card to-indigo-100/60 dark:from-card dark:to-indigo-950/30 p-4 shadow-lg">
             {socketError && (
               <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-2.5 text-xs text-destructive">
                 {socketError}

@@ -12,6 +12,7 @@ import {
   ArrowUp,
   ArrowDown,
   Loader2,
+  Lock,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { getWorkspaces, type Workspace } from "@/lib/workspaces-api";
@@ -53,8 +54,23 @@ function getStoredSectionOrder(): SectionOrder {
 function unreadBadge(count: number, testId?: string) {
   if (count <= 0) return null;
   return (
-    <Badge variant="muted" className="ml-1.5 !bg-sidebar-accent-foreground/20 !text-sidebar-foreground !border-transparent" data-testid={testId}>
+    <Badge
+      variant="default"
+      className="ml-1.5 shrink-0 !border-transparent !bg-sidebar-active !px-1.5 !py-0 !text-[10px] font-semibold !text-sidebar-active-foreground shadow-sm"
+      data-testid={testId}
+    >
       {count > 99 ? "99+" : count}
+    </Badge>
+  );
+}
+
+function channelTypeBadge(type: Channel["type"], label: string) {
+  return (
+    <Badge
+      variant={type === "PUBLIC" ? "success" : "warning"}
+      className="shrink-0 !px-1.5 !py-0 !text-[10px]"
+    >
+      {type === "PUBLIC" ? label : <span className="flex items-center gap-0.5"><Lock size={9} />{label}</span>}
     </Badge>
   );
 }
@@ -444,8 +460,8 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
 
   if (authLoading || !isAuthenticated) {
     return (
-      <aside className="hidden sm:flex w-60 shrink-0 border-r border-border/50 bg-sidebar text-sidebar-foreground flex-col p-3">
-        <div className="flex items-center gap-2 px-2 py-1 text-xs font-semibold text-sidebar-muted uppercase tracking-wide">
+      <aside className="hidden w-60 shrink-0 flex-col border-r border-border/50 bg-gradient-to-b from-sidebar via-sidebar to-indigo-950/30 p-3 text-sidebar-foreground sm:flex">
+        <div className="flex items-center gap-2 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-sidebar-muted">
           <Users size={14} />
           {t("sidebar.workspace")}
         </div>
@@ -459,7 +475,7 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
       <button
         onClick={toggleDirect}
         data-testid="sidebar-direct-toggle"
-        className="flex flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold text-sidebar-muted uppercase tracking-wide hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+        className="flex flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-sidebar-muted transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-sm"
       >
         <ChevronRight
           size={14}
@@ -476,7 +492,7 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
         }}
         data-testid="sidebar-direct-move"
         aria-label={t(sectionOrder === "direct-first" ? "sidebar.moveDown" : "sidebar.moveUp")}
-        className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+        className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-sidebar-muted transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-sm"
       >
         {sectionOrder === "direct-first" ? <ArrowDown size={14} /> : <ArrowUp size={14} />}
       </button>
@@ -487,7 +503,7 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
     <div className="flex items-center gap-1">
       <button
         onClick={toggleWorkspaces}
-        className="flex flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold text-sidebar-muted uppercase tracking-wide hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+        className="flex flex-1 items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-sidebar-muted transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-sm"
       >
         <ChevronRight
           size={14}
@@ -504,12 +520,16 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
         }}
         data-testid="sidebar-workspaces-move"
         aria-label={t(sectionOrder === "workspaces-first" ? "sidebar.moveDown" : "sidebar.moveUp")}
-        className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+        className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-sidebar-muted transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-sm"
       >
         {sectionOrder === "workspaces-first" ? <ArrowDown size={14} /> : <ArrowUp size={14} />}
       </button>
     </div>
   );
+
+  const baseItem = "flex items-center rounded-md px-2 py-1.5 text-sm transition-all";
+  const activeItem = "bg-gradient-to-r from-sidebar-active to-sidebar-active/90 text-sidebar-active-foreground font-semibold shadow-sm ring-1 ring-white/10";
+  const hoverItem = "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-sm";
 
   const directSection = (
     <div data-testid="sidebar-direct-section">
@@ -522,13 +542,11 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
                 href="/direct"
                 data-testid="sidebar-direct-link"
                 data-active={pathname?.startsWith("/direct") ? "true" : undefined}
-                className={`flex items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors ${
-                  pathname?.startsWith("/direct")
-                    ? "bg-sidebar-active text-sidebar-active-foreground font-semibold shadow-sm"
-                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                className={`${baseItem} justify-between ${
+                  pathname?.startsWith("/direct") ? activeItem : `text-sidebar-foreground/90 ${hoverItem}`
                 }`}
               >
-                <span className="truncate block">{t("sidebar.directMessages")}</span>
+                <span className="block truncate">{t("sidebar.directMessages")}</span>
                 {unreadBadge(directUnreadTotal, "sidebar-direct-unread-badge")}
               </Link>
             </li>
@@ -544,21 +562,21 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
                       href={`/direct/${conv.id}`}
                       data-testid={`sidebar-direct-conversation-link-${conv.id}`}
                       data-active={isActive ? "true" : undefined}
-                      className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
+                      className={`${baseItem} gap-2 ${
                         isActive
-                          ? "bg-sidebar-active text-sidebar-active-foreground font-semibold shadow-sm"
+                          ? activeItem
                           : conv.hasUnread
-                            ? "font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                            : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                            ? `font-medium text-sidebar-foreground ${hoverItem}`
+                            : `text-sidebar-foreground/80 ${hoverItem}`
                       }`}
                     >
                       <span
                         data-testid={`sidebar-direct-presence-dot-${conv.id}`}
-                        className={`h-2 w-2 shrink-0 rounded-full ${
-                          conv.isOnline ? "bg-emerald-500" : "bg-zinc-300 dark:bg-zinc-600"
+                        className={`h-2 w-2 shrink-0 rounded-full ring-1 ring-white/10 ${
+                          conv.isOnline ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)]" : "bg-zinc-300 dark:bg-zinc-600"
                         }`}
                       />
-                      <span className="truncate flex-1">{name}</span>
+                      <span className="flex-1 truncate">{name}</span>
                       {unreadBadge(conv.unreadCount)}
                     </Link>
                   </li>
@@ -599,32 +617,30 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
                       onClick={() => toggleWorkspace(ws.id)}
                       data-testid={`sidebar-workspace-toggle-${ws.id}`}
                       data-active={isActive ? "true" : undefined}
-                      className={`flex w-full items-center gap-1 rounded-md px-2 py-1.5 text-sm transition-colors ${
-                        isActive
-                          ? "bg-sidebar-active text-sidebar-active-foreground font-semibold shadow-sm"
-                          : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      className={`${baseItem} w-full gap-1 ${
+                        isActive ? activeItem : `text-sidebar-foreground/90 ${hoverItem}`
                       }`}
                     >
                       <ChevronRight
                         size={14}
                         className={`shrink-0 transition-transform ${isExpanded ? "rotate-90" : ""}`}
                       />
-                      <span className="truncate flex-1 text-left">{ws.name}</span>
+                      <span className="flex-1 truncate text-left">{ws.name}</span>
                       {unreadBadge(workspaceChannelUnread[ws.id] ?? 0, `sidebar-workspace-unread-${ws.id}`)}
                     </button>
                     {isExpanded && (
-                      <div className="ml-4 mt-0.5 space-y-0.5" data-testid={`sidebar-workspace-channels-${ws.id}`}>
+                      <div className="ml-3 mt-0.5 space-y-0.5 border-l border-sidebar-accent/50 pl-2" data-testid={`sidebar-workspace-channels-${ws.id}`}>
                         <Link
                           href={`/workspaces/${ws.id}`}
                           data-active={pathname === `/workspaces/${ws.id}` ? "true" : undefined}
-                          className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-sm transition-colors ${
+                          className={`${baseItem} gap-1.5 ${
                             pathname === `/workspaces/${ws.id}`
-                              ? "bg-sidebar-active text-sidebar-active-foreground font-semibold shadow-sm"
-                              : "text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                              ? activeItem
+                              : `text-sidebar-muted ${hoverItem}`
                           }`}
                         >
                           <Globe size={12} />
-                          <span className="truncate block">{t("sidebar.overview")}</span>
+                          <span className="block truncate">{t("sidebar.overview")}</span>
                         </Link>
                         {workspaceChannels[ws.id]?.kind === "loading" && (
                           <div className="flex items-center gap-2 px-2 text-xs text-sidebar-muted">
@@ -651,23 +667,21 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
                                       href={`/workspaces/${ws.id}/channels/${ch.id}`}
                                       data-testid={`sidebar-channel-link-${ch.id}`}
                                       data-active={isChActive ? "true" : undefined}
-                                      className={`flex items-center justify-between rounded-md px-2 py-1 text-sm transition-colors ${
+                                      className={`${baseItem} justify-between ${
                                         isChActive
-                                          ? "bg-sidebar-active text-sidebar-active-foreground font-semibold shadow-sm"
+                                          ? activeItem
                                           : ch.hasUnread
-                                            ? "font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                                            : "text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                                            ? `font-medium text-sidebar-foreground ${hoverItem}`
+                                            : `text-sidebar-muted ${hoverItem}`
                                       }`}
                                     >
                                       <span className="flex items-center gap-1.5 truncate">
                                         <Hash size={12} />
                                         {ch.name}
                                       </span>
-                                      <span className="flex items-center gap-1 shrink-0 ml-1">
+                                      <span className="ml-1 flex shrink-0 items-center gap-1">
                                         {unreadBadge(ch.unreadCount ?? 0, `sidebar-channel-unread-${ch.id}`)}
-                                        <Badge variant={ch.type === "PUBLIC" ? "success" : "warning"}>
-                                          {ch.type === "PUBLIC" ? t("sidebar.publicShort") : t("sidebar.privateShort")}
-                                        </Badge>
+                                        {channelTypeBadge(ch.type, ch.type === "PUBLIC" ? t("sidebar.publicShort") : t("sidebar.privateShort"))}
                                       </span>
                                     </Link>
                                   </li>
@@ -690,16 +704,16 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
 
   return (
     <aside
-      className={`fixed inset-y-0 left-0 top-14 z-40 w-64 -translate-x-full transform transition-transform duration-200 ease-in-out border-r border-indigo-500/20 bg-gradient-to-b from-sidebar via-sidebar to-indigo-950/50 text-sidebar-foreground flex flex-col p-3 overflow-y-auto sm:static sm:inset-auto sm:top-auto sm:z-auto sm:translate-x-0 sm:w-60 sm:shrink-0 ${mobileOpen ? "translate-x-0" : ""}`}
+      className={`fixed inset-y-0 left-0 top-14 z-40 flex w-64 -translate-x-full transform flex-col overflow-y-auto border-r border-indigo-500/20 bg-gradient-to-b from-sidebar via-sidebar to-indigo-950/30 p-3 text-sidebar-foreground shadow-xl transition-transform duration-200 ease-in-out sm:static sm:inset-auto sm:top-auto sm:z-auto sm:w-60 sm:translate-x-0 sm:shrink-0 sm:shadow-none ${mobileOpen ? "translate-x-0" : ""}`}
       data-testid="sidebar"
     >
       <div className="space-y-5">
         {totalUnread > 0 && (
           <div
             data-testid="sidebar-global-unread"
-            className="flex items-center justify-between rounded-lg bg-sidebar-accent px-3 py-2"
+            className="flex items-center justify-between rounded-lg bg-gradient-to-r from-sidebar-active to-sidebar-active/90 px-3 py-2 shadow-sm ring-1 ring-white/10"
           >
-            <span className="text-xs font-medium text-sidebar-accent-foreground">
+            <span className="text-xs font-medium text-sidebar-active-foreground">
               {t("sidebar.unread")}
             </span>
             {unreadBadge(totalUnread)}

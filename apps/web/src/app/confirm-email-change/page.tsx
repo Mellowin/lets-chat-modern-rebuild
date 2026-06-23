@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { CheckCircle2, Loader2, XCircle } from "lucide-react";
+import { CheckCircle2, Loader2, MessageSquare, XCircle } from "lucide-react";
 import { confirmEmailChange } from "@/lib/auth-api";
 import { useLocale } from "@/lib/locale";
 import { localizeApiError } from "@/lib/api-errors";
@@ -49,6 +49,16 @@ function Alert({
   );
 }
 
+function BrandHero() {
+  return (
+    <div className="mb-5 flex flex-col items-center text-center">
+      <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/10 shadow-sm">
+        <MessageSquare className="h-6 w-6" />
+      </div>
+    </div>
+  );
+}
+
 export function ConfirmEmailChangeContent() {
   const searchParams = useSearchParams();
   const { t } = useLocale();
@@ -73,7 +83,8 @@ export function ConfirmEmailChangeContent() {
   }, [token, t]);
 
   return (
-    <div className="flex flex-1 items-center justify-center p-4 sm:p-6">
+    <div className="flex flex-1 flex-col items-center justify-center p-4 sm:p-6">
+      <BrandHero />
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <CardTitle>{t("auth.confirmEmailChangeTitle")}</CardTitle>

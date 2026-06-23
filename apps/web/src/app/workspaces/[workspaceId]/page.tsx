@@ -19,7 +19,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Users, FolderArchive, MessageSquare, AlertTriangle, Trash2 } from "lucide-react";
+import { Users, FolderArchive, MessageSquare, AlertTriangle, Trash2, Hash, Lock, ArrowLeft, LogOut, UserX, Shield, Loader2 } from "lucide-react";
 
 type DetailState =
   | { kind: "idle" }
@@ -44,6 +44,28 @@ type ArchivedChannelsState =
   | { kind: "loading" }
   | { kind: "success"; data: Channel[] }
   | { kind: "error"; message: string };
+
+function ErrorAlert({ message, className = "" }: { message: string; className?: string }) {
+  return (
+    <div className={`rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm ${className}`}>
+      <div className="flex items-center gap-2 font-medium text-destructive">
+        <span className="h-2 w-2 rounded-full bg-destructive" />
+        {message}
+      </div>
+    </div>
+  );
+}
+
+function SuccessAlert({ message, className = "" }: { message: string; className?: string }) {
+  return (
+    <div className={`rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm dark:border-emerald-900 dark:bg-emerald-950/30 ${className}`}>
+      <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
+        <span className="h-2 w-2 rounded-full bg-emerald-500" />
+        {message}
+      </div>
+    </div>
+  );
+}
 
 export default function WorkspaceDetailPage() {
   const params = useParams();
@@ -380,8 +402,8 @@ export default function WorkspaceDetailPage() {
   if (authLoading) {
     return (
       <div className="flex flex-1 items-center justify-center p-4 sm:p-6">
-        <div className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
-          <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
           {t("auth.loadingSession")}
         </div>
       </div>
@@ -391,65 +413,68 @@ export default function WorkspaceDetailPage() {
   if (!isAuthenticated) {
     return (
       <div className="flex flex-1 items-center justify-center p-4 sm:p-6">
-        <div className="text-center">
-          <h1 className="text-xl font-semibold">{t("auth.authRequired")}</h1>
-          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-            {t("auth.pleaseSignInWorkspace")}
-          </p>
-          <Link
-            href="/login"
-            className="mt-4 inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 transition-colors"
-          >
-            {t("auth.signIn")}
-          </Link>
-        </div>
+        <Card className="max-w-sm text-center">
+          <CardHeader>
+            <CardTitle>{t("auth.authRequired")}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">{t("auth.pleaseSignInWorkspace")}</p>
+            <Link
+              href="/login"
+              className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              {t("auth.signIn")}
+            </Link>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col p-6 sm:p-10 max-w-3xl">
+    <div className="flex flex-col gap-6 p-5 sm:p-8 lg:p-10 max-w-3xl">
       <Link
         href="/dashboard"
-        className="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+        className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-border bg-card/80 px-3 py-1.5 text-sm text-muted-foreground shadow-sm hover:bg-accent hover:text-accent-foreground transition-colors"
       >
+        <ArrowLeft size={14} aria-hidden />
         {t("workspace.backToDashboard")}
       </Link>
 
       {detail.kind === "loading" && (
-        <div className="mt-6 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
-          <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
           {t("workspace.loading")}
         </div>
       )}
 
       {detail.kind === "error" && (
-        <div className="mt-6 rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm">
-          <div className="flex items-center gap-2 font-medium text-destructive">
-            <span className="h-2 w-2 rounded-full bg-destructive" />
-            {detail.message}
-          </div>
-        </div>
+        <ErrorAlert message={detail.message} />
       )}
 
       {detail.kind === "success" && (
         <PageHeader
           title={detail.data.name}
           subtitle={detail.data.slug}
-          className="mt-6"
+          className=""
         />
       )}
 
       {accessToken && (
-        <div className="mt-5">
+        <div className="">
           <WorkspaceMessageSearch workspaceId={workspaceId} accessToken={accessToken} />
         </div>
       )}
 
       {/* Create channel */}
-      <Card className="mt-8">
+      <Card>
         <CardHeader>
-          <CardTitle>{t("workspace.createChannel")}</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <div className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <MessageSquare size={16} aria-hidden />
+            </div>
+            {t("workspace.createChannel")}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleCreateChannel} className="flex flex-col gap-3">
@@ -489,81 +514,62 @@ export default function WorkspaceDetailPage() {
             </div>
           </form>
           {createChannelState.kind === "error" && (
-            <div className="mt-3 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm">
-              <div className="flex items-center gap-2 font-medium text-destructive">
-                <span className="h-2 w-2 rounded-full bg-destructive" />
-                {createChannelState.message}
-              </div>
-            </div>
+            <ErrorAlert message={createChannelState.message} className="mt-3" />
           )}
         </CardContent>
       </Card>
 
       {/* Channel list */}
-      <Card className="mt-6">
+      <Card>
         <CardHeader>
-          <CardTitle>{t("workspace.channels")}</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <div className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+              <Hash size={16} aria-hidden />
+            </div>
+            {t("workspace.channels")}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {channels.kind === "loading" && (
-            <div className="mt-3 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
-              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
+            <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
               {t("workspace.loadingChannels")}
             </div>
           )}
 
           {channels.kind === "error" && (
-            <div className="mt-3 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm">
-              <div className="flex items-center gap-2 font-medium text-destructive">
-                <span className="h-2 w-2 rounded-full bg-destructive" />
-                {channels.message}
-              </div>
-            </div>
+            <ErrorAlert message={channels.message} />
           )}
 
           {channels.kind === "success" && channels.data.length === 0 && (
             <EmptyState icon={MessageSquare} title={t("workspace.noChannels")} />
           )}
 
-          {archiveError && (
-            <div className="mt-3 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm">
-              <div className="flex items-center gap-2 font-medium text-destructive">
-                <span className="h-2 w-2 rounded-full bg-destructive" />
-                {archiveError}
-              </div>
-            </div>
-          )}
-
-          {deleteError && (
-            <div className="mt-3 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm">
-              <div className="flex items-center gap-2 font-medium text-destructive">
-                <span className="h-2 w-2 rounded-full bg-destructive" />
-                {deleteError}
-              </div>
-            </div>
-          )}
+          {archiveError && <ErrorAlert message={archiveError} />}
+          {deleteError && <ErrorAlert message={deleteError} />}
 
           {channels.kind === "success" && channels.data.length > 0 && (
-            <ul className="mt-3 divide-y divide-zinc-200 dark:divide-zinc-800">
+            <ul className="flex flex-col gap-2">
               {channels.data.map((ch) => (
                 <li
                   key={ch.id}
-                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 py-3 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 -mx-2 px-2 rounded-md transition-colors"
+                  className="group flex flex-col gap-2 rounded-xl border border-border bg-card/60 p-3 shadow-sm transition-all hover:bg-accent/30 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <Link
                     href={`/workspaces/${workspaceId}/channels/${ch.id}`}
-                    className="flex-1 min-w-0"
+                    className="flex min-w-0 items-center gap-2.5"
                   >
-                    <div>
-                      <p className="text-sm font-medium">{ch.name}</p>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                        {ch.slug}
-                      </p>
+                    <div className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      {ch.type === "PUBLIC" ? <Hash size={16} aria-hidden /> : <Lock size={16} aria-hidden />}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-foreground">{ch.name}</p>
+                      <p className="truncate text-xs text-muted-foreground">{ch.slug}</p>
                     </div>
                   </Link>
-                  <div className="flex items-center gap-2 shrink-0 ml-2">
+                  <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
                     {ch.description && (
-                      <span className="text-xs text-zinc-400 dark:text-zinc-500 truncate max-w-[12rem]">
+                      <span className="max-w-[12rem] truncate text-xs text-muted-foreground">
                         {ch.description}
                       </span>
                     )}
@@ -572,7 +578,7 @@ export default function WorkspaceDetailPage() {
                         variant="ghost"
                         size="sm"
                         onClick={(e) => handleArchiveChannel(e, ch.id, ch.name)}
-                        className="!text-amber-600 hover:bg-amber-500/10 hover:!text-amber-600 dark:!text-amber-400 dark:hover:!text-amber-300"
+                        className="text-amber-600 hover:bg-amber-500/10 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300"
                       >
                         {t("workspace.archive")}
                       </Button>
@@ -583,7 +589,7 @@ export default function WorkspaceDetailPage() {
                         size="sm"
                         onClick={() => handleDeleteChannel(ch.id, ch.name)}
                         disabled={deletingChannelId === ch.id}
-                        className="!text-red-600 hover:bg-red-500/10 hover:!text-red-600 dark:!text-red-400 dark:hover:!text-red-300"
+                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                       >
                         {deletingChannelId === ch.id ? t("workspace.deleting") : t("workspace.delete")}
                       </Button>
@@ -600,25 +606,25 @@ export default function WorkspaceDetailPage() {
       </Card>
 
       {/* Members */}
-      <Card className="mt-6">
+      <Card>
         <CardHeader>
-          <CardTitle>{t("workspace.members")}</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <div className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400">
+              <Users size={16} aria-hidden />
+            </div>
+            {t("workspace.members")}
+          </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           {members.kind === "loading" && (
-            <div className="mt-3 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
-              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
+            <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
               {t("workspace.loadingMembers")}
             </div>
           )}
 
           {members.kind === "error" && (
-            <div className="mt-3 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm">
-              <div className="flex items-center gap-2 font-medium text-destructive">
-                <span className="h-2 w-2 rounded-full bg-destructive" />
-                {members.message}
-              </div>
-            </div>
+            <ErrorAlert message={members.message} />
           )}
 
           {members.kind === "success" && members.data.length === 0 && (
@@ -629,7 +635,7 @@ export default function WorkspaceDetailPage() {
             (() => {
               const myRole = members.data.find((m) => m.user.id === user?.id)?.role;
               return (
-                <ul className="mt-3 divide-y divide-zinc-200 dark:divide-zinc-800">
+                <ul className="flex flex-col gap-2">
                   {members.data.map((m) => {
                     const isSelf = m.user.id === user?.id;
                     const canRemove =
@@ -637,19 +643,23 @@ export default function WorkspaceDetailPage() {
                       (myRole === "ADMIN" && m.role === "MEMBER" && !isSelf);
                     const canUpdateRole = myRole === "OWNER" && m.role !== "OWNER" && !isSelf;
                     return (
-                      <li key={m.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 py-2">
+                      <li
+                        key={m.id}
+                        className="flex flex-col gap-2 rounded-xl border border-border bg-card/60 p-3 sm:flex-row sm:items-center sm:justify-between"
+                      >
                         <div className="min-w-0">
                           <MessageAuthor author={m.user} />
                         </div>
-                        <div className="flex items-center gap-2 shrink-0 ml-2">
+                        <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
                           {canRemove && (
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => handleRemoveMember(m.id, m.user.displayName?.trim() || `@${m.user.username}`)}
                               disabled={removingMemberId === m.id}
-                              className="text-destructive hover:text-destructive"
+                              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                             >
+                              <UserX size={14} aria-hidden />
                               {removingMemberId === m.id ? t("workspace.removing") : t("workspace.remove")}
                             </Button>
                           )}
@@ -668,7 +678,12 @@ export default function WorkspaceDetailPage() {
                             </Select>
                           ) : (
                             <Badge variant={m.role === "OWNER" ? "default" : m.role === "ADMIN" ? "info" : "muted"}>
-                              {m.role === "OWNER" ? t("workspace.owner") : m.role === "ADMIN" ? t("workspace.admin") : t("workspace.member")}
+                              {m.role === "OWNER" ? (
+                                <span className="inline-flex items-center gap-1">
+                                  <Shield size={11} aria-hidden />
+                                  {t("workspace.owner")}
+                                </span>
+                              ) : m.role === "ADMIN" ? t("workspace.admin") : t("workspace.member")}
                             </Badge>
                           )}
                         </div>
@@ -686,7 +701,7 @@ export default function WorkspaceDetailPage() {
               const canManageMembers = myRole === "OWNER" || myRole === "ADMIN";
               return canManageMembers ? (
                 <>
-                  <form onSubmit={handleAddMember} className="mt-4 flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                  <form onSubmit={handleAddMember} className="flex flex-col gap-2 sm:flex-row sm:items-center">
                     <Input
                       id="invite-username-or-email"
                       name="invite-username-or-email"
@@ -717,21 +732,11 @@ export default function WorkspaceDetailPage() {
                   </form>
 
                   {addMemberState.kind === "success" && (
-                    <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
-                      <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
-                        <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                        {addMemberState.message}
-                      </div>
-                    </div>
+                    <SuccessAlert message={addMemberState.message} />
                   )}
 
                   {addMemberState.kind === "error" && (
-                    <div className="mt-3 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm">
-                      <div className="flex items-center gap-2 font-medium text-destructive">
-                        <span className="h-2 w-2 rounded-full bg-destructive" />
-                        {addMemberState.message}
-                      </div>
-                    </div>
+                    <ErrorAlert message={addMemberState.message} />
                   )}
                 </>
               ) : null;
@@ -739,39 +744,19 @@ export default function WorkspaceDetailPage() {
           )}
 
           {members.kind === "success" && removeMemberState.kind === "success" && (
-            <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
-              <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                {removeMemberState.message}
-              </div>
-            </div>
+            <SuccessAlert message={removeMemberState.message} />
           )}
 
           {members.kind === "success" && removeMemberState.kind === "error" && (
-            <div className="mt-3 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm">
-              <div className="flex items-center gap-2 font-medium text-destructive">
-                <span className="h-2 w-2 rounded-full bg-destructive" />
-                {removeMemberState.message}
-              </div>
-            </div>
+            <ErrorAlert message={removeMemberState.message} />
           )}
 
           {members.kind === "success" && updateRoleState.kind === "success" && (
-            <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm dark:border-emerald-900 dark:bg-emerald-950/30">
-              <div className="flex items-center gap-2 font-medium text-emerald-800 dark:text-emerald-400">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                {updateRoleState.message}
-              </div>
-            </div>
+            <SuccessAlert message={updateRoleState.message} />
           )}
 
           {members.kind === "success" && updateRoleState.kind === "error" && (
-            <div className="mt-3 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm">
-              <div className="flex items-center gap-2 font-medium text-destructive">
-                <span className="h-2 w-2 rounded-full bg-destructive" />
-                {updateRoleState.message}
-              </div>
-            </div>
+            <ErrorAlert message={updateRoleState.message} />
           )}
 
           {members.kind === "success" && (
@@ -779,23 +764,17 @@ export default function WorkspaceDetailPage() {
               const myRole = members.data.find((m) => m.user.id === user?.id)?.role;
               const canLeave = myRole === "MEMBER" || myRole === "ADMIN";
               return canLeave ? (
-                <div className="mt-4">
+                <div className="rounded-xl border border-border/60 bg-muted/30 p-3">
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={handleLeaveWorkspace}
-                    className="text-destructive hover:text-destructive"
+                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                   >
+                    <LogOut size={14} aria-hidden />
                     {t("workspace.leaveWorkspace")}
                   </Button>
-                  {leaveError && (
-                    <div className="mt-2 rounded-lg border border-destructive/20 bg-destructive/10 p-2 text-[10px]">
-                      <div className="flex items-center gap-1 font-medium text-destructive">
-                        <span className="h-1.5 w-1.5 rounded-full bg-destructive" />
-                        {leaveError}
-                      </div>
-                    </div>
-                  )}
+                  {leaveError && <ErrorAlert message={leaveError} className="mt-2" />}
                 </div>
               ) : null;
             })()
@@ -812,56 +791,57 @@ export default function WorkspaceDetailPage() {
       )}
 
       {/* Archived channels */}
-      <Card className="mt-6">
+      <Card>
         <CardHeader>
-          <CardTitle>{t("workspace.archivedChannels")}</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <div className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+              <FolderArchive size={16} aria-hidden />
+            </div>
+            {t("workspace.archivedChannels")}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {archivedChannels.kind === "loading" && (
-            <div className="mt-3 flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-300">
-              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-700 dark:border-t-zinc-100" />
+            <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
               {t("workspace.loadingArchived")}
             </div>
           )}
 
           {archivedChannels.kind === "error" && (
-            <div className="mt-3 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm">
-              <div className="flex items-center gap-2 font-medium text-destructive">
-                <span className="h-2 w-2 rounded-full bg-destructive" />
-                {archivedChannels.message}
-              </div>
-            </div>
+            <ErrorAlert message={archivedChannels.message} />
           )}
 
           {archivedChannels.kind === "success" && archivedChannels.data.length === 0 && (
             <EmptyState icon={FolderArchive} title={t("workspace.noArchivedChannels")} />
           )}
 
-          {restoreError && (
-            <div className="mt-3 rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm">
-              <div className="flex items-center gap-2 font-medium text-destructive">
-                <span className="h-2 w-2 rounded-full bg-destructive" />
-                {restoreError}
-              </div>
-            </div>
-          )}
+          {restoreError && <ErrorAlert message={restoreError} />}
 
           {archivedChannels.kind === "success" && archivedChannels.data.length > 0 && (
-            <ul className="mt-3 divide-y divide-zinc-200 dark:divide-zinc-800">
+            <ul className="flex flex-col gap-2">
               {archivedChannels.data.map((ch) => (
-                <li key={ch.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 py-3 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 -mx-2 px-2 rounded-md transition-colors">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">{ch.name}</p>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">{ch.slug}</p>
+                <li
+                  key={ch.id}
+                  className="flex flex-col gap-2 rounded-xl border border-border/60 bg-muted/30 p-3 transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <div className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                      {ch.type === "PUBLIC" ? <Hash size={16} aria-hidden /> : <Lock size={16} aria-hidden />}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-muted-foreground">{ch.name}</p>
+                      <p className="truncate text-xs text-muted-foreground">{ch.slug}</p>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0 ml-2">
+                  <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
                     {ch.createdById === user?.id && (
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => handleRestoreChannel(ch.id, ch.name)}
                         disabled={restoringChannelId === ch.id}
-                        className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
+                        className="text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
                       >
                         {restoringChannelId === ch.id ? t("workspace.restoring") : t("workspace.restore")}
                       </Button>
@@ -872,7 +852,7 @@ export default function WorkspaceDetailPage() {
                         size="sm"
                         onClick={() => handleDeleteChannel(ch.id, ch.name)}
                         disabled={deletingChannelId === ch.id}
-                        className="!text-red-600 hover:bg-red-500/10 hover:!text-red-600 dark:!text-red-400 dark:hover:!text-red-300"
+                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                       >
                         {deletingChannelId === ch.id ? t("workspace.deleting") : t("workspace.delete")}
                       </Button>
@@ -889,10 +869,15 @@ export default function WorkspaceDetailPage() {
       </Card>
 
       {myRole === "OWNER" && detail.kind === "success" && (
-        <Card className="border-destructive/30 bg-destructive/5 shadow-sm" data-testid="workspace-danger-zone">
+        <Card
+          className="border-destructive/25 bg-gradient-to-br from-destructive/5 via-card to-destructive/[0.03] shadow-sm"
+          data-testid="workspace-danger-zone"
+        >
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-destructive">
-              <AlertTriangle size={18} />
+            <CardTitle className="flex items-center gap-2 text-base text-destructive">
+              <div className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-destructive/10">
+                <AlertTriangle size={16} />
+              </div>
               {t("workspace.dangerZone")}
             </CardTitle>
           </CardHeader>
@@ -931,15 +916,8 @@ export default function WorkspaceDetailPage() {
                   placeholder={t("workspace.deleteWorkspaceInputPlaceholder")}
                   className="border-destructive/30"
                 />
-                {deleteWorkspaceError && (
-                  <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm">
-                    <div className="flex items-center gap-2 font-medium text-destructive">
-                      <span className="h-2 w-2 rounded-full bg-destructive" />
-                      {deleteWorkspaceError}
-                    </div>
-                  </div>
-                )}
-                <div className="flex flex-col-reverse sm:flex-row gap-2">
+                {deleteWorkspaceError && <ErrorAlert message={deleteWorkspaceError} />}
+                <div className="flex flex-col-reverse gap-2 sm:flex-row">
                   <Button
                     variant="secondary"
                     onClick={() => setIsDeleteWorkspaceDialogOpen(false)}

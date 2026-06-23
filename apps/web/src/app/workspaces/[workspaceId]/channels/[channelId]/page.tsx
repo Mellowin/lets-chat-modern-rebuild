@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   Check,
   Copy,
+  Download,
   Edit3,
   File as FileIcon,
   FileArchive,
@@ -192,14 +193,21 @@ function AttachmentFileCard({
       key={attachment.id}
       onClick={() => onDownload(message, attachment)}
       data-testid={`message-attachment-${message.id}-${attachment.id}`}
-      className="flex w-fit max-w-full items-center gap-2 rounded-lg border border-border bg-muted/50 px-2.5 py-1.5 text-left text-xs hover:bg-accent/50 transition-colors"
+      className="group flex w-full max-w-[16rem] sm:max-w-[20rem] items-center gap-3 rounded-xl border border-border/80 bg-card/70 px-3 py-2 text-left shadow-sm transition-all hover:border-primary/40 hover:bg-accent/40 hover:shadow-md"
     >
-      <Icon size={16} className="shrink-0 text-muted-foreground" />
-      <span className="truncate font-medium text-foreground">{attachment.fileName}</span>
-      <span className="shrink-0 text-muted-foreground">{formatFileSize(attachment.sizeBytes)}</span>
-      <span className="shrink-0 rounded bg-primary/10 px-1 py-0.5 text-[10px] font-medium text-primary">
-        {t(labelKey)}
-      </span>
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/10 transition-colors group-hover:bg-primary/15">
+        <Icon size={18} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium text-foreground">{attachment.fileName}</p>
+        <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+          <span>{formatFileSize(attachment.sizeBytes)}</span>
+          <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+            {t(labelKey)}
+          </span>
+        </div>
+      </div>
+      <Download size={16} className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
     </button>
   );
 }
@@ -219,6 +227,7 @@ function AttachmentImagePreview({
   accessToken: string;
   onOpen: (att: Attachment) => void;
 }) {
+  const { t } = useLocale();
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -265,25 +274,31 @@ function AttachmentImagePreview({
       className="block w-fit max-w-full rounded-lg border border-border bg-muted/50 p-1 text-left hover:bg-accent/50 transition-colors"
     >
       {loading ? (
-        <div className="flex items-center gap-2 px-1.5 py-1 text-xs">
+        <div className="flex items-center gap-2 rounded-lg bg-muted/50 px-3 py-2 text-xs">
           <Loader2 size={16} className="animate-spin text-muted-foreground" />
-          <span className="text-muted-foreground">Loading…</span>
+          <span className="text-muted-foreground">{t("channel.attachmentLoading")}</span>
         </div>
       ) : failed || !objectUrl ? (
-        <div className="flex items-center gap-2 px-1.5 py-1 text-xs">
+        <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2 text-xs">
           <ImageIcon size={16} className="text-muted-foreground" />
           <span className="truncate font-medium text-foreground">{attachment.fileName}</span>
           <span className="shrink-0 text-muted-foreground">{formatFileSize(attachment.sizeBytes)}</span>
         </div>
       ) : (
-        /* eslint-disable-next-line @next/next/no-img-element -- attachment file is streamed through the API proxy */
-        <img
-          src={objectUrl}
-          alt={attachment.fileName}
-          draggable={false}
-          className="pointer-events-none max-h-48 rounded-md object-cover"
-          onError={() => setFailed(true)}
-        />
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element -- attachment file is streamed through the API proxy */}
+          <img
+            src={objectUrl}
+            alt={attachment.fileName}
+            draggable={false}
+            className="pointer-events-none max-h-60 rounded-lg object-cover shadow-sm"
+            onError={() => setFailed(true)}
+          />
+          <div className="mt-1.5 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+            <span className="truncate font-medium text-foreground">{attachment.fileName}</span>
+            <span className="shrink-0">{formatFileSize(attachment.sizeBytes)}</span>
+          </div>
+        </>
       )}
     </button>
   );
@@ -1665,21 +1680,23 @@ export default function ChannelDetailPage() {
         )}
         <div className="shrink-0 px-4 pt-3 pb-1">
           {Object.keys(typingUsers).length > 0 && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="inline-flex gap-0.5">
-                <span className="h-1 w-1 rounded-full bg-primary animate-bounce" />
-                <span className="h-1 w-1 rounded-full bg-primary animate-bounce [animation-delay:0.1s]" />
-                <span className="h-1 w-1 rounded-full bg-primary animate-bounce [animation-delay:0.2s]" />
-              </span>
-              <span>
-                {Object.values(typingUsers).map((u, i, arr) => (
-                  <span key={u.username}>
-                    {u.username}
-                    {i < arr.length - 1 ? ", " : " "}
-                  </span>
-                ))}
-                {Object.keys(typingUsers).length === 1 ? t("channel.isTyping") : t("channel.areTyping")}
-              </span>
+            <div className="flex items-center">
+              <div className="inline-flex items-center gap-2 rounded-full border border-border bg-card/80 px-3 py-1.5 text-xs text-muted-foreground shadow-sm">
+                <span className="inline-flex gap-0.5">
+                  <span className="h-1 w-1 rounded-full bg-primary animate-bounce" />
+                  <span className="h-1 w-1 rounded-full bg-primary animate-bounce [animation-delay:0.1s]" />
+                  <span className="h-1 w-1 rounded-full bg-primary animate-bounce [animation-delay:0.2s]" />
+                </span>
+                <span className="truncate max-w-[16rem] sm:max-w-xs">
+                  {Object.values(typingUsers).map((u, i, arr) => (
+                    <span key={u.username}>
+                      {u.username}
+                      {i < arr.length - 1 ? ", " : " "}
+                    </span>
+                  ))}
+                  {Object.keys(typingUsers).length === 1 ? t("channel.isTyping") : t("channel.areTyping")}
+                </span>
+              </div>
             </div>
           )}
         </div>
@@ -1772,10 +1789,10 @@ export default function ChannelDetailPage() {
                               e.preventDefault();
                               openMenuForElement(msg.id, e.currentTarget);
                             }}
-                            className={`mt-1 w-fit max-w-full rounded-2xl border px-3 py-2 shadow-sm ${
+                            className={`mt-1 w-fit max-w-full rounded-2xl border px-3.5 py-2 shadow-sm ${
                               isOwnMessage
-                                ? "bg-gradient-to-br from-indigo-600 to-violet-700 border-indigo-500 text-white shadow-indigo-200 dark:from-indigo-600 dark:to-violet-800 dark:border-indigo-700 dark:shadow-indigo-950/30"
-                                : "bg-card text-foreground border-border shadow-sm"
+                                ? "bg-gradient-to-br from-indigo-500 to-violet-600 border-indigo-400/60 text-white shadow-indigo-200 dark:from-indigo-600 dark:to-violet-700 dark:border-indigo-600/60 dark:shadow-indigo-950/30"
+                                : "bg-gradient-to-br from-card via-card to-muted/40 text-foreground border-border shadow-sm dark:to-muted/20"
                             }`}
                           >
                           {msg.parentId && (

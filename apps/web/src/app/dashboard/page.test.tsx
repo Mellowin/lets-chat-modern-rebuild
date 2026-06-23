@@ -503,7 +503,8 @@ describe("DashboardPage — pending invites", () => {
       expect(screen.getByText("Test Workspace")).toBeInTheDocument();
     });
     expect(screen.getByText(/Invited by Bob/i)).toBeInTheDocument();
-    expect(screen.getByText(/You will join as MEMBER/i)).toBeInTheDocument();
+    expect(screen.getByText(/You will join as/i)).toBeInTheDocument();
+    expect(screen.getByText((content) => content.trim().toLowerCase() === "member")).toBeInTheDocument();
     expect(screen.queryByText(/Invited by Bob · MEMBER/i)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Accept/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Decline/i })).toBeInTheDocument();
@@ -597,7 +598,8 @@ describe("DashboardPage — pending invites", () => {
     await waitFor(() => {
       expect(screen.getByText(/Invited by Bob/i)).toBeInTheDocument();
     });
-    expect(screen.getByText(/You will join as ADMIN/i)).toBeInTheDocument();
+    expect(screen.getByText(/You will join as/i)).toBeInTheDocument();
+    expect(screen.getByText((content) => content.trim().toLowerCase() === "admin")).toBeInTheDocument();
   });
 
   it("shows error when accepting invite fails", async () => {
@@ -656,7 +658,8 @@ describe("DashboardPage — pending channel invites", () => {
     });
     expect(screen.getByText("general")).toBeInTheDocument();
     expect(screen.getByText(/Invited by Bob/i)).toBeInTheDocument();
-    expect(screen.getByText(/You will join as MEMBER/i)).toBeInTheDocument();
+    expect(screen.getByText(/You will join as/i)).toBeInTheDocument();
+    expect(screen.getByText((content) => content.trim().toLowerCase() === "member")).toBeInTheDocument();
   });
 
   it("shows workspace name and channel name", async () => {
@@ -700,7 +703,8 @@ describe("DashboardPage — pending channel invites", () => {
     await waitFor(() => {
       expect(screen.getByText(/Invited by Bob/i)).toBeInTheDocument();
     });
-    expect(screen.getByText(/You will join as MEMBER/i)).toBeInTheDocument();
+    expect(screen.getByText(/You will join as/i)).toBeInTheDocument();
+    expect(screen.getByText((content) => content.trim().toLowerCase() === "member")).toBeInTheDocument();
   });
 
   it("shows 'You will join as MEMBER'", async () => {
@@ -720,7 +724,8 @@ describe("DashboardPage — pending channel invites", () => {
     render(<DashboardPage />);
 
     await waitFor(() => {
-      expect(screen.getByText(/You will join as MEMBER/i)).toBeInTheDocument();
+      expect(screen.getByText(/You will join as/i)).toBeInTheDocument();
+    expect(screen.getByText((content) => content.trim().toLowerCase() === "member")).toBeInTheDocument();
     });
   });
 
@@ -741,7 +746,8 @@ describe("DashboardPage — pending channel invites", () => {
     render(<DashboardPage />);
 
     await waitFor(() => {
-      expect(screen.getByText(/You will join as ADMIN/i)).toBeInTheDocument();
+      expect(screen.getByText(/You will join as/i)).toBeInTheDocument();
+    expect(screen.getByText((content) => content.trim().toLowerCase() === "admin")).toBeInTheDocument();
     });
   });
 

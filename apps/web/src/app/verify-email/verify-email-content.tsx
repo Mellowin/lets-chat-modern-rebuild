@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Loader2,
   Mail,
+  MessageSquare,
   XCircle,
 } from "lucide-react";
 import { verifyEmail, resendVerification } from "@/lib/auth-api";
@@ -62,6 +63,16 @@ function Alert({
   );
 }
 
+function BrandHero() {
+  return (
+    <div className="mb-5 flex flex-col items-center text-center">
+      <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/10 shadow-sm">
+        <MessageSquare className="h-6 w-6" />
+      </div>
+    </div>
+  );
+}
+
 export default function VerifyEmailPage() {
   const { t } = useLocale();
   const searchParams = useSearchParams();
@@ -110,11 +121,11 @@ export default function VerifyEmailPage() {
   }
 
   return (
-    <div className="flex flex-1 items-center justify-center p-4 sm:p-6">
+    <div className="flex flex-1 flex-col items-center justify-center p-4 sm:p-6">
+      <BrandHero />
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <CardTitle>{t("auth.verifyEmailTitle")}</CardTitle>
-
         </CardHeader>
         <CardContent className="space-y-4">
           {verifyState.kind === "verifying" && (
@@ -132,7 +143,7 @@ export default function VerifyEmailPage() {
               <p className="text-center text-sm text-muted-foreground">
                 {t("auth.signInAfterVerification")}
               </p>
-              <Button asChild className="w-full">
+              <Button asChild variant="primary" className="w-full">
                 <Link href="/login">{t("auth.signIn")}</Link>
               </Button>
             </>
@@ -145,7 +156,7 @@ export default function VerifyEmailPage() {
                   {t("auth.emailVerificationMissingToken")}
                 </span>
               </Alert>
-              <Button asChild className="w-full">
+              <Button asChild variant="primary" className="w-full">
                 <Link href="/login">{t("auth.backToSignIn")}</Link>
               </Button>
             </>
@@ -184,7 +195,7 @@ export default function VerifyEmailPage() {
                 </Button>
               </div>
 
-              <Button asChild className="w-full">
+              <Button asChild variant="primary" className="w-full">
                 <Link href="/login">{t("auth.backToSignIn")}</Link>
               </Button>
             </>

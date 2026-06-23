@@ -9,6 +9,7 @@ import {
   EyeOff,
   Loader2,
   Lock,
+  MessageSquare,
   XCircle,
 } from "lucide-react";
 import { resetPassword } from "@/lib/auth-api";
@@ -54,6 +55,16 @@ function Alert({
     >
       {icons[variant]}
       <div className="flex-1">{children}</div>
+    </div>
+  );
+}
+
+function BrandHero() {
+  return (
+    <div className="mb-5 flex flex-col items-center text-center">
+      <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/10 shadow-sm">
+        <MessageSquare className="h-6 w-6" />
+      </div>
     </div>
   );
 }
@@ -155,11 +166,11 @@ export function ResetPasswordContent() {
   }
 
   return (
-    <div className="flex flex-1 items-center justify-center p-4 sm:p-6">
+    <div className="flex flex-1 flex-col items-center justify-center p-4 sm:p-6">
+      <BrandHero />
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <CardTitle>{t("auth.resetPasswordTitle")}</CardTitle>
-
         </CardHeader>
         <CardContent className="space-y-4">
           {formState.kind === "success" ? (
@@ -198,6 +209,7 @@ export function ResetPasswordContent() {
 
               <Button
                 type="submit"
+                variant="primary"
                 className="w-full"
                 disabled={formState.kind === "loading" || !token}
               >

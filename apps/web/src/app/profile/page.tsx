@@ -382,7 +382,7 @@ export default function ProfilePage() {
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6 sm:p-10">
       <Link
         href="/dashboard"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        className="inline-flex w-fit items-center gap-1 rounded-lg px-2 py-1 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
       >
         <ChevronLeft size={16} />
         {t("profile.back")}
@@ -393,38 +393,41 @@ export default function ProfilePage() {
         subtitle={t("profile.account")}
       />
 
-      <nav
-        className="flex flex-nowrap gap-2 overflow-x-auto pb-1"
-        aria-label={t("profile.profileSettings")}
-      >
-        {TAB_ITEMS.map((tab) => {
-          const active = activeTab === tab.key;
-          return (
-            <Button
-              key={tab.key}
-              type="button"
-              variant={active ? "primary" : "secondary"}
-              size="sm"
-              onClick={() => setActiveTab(tab.key)}
-              data-testid={`profile-tab-${tab.key}`}
-              aria-current={active ? "page" : undefined}
-            >
-              {tab.icon}
-              {tab.label}
-            </Button>
-          );
-        })}
-      </nav>
+      <Card className="p-1">
+        <nav
+          className="flex flex-nowrap gap-1 overflow-x-auto"
+          aria-label={t("profile.profileSettings")}
+        >
+          {TAB_ITEMS.map((tab) => {
+            const active = activeTab === tab.key;
+            return (
+              <Button
+                key={tab.key}
+                type="button"
+                variant={active ? "primary" : "ghost"}
+                size="sm"
+                onClick={() => setActiveTab(tab.key)}
+                data-testid={`profile-tab-${tab.key}`}
+                aria-current={active ? "page" : undefined}
+                className="shrink-0"
+              >
+                {tab.icon}
+                {tab.label}
+              </Button>
+            );
+          })}
+        </nav>
+      </Card>
 
       {activeTab === "account" && (
         <div className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>{t("profile.accountInfo")}</CardTitle>
-  
+              <CardDescription>{t("profile.accountSettings")}</CardDescription>
             </CardHeader>
             <CardContent>
-              <dl className="grid grid-cols-1 gap-4 sm:grid-cols-[10rem_1fr]">
+              <dl className="grid grid-cols-1 gap-3 sm:grid-cols-[10rem_1fr]">
                 <dt className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Mail size={14} />
                   {t("profile.email")}
@@ -432,13 +435,15 @@ export default function ProfilePage() {
                 <dd className="min-w-0 break-words text-sm font-medium">
                   {user?.email}
                 </dd>
-                <dt className="text-sm text-muted-foreground">
+                <dt className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <User size={14} />
                   {t("profile.username")}
                 </dt>
                 <dd className="min-w-0 break-words text-sm font-medium">
                   {user?.username}
                 </dd>
-                <dt className="text-sm text-muted-foreground">
+                <dt className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Shield size={14} />
                   {t("profile.displayName")}
                 </dt>
                 <dd className="min-w-0 break-words text-sm font-medium">
@@ -451,17 +456,18 @@ export default function ProfilePage() {
           <Card>
             <CardHeader>
               <CardTitle>{t("profile.avatar")}</CardTitle>
-
+              <CardDescription>{t("profile.avatarAlt")}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col sm:flex-row items-start gap-4">
                 <Avatar
                   src={avatarPreview ?? user?.avatarUrl}
                   alt={t("profile.avatarAlt")}
                   name={user?.displayName || user?.username}
                   size="lg"
+                  className="ring-2 ring-border"
                 />
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 min-w-0 flex-1">
                   <input
                     id="profile-avatar-upload"
                     name="profile-avatar-upload"
@@ -477,6 +483,7 @@ export default function ProfilePage() {
                     size="sm"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={avatarState.kind === "loading"}
+                    className="w-fit"
                   >
                     {avatarState.kind === "loading"
                       ? t("profile.uploading")
@@ -496,7 +503,7 @@ export default function ProfilePage() {
           <Card>
             <CardHeader>
               <CardTitle>{t("profile.editDisplayName")}</CardTitle>
-
+              <CardDescription>{t("profile.displayNamePlaceholder")}</CardDescription>
             </CardHeader>
             <CardContent>
               <form
@@ -545,7 +552,7 @@ export default function ProfilePage() {
           <Card data-testid="change-email-section">
             <CardHeader>
               <CardTitle>{t("auth.changeEmailTitle")}</CardTitle>
-
+              <CardDescription>{t("auth.changeEmailSubtitle")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <dl className="grid grid-cols-1 gap-2 sm:grid-cols-[10rem_1fr]">
@@ -716,13 +723,13 @@ export default function ProfilePage() {
             <CardContent className="space-y-4">
               <div className="flex flex-wrap items-center gap-3">
                 {!sessionsError && (
-                  <Badge variant="default">
+                  <Badge variant="default" className="px-2.5 py-0.5">
                     {t("profile.activeSessionsCount", String(activeCount))}
                   </Badge>
                 )}
                 <Button
                   type="button"
-                  variant="secondary"
+                  variant={showSessionsList ? "primary" : "secondary"}
                   size="sm"
                   onClick={() => setShowSessionsList((s) => !s)}
                   aria-expanded={showSessionsList}
@@ -757,15 +764,15 @@ export default function ProfilePage() {
                       {currentSession && (
                         <div
                           data-testid={`session-item-${currentSession.id}`}
-                          className="rounded-lg border border-primary/20 bg-primary/5 p-4"
+                          className="rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 to-primary/[0.02] p-4 shadow-sm"
                         >
                           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                             <div className="flex items-center gap-3 min-w-0">
-                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary ring-1 ring-primary/20">
                                 <Monitor size={18} />
                               </div>
                               <div className="min-w-0">
-                                <p className="text-sm font-medium">
+                                <p className="text-sm font-semibold">
                                   {t("profile.currentSession")}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
@@ -778,7 +785,7 @@ export default function ProfilePage() {
                                 {t("profile.sessionActive")}
                               </Badge>
                               <span
-                                className="inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-xs font-medium opacity-60 ring-1 ring-inset ring-border"
+                                className="inline-flex items-center justify-center rounded-lg bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground ring-1 ring-inset ring-border"
                                 title={t("profile.revokeCurrentSessionDisabled")}
                                 data-testid={`revoke-session-disabled-${currentSession.id}`}
                               >
@@ -851,15 +858,15 @@ export default function ProfilePage() {
                             <div
                               key={session.id}
                               data-testid={`session-item-${session.id}`}
-                              className="flex flex-col gap-3 rounded-lg border border-border p-4 text-sm"
+                              className="flex flex-col gap-3 rounded-xl border border-border/80 bg-gradient-to-br from-card via-card to-muted/30 p-4 text-sm shadow-sm dark:to-muted/10"
                             >
                               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                 <div className="flex items-start gap-3 min-w-0">
-                                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground ring-1 ring-border">
                                     <Smartphone size={16} />
                                   </div>
                                   <div className="flex flex-col gap-0.5 min-w-0">
-                                    <span className="font-medium">
+                                    <span className="font-semibold">
                                       {new Date(
                                         session.createdAt,
                                       ).toLocaleString()}
@@ -896,7 +903,7 @@ export default function ProfilePage() {
                                   ) : null}
                                   {session.isCurrent ? (
                                     <span
-                                      className="inline-flex items-center justify-center rounded-md border border-border bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground cursor-not-allowed"
+                                      className="inline-flex items-center justify-center rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground ring-1 ring-inset ring-border cursor-not-allowed"
                                       title={t(
                                         "profile.revokeCurrentSessionDisabled",
                                       )}

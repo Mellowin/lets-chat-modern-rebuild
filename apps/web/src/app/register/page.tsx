@@ -8,6 +8,7 @@ import {
   EyeOff,
   Loader2,
   Mail,
+  MessageSquare,
   User,
   XCircle,
 } from "lucide-react";
@@ -56,6 +57,16 @@ function Alert({
     >
       {icons[variant]}
       <div className="flex-1">{children}</div>
+    </div>
+  );
+}
+
+function BrandHero() {
+  return (
+    <div className="mb-5 flex flex-col items-center text-center">
+      <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/10 shadow-sm">
+        <MessageSquare className="h-6 w-6" />
+      </div>
     </div>
   );
 }
@@ -122,7 +133,8 @@ export default function RegisterPage() {
       : email;
 
   return (
-    <div className="flex flex-1 items-center justify-center p-4 sm:p-6">
+    <div className="flex flex-1 flex-col items-center justify-center p-4 sm:p-6">
+      <BrandHero />
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <CardTitle>{t("auth.registerTitle")}</CardTitle>
@@ -157,7 +169,7 @@ export default function RegisterPage() {
                   : t("auth.resendVerification")}
               </Button>
 
-              <Button asChild className="w-full">
+              <Button asChild variant="primary" className="w-full">
                 <Link href="/login">{t("auth.signIn")}</Link>
               </Button>
             </div>
@@ -247,6 +259,7 @@ export default function RegisterPage() {
 
               <Button
                 type="submit"
+                variant="primary"
                 className="w-full"
                 disabled={formState.kind === "loading"}
               >
