@@ -239,9 +239,8 @@ describe('Channels E2E Security', () => {
       expect(body).toHaveProperty('id');
       expect(body).toHaveProperty('workspaceId', workspace.id);
 
-      await prisma.channel.deleteMany({
-        where: { id: body.id },
-      });
+      // Cleanup is handled by afterAll so we don't hit FK violations from
+      // ChannelReadState rows created by channel-list endpoints.
     });
 
     it('lists channels with unread counts after messages exist', async () => {
