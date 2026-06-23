@@ -144,6 +144,14 @@ jobs:
           tail -n 120 e2e-output.log >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Annotate E2E failure output
+        if: failure() && steps.e2e.outcome == 'failure'
+        run: |
+          echo "::error::API E2E tests failed. Last 40 lines of output:"
+          tail -n 40 e2e-output.log | while IFS= read -r line; do
+            printf '%s\n' "$line" | sed 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g' | xargs -I {} echo "::error::{}"
+          done
+
   migrate:
     name: Migrate production database
     needs: [ci, api-e2e]
