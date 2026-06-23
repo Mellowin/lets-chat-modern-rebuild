@@ -120,6 +120,7 @@ jobs:
         run: pnpm --filter @lets-chat/database migrate:deploy
 
       - name: Run API E2E tests
+        id: e2e
         env:
           NODE_ENV: test
           DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/lets_chat_test?schema=public'
@@ -131,7 +132,17 @@ jobs:
           S3_BUCKET: 'letschat-uploads'
           MAIL_PROVIDER: console
           APP_WEB_URL: 'http://localhost:3000'
-        run: pnpm --filter api test:e2e
+        run: |
+          set -o pipefail
+          pnpm --filter api test:e2e -- --verbose 2>&1 | tee e2e-output.log
+
+      - name: Upload E2E failure summary
+        if: failure() && steps.e2e.outcome == 'failure'
+        run: |
+          echo "## API E2E test failure output" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          tail -n 120 e2e-output.log >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
 
   migrate:
     name: Migrate production database
