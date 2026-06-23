@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Mail, UserPlus } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocale } from "@/lib/locale";
+import { localizeApiError } from "@/lib/api-errors";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -47,7 +48,7 @@ export default function DirectMessagesPage() {
       const data = await listDirectConversations(token);
       setConversations({ kind: "success", data });
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("direct.failedLoadConversations");
+      const message = localizeApiError(err, "direct.failedLoadConversations", t);
       setConversations({ kind: "error", message });
     }
   }, [t]);
@@ -224,7 +225,7 @@ export default function DirectMessagesPage() {
       setStartState({ kind: "idle" });
       router.push(`/direct/${conversation.id}`);
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("direct.failedStartConversation");
+      const message = localizeApiError(err, "direct.failedStartConversation", t);
       setStartState({ kind: "error", message });
     }
   }

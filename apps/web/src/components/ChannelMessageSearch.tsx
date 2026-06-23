@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { Search, X, Loader2 } from "lucide-react";
 import { useLocale } from "@/lib/locale";
+import { localizeApiError } from "@/lib/api-errors";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
@@ -99,7 +100,7 @@ export default function ChannelMessageSearch({
         setNextCursor(data.nextCursor);
         setStatus("success");
       } catch (err) {
-        const msg = err instanceof Error ? err.message : t("channel.searchFailed");
+        const msg = localizeApiError(err, "channel.searchFailed", t);
         setErrorMessage(msg);
         setStatus("error");
       } finally {

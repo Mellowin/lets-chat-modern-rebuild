@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocale } from "@/lib/locale";
+import { localizeApiError } from "@/lib/api-errors";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -270,7 +271,7 @@ export default function DirectConversationPage() {
       setEditState({ kind: "idle" });
       requestAnimationFrame(() => composerTextareaRef.current?.focus());
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("direct.failedEditMessage");
+      const message = localizeApiError(err, "direct.failedEditMessage", t);
       setEditState({ kind: "error", message });
       requestAnimationFrame(() => composerTextareaRef.current?.focus());
     }
@@ -295,7 +296,7 @@ export default function DirectConversationPage() {
         setForwardMessage(null);
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("direct.failedDeleteMessage");
+      const message = localizeApiError(err, "direct.failedDeleteMessage", t);
       setSocketError(message);
     }
   }
@@ -471,7 +472,7 @@ export default function DirectConversationPage() {
           }
         }
       } catch (err) {
-        const message = err instanceof Error ? err.message : t("direct.failedLoadMessages");
+        const message = localizeApiError(err, "direct.failedLoadMessages", t);
         if (!cancelled) {
           setMessages({ kind: "error", message });
           setConversation({ kind: "error", message });
@@ -818,7 +819,7 @@ export default function DirectConversationPage() {
         composerTextareaRef.current?.focus();
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("direct.failedSendMessage");
+      const message = localizeApiError(err, "direct.failedSendMessage", t);
       setSendState({ kind: "error", message });
       requestAnimationFrame(() => composerTextareaRef.current?.focus());
     }
@@ -850,7 +851,7 @@ export default function DirectConversationPage() {
       const refreshed = await listDirectMessages(accessToken, conversationId);
       setMessages({ kind: "success", data: refreshed });
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("direct.failedForwardMessage");
+      const message = localizeApiError(err, "direct.failedForwardMessage", t);
       setForwardState({ kind: "error", message });
     }
   }

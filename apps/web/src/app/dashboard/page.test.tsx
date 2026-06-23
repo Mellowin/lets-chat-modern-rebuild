@@ -622,7 +622,7 @@ describe("DashboardPage — pending invites", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /Accept/i }));
 
-    expect(await screen.findByText(/Invite expired/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Invite link is invalid or expired/i)).toBeInTheDocument();
   });
 });
 
@@ -862,7 +862,7 @@ describe("DashboardPage — pending channel invites", () => {
     const acceptButtons = screen.getAllByRole("button", { name: /Accept/i });
     await userEvent.click(acceptButtons[acceptButtons.length - 1]);
 
-    expect(await screen.findByText(/Invite expired/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Invite link is invalid or expired/i)).toBeInTheDocument();
     expect(routerPushMock).not.toHaveBeenCalledWith("/workspaces/ws-1/channels/ch-1");
   });
 
@@ -1019,7 +1019,7 @@ describe("DashboardPage — archived workspaces", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /Restore/i }));
 
-    expect(await screen.findByText(/Workspace is not archived/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Failed to restore workspace/i)).toBeInTheDocument();
     confirmSpy.mockRestore();
   });
 });

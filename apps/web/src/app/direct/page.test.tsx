@@ -142,7 +142,7 @@ describe("DirectMessagesPage — list conversations", () => {
 
     render(<DirectMessagesPage />);
 
-    expect(await screen.findByText(/Network error/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Failed to load conversations/i)).toBeInTheDocument();
   });
 });
 
@@ -212,7 +212,7 @@ describe("DirectMessagesPage — start conversation", () => {
     await userEvent.click(screen.getByRole("button", { name: /Start chat/i }));
 
     expect(
-      await screen.findByText(/Cannot create a conversation with yourself/i),
+      await screen.findByText(/Failed to start conversation/i),
     ).toBeInTheDocument();
   });
 

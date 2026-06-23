@@ -54,7 +54,7 @@ describe("ForgotPasswordPage", () => {
     await userEvent.type(screen.getByLabelText(/Email/i), "user@example.com");
     await userEvent.click(screen.getByRole("button", { name: /Send reset link/i }));
 
-    expect(await screen.findByText(/Network error/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Password reset failed/i)).toBeInTheDocument();
   });
 
   it("disables submit while loading", async () => {

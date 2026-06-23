@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocale } from "@/lib/locale";
+import { localizeApiError } from "@/lib/api-errors";
 import {
   previewInvite,
   acceptInviteByToken,
@@ -97,9 +98,11 @@ export default function InviteAcceptContent() {
         const data = await previewInvite(token);
         if (!cancelled) setPreview({ kind: "success", data });
       } catch (err) {
-        const message =
-          err instanceof Error ? err.message : t("invite.invalidOrExpired");
-        if (!cancelled) setPreview({ kind: "error", message });
+        if (!cancelled)
+          setPreview({
+            kind: "error",
+            message: localizeApiError(err, "invite.invalidOrExpired", t),
+          });
       }
     }
     load();
@@ -115,9 +118,10 @@ export default function InviteAcceptContent() {
       const result = await acceptInviteByToken(accessToken, token);
       setAcceptState({ kind: "success", result });
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : t("invite.acceptFailed");
-      setAcceptState({ kind: "error", message });
+      setAcceptState({
+        kind: "error",
+        message: localizeApiError(err, "invite.acceptFailed", t),
+      });
     }
   }
 

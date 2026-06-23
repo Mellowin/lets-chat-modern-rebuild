@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { verifyEmail, resendVerification } from "@/lib/auth-api";
 import { useLocale } from "@/lib/locale";
+import { localizeApiError } from "@/lib/api-errors";
 import { Button } from "@/components/ui/Button";
 import {
   Card,
@@ -75,11 +76,10 @@ export default function VerifyEmailPage() {
         await verifyEmail({ token: verifyToken });
         setVerifyState({ kind: "success" });
       } catch (err) {
-        const message =
-          err instanceof Error
-            ? err.message
-            : t("auth.emailVerificationFailed");
-        setVerifyState({ kind: "error", message });
+        setVerifyState({
+          kind: "error",
+          message: localizeApiError(err, "auth.emailVerificationFailed", t),
+        });
       }
     },
     [t],
@@ -102,11 +102,10 @@ export default function VerifyEmailPage() {
       const data = await resendVerification({ email });
       setVerifyState({ kind: "resend-success", message: data.message });
     } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : t("auth.emailVerificationFailed");
-      setVerifyState({ kind: "error", message });
+      setVerifyState({
+        kind: "error",
+        message: localizeApiError(err, "auth.emailVerificationFailed", t),
+      });
     }
   }
 

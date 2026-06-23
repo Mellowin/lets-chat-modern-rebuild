@@ -242,7 +242,7 @@ describe("DirectConversationPage — composer", () => {
     await userEvent.type(screen.getByPlaceholderText(/Type a message/i), "Secret");
     await userEvent.click(screen.getByRole("button", { name: /Send/i }));
 
-    expect(await screen.findByText(/Forbidden/i)).toBeInTheDocument();
+    expect(await screen.findByText(/You don’t have permission/i)).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/Type a message/i)).toHaveValue("Secret");
   });
 
@@ -1663,7 +1663,7 @@ describe("DirectConversationPage — send with parentId", () => {
     await userEvent.click(screen.getByRole("button", { name: /Send/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/Network/i)).toBeInTheDocument();
+      expect(screen.getByText(/Failed to send message/i)).toBeInTheDocument();
     });
 
     expect(screen.getByTestId("direct-reply-preview")).toBeInTheDocument();
@@ -2676,7 +2676,7 @@ describe("DirectConversationPage — send forward", () => {
     await userEvent.click(screen.getByTestId("direct-forward-target-dc2"));
 
     await waitFor(() => {
-      expect(screen.getByText(/Network error/i)).toBeInTheDocument();
+      expect(screen.getByText(/Failed to forward message/i)).toBeInTheDocument();
     });
 
     expect(screen.getByTestId("direct-forward-picker")).toBeInTheDocument();
@@ -4740,7 +4740,7 @@ describe("DirectConversationPage — B92 navigate after forward", () => {
     await userEvent.click(screen.getByTestId("direct-forward-target-dc2"));
 
     await waitFor(() => {
-      expect(screen.getByText(/Network error/i)).toBeInTheDocument();
+      expect(screen.getByText(/Failed to forward message/i)).toBeInTheDocument();
     });
 
     expect(routerPushMock).not.toHaveBeenCalled();

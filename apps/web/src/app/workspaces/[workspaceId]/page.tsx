@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { useLocale, translate, getLocale } from "@/lib/locale";
+import { useLocale } from "@/lib/locale";
+import { localizeApiError } from "@/lib/api-errors";
 import { getWorkspace, getWorkspaceMembers, leaveWorkspace, removeWorkspaceMember, updateWorkspaceMemberRole, deleteWorkspace, type Workspace, type WorkspaceMember } from "@/lib/workspaces-api";
 import { MessageAuthor } from "@/components/MessageAuthor";
 import { createWorkspaceInvite } from "@/lib/invites-api";
@@ -99,24 +100,25 @@ export default function WorkspaceDetailPage() {
     if (!accessToken) return;
 
     let cancelled = false;
-    async function loadPrimary(t: string, id: string) {
+    async function loadPrimary(token: string, id: string) {
       setDetail({ kind: "loading" });
       setChannels({ kind: "loading" });
       try {
         const [wsData, chData] = await Promise.all([
-          getWorkspace(t, id),
-          getChannels(t, id),
+          getWorkspace(token, id),
+          getChannels(token, id),
         ]);
         if (!cancelled) {
           setDetail({ kind: "success", data: wsData });
           setChannels({ kind: "success", data: chData });
         }
       } catch (err) {
-        const message = err instanceof Error ? err.message : translate(getLocale(), "workspace.errorLoadWorkspaceFailed");
+        const rawMessage = err instanceof Error ? err.message : "";
+        const message = localizeApiError(err, "workspace.errorLoadWorkspaceFailed", t);
         if (!cancelled) {
           setDetail({ kind: "error", message });
           setChannels({ kind: "error", message });
-          if (message.toLowerCase().includes("workspace not found")) {
+          if (rawMessage.toLowerCase().includes("workspace not found")) {
             window.dispatchEvent(new Event("workspaces:changed"));
             router.push("/dashboard");
           }
@@ -132,15 +134,15 @@ export default function WorkspaceDetailPage() {
     if (!accessToken) return;
 
     let cancelled = false;
-    async function loadMembers(t: string, id: string) {
+    async function loadMembers(token: string, id: string) {
       setMembers({ kind: "loading" });
       try {
-        const memData = await getWorkspaceMembers(t, id);
+        const memData = await getWorkspaceMembers(token, id);
         if (!cancelled) {
           setMembers({ kind: "success", data: memData });
         }
       } catch (err) {
-        const message = err instanceof Error ? err.message : translate(getLocale(), "workspace.errorLoadMembersFailed");
+        const message = localizeApiError(err, "workspace.errorLoadMembersFailed", t);
         if (!cancelled) {
           setMembers({ kind: "error", message });
         }
@@ -155,15 +157,15 @@ export default function WorkspaceDetailPage() {
     if (!accessToken) return;
 
     let cancelled = false;
-    async function loadArchived(t: string, id: string) {
+    async function loadArchived(token: string, id: string) {
       setArchivedChannels({ kind: "loading" });
       try {
-        const data = await getArchivedChannels(t, id);
+        const data = await getArchivedChannels(token, id);
         if (!cancelled) {
           setArchivedChannels({ kind: "success", data });
         }
       } catch (err) {
-        const message = err instanceof Error ? err.message : translate(getLocale(), "workspace.errorLoadArchivedChannelsFailed");
+        const message = localizeApiError(err, "workspace.errorLoadArchivedChannelsFailed", t);
         if (!cancelled) {
           setArchivedChannels({ kind: "error", message });
         }
@@ -199,7 +201,7 @@ export default function WorkspaceDetailPage() {
       setChannels({ kind: "success", data: refreshed });
       window.dispatchEvent(new Event("channels:changed"));
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("workspace.errorCreateChannelFailed");
+      const message = localizeApiError(err, "workspace.errorCreateChannelFailed", t);
       setCreateChannelState({ kind: "error", message });
     }
   }
@@ -222,7 +224,7 @@ export default function WorkspaceDetailPage() {
       setArchivedChannels({ kind: "success", data: archived });
       window.dispatchEvent(new Event("channels:changed"));
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("workspace.errorArchiveChannelFailed");
+      const message = localizeApiError(err, "workspace.errorArchiveChannelFailed", t);
       setArchiveError(message);
     }
   }
@@ -242,7 +244,7 @@ export default function WorkspaceDetailPage() {
       setArchivedChannels({ kind: "success", data: archived });
       window.dispatchEvent(new Event("channels:changed"));
     } catch (err) {
-      setRestoreError(err instanceof Error ? err.message : t("workspace.errorRestoreChannelFailed"));
+      setRestoreError(localizeApiError(err, "workspace.errorRestoreChannelFailed", t));
     } finally {
       setRestoringChannelId(null);
     }
@@ -265,7 +267,7 @@ export default function WorkspaceDetailPage() {
       setArchivedChannels({ kind: "success", data: archived });
       window.dispatchEvent(new Event("channels:changed"));
     } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : t("workspace.errorDeleteChannelFailed"));
+      setDeleteError(localizeApiError(err, "workspace.errorDeleteChannelFailed", t));
     } finally {
       setDeletingChannelId(null);
     }
@@ -284,7 +286,7 @@ export default function WorkspaceDetailPage() {
       window.dispatchEvent(new Event("workspaces:changed"));
       router.push("/dashboard");
     } catch (err) {
-      setDeleteWorkspaceError(err instanceof Error ? err.message : t("workspace.errorDeleteWorkspaceFailed"));
+      setDeleteWorkspaceError(localizeApiError(err, "workspace.errorDeleteWorkspaceFailed", t));
       setIsDeletingWorkspace(false);
     }
   }
@@ -313,7 +315,7 @@ export default function WorkspaceDetailPage() {
       setMemberRole("MEMBER");
       setAddMemberState({ kind: "success", message: t("workspace.invitationSent") });
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("workspace.errorAddMemberFailed");
+      const message = localizeApiError(err, "workspace.errorAddMemberFailed", t);
       setAddMemberState({ kind: "error", message });
     }
   }
@@ -329,7 +331,7 @@ export default function WorkspaceDetailPage() {
       window.dispatchEvent(new Event("workspaces:changed"));
       router.push("/dashboard");
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("workspace.errorLeaveWorkspaceFailed");
+      const message = localizeApiError(err, "workspace.errorLeaveWorkspaceFailed", t);
       setLeaveError(message);
     }
   }
@@ -347,7 +349,7 @@ export default function WorkspaceDetailPage() {
       });
       setRemoveMemberState({ kind: "success", message: t("workspace.memberRemoved") });
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("workspace.errorRemoveMemberFailed");
+      const message = localizeApiError(err, "workspace.errorRemoveMemberFailed", t);
       setRemoveMemberState({ kind: "error", message });
     } finally {
       setRemovingMemberId(null);
@@ -368,7 +370,7 @@ export default function WorkspaceDetailPage() {
       });
       setUpdateRoleState({ kind: "success", message: t("workspace.roleUpdated") });
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("workspace.errorUpdateRoleFailed");
+      const message = localizeApiError(err, "workspace.errorUpdateRoleFailed", t);
       setUpdateRoleState({ kind: "error", message });
     } finally {
       setUpdatingRoleMemberId(null);

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useLocale } from "@/lib/locale";
+import { localizeApiError } from "@/lib/api-errors";
+import { getRoleLabel, getInviteStatusLabel } from "@/lib/labels";
 import {
   createWorkspaceInvite,
   listWorkspaceInvites,
@@ -108,15 +110,13 @@ export default function WorkspaceInvitesSection({
         const data = await listWorkspaceInvites(accessToken, workspaceId);
         if (!cancelled) setInvites(data);
       } catch (err) {
-        const message =
-          err instanceof Error
-            ? err.message
-            : t("workspace.errorLoadInvitesFailed");
+        const rawMessage = err instanceof Error ? err.message : "";
+        const message = localizeApiError(err, "workspace.errorLoadInvitesFailed", t);
         if (!cancelled) {
           setError(message);
           if (
-            message.toLowerCase().includes("permission") ||
-            message.includes("403")
+            rawMessage.toLowerCase().includes("permission") ||
+            rawMessage.includes("403")
           ) {
             setError(t("workspace.noPermissionToManageInvites"));
           }
@@ -172,10 +172,7 @@ export default function WorkspaceInvitesSection({
       const data = await listWorkspaceInvites(accessToken, workspaceId);
       setInvites(data);
     } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : t("workspace.errorCreateInviteFailed");
+      const message = localizeApiError(err, "workspace.errorCreateInviteFailed", t);
       setCreateState({ kind: "error", message });
     }
   }
@@ -209,10 +206,7 @@ export default function WorkspaceInvitesSection({
         )
       );
     } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : t("workspace.errorRevokeInviteFailed");
+      const message = localizeApiError(err, "workspace.errorRevokeInviteFailed", t);
       setRevokeError(message);
     } finally {
       setRevokingId(null);
@@ -373,7 +367,7 @@ export default function WorkspaceInvitesSection({
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {t("workspace.inviteRole")}:{" "}
-                          <Badge variant="default">{inv.role}</Badge> ·{" "}
+                          <Badge variant="default">{getRoleLabel(inv.role, t)}</Badge> ·{" "}
                           {inv.maxUses != null
                             ? `${inv.usesCount} / ${inv.maxUses} ${t("workspace.uses")}`
                             : `${t("workspace.uses")}: ${inv.usesCount}`}
@@ -416,13 +410,13 @@ export default function WorkspaceInvitesSection({
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {t("workspace.inviteRole")}:{" "}
-                          <Badge variant="muted">{inv.role}</Badge> ·{" "}
+                          <Badge variant="muted">{getRoleLabel(inv.role, t)}</Badge> ·{" "}
                           {inv.maxUses != null
                             ? `${inv.usesCount} / ${inv.maxUses} ${t("workspace.uses")}`
                             : `${t("workspace.uses")}: ${inv.usesCount}`}
                           · {t("workspace.expires")}:{" "}
                           {new Date(inv.expiresAt).toLocaleDateString()} ·{" "}
-                          <Badge variant="muted">{inv.status}</Badge>
+                          <Badge variant="muted">{getInviteStatusLabel(inv.status, t)}</Badge>
                         </p>
                       </div>
                     </li>

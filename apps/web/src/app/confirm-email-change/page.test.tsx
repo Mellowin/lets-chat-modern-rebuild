@@ -47,7 +47,7 @@ describe("ConfirmEmailChangePage — inner content", () => {
 
     render(<ConfirmEmailChangeContent />);
 
-    expect(await screen.findByText(/Invalid or expired token/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Email change failed/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Back to sign in/i })).toHaveAttribute("href", "/login");
   });
 

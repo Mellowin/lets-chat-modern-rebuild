@@ -242,7 +242,7 @@ describe("GlobalMessageSearch", () => {
     await userEvent.click(screen.getByTestId("global-search-submit"));
 
     await waitFor(() => {
-      expect(screen.getByText(/Server error/i)).toBeInTheDocument();
+      expect(screen.getByText(/Search failed/i)).toBeInTheDocument();
     });
   });
 

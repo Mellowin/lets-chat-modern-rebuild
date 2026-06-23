@@ -151,7 +151,7 @@ describe("LoginPage", () => {
     await userEvent.type(screen.getByLabelText(/^Password$/i), "wrong");
     await userEvent.click(screen.getByRole("button", { name: /Sign in/i }));
 
-    expect(await screen.findByText(/Invalid credentials/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Invalid email or password/i)).toBeInTheDocument();
     expect(loginSuccessMock).not.toHaveBeenCalled();
     expect(pushMock).not.toHaveBeenCalled();
   });

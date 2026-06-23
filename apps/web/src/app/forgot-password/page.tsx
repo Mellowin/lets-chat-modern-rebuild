@@ -5,6 +5,7 @@ import Link from "next/link";
 import { CheckCircle2, Loader2, Mail, XCircle } from "lucide-react";
 import { forgotPassword } from "@/lib/auth-api";
 import { useLocale } from "@/lib/locale";
+import { localizeApiError } from "@/lib/api-errors";
 import { Button } from "@/components/ui/Button";
 import {
   Card,
@@ -62,8 +63,10 @@ export default function ForgotPasswordPage() {
       await forgotPassword({ email: email.trim() });
       setFormState({ kind: "sent" });
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("auth.passwordResetFailed");
-      setFormState({ kind: "error", message });
+      setFormState({
+        kind: "error",
+        message: localizeApiError(err, "auth.passwordResetFailed", t),
+      });
     }
   }
 

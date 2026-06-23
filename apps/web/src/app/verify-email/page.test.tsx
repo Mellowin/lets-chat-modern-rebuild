@@ -37,7 +37,7 @@ describe("VerifyEmailPage", () => {
 
     render(<VerifyEmailContent />);
 
-    expect(await screen.findByText(/Invalid or expired verification token/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Invite link is invalid or expired/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Resend verification email/i })).toBeInTheDocument();
   });
 
@@ -49,7 +49,7 @@ describe("VerifyEmailPage", () => {
 
     render(<VerifyEmailContent />);
 
-    expect(await screen.findByText(/Invalid or expired verification token/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Invite link is invalid or expired/i)).toBeInTheDocument();
 
     await userEvent.type(screen.getByPlaceholderText(/you@example.com/i), "user@example.com");
     await userEvent.click(screen.getByRole("button", { name: /Resend verification email/i }));

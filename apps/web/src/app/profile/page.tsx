@@ -27,6 +27,7 @@ import {
   revokeSession,
 } from "@/lib/auth-api";
 import { useLocale, type Locale, localeLabel } from "@/lib/locale";
+import { localizeApiError } from "@/lib/api-errors";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -198,7 +199,7 @@ export default function ProfilePage() {
       setSessions(data);
     } catch (err) {
       setSessionsError(
-        err instanceof Error ? err.message : t("profile.loadingSessionsFailed"),
+        localizeApiError(err, "profile.loadingSessionsFailed", t),
       );
     } finally {
       setSessionsLoading(false);
@@ -220,8 +221,7 @@ export default function ProfilePage() {
       setRevokeState({ kind: "success" });
       await loadSessions();
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : t("profile.revokeOthersFailed");
+      const message = localizeApiError(err, "profile.revokeOthersFailed", t);
       setRevokeState({ kind: "error", message });
       await loadSessions();
     }
@@ -261,8 +261,7 @@ export default function ProfilePage() {
         setLocaleState(next);
         setLocaleFormState({ kind: "success" });
       } catch (err) {
-        const message =
-          err instanceof Error ? err.message : t("profile.languageSaveFailed");
+        const message = localizeApiError(err, "profile.languageSaveFailed", t);
         setLocaleFormState({ kind: "error", message });
       }
     } else {
@@ -279,10 +278,7 @@ export default function ProfilePage() {
       setUser(updated);
       setDisplayNameState({ kind: "success" });
     } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : t("profile.errorUpdateDisplayNameFailed");
+      const message = localizeApiError(err, "profile.errorUpdateDisplayNameFailed", t);
       setDisplayNameState({ kind: "error", message });
     }
   }
@@ -320,10 +316,7 @@ export default function ProfilePage() {
         setAvatarState({ kind: "success" });
         setAvatarPreview(null);
       } catch (err) {
-        const message =
-          err instanceof Error
-            ? err.message
-            : t("profile.errorUploadAvatarFailed");
+        const message = localizeApiError(err, "profile.errorUploadAvatarFailed", t);
         setAvatarState({ kind: "error", message });
       }
     })();
@@ -575,10 +568,7 @@ export default function ProfilePage() {
                     setEmailChangeState({ kind: "success" });
                     setNewEmailInput("");
                   } catch (err) {
-                    const message =
-                      err instanceof Error
-                        ? err.message
-                        : t("auth.emailChangeFailed");
+                    const message = localizeApiError(err, "auth.emailChangeFailed", t);
                     setEmailChangeState({ kind: "error", message });
                   }
                 }}
@@ -656,10 +646,7 @@ export default function ProfilePage() {
                     setNewPasswordInput("");
                     setConfirmPasswordInput("");
                   } catch (err) {
-                    const message =
-                      err instanceof Error
-                        ? err.message
-                        : t("profile.passwordChangeFailed");
+                    const message = localizeApiError(err, "profile.passwordChangeFailed", t);
                     setPasswordChangeState({ kind: "error", message });
                   }
                 }}

@@ -113,7 +113,7 @@ describe("WorkspaceMessageSearch", () => {
     fireEvent.click(screen.getByTestId("workspace-search-submit"));
 
     await waitFor(() => {
-      expect(screen.getByText(/Network error/i)).toBeInTheDocument();
+      expect(screen.getByText(/Search failed/i)).toBeInTheDocument();
     });
   });
 });

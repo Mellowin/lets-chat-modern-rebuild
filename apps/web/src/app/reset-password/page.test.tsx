@@ -91,7 +91,7 @@ describe("ResetPasswordPage — inner content", () => {
     await userEvent.type(screen.getByLabelText(/Confirm password/i), "newpassword123");
     await userEvent.click(screen.getByRole("button", { name: /Send reset link/i }));
 
-    expect(await screen.findByText(/Invalid or expired token/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Password reset failed/i)).toBeInTheDocument();
   });
 
   it("shows error when token is missing", async () => {

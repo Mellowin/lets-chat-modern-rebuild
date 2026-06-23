@@ -75,7 +75,7 @@ describe("InviteAcceptPage", () => {
     render(<InviteAcceptPage />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Invite not found/i)).toBeInTheDocument();
+      expect(screen.getByText(/Invite link is invalid or expired/i)).toBeInTheDocument();
     });
   });
 
@@ -189,7 +189,7 @@ describe("InviteAcceptPage", () => {
     await user.click(screen.getByRole("button", { name: /Accept invite/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/Invite expired/i)).toBeInTheDocument();
+      expect(screen.getByText(/Invite link is invalid or expired/i)).toBeInTheDocument();
     });
   });
 });

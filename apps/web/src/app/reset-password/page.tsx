@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { resetPassword } from "@/lib/auth-api";
 import { useLocale } from "@/lib/locale";
+import { localizeApiError } from "@/lib/api-errors";
+import AuthPageSkeleton from "@/components/AuthPageSkeleton";
 import { Button } from "@/components/ui/Button";
 import {
   Card,
@@ -145,9 +147,10 @@ export function ResetPasswordContent() {
       setFormState({ kind: "success" });
       setTimeout(() => router.push("/login"), 2500);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : t("auth.passwordResetFailed");
-      setFormState({ kind: "error", message });
+      setFormState({
+        kind: "error",
+        message: localizeApiError(err, "auth.passwordResetFailed", t),
+      });
     }
   }
 
@@ -234,23 +237,7 @@ export function ResetPasswordContent() {
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex flex-1 items-center justify-center p-4 sm:p-6">
-          <Card className="w-full max-w-sm">
-            <CardHeader>
-              <CardTitle>Reset password</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Loading…
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      }
-    >
+    <Suspense fallback={<AuthPageSkeleton titleKey="auth.resetPasswordTitle" />}>
       <ResetPasswordContent />
     </Suspense>
   );

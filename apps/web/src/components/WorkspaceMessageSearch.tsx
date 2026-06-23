@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import Link from "next/link";
 import { Search, X, Loader2 } from "lucide-react";
 import { useLocale } from "@/lib/locale";
+import { localizeApiError } from "@/lib/api-errors";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
@@ -72,7 +73,7 @@ export default function WorkspaceMessageSearch({ workspaceId, accessToken }: Wor
         setResults(data);
         setStatus("success");
       } catch (err) {
-        const msg = err instanceof Error ? err.message : t("workspace.searchFailed");
+        const msg = localizeApiError(err, "workspace.searchFailed", t);
         setErrorMessage(msg);
         setStatus("error");
       }

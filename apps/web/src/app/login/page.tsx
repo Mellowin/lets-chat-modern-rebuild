@@ -15,6 +15,7 @@ import {
 import { login, resendVerification, type AuthResult, isApiTimeoutError } from "@/lib/auth-api";
 import { useAuth } from "@/lib/auth-context";
 import { useLocale } from "@/lib/locale";
+import { localizeApiError } from "@/lib/api-errors";
 import { Button } from "@/components/ui/Button";
 import {
   Card,
@@ -92,14 +93,17 @@ export default function LoginPage() {
         setFormState({ kind: "timeout" });
         return;
       }
-      const message = err instanceof Error ? err.message : t("auth.loginFailed");
+      const rawMessage = err instanceof Error ? err.message : "";
       if (
-        message.toLowerCase().includes("email not verified") ||
-        message.toLowerCase().includes("not verified")
+        rawMessage.toLowerCase().includes("email not verified") ||
+        rawMessage.toLowerCase().includes("not verified")
       ) {
         setFormState({ kind: "unverified", email: email.trim() });
       } else {
-        setFormState({ kind: "error", message });
+        setFormState({
+          kind: "error",
+          message: localizeApiError(err, "auth.loginFailed", t),
+        });
       }
     }
   }
@@ -111,8 +115,10 @@ export default function LoginPage() {
       const data = await resendVerification({ email: formState.email });
       setFormState({ kind: "resend-success", message: data.message });
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("auth.loginFailed");
-      setFormState({ kind: "error", message });
+      setFormState({
+        kind: "error",
+        message: localizeApiError(err, "auth.loginFailed", t),
+      });
     }
   }
 

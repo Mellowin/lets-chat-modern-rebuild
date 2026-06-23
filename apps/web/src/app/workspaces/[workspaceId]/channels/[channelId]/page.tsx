@@ -31,8 +31,10 @@ import {
   Users,
   X,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
-import { useLocale, translate, getLocale } from "@/lib/locale";
+import { useLocale, type TranslationKey } from "@/lib/locale";
+import { localizeApiError } from "@/lib/api-errors";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -112,16 +114,30 @@ function normalizeAttachmentFile(file: File): File {
   return new File([file], file.name, { type, lastModified: file.lastModified });
 }
 
-function getAttachmentTypeInfo(mimeType: string) {
+type AttachmentTypeLabelKey =
+  | "channel.attachmentTypeImage"
+  | "channel.attachmentTypePdf"
+  | "channel.attachmentTypeWord"
+  | "channel.attachmentTypeExcel"
+  | "channel.attachmentTypePowerPoint"
+  | "channel.attachmentTypeArchive"
+  | "channel.attachmentTypeVideo"
+  | "channel.attachmentTypeAudio"
+  | "channel.attachmentTypeFile";
+
+function getAttachmentTypeInfo(mimeType: string): {
+  icon: LucideIcon;
+  labelKey: AttachmentTypeLabelKey;
+} {
   if (mimeType.startsWith("image/")) {
-    return { icon: ImageIcon, label: "Image" };
+    return { icon: ImageIcon, labelKey: "channel.attachmentTypeImage" };
   }
   if (
     mimeType === "application/msword" ||
     mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
     mimeType === "application/vnd.oasis.opendocument.text"
   ) {
-    return { icon: FileText, label: "Word" };
+    return { icon: FileText, labelKey: "channel.attachmentTypeWord" };
   }
   if (
     mimeType === "application/vnd.ms-excel" ||
@@ -130,14 +146,14 @@ function getAttachmentTypeInfo(mimeType: string) {
     mimeType === "application/csv" ||
     mimeType === "application/vnd.oasis.opendocument.spreadsheet"
   ) {
-    return { icon: FileSpreadsheet, label: "Excel" };
+    return { icon: FileSpreadsheet, labelKey: "channel.attachmentTypeExcel" };
   }
   if (
     mimeType === "application/vnd.ms-powerpoint" ||
     mimeType === "application/vnd.openxmlformats-officedocument.presentationml.presentation" ||
     mimeType === "application/vnd.oasis.opendocument.presentation"
   ) {
-    return { icon: Presentation, label: "PowerPoint" };
+    return { icon: Presentation, labelKey: "channel.attachmentTypePowerPoint" };
   }
   if (
     mimeType === "application/zip" ||
@@ -145,18 +161,18 @@ function getAttachmentTypeInfo(mimeType: string) {
     mimeType === "application/vnd.rar" ||
     mimeType === "application/x-rar-compressed"
   ) {
-    return { icon: FileArchive, label: "Archive" };
+    return { icon: FileArchive, labelKey: "channel.attachmentTypeArchive" };
   }
   if (mimeType.startsWith("video/")) {
-    return { icon: FileVideo, label: "Video" };
+    return { icon: FileVideo, labelKey: "channel.attachmentTypeVideo" };
   }
   if (mimeType.startsWith("audio/")) {
-    return { icon: FileAudio, label: "Audio" };
+    return { icon: FileAudio, labelKey: "channel.attachmentTypeAudio" };
   }
   if (mimeType === "application/pdf") {
-    return { icon: FileText, label: "PDF" };
+    return { icon: FileText, labelKey: "channel.attachmentTypePdf" };
   }
-  return { icon: FileIcon, label: "File" };
+  return { icon: FileIcon, labelKey: "channel.attachmentTypeFile" };
 }
 
 function AttachmentFileCard({
@@ -168,7 +184,8 @@ function AttachmentFileCard({
   message: Message;
   onDownload: (msg: Message, att: Attachment) => void;
 }) {
-  const { icon: Icon, label } = getAttachmentTypeInfo(attachment.mimeType);
+  const { t } = useLocale();
+  const { icon: Icon, labelKey } = getAttachmentTypeInfo(attachment.mimeType);
 
   return (
     <button
@@ -181,7 +198,7 @@ function AttachmentFileCard({
       <span className="truncate font-medium text-foreground">{attachment.fileName}</span>
       <span className="shrink-0 text-muted-foreground">{formatFileSize(attachment.sizeBytes)}</span>
       <span className="shrink-0 rounded bg-primary/10 px-1 py-0.5 text-[10px] font-medium text-primary">
-        {label}
+        {t(labelKey)}
       </span>
     </button>
   );
@@ -479,12 +496,12 @@ export default function ChannelDetailPage() {
           }
         }
       } catch (err) {
-        const message =
-          err instanceof Error ? err.message : translate(getLocale(), "channel.errorLoadChannelFailed");
+        const rawMessage = err instanceof Error ? err.message : "";
+        const message = localizeApiError(err, "channel.errorLoadChannelFailed", t);
         if (!cancelled) {
           setChannel({ kind: "error", message });
           setMessages({ kind: "error", message });
-          const lower = message.toLowerCase();
+          const lower = rawMessage.toLowerCase();
           if (
             lower.includes("channel not found") ||
             lower.includes("workspace not found") ||
@@ -553,8 +570,7 @@ export default function ChannelDetailPage() {
           setMembers({ kind: "success", data: memData });
         }
       } catch (err) {
-        const message =
-          err instanceof Error ? err.message : translate(getLocale(), "channel.errorLoadMembersFailed");
+        const message = localizeApiError(err, "channel.errorLoadMembersFailed", t);
         if (!cancelled) {
           setMembers({ kind: "error", message });
         }
@@ -949,7 +965,7 @@ export default function ChannelDetailPage() {
       setEditContent("");
       updateMessageInState(msg);
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("channel.errorUpdateMessageFailed");
+      const message = localizeApiError(err, "channel.errorUpdateMessageFailed", t);
       setEditState({ kind: "error", message });
     }
   }
@@ -961,7 +977,7 @@ export default function ChannelDetailPage() {
       await deleteMessage(accessToken, workspaceId, channelId, messageId);
       removeMessageFromState(messageId);
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("channel.errorDeleteMessageFailed");
+      const message = localizeApiError(err, "channel.errorDeleteMessageFailed", t);
       alert(message);
     }
   }
@@ -976,7 +992,7 @@ export default function ChannelDetailPage() {
       const list = await listDirectConversations(accessToken);
       setForwardTargets(list.filter((c) => c.otherParticipant?.id !== user?.id));
     } catch (err) {
-      const msg = err instanceof Error ? err.message : t("channel.errorForwardFailed");
+      const msg = localizeApiError(err, "channel.errorForwardFailed", t);
       setForwardError(msg);
     } finally {
       setForwarding(false);
@@ -991,7 +1007,7 @@ export default function ChannelDetailPage() {
       await sendDirectMessage(accessToken, targetConversationId, { content: `↪ ${forwardModalMessage.content}` });
       setForwardModalMessage(null);
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("channel.errorForwardFailed");
+      const message = localizeApiError(err, "channel.errorForwardFailed", t);
       setForwardError(message);
     } finally {
       setForwarding(false);
@@ -1044,7 +1060,7 @@ export default function ChannelDetailPage() {
       composerAttachmentsRef.current = setUploaded(composerAttachmentsRef.current);
       return true;
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("channel.errorAttachmentUploadFailed");
+      const message = localizeApiError(err, "channel.errorAttachmentUploadFailed", t);
       const setFailed = (prev: ComposerAttachment[]) =>
         prev.map((a): ComposerAttachment => (a.id === id ? { ...a, status: "failed", progress: 0, error: message } : a));
       setComposerAttachments(setFailed);
@@ -1120,7 +1136,7 @@ export default function ChannelDetailPage() {
         composerTextareaRef.current?.focus();
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("channel.errorSendMessageFailed");
+      const message = localizeApiError(err, "channel.errorSendMessageFailed", t);
       setSendState({ kind: "error", message });
       requestAnimationFrame(() => composerTextareaRef.current?.focus());
     }
@@ -1396,7 +1412,7 @@ export default function ChannelDetailPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("channel.errorDownloadFailed");
+      const message = localizeApiError(err, "channel.errorDownloadFailed", t);
       alert(message);
     }
   }
@@ -1414,7 +1430,7 @@ export default function ChannelDetailPage() {
       window.dispatchEvent(new Event("channels:changed"));
       router.push(`/workspaces/${workspaceId}`);
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("channel.errorArchiveChannelFailed");
+      const message = localizeApiError(err, "channel.errorArchiveChannelFailed", t);
       setArchiveState({ kind: "error", message });
     }
   }
@@ -1432,7 +1448,7 @@ export default function ChannelDetailPage() {
       window.dispatchEvent(new Event("channels:changed"));
       router.push(`/workspaces/${workspaceId}`);
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("channel.errorLeaveChannelFailed");
+      const message = localizeApiError(err, "channel.errorLeaveChannelFailed", t);
       setLeaveState({ kind: "error", message });
     }
   }
@@ -1458,7 +1474,7 @@ export default function ChannelDetailPage() {
       setAddMemberState({ kind: "success" });
       window.setTimeout(() => setAddMemberState({ kind: "idle" }), 2000);
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("channel.errorSendInvitationFailed");
+      const message = localizeApiError(err, "channel.errorSendInvitationFailed", t);
       setAddMemberState({ kind: "error", message });
     }
   }
@@ -1476,7 +1492,7 @@ export default function ChannelDetailPage() {
         return { kind: "success", data: prev.data.filter((m) => m.id !== memberId) };
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("channel.errorRemoveMemberFailed");
+      const message = localizeApiError(err, "channel.errorRemoveMemberFailed", t);
       setRemoveMemberState({ kind: "error", message });
     }
   }

@@ -268,7 +268,7 @@ describe("ProfilePage — authenticated", () => {
     await userEvent.type(screen.getByPlaceholderText(/Your display name/i), "a".repeat(81));
     await userEvent.click(screen.getByRole("button", { name: /^Save$/i }));
 
-    expect(await screen.findByText(/Too long/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Failed to update display name/i)).toBeInTheDocument();
   });
 
   it("has a back link to dashboard", async () => {
@@ -481,7 +481,7 @@ describe("ProfilePage — authenticated", () => {
       await userEvent.click(screen.getByRole("button", { name: /Українська/i }));
 
       await waitFor(() => {
-        expect(screen.getByText(/Server error/i)).toBeInTheDocument();
+        expect(screen.getByText(/Failed to save language preference/i)).toBeInTheDocument();
       });
 
       expect(localStorage.getItem("lets-chat:locale")).toBe("en");
@@ -562,7 +562,7 @@ describe("ProfilePage — authenticated", () => {
       await userEvent.type(screen.getByPlaceholderText(/you@example.com/i), "taken@example.com");
       await userEvent.click(screen.getByRole("button", { name: /Request change/i }));
 
-      expect(await screen.findByText(/Email already in use/i)).toBeInTheDocument();
+      expect(await screen.findByText(/Email change failed/i)).toBeInTheDocument();
     });
   });
 });
@@ -788,7 +788,7 @@ describe("ProfilePage — sessions", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText(/Network error/i)).toBeInTheDocument();
+      expect(screen.getByText(/Failed to load sessions/i)).toBeInTheDocument();
     });
     expect(screen.queryByText(/Active sessions:/i)).not.toBeInTheDocument();
   });
@@ -962,7 +962,7 @@ describe("ProfilePage — sessions", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /Revoke all other sessions/i }));
 
-    expect(await screen.findByText(/Server error/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Failed to revoke other sessions/i)).toBeInTheDocument();
   });
 
   it("disables revoke button for current session and shows badge", async () => {

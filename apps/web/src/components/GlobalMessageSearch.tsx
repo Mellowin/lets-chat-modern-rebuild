@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Search, X, Loader2 } from "lucide-react";
 import { useLocale } from "@/lib/locale";
+import { localizeApiError } from "@/lib/api-errors";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -87,7 +88,7 @@ export default function GlobalMessageSearch() {
         setNextCursor(data.nextCursor);
         setStatus("success");
       } catch (err) {
-        const msg = err instanceof Error ? err.message : t("globalSearch.error");
+        const msg = localizeApiError(err, "globalSearch.error", t);
         setErrorMessage(msg);
         setStatus("error");
       } finally {

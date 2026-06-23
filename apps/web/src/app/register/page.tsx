@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { register, resendVerification } from "@/lib/auth-api";
 import { useLocale } from "@/lib/locale";
+import { localizeApiError } from "@/lib/api-errors";
 import { Button } from "@/components/ui/Button";
 import {
   Card,
@@ -87,8 +88,10 @@ export default function RegisterPage() {
       });
       setFormState({ kind: "success", email: data.email });
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("auth.registrationFailed");
-      setFormState({ kind: "error", message });
+      setFormState({
+        kind: "error",
+        message: localizeApiError(err, "auth.registrationFailed", t),
+      });
     }
   }
 
@@ -102,8 +105,10 @@ export default function RegisterPage() {
       const data = await resendVerification({ email: targetEmail });
       setFormState({ kind: "resend-success", message: data.message });
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("auth.registrationFailed");
-      setFormState({ kind: "error", message });
+      setFormState({
+        kind: "error",
+        message: localizeApiError(err, "auth.registrationFailed", t),
+      });
     }
   }
 

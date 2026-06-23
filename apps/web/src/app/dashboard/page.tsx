@@ -25,7 +25,9 @@ import {
   type PendingChannelInvite,
 } from "@/lib/channel-invites-api";
 import { slugify } from "@/lib/transliterate";
-import { useLocale, translate, getLocale } from "@/lib/locale";
+import { useLocale } from "@/lib/locale";
+import { localizeApiError } from "@/lib/api-errors";
+import { getRoleLabel } from "@/lib/labels";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Avatar } from "@/components/ui/Avatar";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
@@ -127,10 +129,7 @@ export default function DashboardPage() {
       const data = await getWorkspaces(token);
       setWorkspaces({ kind: "success", data });
     } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : translate(getLocale(), "dashboard.errorLoadWorkspacesFailed");
+      const message = localizeApiError(err, "dashboard.errorLoadWorkspacesFailed", t);
       setWorkspaces({ kind: "error", message });
     }
   }, []);
@@ -141,10 +140,7 @@ export default function DashboardPage() {
       const data = await getPendingInvites(token);
       setInvites({ kind: "success", data });
     } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : translate(getLocale(), "dashboard.errorLoadInvitesFailed");
+      const message = localizeApiError(err, "dashboard.errorLoadInvitesFailed", t);
       setInvites({ kind: "error", message });
     }
   }, []);
@@ -155,10 +151,7 @@ export default function DashboardPage() {
       const data = await getPendingChannelInvites(token);
       setChannelInvites({ kind: "success", data });
     } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : translate(getLocale(), "dashboard.errorLoadChannelInvitesFailed");
+      const message = localizeApiError(err, "dashboard.errorLoadChannelInvitesFailed", t);
       setChannelInvites({ kind: "error", message });
     }
   }, []);
@@ -169,10 +162,7 @@ export default function DashboardPage() {
       const data = await listArchivedWorkspaces(token);
       setArchivedWorkspaces({ kind: "success", data });
     } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : translate(getLocale(), "dashboard.errorLoadArchivedWorkspacesFailed");
+      const message = localizeApiError(err, "dashboard.errorLoadArchivedWorkspacesFailed", t);
       setArchivedWorkspaces({ kind: "error", message });
     }
   }, []);
@@ -216,8 +206,7 @@ export default function DashboardPage() {
       await loadWorkspaces(accessToken);
       window.dispatchEvent(new Event("workspaces:changed"));
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : t("dashboard.errorCreateWorkspaceFailed");
+      const message = localizeApiError(err, "dashboard.errorCreateWorkspaceFailed", t);
       setCreateState({ kind: "error", message });
     }
   }
@@ -243,8 +232,7 @@ export default function DashboardPage() {
       await loadWorkspaces(accessToken);
       window.dispatchEvent(new Event("workspaces:changed"));
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : t("dashboard.errorArchiveWorkspaceFailed");
+      const message = localizeApiError(err, "dashboard.errorArchiveWorkspaceFailed", t);
       setArchiveError(message);
     }
   }
@@ -259,8 +247,7 @@ export default function DashboardPage() {
       window.dispatchEvent(new Event("workspaces:changed"));
       router.push(`/workspaces/${workspaceId}`);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : t("dashboard.errorAcceptInviteFailed");
+      const message = localizeApiError(err, "dashboard.errorAcceptInviteFailed", t);
       setInviteActionError(message);
     }
   }
@@ -273,8 +260,7 @@ export default function DashboardPage() {
       await declineInvite(accessToken, inviteId);
       await loadPendingInvites(accessToken);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : t("dashboard.errorDeclineInviteFailed");
+      const message = localizeApiError(err, "dashboard.errorDeclineInviteFailed", t);
       setInviteActionError(message);
     }
   }
@@ -292,10 +278,7 @@ export default function DashboardPage() {
       window.dispatchEvent(new Event("channels:changed"));
       router.push(`/workspaces/${workspaceId}/channels/${channelId}`);
     } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : t("dashboard.errorAcceptChannelInviteFailed");
+      const message = localizeApiError(err, "dashboard.errorAcceptChannelInviteFailed", t);
       setChannelInviteActionError(message);
     }
   }
@@ -308,10 +291,7 @@ export default function DashboardPage() {
       await declineChannelInvite(accessToken, inviteId);
       await loadPendingChannelInvites(accessToken);
     } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : t("dashboard.errorDeclineChannelInviteFailed");
+      const message = localizeApiError(err, "dashboard.errorDeclineChannelInviteFailed", t);
       setChannelInviteActionError(message);
     }
   }
@@ -334,8 +314,7 @@ export default function DashboardPage() {
       await loadArchivedWorkspaces(accessToken);
       window.dispatchEvent(new Event("workspaces:changed"));
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : t("dashboard.errorRestoreWorkspaceFailed");
+      const message = localizeApiError(err, "dashboard.errorRestoreWorkspaceFailed", t);
       setRestoreError(message);
     }
   }
@@ -473,7 +452,7 @@ export default function DashboardPage() {
                           : `@${inv.invitedBy.username}`}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {t("dashboard.joinAs")} {inv.role}
+                        {t("dashboard.joinAs")} {getRoleLabel(inv.role, t)}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
@@ -543,7 +522,7 @@ export default function DashboardPage() {
                           : `@${inv.invitedBy.username}`}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {t("dashboard.joinAs")} {inv.role}
+                        {t("dashboard.joinAs")} {getRoleLabel(inv.role, t)}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">

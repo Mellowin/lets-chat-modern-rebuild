@@ -503,7 +503,104 @@ export type TranslationKey =
   | "workspace.searchFailed"
   | "workspace.searchQueryTooShort"
   | "workspace.noMessagesFound"
-  | "workspace.searching";
+  | "workspace.searching"
+  | "channel.attachmentTypeImage"
+  | "channel.attachmentTypePdf"
+  | "channel.attachmentTypeWord"
+  | "channel.attachmentTypeExcel"
+  | "channel.attachmentTypePowerPoint"
+  | "channel.attachmentTypeArchive"
+  | "channel.attachmentTypeVideo"
+  | "channel.attachmentTypeAudio"
+  | "channel.attachmentTypeFile"
+  | "workspace.inviteStatusPending"
+  | "workspace.inviteStatusRevoked"
+  | "workspace.inviteStatusExpired"
+  | "workspace.inviteStatusAccepted"
+  | "invite.title"
+  | "errors.generic"
+  | "errors.validationFailed"
+  | "errors.unauthorized"
+  | "errors.forbidden"
+  | "errors.notFound"
+  | "errors.internalServerError"
+  | "errors.networkError"
+  | "errors.invalidCredentials"
+  | "errors.emailNotVerified"
+  | "errors.userNotFound"
+  | "errors.emailAlreadyExists"
+  | "errors.workspaceNotFound"
+  | "errors.channelNotFound"
+  | "errors.conversationNotFound"
+  | "errors.inviteExpiredOrInvalid"
+  | "errors.currentPasswordIncorrect"
+  | "errors.newPasswordMustDiffer"
+  | "errors.tooManyRequests"
+  | "home.description"
+  | "home.projectStatus"
+  | "home.backendStatus"
+  | "home.verifyApi"
+  | "home.checking"
+  | "home.checkApiHealth"
+  | "home.clickToCheck"
+  | "home.contactingBackend"
+  | "home.healthy"
+  | "home.degraded"
+  | "home.environment"
+  | "home.database"
+  | "home.uptime"
+  | "home.timestamp"
+  | "home.unreachable"
+  | "home.makeSureBackend"
+  | "home.unknownError"
+  | "projectStatus.backToHome"
+  | "projectStatus.title"
+  | "projectStatus.subtitle"
+  | "projectStatus.activeDevelopment"
+  | "projectStatus.inProgressNote"
+  | "projectStatus.bestViewedAs"
+  | "projectStatus.portfolioDescription"
+  | "projectStatus.currentProductionStatus"
+  | "projectStatus.webDeployed"
+  | "projectStatus.apiDeployed"
+  | "projectStatus.emailsDelivered"
+  | "projectStatus.databaseRunning"
+  | "projectStatus.whatWorks"
+  | "projectStatus.userRegistration"
+  | "projectStatus.loginLogout"
+  | "projectStatus.passwordReset"
+  | "projectStatus.profileManagement"
+  | "projectStatus.sessionManagement"
+  | "projectStatus.workspacesChannels"
+  | "projectStatus.realTimeMessaging"
+  | "projectStatus.messageFeatures"
+  | "projectStatus.directMessages"
+  | "projectStatus.resendDelivery"
+  | "projectStatus.productionSmoke"
+  | "projectStatus.inProgressPlanned"
+  | "projectStatus.fileAttachments"
+  | "projectStatus.messageSearch"
+  | "projectStatus.slugUrls"
+  | "projectStatus.e2eTests"
+  | "projectStatus.uiPolish"
+  | "projectStatus.techStack"
+  | "projectStatus.frontend"
+  | "projectStatus.backend"
+  | "projectStatus.email"
+  | "projectStatus.storage"
+  | "projectStatus.auth"
+  | "projectStatus.deployment"
+  | "projectStatus.frontendValue"
+  | "projectStatus.backendValue"
+  | "projectStatus.emailValue"
+  | "projectStatus.storageValue"
+  | "projectStatus.authValue"
+  | "projectStatus.deploymentValue"
+  | "projectStatus.productionLinks"
+  | "projectStatus.appLinkLabel"
+  | "projectStatus.apiHealthLabel"
+  | "projectStatus.apiDocsLabel"
+  | "projectStatus.sourceLabel";
 
 const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string) => string)>> = {
   en: {
@@ -993,6 +1090,103 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "workspace.searchQueryTooShort": "Search query must be at least 2 characters.",
     "workspace.noMessagesFound": "No messages found.",
     "workspace.searching": "Searching…",
+    "channel.attachmentTypeImage": "Image",
+    "channel.attachmentTypePdf": "PDF",
+    "channel.attachmentTypeWord": "Word",
+    "channel.attachmentTypeExcel": "Excel",
+    "channel.attachmentTypePowerPoint": "PowerPoint",
+    "channel.attachmentTypeArchive": "Archive",
+    "channel.attachmentTypeVideo": "Video",
+    "channel.attachmentTypeAudio": "Audio",
+    "channel.attachmentTypeFile": "File",
+    "workspace.inviteStatusPending": "Pending",
+    "workspace.inviteStatusRevoked": "Revoked",
+    "workspace.inviteStatusExpired": "Expired",
+    "workspace.inviteStatusAccepted": "Accepted",
+    "invite.title": "Invite",
+    "errors.generic": "Something went wrong. Please try again.",
+    "errors.validationFailed": "Please check the entered data and try again.",
+    "errors.unauthorized": "You need to sign in to continue.",
+    "errors.forbidden": "You don’t have permission to do this.",
+    "errors.notFound": "The requested item was not found.",
+    "errors.internalServerError": "Server error. Please try again later.",
+    "errors.networkError": "Network error. Please check your connection.",
+    "errors.invalidCredentials": "Invalid email or password.",
+    "errors.emailNotVerified": "Please verify your email before signing in.",
+    "errors.userNotFound": "User not found.",
+    "errors.emailAlreadyExists": "This email is already registered.",
+    "errors.workspaceNotFound": "Workspace not found.",
+    "errors.channelNotFound": "Channel not found.",
+    "errors.conversationNotFound": "Conversation not found.",
+    "errors.inviteExpiredOrInvalid": "Invite link is invalid or expired.",
+    "errors.currentPasswordIncorrect": "Current password is incorrect.",
+    "errors.newPasswordMustDiffer": "New password must differ from current.",
+    "errors.tooManyRequests": "Too many requests. Please wait a moment.",
+    "home.description": "Secure team collaboration platform. Backend infrastructure is bootstrapped and ready.",
+    "home.projectStatus": "Project status",
+    "home.backendStatus": "Backend Status",
+    "home.verifyApi": "Verify the API is reachable",
+    "home.checking": "Checking…",
+    "home.checkApiHealth": "Check API Health",
+    "home.clickToCheck": "Click the button to run a health check against /health.",
+    "home.contactingBackend": "Contacting backend…",
+    "home.healthy": "Healthy",
+    "home.degraded": "Degraded",
+    "home.environment": "Environment",
+    "home.database": "Database",
+    "home.uptime": "Uptime",
+    "home.timestamp": "Timestamp",
+    "home.unreachable": "Unreachable",
+    "home.makeSureBackend": "Make sure the backend is running on {arg0}.",
+    "home.unknownError": "Unknown error occurred",
+    "projectStatus.backToHome": "Back to home",
+    "projectStatus.title": "Project Status",
+    "projectStatus.subtitle": "lets-chat — a modern, secure team collaboration platform.",
+    "projectStatus.activeDevelopment": "Active development",
+    "projectStatus.inProgressNote": "This project is actively in development. Not all planned features are implemented yet.",
+    "projectStatus.bestViewedAs": "Best viewed as",
+    "projectStatus.portfolioDescription": "Portfolio piece / active development project demonstrating full-stack engineering, real-time systems, auth security, and production deployment practices.",
+    "projectStatus.currentProductionStatus": "Current production status",
+    "projectStatus.webDeployed": "Web deployed on Vercel",
+    "projectStatus.apiDeployed": "API deployed on Render",
+    "projectStatus.emailsDelivered": "Emails delivered via Resend",
+    "projectStatus.databaseRunning": "Database running on PostgreSQL",
+    "projectStatus.whatWorks": "What already works",
+    "projectStatus.userRegistration": "User registration with email verification",
+    "projectStatus.loginLogout": "Login, logout, and access/refresh token rotation",
+    "projectStatus.passwordReset": "Password reset and authenticated password change",
+    "projectStatus.profileManagement": "Profile management: display name, avatar, interface language, email change",
+    "projectStatus.sessionManagement": "Session management: list active sessions and revoke all sessions",
+    "projectStatus.workspacesChannels": "Workspaces and channels with auto-generated slugs",
+    "projectStatus.realTimeMessaging": "Real-time messaging via Socket.io",
+    "projectStatus.messageFeatures": "Message editing, deletion, replies, forwarding, and reactions",
+    "projectStatus.directMessages": "Direct messages between users",
+    "projectStatus.resendDelivery": "Resend email delivery for auth flows",
+    "projectStatus.productionSmoke": "Post-deploy production smoke checks",
+    "projectStatus.inProgressPlanned": "In progress / planned",
+    "projectStatus.fileAttachments": "File attachments in messages",
+    "projectStatus.messageSearch": "Message search",
+    "projectStatus.slugUrls": "Slug-based public URLs",
+    "projectStatus.e2eTests": "Expanded E2E test coverage",
+    "projectStatus.uiPolish": "UI polish and accessibility improvements",
+    "projectStatus.techStack": "Tech stack",
+    "projectStatus.frontend": "Frontend",
+    "projectStatus.backend": "Backend",
+    "projectStatus.email": "Email",
+    "projectStatus.storage": "Storage",
+    "projectStatus.auth": "Auth",
+    "projectStatus.deployment": "Deployment",
+    "projectStatus.frontendValue": "Next.js 16, React 19, Tailwind CSS, TypeScript",
+    "projectStatus.backendValue": "NestJS, Prisma, PostgreSQL, Socket.io",
+    "projectStatus.emailValue": "Resend",
+    "projectStatus.storageValue": "S3-compatible (MinIO)",
+    "projectStatus.authValue": "JWT access + refresh tokens, sessionStorage",
+    "projectStatus.deploymentValue": "Vercel (web), Render (API)",
+    "projectStatus.productionLinks": "Production links",
+    "projectStatus.appLinkLabel": "App:",
+    "projectStatus.apiHealthLabel": "API health:",
+    "projectStatus.apiDocsLabel": "API docs (Swagger):",
+    "projectStatus.sourceLabel": "Source:",
   },
   uk: {
     "header.profile": "Профіль",
@@ -1481,6 +1675,103 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "workspace.searchQueryTooShort": "Запит має містити щонайменше 2 символи.",
     "workspace.noMessagesFound": "Повідомлень не знайдено.",
     "workspace.searching": "Шукаємо…",
+    "channel.attachmentTypeImage": "Зображення",
+    "channel.attachmentTypePdf": "PDF",
+    "channel.attachmentTypeWord": "Word",
+    "channel.attachmentTypeExcel": "Excel",
+    "channel.attachmentTypePowerPoint": "PowerPoint",
+    "channel.attachmentTypeArchive": "Архів",
+    "channel.attachmentTypeVideo": "Відео",
+    "channel.attachmentTypeAudio": "Аудіо",
+    "channel.attachmentTypeFile": "Файл",
+    "workspace.inviteStatusPending": "Очікує",
+    "workspace.inviteStatusRevoked": "Скасовано",
+    "workspace.inviteStatusExpired": "Термін дії минув",
+    "workspace.inviteStatusAccepted": "Прийнято",
+    "invite.title": "Запрошення",
+    "errors.generic": "Щось пішло не так. Спробуйте ще раз.",
+    "errors.validationFailed": "Перевірте введені дані та спробуйте ще раз.",
+    "errors.unauthorized": "Увійдіть, щоб продовжити.",
+    "errors.forbidden": "У вас немає дозволу на цю дію.",
+    "errors.notFound": "Запитаний елемент не знайдено.",
+    "errors.internalServerError": "Помилка сервера. Спробуйте пізніше.",
+    "errors.networkError": "Помилка мережі. Перевірте з’єднання.",
+    "errors.invalidCredentials": "Неправильний email або пароль.",
+    "errors.emailNotVerified": "Будь ласка, підтвердьте email перед входом.",
+    "errors.userNotFound": "Користувача не знайдено.",
+    "errors.emailAlreadyExists": "Цей email уже зареєстрований.",
+    "errors.workspaceNotFound": "Робочий простір не знайдено.",
+    "errors.channelNotFound": "Канал не знайдено.",
+    "errors.conversationNotFound": "Розмову не знайдено.",
+    "errors.inviteExpiredOrInvalid": "Посилання недійсне або термін його дії минув.",
+    "errors.currentPasswordIncorrect": "Поточний пароль невірний.",
+    "errors.newPasswordMustDiffer": "Новий пароль має відрізнятися від поточного.",
+    "errors.tooManyRequests": "Забагато запитів. Зачекайте трохи.",
+    "home.description": "Безпечна платформа для командної співпраці. Бекенд-інфраструктура готова до роботи.",
+    "home.projectStatus": "Статус проєкту",
+    "home.backendStatus": "Статус бекенду",
+    "home.verifyApi": "Перевірте доступність API",
+    "home.checking": "Перевіряємо…",
+    "home.checkApiHealth": "Перевірити стан API",
+    "home.clickToCheck": "Натисніть кнопку, щоб запустити перевірку /health.",
+    "home.contactingBackend": "Зв’язуємося з бекендом…",
+    "home.healthy": "Працює",
+    "home.degraded": "Працює з обмеженнями",
+    "home.environment": "Середовище",
+    "home.database": "База даних",
+    "home.uptime": "Час роботи",
+    "home.timestamp": "Мітка часу",
+    "home.unreachable": "Недоступний",
+    "home.makeSureBackend": "Переконайтеся, що бекенд запущено на {arg0}.",
+    "home.unknownError": "Сталася невідома помилка",
+    "projectStatus.backToHome": "Назад додому",
+    "projectStatus.title": "Статус проєкту",
+    "projectStatus.subtitle": "lets-chat — сучасна безпечна платформа для командної співпраці.",
+    "projectStatus.activeDevelopment": "Активна розробка",
+    "projectStatus.inProgressNote": "Проєкт активно розробляється. Не всі заплановані функції вже реалізовані.",
+    "projectStatus.bestViewedAs": "Найкраще підходить як",
+    "projectStatus.portfolioDescription": "Портфоліо / проєкт у активній розробці, що демонструє повноцінну інженерію, real-time системи, безпеку автентифікації та практики продакшен-деплою.",
+    "projectStatus.currentProductionStatus": "Поточний продакшен-статус",
+    "projectStatus.webDeployed": "Веб задеплоєно на Vercel",
+    "projectStatus.apiDeployed": "API задеплоєно на Render",
+    "projectStatus.emailsDelivered": "Листи надсилаються через Resend",
+    "projectStatus.databaseRunning": "База даних працює на PostgreSQL",
+    "projectStatus.whatWorks": "Що вже працює",
+    "projectStatus.userRegistration": "Реєстрація користувачів із підтвердженням email",
+    "projectStatus.loginLogout": "Вхід, вихід і ротація access/refresh токенів",
+    "projectStatus.passwordReset": "Скидання пароля та зміна пароля після автентифікації",
+    "projectStatus.profileManagement": "Керування профілем: відображуване ім’я, аватар, мова інтерфейсу, зміна email",
+    "projectStatus.sessionManagement": "Керування сесіями: перегляд активних сесій і відкликання всіх сесій",
+    "projectStatus.workspacesChannels": "Робочі простори та канали з автоматично згенерованими slug",
+    "projectStatus.realTimeMessaging": "Обмін повідомленнями в реальному часі через Socket.io",
+    "projectStatus.messageFeatures": "Редагування, видалення, відповіді, пересилання повідомлень і реакції",
+    "projectStatus.directMessages": "Особисті повідомлення між користувачами",
+    "projectStatus.resendDelivery": "Доставка листів через Resend для авторизаційних сценаріїв",
+    "projectStatus.productionSmoke": "Постдеплойні smoke-перевірки продакшену",
+    "projectStatus.inProgressPlanned": "У процесі / заплановано",
+    "projectStatus.fileAttachments": "Файлові вкладення в повідомленнях",
+    "projectStatus.messageSearch": "Пошук повідомлень",
+    "projectStatus.slugUrls": "Публічні URL на основі slug",
+    "projectStatus.e2eTests": "Розширене E2E-тестування",
+    "projectStatus.uiPolish": "Полірування UI та покращення доступності",
+    "projectStatus.techStack": "Технологічний стек",
+    "projectStatus.frontend": "Фронтенд",
+    "projectStatus.backend": "Бекенд",
+    "projectStatus.email": "Email",
+    "projectStatus.storage": "Сховище",
+    "projectStatus.auth": "Авторизація",
+    "projectStatus.deployment": "Деплой",
+    "projectStatus.frontendValue": "Next.js 16, React 19, Tailwind CSS, TypeScript",
+    "projectStatus.backendValue": "NestJS, Prisma, PostgreSQL, Socket.io",
+    "projectStatus.emailValue": "Resend",
+    "projectStatus.storageValue": "S3-сумісне (MinIO)",
+    "projectStatus.authValue": "JWT access + refresh токени, sessionStorage",
+    "projectStatus.deploymentValue": "Vercel (web), Render (API)",
+    "projectStatus.productionLinks": "Продакшен-посилання",
+    "projectStatus.appLinkLabel": "Застосунок:",
+    "projectStatus.apiHealthLabel": "Стан API:",
+    "projectStatus.apiDocsLabel": "Документація API (Swagger):",
+    "projectStatus.sourceLabel": "Джерело:",
   },
   ru: {
     "header.profile": "Профиль",
@@ -1969,6 +2260,103 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "workspace.searchQueryTooShort": "Запрос должен содержать минимум 2 символа.",
     "workspace.noMessagesFound": "Сообщений не найдено.",
     "workspace.searching": "Ищем…",
+    "channel.attachmentTypeImage": "Изображение",
+    "channel.attachmentTypePdf": "PDF",
+    "channel.attachmentTypeWord": "Word",
+    "channel.attachmentTypeExcel": "Excel",
+    "channel.attachmentTypePowerPoint": "PowerPoint",
+    "channel.attachmentTypeArchive": "Архив",
+    "channel.attachmentTypeVideo": "Видео",
+    "channel.attachmentTypeAudio": "Аудио",
+    "channel.attachmentTypeFile": "Файл",
+    "workspace.inviteStatusPending": "Ожидает",
+    "workspace.inviteStatusRevoked": "Отозвано",
+    "workspace.inviteStatusExpired": "Срок действия истёк",
+    "workspace.inviteStatusAccepted": "Принято",
+    "invite.title": "Приглашение",
+    "errors.generic": "Что-то пошло не так. Попробуйте ещё раз.",
+    "errors.validationFailed": "Проверьте введённые данные и попробуйте ещё раз.",
+    "errors.unauthorized": "Войдите, чтобы продолжить.",
+    "errors.forbidden": "У вас нет прав на это действие.",
+    "errors.notFound": "Запрашиваемый элемент не найден.",
+    "errors.internalServerError": "Ошибка сервера. Попробуйте позже.",
+    "errors.networkError": "Ошибка сети. Проверьте подключение.",
+    "errors.invalidCredentials": "Неверный email или пароль.",
+    "errors.emailNotVerified": "Пожалуйста, подтвердите email перед входом.",
+    "errors.userNotFound": "Пользователь не найден.",
+    "errors.emailAlreadyExists": "Этот email уже зарегистрирован.",
+    "errors.workspaceNotFound": "Рабочее пространство не найдено.",
+    "errors.channelNotFound": "Канал не найден.",
+    "errors.conversationNotFound": "Разговор не найден.",
+    "errors.inviteExpiredOrInvalid": "Ссылка недействительна или срок её действия истёк.",
+    "errors.currentPasswordIncorrect": "Текущий пароль неверен.",
+    "errors.newPasswordMustDiffer": "Новый пароль должен отличаться от текущего.",
+    "errors.tooManyRequests": "Слишком много запросов. Подождите немного.",
+    "home.description": "Безопасная платформа для командного взаимодействия. Бэкенд-инфраструктура готова к работе.",
+    "home.projectStatus": "Статус проекта",
+    "home.backendStatus": "Статус бэкенда",
+    "home.verifyApi": "Проверьте доступность API",
+    "home.checking": "Проверяем…",
+    "home.checkApiHealth": "Проверить состояние API",
+    "home.clickToCheck": "Нажмите кнопку, чтобы запустить проверку /health.",
+    "home.contactingBackend": "Связываемся с бэкендом…",
+    "home.healthy": "Работает",
+    "home.degraded": "Работает с ограничениями",
+    "home.environment": "Среда",
+    "home.database": "База данных",
+    "home.uptime": "Время работы",
+    "home.timestamp": "Метка времени",
+    "home.unreachable": "Недоступен",
+    "home.makeSureBackend": "Убедитесь, что бэкенд запущен на {arg0}.",
+    "home.unknownError": "Произошла неизвестная ошибка",
+    "projectStatus.backToHome": "Назад домой",
+    "projectStatus.title": "Статус проекта",
+    "projectStatus.subtitle": "lets-chat — современная безопасная платформа для командного взаимодействия.",
+    "projectStatus.activeDevelopment": "Активная разработка",
+    "projectStatus.inProgressNote": "Проект активно разрабатывается. Не все запланированные функции уже реализованы.",
+    "projectStatus.bestViewedAs": "Лучше всего подходит как",
+    "projectStatus.portfolioDescription": "Портфолио / проект в активной разработке, демонстрирующий full-stack инженерию, real-time системы, безопасность аутентификации и практики продакшен-деплоя.",
+    "projectStatus.currentProductionStatus": "Текущий продакшен-статус",
+    "projectStatus.webDeployed": "Веб развёрнут на Vercel",
+    "projectStatus.apiDeployed": "API развёрнуто на Render",
+    "projectStatus.emailsDelivered": "Письма отправляются через Resend",
+    "projectStatus.databaseRunning": "База данных работает на PostgreSQL",
+    "projectStatus.whatWorks": "Что уже работает",
+    "projectStatus.userRegistration": "Регистрация пользователей с подтверждением email",
+    "projectStatus.loginLogout": "Вход, выход и ротация access/refresh токенов",
+    "projectStatus.passwordReset": "Сброс пароля и изменение пароля после аутентификации",
+    "projectStatus.profileManagement": "Управление профилем: отображаемое имя, аватар, язык интерфейса, смена email",
+    "projectStatus.sessionManagement": "Управление сессиями: просмотр активных сессий и отзыв всех сессий",
+    "projectStatus.workspacesChannels": "Рабочие пространства и каналы с автоматически созданными slug",
+    "projectStatus.realTimeMessaging": "Обмен сообщениями в реальном времени через Socket.io",
+    "projectStatus.messageFeatures": "Редактирование, удаление, ответы, пересылка сообщений и реакции",
+    "projectStatus.directMessages": "Личные сообщения между пользователями",
+    "projectStatus.resendDelivery": "Доставка писем через Resend для авторизационных сценариев",
+    "projectStatus.productionSmoke": "Постдеплойные smoke-проверки продакшена",
+    "projectStatus.inProgressPlanned": "В процессе / запланировано",
+    "projectStatus.fileAttachments": "Файловые вложения в сообщениях",
+    "projectStatus.messageSearch": "Поиск сообщений",
+    "projectStatus.slugUrls": "Публичные URL на основе slug",
+    "projectStatus.e2eTests": "Расширенное E2E-тестирование",
+    "projectStatus.uiPolish": "Полировка UI и улучшение доступности",
+    "projectStatus.techStack": "Технологический стек",
+    "projectStatus.frontend": "Фронтенд",
+    "projectStatus.backend": "Бэкенд",
+    "projectStatus.email": "Email",
+    "projectStatus.storage": "Хранилище",
+    "projectStatus.auth": "Авторизация",
+    "projectStatus.deployment": "Деплой",
+    "projectStatus.frontendValue": "Next.js 16, React 19, Tailwind CSS, TypeScript",
+    "projectStatus.backendValue": "NestJS, Prisma, PostgreSQL, Socket.io",
+    "projectStatus.emailValue": "Resend",
+    "projectStatus.storageValue": "S3-совместимое (MinIO)",
+    "projectStatus.authValue": "JWT access + refresh токены, sessionStorage",
+    "projectStatus.deploymentValue": "Vercel (web), Render (API)",
+    "projectStatus.productionLinks": "Продакшен-ссылки",
+    "projectStatus.appLinkLabel": "Приложение:",
+    "projectStatus.apiHealthLabel": "Состояние API:",
+    "projectStatus.apiDocsLabel": "Документация API (Swagger):",
+    "projectStatus.sourceLabel": "Источник:",
   },
 };
 

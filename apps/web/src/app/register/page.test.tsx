@@ -162,7 +162,7 @@ describe("RegisterPage", () => {
     await userEvent.type(screen.getByLabelText(/^Password$/i), "password123");
     await userEvent.click(screen.getByRole("button", { name: /Create account/i }));
 
-    expect(await screen.findByText(/Email already in use/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Registration failed/i)).toBeInTheDocument();
     expect(loginSuccessMock).not.toHaveBeenCalled();
     expect(pushMock).not.toHaveBeenCalled();
   });
