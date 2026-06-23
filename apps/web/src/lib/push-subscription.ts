@@ -79,14 +79,22 @@ export async function subscribeToPush(accessToken: string): Promise<void> {
   // Wait for the service worker to become active before subscribing. Calling
   // pushManager.subscribe on a registration without an active worker fails in
   // fresh browser profiles/incognito contexts.
-  await navigator.serviceWorker.ready;
+  const readyRegistration = await navigator.serviceWorker.ready;
+  let attempts = 0;
+  while (readyRegistration.active?.state !== "activated" && attempts < 50) {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    attempts++;
+  }
+  if (readyRegistration.active?.state !== "activated") {
+    throw new Error("Service worker did not activate in time.");
+  }
 
-  const existing = await registration.pushManager.getSubscription();
+  const existing = await readyRegistration.pushManager.getSubscription();
   if (existing) {
     await existing.unsubscribe();
   }
 
-  const subscription = await registration.pushManager.subscribe({
+  const subscription = await readyRegistration.pushManager.subscribe({
     userVisibleOnly: true,
     applicationServerKey: urlBase64ToArrayBuffer(publicKey),
   });
