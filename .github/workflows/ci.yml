@@ -134,7 +134,7 @@ jobs:
           APP_WEB_URL: 'http://localhost:3000'
         run: |
           set -o pipefail
-          pnpm --filter api test:e2e -- --verbose 2>&1 | tee e2e-output.log
+          pnpm --filter api test:e2e 2>&1 | tee e2e-output.log
 
       - name: Upload E2E failure summary
         if: failure() && steps.e2e.outcome == 'failure'
