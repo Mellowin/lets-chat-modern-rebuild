@@ -20,6 +20,16 @@ Portfolio guidance:
 - [`docs/interview-notes.md`](docs/interview-notes.md) — resume bullets and interview talking points.
 - [`docs/job-application-kit.md`](docs/job-application-kit.md) — copy-paste content for resumes, cover letters, and recruiter emails.
 - [`docs/final-project-review.md`](docs/final-project-review.md) — final audit, architecture review, and release notes.
+- [`docs/project-story.md`](docs/project-story.md) — 30-second and 2-minute project story.
+- [`docs/interview-answers.md`](docs/interview-answers.md) — common interview answers in English and Ukrainian.
+
+### For Recruiters
+
+- **Live demo:** https://lets-chat-web.vercel.app
+- **Screenshots:** see below or [`docs/portfolio-media/screenshots/`](docs/portfolio-media/screenshots/).
+- **Project story:** [`docs/project-story.md`](docs/project-story.md)
+- **Resume bullets:** [`docs/resume-project-blocks.md`](docs/resume-project-blocks.md)
+- **Interview notes:** [`docs/interview-notes.md`](docs/interview-notes.md)
 
 ---
 

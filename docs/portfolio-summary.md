@@ -81,7 +81,7 @@
 |---|---|
 | API unit tests | 802 (35 suites) |
 | Web unit + page tests | 692 (31 files) |
-| E2E smoke tests | 7 (local-only, needs Docker PostgreSQL) |
+| E2E smoke tests | 7 (CI + local, PostgreSQL service container) |
 
 - GitHub Actions runs lint, typecheck, tests, and builds on every push.
 - Render deploy hook fires only after green CI; Render Auto-Deploy is disabled.
@@ -138,7 +138,7 @@ Portfolio-safe screenshots are stored in `docs/portfolio-media/screenshots/` (op
 
 - Render free tier cold start can take ~1 minute after idle.
 - Real Gmail email delivery depends on a verified Resend sender domain; otherwise auth emails fall back to console/dev mode.
-- E2E tests run locally only; CI does not yet spin up PostgreSQL for them.
+
 
 ---
 
@@ -175,7 +175,7 @@ Portfolio-safe screenshots are stored in `docs/portfolio-media/screenshots/` (op
 
 ### What Would Be Improved Next
 
-- Integrate E2E tests into CI with a PostgreSQL service container.
+
 - Record a short portfolio demo video walking through the recruiter demo path.
 - Add push/browser notifications for mentions and DMs.
 - Add message pagination / virtualized lists for very large channels.

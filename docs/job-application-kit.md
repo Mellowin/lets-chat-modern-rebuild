@@ -186,3 +186,15 @@ Before sending anything from this kit, update:
 - `[Your LinkedIn / portfolio URL]` — your public profile.
 
 Everything else is ready to copy-paste as-is.
+
+---
+
+## More Job-Search Docs
+
+- [`resume-project-blocks.md`](resume-project-blocks.md) — resume blocks in EN/UK/RU.
+- [`github-profile-kit.md`](github-profile-kit.md) — GitHub repo description, topics, profile README block.
+- [`job-platform-profile-kit.md`](job-platform-profile-kit.md) — LinkedIn, Djinni, DOU profile text.
+- [`recruiter-messages.md`](recruiter-messages.md) — LinkedIn/email messages.
+- [`interview-answers.md`](interview-answers.md) — common interview answers.
+- [`project-story.md`](project-story.md) — 30-second and 2-minute story.
+- [`application-checklist.md`](application-checklist.md) — pre-application and daily routine checklist.

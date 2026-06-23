@@ -53,7 +53,7 @@ Concise bullets and talking points for resumes, portfolio reviews, and interview
 - File type and size validation with per-category limits.
 - Cyrillic filename support across uploads and downloads.
 - Automated smoke deploy and attachment verification scripts.
-- CI pipeline with lint, typecheck, tests, builds, migration, and Render deploy hook.
+- CI pipeline with lint, typecheck, tests, API E2E tests on PostgreSQL, builds, migration, and Render deploy hook.
 
 ---
 
@@ -102,7 +102,7 @@ Concise bullets and talking points for resumes, portfolio reviews, and interview
 ## Known Limitations to Mention
 
 - Render free tier cold start (~1 minute after idle).
-- E2E tests run locally only; CI does not yet spin up PostgreSQL for them.
+
 - Real email delivery depends on a verified Resend sender domain.
 - Presence is in-memory; scaling across multiple API instances would need Redis.
 
