@@ -34,17 +34,38 @@ function handlePush(event) {
 function handleNotificationClick(event) {
   event.notification.close();
 
+  const data = event.notification.data || {};
+  let url = data.url;
+  if (!url) {
+    if (data.type === 'direct_message' && data.conversationId) {
+      url = `/direct/${data.conversationId}`;
+    } else if (
+      data.type === 'channel_message' &&
+      data.workspaceId &&
+      data.channelId
+    ) {
+      url = `/workspaces/${data.workspaceId}/channels/${data.channelId}`;
+    } else {
+      url = '/';
+    }
+  }
+
   event.waitUntil(
     self.clients
       .matchAll({ type: 'window', includeUncontrolled: true })
       .then((clientList) => {
-        for (const client of clientList) {
-          if (client.url && 'focus' in client) {
-            return client.focus();
-          }
+        const existing = clientList.find(
+          (client) => client.url && client.url.includes(url) && 'focus' in client,
+        );
+        if (existing) {
+          return existing.focus();
+        }
+        const firstClient = clientList[0];
+        if (firstClient && 'navigate' in firstClient) {
+          return firstClient.navigate(url);
         }
         if (self.clients.openWindow) {
-          return self.clients.openWindow('/');
+          return self.clients.openWindow(url);
         }
       }),
   );
