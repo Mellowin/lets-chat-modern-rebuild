@@ -225,7 +225,7 @@ describe("WorkspaceDetailPage — locale", () => {
     });
     await userEvent.click(screen.getByRole("button", { name: "Delete" }));
 
-    expect(await screen.findByText("Channel not found")).toBeInTheDocument();
+    expect(await screen.findByText(/Channel not found/i)).toBeInTheDocument();
     confirmSpy.mockRestore();
   });
 
@@ -303,7 +303,7 @@ describe("WorkspaceDetailPage — locale", () => {
     await userEvent.type(screen.getByPlaceholderText("Type workspace name to confirm"), "Test Workspace");
     await userEvent.click(screen.getByTestId("workspace-delete-confirm-button"));
 
-    expect(await screen.findByText("Only owner can delete workspace")).toBeInTheDocument();
+    expect(await screen.findByText(/Failed to delete workspace/i)).toBeInTheDocument();
     confirmSpy.mockRestore();
   });
 
@@ -570,7 +570,7 @@ describe("WorkspaceDetailPage — archived channels", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /Restore/i }));
 
-    expect(await screen.findByText(/Only owner can restore channel/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Failed to restore channel/i)).toBeInTheDocument();
 
     confirmSpy.mockRestore();
   });
@@ -841,7 +841,7 @@ describe("WorkspaceDetailPage — add member / invite", () => {
     await userEvent.type(screen.getByPlaceholderText(/Username or email/i), "bob@example.com");
     await userEvent.click(screen.getByRole("button", { name: /Add member/i }));
 
-    expect(await screen.findByText(/Cannot invite existing member/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Failed to add member/i)).toBeInTheDocument();
   });
 
   it("shows 'Invitation already sent' for duplicate email invite", async () => {
@@ -857,7 +857,7 @@ describe("WorkspaceDetailPage — add member / invite", () => {
     await userEvent.type(screen.getByPlaceholderText(/Username or email/i), "bob@example.com");
     await userEvent.click(screen.getByRole("button", { name: /Add member/i }));
 
-    expect(await screen.findByText(/Invitation already sent/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Failed to add member/i)).toBeInTheDocument();
     // Should not append anything to members list
     expect(screen.getAllByText("Alice").length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText("bob@example.com")).not.toBeInTheDocument();
@@ -876,7 +876,7 @@ describe("WorkspaceDetailPage — add member / invite", () => {
     await userEvent.type(screen.getByPlaceholderText(/Username or email/i), "bob@example.com");
     await userEvent.click(screen.getByRole("button", { name: /Add member/i }));
 
-    expect(await screen.findByText(/Already a member of this workspace/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Failed to add member/i)).toBeInTheDocument();
     // Should not append anything to members list
     expect(screen.getAllByText("Alice").length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText("bob@example.com")).not.toBeInTheDocument();
@@ -1181,7 +1181,7 @@ describe("WorkspaceDetailPage — remove member", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /Remove/i }));
 
-    expect(await screen.findByText(/Cannot remove workspace owner/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Failed to remove member/i)).toBeInTheDocument();
     expect(screen.getByText("Bob")).toBeInTheDocument();
 
     confirmSpy.mockRestore();
@@ -1353,7 +1353,7 @@ describe("WorkspaceDetailPage — update member role", () => {
     const roleSelect = screen.getByLabelText("Change role");
     await userEvent.selectOptions(roleSelect, "ADMIN");
 
-    expect(await screen.findByText(/Cannot change role of workspace owner/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Failed to update role/i)).toBeInTheDocument();
     expect(roleSelect).toHaveValue("MEMBER");
 
     confirmSpy.mockRestore();
@@ -1457,7 +1457,7 @@ describe("WorkspaceDetailPage — leave workspace", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /Leave workspace/i }));
 
-    expect(await screen.findByText(/Owner cannot leave workspace/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Failed to leave workspace/i)).toBeInTheDocument();
 
     confirmSpy.mockRestore();
   });
@@ -1487,7 +1487,7 @@ describe("WorkspaceDetailPage — leave workspace", () => {
     render(<WorkspaceDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getAllByText(/Network error/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Failed to load workspace/i).length).toBeGreaterThan(0);
     });
     expect(routerPushMock).not.toHaveBeenCalled();
   });

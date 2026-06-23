@@ -389,7 +389,7 @@ describe("ChannelDetailPage — composer", () => {
     await userEvent.type(screen.getByPlaceholderText(/Type a message/i), "Secret");
     await userEvent.click(screen.getByRole("button", { name: /Send/i }));
 
-    expect(await screen.findByText(/Forbidden/i)).toBeInTheDocument();
+    expect(await screen.findByText(/permission to do this/i)).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/Type a message/i)).toHaveValue("Secret");
   });
 
@@ -920,7 +920,7 @@ describe("ChannelDetailPage — edit/delete", () => {
       expect(deleteMessage).toHaveBeenCalledWith("token", "ws1", "ch1", "m1");
     });
 
-    expect(window.alert).toHaveBeenCalledWith("Forbidden");
+    expect(window.alert).toHaveBeenCalledWith(expect.stringMatching(/permission to do this/i));
     expect(screen.getByText("Hello")).toBeInTheDocument();
   });
 });
@@ -1540,7 +1540,7 @@ describe("ChannelDetailPage — members", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /Leave channel/i }));
 
-    expect(await screen.findByText(/Owner cannot leave channel/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Failed to leave channel/i)).toBeInTheDocument();
     confirmSpy.mockRestore();
   });
 
@@ -1598,7 +1598,7 @@ describe("ChannelDetailPage — members", () => {
     await userEvent.type(screen.getByPlaceholderText(/Username or email/i), "bob");
     await userEvent.click(screen.getByRole("button", { name: /Add/i }));
 
-    expect(await screen.findByText(/Already a member of this channel/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Failed to send invitation/i)).toBeInTheDocument();
   });
 
   it("OWNER selecting ADMIN sends role ADMIN via createChannelInvite", async () => {
@@ -1711,7 +1711,7 @@ describe("ChannelDetailPage — members", () => {
     await userEvent.type(screen.getByPlaceholderText(/Username or email/i), "unknown");
     await userEvent.click(screen.getByRole("button", { name: /Add/i }));
 
-    expect(await screen.findByText(/User must be a workspace member first/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Failed to send invitation/i)).toBeInTheDocument();
   });
 });
 
@@ -1909,7 +1909,7 @@ describe("ChannelDetailPage — remove member", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /Remove/i }));
 
-    expect(await screen.findByText(/Member not found/i)).toBeInTheDocument();
+    expect(await screen.findByText(/requested item was not found/i)).toBeInTheDocument();
   });
 
   it("cancel confirm does not call API", async () => {
@@ -1993,7 +1993,7 @@ describe("ChannelDetailPage — access lost redirect", () => {
     render(<ChannelDetailPage />);
 
     await waitFor(() => {
-      expect(screen.getAllByText(/Network error/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Failed to load channel/i).length).toBeGreaterThan(0);
     });
     expect(routerPushMock).not.toHaveBeenCalled();
   });
@@ -2608,7 +2608,7 @@ describe("ChannelDetailPage — replies", () => {
     await userEvent.type(screen.getByPlaceholderText(/Type a message/i), "My reply");
     await userEvent.click(screen.getByRole("button", { name: /Send/i }));
 
-    expect(await screen.findByText(/Forbidden/i)).toBeInTheDocument();
+    expect(await screen.findByText(/permission to do this/i)).toBeInTheDocument();
     expect(screen.getByText(/Replying to/i)).toBeInTheDocument();
   });
 
@@ -3155,7 +3155,7 @@ describe("ChannelDetailPage — forward", () => {
     await userEvent.click(screen.getByTestId("channel-forward-action-m1"));
 
     await waitFor(() => {
-      expect(screen.getByText("Network error")).toBeInTheDocument();
+      expect(screen.getByText(/Failed to forward message/i)).toBeInTheDocument();
     });
   });
 

@@ -127,7 +127,7 @@ export default function WorkspaceDetailPage() {
     }
     loadPrimary(accessToken, workspaceId);
     return () => { cancelled = true; };
-  }, [isAuthenticated, accessToken, workspaceId, router]);
+  }, [isAuthenticated, accessToken, workspaceId, router, t]);
 
   useEffect(() => {
     if (!isAuthenticated || !workspaceId) return;
@@ -150,7 +150,7 @@ export default function WorkspaceDetailPage() {
     }
     loadMembers(accessToken, workspaceId);
     return () => { cancelled = true; };
-  }, [isAuthenticated, accessToken, workspaceId]);
+  }, [isAuthenticated, accessToken, workspaceId, t]);
 
   useEffect(() => {
     if (!isAuthenticated || !workspaceId) return;
@@ -173,7 +173,7 @@ export default function WorkspaceDetailPage() {
     }
     loadArchived(accessToken, workspaceId);
     return () => { cancelled = true; };
-  }, [isAuthenticated, accessToken, workspaceId]);
+  }, [isAuthenticated, accessToken, workspaceId, t]);
 
   async function handleCreateChannel(e: React.FormEvent) {
     e.preventDefault();

@@ -132,7 +132,7 @@ export default function DashboardPage() {
       const message = localizeApiError(err, "dashboard.errorLoadWorkspacesFailed", t);
       setWorkspaces({ kind: "error", message });
     }
-  }, []);
+  }, [t]);
 
   const loadPendingInvites = useCallback(async (token: string) => {
     setInvites({ kind: "loading" });
@@ -143,7 +143,7 @@ export default function DashboardPage() {
       const message = localizeApiError(err, "dashboard.errorLoadInvitesFailed", t);
       setInvites({ kind: "error", message });
     }
-  }, []);
+  }, [t]);
 
   const loadPendingChannelInvites = useCallback(async (token: string) => {
     setChannelInvites({ kind: "loading" });
@@ -154,7 +154,7 @@ export default function DashboardPage() {
       const message = localizeApiError(err, "dashboard.errorLoadChannelInvitesFailed", t);
       setChannelInvites({ kind: "error", message });
     }
-  }, []);
+  }, [t]);
 
   const loadArchivedWorkspaces = useCallback(async (token: string) => {
     setArchivedWorkspaces({ kind: "loading" });
@@ -165,7 +165,7 @@ export default function DashboardPage() {
       const message = localizeApiError(err, "dashboard.errorLoadArchivedWorkspacesFailed", t);
       setArchivedWorkspaces({ kind: "error", message });
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (!isAuthenticated) return;

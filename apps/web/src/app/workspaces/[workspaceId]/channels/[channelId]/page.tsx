@@ -33,7 +33,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
-import { useLocale, type TranslationKey } from "@/lib/locale";
+import { useLocale } from "@/lib/locale";
 import { localizeApiError } from "@/lib/api-errors";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
@@ -521,7 +521,7 @@ export default function ChannelDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, workspaceId, channelId, accessToken, router]);
+  }, [isAuthenticated, workspaceId, channelId, accessToken, router, t]);
 
   useEffect(() => {
     if (!isAuthenticated || !workspaceId || !channelId || !accessToken) return;
@@ -580,7 +580,7 @@ export default function ChannelDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, workspaceId, channelId, accessToken]);
+  }, [isAuthenticated, workspaceId, channelId, accessToken, t]);
 
   useEffect(() => {
     if (!isAuthenticated || !workspaceId || !channelId) return;
