@@ -132,6 +132,20 @@ Group permissions are independent of workspace/channel roles.
 | `group:message:create` | Y | Y | Send a text message; archived groups block sends. |
 | `group:message:read` | Y | Y | List group messages. |
 | `group:read:write` | Y | Y | Mark own read watermark. |
+| `group:invite:create` | Y | N | Create invite links for the group. |
+| `group:invite:revoke` | Y | N | Revoke group invite links. |
+| `group:invite:accept` | Y | Y | Accept a valid group invite link. |
+
+### 2.8 Contact Permissions
+
+Contacts are private to each owner; there is no shared/friend-request model in MVP.
+
+| Permission | Owner | Notes |
+|------------|:-----:|-------|
+| `contact:list` | Y | List own active contacts only. |
+| `contact:create` | Y | Add a contact by `userId`, `email`, or `username`. Cannot add self. |
+| `contact:delete` | Y | Soft-delete own contact. Does not affect DMs. |
+| `contact:start-dm` | Y | Start or return existing DM with an active contact. |
 
 ---
 

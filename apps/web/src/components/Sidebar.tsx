@@ -124,6 +124,8 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
     ? pathname.split("/")[2]
     : null;
 
+  const activeContacts = pathname?.startsWith("/contacts") ?? false;
+
   const { user } = useAuth();
   const socketRef = useRef<ReturnType<typeof createSocket> | null>(null);
   const joinedChannelRoomsRef = useRef<Set<string>>(new Set());
@@ -614,6 +616,24 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
   const activeItem = "bg-gradient-to-r from-sidebar-active to-sidebar-active/90 text-sidebar-active-foreground font-semibold shadow-sm ring-1 ring-white/10";
   const hoverItem = "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-sm";
 
+  const contactsSection = (
+    <div data-testid="sidebar-contacts-section">
+      <Link
+        href="/contacts"
+        data-testid="sidebar-contacts-link"
+        data-active={activeContacts ? "true" : undefined}
+        className={`${baseItem} gap-1.5 ${
+          activeContacts
+            ? activeItem
+            : `text-sidebar-foreground/90 ${hoverItem}`
+        }`}
+      >
+        <Users size={14} />
+        <span>{t("sidebar.contacts")}</span>
+      </Link>
+    </div>
+  );
+
   const groupsSection = (
     <div data-testid="sidebar-groups-section">
       {groupsSectionHeader}
@@ -857,13 +877,15 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
           <>
             {directSection}
             {groupsSection}
+            {contactsSection}
             {workspacesSection}
           </>
         ) : (
           <>
             {workspacesSection}
-            {groupsSection}
             {directSection}
+            {groupsSection}
+            {contactsSection}
           </>
         )}
       </div>

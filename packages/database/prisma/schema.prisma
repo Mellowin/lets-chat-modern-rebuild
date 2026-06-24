@@ -101,6 +101,9 @@ model User {
   groupMemberships               GroupMember[]
   groupMessages                  GroupMessage[]
   pushSubscriptions              PushSubscription[]
+  ownerContacts                  UserContact[]                 @relation("ContactOwner")
+  contactOf                      UserContact[]                 @relation("ContactTarget")
+  createdGroupInvites            GroupInviteLink[]             @relation("GroupInviteCreator")
 
   @@index([email])
   @@index([username])
@@ -489,6 +492,24 @@ model DirectMessageReaction {
   @@index([userId])
 }
 
+model UserContact {
+  id            String    @id @default(uuid()) @db.Uuid
+  ownerUserId   String    @db.Uuid
+  contactUserId String    @db.Uuid
+  nickname      String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  owner       User @relation("ContactOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  contactUser User @relation("ContactTarget", fields: [contactUserId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerUserId, contactUserId])
+  @@index([ownerUserId])
+  @@index([contactUserId])
+  @@index([ownerUserId, deletedAt])
+}
+
 model GroupConversation {
   id          String    @id @default(uuid()) @db.Uuid
   name        String
@@ -497,9 +518,10 @@ model GroupConversation {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  createdBy User           @relation(fields: [createdById], references: [id], onDelete: Cascade)
-  members   GroupMember[]
-  messages  GroupMessage[]
+  createdBy  User            @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  members    GroupMember[]
+  messages   GroupMessage[]
+  inviteLinks GroupInviteLink[]
 
   @@index([updatedAt])
   @@index([archivedAt])
@@ -521,6 +543,27 @@ model GroupMember {
   @@index([groupId])
   @@index([userId])
   @@index([groupId, userId])
+}
+
+model GroupInviteLink {
+  id          String    @id @default(uuid()) @db.Uuid
+  groupId     String    @db.Uuid
+  tokenHash   String    @unique
+  createdById String    @db.Uuid
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  maxUses     Int?
+  useCount    Int       @default(0)
+  roleOnJoin  GroupRole @default(MEMBER)
+
+  group     GroupConversation @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  createdBy User              @relation("GroupInviteCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+  @@index([createdById])
+  @@index([groupId, revokedAt, expiresAt])
 }
 
 model GroupMessage {

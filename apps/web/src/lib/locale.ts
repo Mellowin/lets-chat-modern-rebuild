@@ -676,7 +676,57 @@ export type TranslationKey =
   | "profile.pwaManualInstructions"
   | "profile.installingApp"
   | "profile.installAppAccepted"
-  | "profile.installAppDismissed";
+  | "profile.installAppDismissed"
+  | "contacts.title"
+  | "contacts.subtitle"
+  | "contacts.searchPeople"
+  | "contacts.searchPlaceholder"
+  | "contacts.addContact"
+  | "contacts.removeContact"
+  | "contacts.startChat"
+  | "contacts.noContacts"
+  | "contacts.noContactsDescription"
+  | "contacts.contactAdded"
+  | "contacts.contactRemoved"
+  | "contacts.alreadyInContacts"
+  | "contacts.cannotAddYourself"
+  | "contacts.searchQueryTooShort"
+  | "contacts.searching"
+  | "contacts.noUsersFound"
+  | "contacts.failedLoadContacts"
+  | "contacts.failedAddContact"
+  | "contacts.failedRemoveContact"
+  | "contacts.failedStartDm"
+  | "contacts.email"
+  | "contacts.username"
+  | "sidebar.contacts"
+  | "groupInvites.createInviteLink"
+  | "groupInvites.inviteLink"
+  | "groupInvites.copyInviteLink"
+  | "groupInvites.copied"
+  | "groupInvites.revokeInvite"
+  | "groupInvites.inviteRevoked"
+  | "groupInvites.failedCreateInvite"
+  | "groupInvites.failedLoadInvites"
+  | "groupInvites.failedRevokeInvite"
+  | "groupInvites.inviteLinkDescription"
+  | "groupInvites.inviteLinkCreated"
+  | "groupInvites.noInvites"
+  | "groupInvites.active"
+  | "groupInvites.expired"
+  | "groupInvites.revoked"
+  | "groupInvites.uses"
+  | "groupInvite.title"
+  | "groupInvite.invitedToJoinGroup"
+  | "groupInvite.acceptInvite"
+  | "groupInvite.acceptingInvite"
+  | "groupInvite.inviteAccepted"
+  | "groupInvite.invalidOrExpired"
+  | "groupInvite.signInToAccept"
+  | "groupInvite.goToGroup"
+  | "groupInvite.goToLogin"
+  | "groupInvite.acceptFailed"
+  | "groupInvite.loadingInvite";
 
 const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string) => string)>> = {
   en: {
@@ -1339,6 +1389,56 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.installingApp": "Installing…",
     "profile.installAppAccepted": "Installation started.",
     "profile.installAppDismissed": "Installation dismissed.",
+    "contacts.title": "Contacts",
+    "contacts.subtitle": "Find people and start chatting.",
+    "contacts.searchPeople": "Search people",
+    "contacts.searchPlaceholder": "Search by username or email…",
+    "contacts.addContact": "Add contact",
+    "contacts.removeContact": "Remove contact",
+    "contacts.startChat": "Start chat",
+    "contacts.noContacts": "No contacts yet.",
+    "contacts.noContactsDescription": "Search for people and add them to your contacts.",
+    "contacts.contactAdded": "Contact added.",
+    "contacts.contactRemoved": "Contact removed.",
+    "contacts.alreadyInContacts": "This user is already in your contacts.",
+    "contacts.cannotAddYourself": "You cannot add yourself as a contact.",
+    "contacts.searchQueryTooShort": "Search query must be at least 2 characters.",
+    "contacts.searching": "Searching…",
+    "contacts.noUsersFound": "No users found.",
+    "contacts.failedLoadContacts": "Failed to load contacts",
+    "contacts.failedAddContact": "Failed to add contact",
+    "contacts.failedRemoveContact": "Failed to remove contact",
+    "contacts.failedStartDm": "Failed to start chat",
+    "contacts.email": "Email",
+    "contacts.username": "Username",
+    "sidebar.contacts": "Contacts",
+    "groupInvites.createInviteLink": "Create invite link",
+    "groupInvites.inviteLink": "Invite link",
+    "groupInvites.copyInviteLink": "Copy link",
+    "groupInvites.copied": "Copied!",
+    "groupInvites.revokeInvite": "Revoke",
+    "groupInvites.inviteRevoked": "Invite revoked.",
+    "groupInvites.failedCreateInvite": "Failed to create invite link",
+    "groupInvites.failedLoadInvites": "Failed to load invite links",
+    "groupInvites.failedRevokeInvite": "Failed to revoke invite link",
+    "groupInvites.inviteLinkDescription": "Anyone with this link can join the group as a member.",
+    "groupInvites.inviteLinkCreated": "Invite link created. Copy and share it.",
+    "groupInvites.noInvites": "No invite links yet.",
+    "groupInvites.active": "Active",
+    "groupInvites.expired": "Expired",
+    "groupInvites.revoked": "Revoked",
+    "groupInvites.uses": "uses",
+    "groupInvite.title": "Group invite",
+    "groupInvite.invitedToJoinGroup": "You have been invited to join a group",
+    "groupInvite.acceptInvite": "Accept invite",
+    "groupInvite.acceptingInvite": "Accepting invite…",
+    "groupInvite.inviteAccepted": "Invite accepted",
+    "groupInvite.invalidOrExpired": "This invite link is invalid or expired.",
+    "groupInvite.signInToAccept": "Sign in to accept this invite.",
+    "groupInvite.goToGroup": "Go to group",
+    "groupInvite.goToLogin": "Go to login",
+    "groupInvite.acceptFailed": "Could not accept invite",
+    "groupInvite.loadingInvite": "Loading invite…",
   },
   uk: {
     "header.profile": "Профіль",
@@ -2000,6 +2100,56 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.installingApp": "Встановлюємо…",
     "profile.installAppAccepted": "Встановлення розпочато.",
     "profile.installAppDismissed": "Встановлення скасовано.",
+    "contacts.title": "Контакти",
+    "contacts.subtitle": "Знаходьте людей і починайте спілкування.",
+    "contacts.searchPeople": "Пошук людей",
+    "contacts.searchPlaceholder": "Шукати за іменем користувача або email…",
+    "contacts.addContact": "Додати контакт",
+    "contacts.removeContact": "Вилучити контакт",
+    "contacts.startChat": "Почати чат",
+    "contacts.noContacts": "Контактів ще немає.",
+    "contacts.noContactsDescription": "Знайдіть людей і додайте їх до контактів.",
+    "contacts.contactAdded": "Контакт додано.",
+    "contacts.contactRemoved": "Контакт вилучено.",
+    "contacts.alreadyInContacts": "Цей користувач уже є у ваших контактах.",
+    "contacts.cannotAddYourself": "Ви не можете додати себе до контактів.",
+    "contacts.searchQueryTooShort": "Запит має містити щонайменше 2 символи.",
+    "contacts.searching": "Шукаємо…",
+    "contacts.noUsersFound": "Користувачів не знайдено.",
+    "contacts.failedLoadContacts": "Не вдалося завантажити контакти",
+    "contacts.failedAddContact": "Не вдалося додати контакт",
+    "contacts.failedRemoveContact": "Не вдалося вилучити контакт",
+    "contacts.failedStartDm": "Не вдалося почати чат",
+    "contacts.email": "Email",
+    "contacts.username": "Імʼя користувача",
+    "sidebar.contacts": "Контакти",
+    "groupInvites.createInviteLink": "Створити посилання для запрошення",
+    "groupInvites.inviteLink": "Посилання для запрошення",
+    "groupInvites.copyInviteLink": "Копіювати посилання",
+    "groupInvites.copied": "Скопійовано!",
+    "groupInvites.revokeInvite": "Скасувати",
+    "groupInvites.inviteRevoked": "Запрошення скасовано.",
+    "groupInvites.failedCreateInvite": "Не вдалося створити посилання",
+    "groupInvites.failedLoadInvites": "Не вдалося завантажити посилання",
+    "groupInvites.failedRevokeInvite": "Не вдалося скасувати посилання",
+    "groupInvites.inviteLinkDescription": "Будь-хто з цим посиланням може приєднатися до групи як учасник.",
+    "groupInvites.inviteLinkCreated": "Посилання створено. Скопіюйте та поділіться ним.",
+    "groupInvites.noInvites": "Посилання ще немає.",
+    "groupInvites.active": "Активне",
+    "groupInvites.expired": "Термін дії минув",
+    "groupInvites.revoked": "Скасовано",
+    "groupInvites.uses": "використань",
+    "groupInvite.title": "Запрошення до групи",
+    "groupInvite.invitedToJoinGroup": "Вас запросили приєднатися до групи",
+    "groupInvite.acceptInvite": "Прийняти запрошення",
+    "groupInvite.acceptingInvite": "Прийняття запрошення…",
+    "groupInvite.inviteAccepted": "Запрошення прийнято",
+    "groupInvite.invalidOrExpired": "Це посилання недійсне або термін його дії минув.",
+    "groupInvite.signInToAccept": "Увійдіть, щоб прийняти запрошення.",
+    "groupInvite.goToGroup": "Перейти до групи",
+    "groupInvite.goToLogin": "Увійти",
+    "groupInvite.acceptFailed": "Не вдалося прийняти запрошення",
+    "groupInvite.loadingInvite": "Завантаження запрошення…",
   },
   ru: {
     "header.profile": "Профиль",
@@ -2661,6 +2811,56 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.installingApp": "Устанавливаем…",
     "profile.installAppAccepted": "Установка началась.",
     "profile.installAppDismissed": "Установка отменена.",
+    "contacts.title": "Контакты",
+    "contacts.subtitle": "Находите людей и начинайте общение.",
+    "contacts.searchPeople": "Поиск людей",
+    "contacts.searchPlaceholder": "Искать по имени пользователя или email…",
+    "contacts.addContact": "Добавить контакт",
+    "contacts.removeContact": "Удалить контакт",
+    "contacts.startChat": "Начать чат",
+    "contacts.noContacts": "Контактов пока нет.",
+    "contacts.noContactsDescription": "Найдите людей и добавьте их в контакты.",
+    "contacts.contactAdded": "Контакт добавлен.",
+    "contacts.contactRemoved": "Контакт удалён.",
+    "contacts.alreadyInContacts": "Этот пользователь уже есть в ваших контактах.",
+    "contacts.cannotAddYourself": "Вы не можете добавить себя в контакты.",
+    "contacts.searchQueryTooShort": "Запрос должен содержать минимум 2 символа.",
+    "contacts.searching": "Ищем…",
+    "contacts.noUsersFound": "Пользователи не найдены.",
+    "contacts.failedLoadContacts": "Не удалось загрузить контакты",
+    "contacts.failedAddContact": "Не удалось добавить контакт",
+    "contacts.failedRemoveContact": "Не удалось удалить контакт",
+    "contacts.failedStartDm": "Не удалось начать чат",
+    "contacts.email": "Email",
+    "contacts.username": "Имя пользователя",
+    "sidebar.contacts": "Контакты",
+    "groupInvites.createInviteLink": "Создать ссылку для приглашения",
+    "groupInvites.inviteLink": "Ссылка для приглашения",
+    "groupInvites.copyInviteLink": "Копировать ссылку",
+    "groupInvites.copied": "Скопировано!",
+    "groupInvites.revokeInvite": "Отозвать",
+    "groupInvites.inviteRevoked": "Приглашение отозвано.",
+    "groupInvites.failedCreateInvite": "Не удалось создать ссылку",
+    "groupInvites.failedLoadInvites": "Не удалось загрузить ссылки",
+    "groupInvites.failedRevokeInvite": "Не удалось отозвать ссылку",
+    "groupInvites.inviteLinkDescription": "Любой, у кого есть эта ссылка, может присоединиться к группе как участник.",
+    "groupInvites.inviteLinkCreated": "Ссылка создана. Скопируйте и поделитесь ею.",
+    "groupInvites.noInvites": "Ссылок пока нет.",
+    "groupInvites.active": "Активно",
+    "groupInvites.expired": "Срок действия истёк",
+    "groupInvites.revoked": "Отозвано",
+    "groupInvites.uses": "использований",
+    "groupInvite.title": "Приглашение в группу",
+    "groupInvite.invitedToJoinGroup": "Вас пригласили присоединиться к группе",
+    "groupInvite.acceptInvite": "Принять приглашение",
+    "groupInvite.acceptingInvite": "Принятие приглашения…",
+    "groupInvite.inviteAccepted": "Приглашение принято",
+    "groupInvite.invalidOrExpired": "Эта ссылка недействительна или срок её действия истёк.",
+    "groupInvite.signInToAccept": "Войдите, чтобы принять приглашение.",
+    "groupInvite.goToGroup": "Перейти в группу",
+    "groupInvite.goToLogin": "Войти",
+    "groupInvite.acceptFailed": "Не удалось принять приглашение",
+    "groupInvite.loadingInvite": "Загрузка приглашения…",
   },
 };
 

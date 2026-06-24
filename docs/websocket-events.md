@@ -564,6 +564,8 @@ io.to('user:user-uuid').emit('group:conversation:updated', {
 });
 ```
 
+**Triggers:** group rename, archive, member add/remove, and **successful group invite link acceptance** (so existing members see the new member in the group list without refetching).
+
 ### 6.4 Group Member Removed
 
 ```typescript

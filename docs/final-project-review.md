@@ -30,6 +30,8 @@
 - **Workspaces** — multi-tenant teams with OWNER / ADMIN / MEMBER roles.
 - **Channels** — public and private; private channels return `404` to non-members.
 - **Direct Messages** — 1-to-1 conversations with participant-only access.
+- **Group Chats** — standalone multi-member conversations outside workspaces, with owner/member roles, expiring invite links, unread counts, and real-time delivery.
+- **Contacts** — private per-user contact list for quick user discovery and one-click DM creation.
 - **Real-time messaging** — create / update / delete / reaction events via Socket.io rooms.
 - **Replies & Forwarding** — thread replies and message forwarding between channels.
 - **Read receipts & unread counters** — per-message seen status, channel/DM unread badges, global unread summary in tab title.
@@ -47,7 +49,7 @@
 - Owner-only destructive actions for workspace/channel delete and archive.
 
 ### Engineering Quality
-- **1,500+ automated tests:** 802 API unit tests, 692 web unit + page tests, 7 E2E security smoke tests.
+- **1,600+ automated tests:** 868 API unit tests, 706 web unit + page tests, 47 E2E security smoke tests.
 - Lint, typecheck, and test gates in CI for both frontend and backend.
 - Comprehensive inline and document-level authorization unit tests.
 - Production verification scripts for public endpoints, auth flows, permissions, and browser sanity.
@@ -103,9 +105,9 @@ secure-collab-platform/
 
 | Suite | Count | Tooling |
 |---|---|---|
-| API unit tests | 802 (35 suites) | Jest |
-| Web unit + page tests | 692 (31 files) | Vitest + Testing Library |
-| E2E security smoke tests | 7 (2 suites) | Supertest (CI + local) |
+| API unit tests | 868 (40 suites) | Jest |
+| Web unit + page tests | 706 (33 files) | Vitest + Testing Library |
+| E2E security smoke tests | 47 (5 suites) | Supertest (CI + local) |
 
 - All unit and page tests pass in CI.
 - E2E tests now run in CI against a temporary PostgreSQL service container before production migration and deploy.
@@ -141,6 +143,7 @@ Runnable verification scripts are exposed as root package scripts:
 pnpm verify:prod:public        # Public endpoints + auth rejections
 pnpm verify:prod:auth          # Full registration / verify / login / refresh / logout flow
 pnpm verify:prod:permissions   # Owner vs member permission boundaries
+pnpm verify:prod:contacts      # Contacts and group invite links
 pnpm verify:prod:browser       # Playwright browser sanity checks
 pnpm verify:prod:all           # Runs all of the above
 ```

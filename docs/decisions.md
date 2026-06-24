@@ -176,3 +176,30 @@
 - Additional models and migration to maintain.
 - Global unread aggregation must include group unread counts.
 - Push notification and WebSocket event namespaces must be added for groups.
+
+---
+
+## D11. Contacts & Group Invite Links
+
+**Context:** B214 asks for user discovery/contacts and group invite links. The alternatives were a two-way friend-request system for contacts and adding members only by `userId` for groups.
+
+**Decision:**
+- Contacts are implemented as a **private, one-way `UserContact` list** with soft delete.
+  - No friend requests, no mutual visibility, no notifications.
+  - Re-adding a removed contact restores the soft-deleted row.
+  - Starting a DM requires an active contact relationship.
+- Group invite links are implemented as a separate `GroupInviteLink` model.
+  - Raw tokens are 256-bit random hex; only SHA-256 hashes are stored.
+  - Owner-only create/revoke; optional expiry and max uses.
+  - Public preview is unauthenticated and returns only group name + validity.
+  - Acceptance is idempotent for existing members and broadcasts `group:conversation:updated`.
+
+**Rationale:**
+- One-way contacts match the MVP "add people I talk to" need without the complexity of friend-request state machines.
+- Separate invite links avoid exposing `userId` values and let owners share groups organically.
+- Token hashing follows the same security pattern used for workspace invites and refresh tokens.
+
+**Consequences:**
+- New Prisma models and migration.
+- Frontend pages `/contacts` and `/group-invites/[token]` added.
+- Contacts are not used for workspace/channel access control; they are purely a UX convenience.

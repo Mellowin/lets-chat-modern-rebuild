@@ -1470,3 +1470,201 @@ Used by the create-group modal to find users to add.
 | `/groups/:groupId/messages` | POST | Bearer | Active member | Send message |
 | `/groups/:groupId/read` | POST | Bearer | Active member | Mark as read |
 | `/users/search` | GET | Bearer | Authenticated | User search |
+| `/groups/:groupId/invites` | POST | Bearer | `OWNER` | Create invite link |
+| `/groups/:groupId/invites` | GET | Bearer | `OWNER` | List invite links |
+| `/groups/:groupId/invites/:inviteId` | DELETE | Bearer | `OWNER` | Revoke invite link |
+| `/group-invites/:token` | GET | No | Public | Preview invite |
+| `/group-invites/:token/accept` | POST | Bearer | Authenticated | Accept invite and join group |
+
+---
+
+## 11. Contacts & Group Invite Links
+
+### 11.1 List My Contacts
+
+```http
+GET /contacts
+```
+
+**Permission:** Authenticated user.
+
+Returns the current user's active contacts, sorted by `createdAt DESC`.
+
+**Response 200:**
+
+```json
+[
+  {
+    "id": "uuid",
+    "ownerUserId": "uuid",
+    "contactUserId": "uuid",
+    "nickname": "Work buddy",
+    "username": "alice",
+    "displayName": "Alice Smith",
+    "avatarUrl": null,
+    "createdAt": "2026-06-24T12:00:00Z",
+    "updatedAt": "2026-06-24T12:00:00Z"
+  }
+]
+```
+
+---
+
+### 11.2 Add a Contact
+
+```http
+POST /contacts
+```
+
+**Permission:** Authenticated user.
+
+**Request:**
+
+```json
+{
+  "userId": "uuid",
+  "email": "alice@example.com",
+  "username": "alice",
+  "nickname": "Work buddy"
+}
+```
+
+At least one of `userId`, `email`, or `username` is required. Adding the same contact twice is idempotent and restores a soft-deleted row.
+
+**Errors:**
+
+- `400 BAD_REQUEST` — self-add or no identifier provided.
+- `404 NOT_FOUND` — target user not found.
+
+---
+
+### 11.3 Remove a Contact
+
+```http
+DELETE /contacts/:contactUserId
+```
+
+**Permission:** Authenticated user (owner only).
+
+Soft-deletes the contact. Existing direct conversations are not affected.
+
+**Response 200:** `{ "success": true }`
+
+---
+
+### 11.4 Start DM with a Contact
+
+```http
+POST /contacts/:contactUserId/start-dm
+```
+
+**Permission:** Authenticated user; requires an active contact.
+
+Returns the existing direct conversation or creates a new one.
+
+---
+
+### 11.5 Create Group Invite Link
+
+```http
+POST /groups/:groupId/invites
+```
+
+**Permission:** Group `OWNER` only.
+
+**Request:**
+
+```json
+{
+  "expiresInHours": 24,
+  "maxUses": 10
+}
+```
+
+Both fields are optional. Default expiry is 7 days.
+
+**Response 201:**
+
+```json
+{
+  "id": "uuid",
+  "groupId": "uuid",
+  "token": "64-char-hex-token",
+  "expiresAt": "2026-06-25T12:00:00Z",
+  "maxUses": 10,
+  "createdAt": "2026-06-24T12:00:00Z"
+}
+```
+
+**Errors:**
+
+- `403 FORBIDDEN` — not the group owner.
+- `404 NOT_FOUND` — group not found or archived.
+- `400 BAD_REQUEST` — `expiresInHours` not positive.
+
+---
+
+### 11.6 List Group Invite Links
+
+```http
+GET /groups/:groupId/invites
+```
+
+**Permission:** Group `OWNER` only.
+
+Returns invite links with a `valid` boolean computed from `revokedAt`, `expiresAt`, `maxUses`, and `useCount`. Raw tokens are not returned.
+
+---
+
+### 11.7 Revoke Group Invite Link
+
+```http
+DELETE /groups/:groupId/invites/:inviteId
+```
+
+**Permission:** Group `OWNER` only.
+
+Sets `revokedAt`. Does not delete the row.
+
+**Response 200:** `{ "id": "uuid", "revokedAt": "2026-06-24T12:00:00Z" }`
+
+---
+
+### 11.8 Preview Group Invite Link
+
+```http
+GET /group-invites/:token
+```
+
+**Permission:** None (public).
+
+Returns safe metadata only.
+
+**Response 200:**
+
+```json
+{
+  "groupName": "Weekend trip",
+  "expiresAt": "2026-06-25T12:00:00Z",
+  "valid": true
+}
+```
+
+---
+
+### 11.9 Accept Group Invite Link
+
+```http
+POST /group-invites/:token/accept
+```
+
+**Permission:** Authenticated user.
+
+Joins the group as `MEMBER` if not already a member. Idempotent for existing members.
+
+**Errors:**
+
+- `401 UNAUTHORIZED` — missing/invalid token.
+- `404 NOT_FOUND` — invite or group not found.
+- `410 GONE` — invite revoked, expired, or max uses reached.
+

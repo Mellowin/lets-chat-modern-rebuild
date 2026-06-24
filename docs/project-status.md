@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-06-24 (B213 group chats complete)  
+> Last updated: 2026-06-24 (B214 contacts & group invites complete)  
 > Code checkpoint: `main`  
 > Docs checkpoint: `main`
 >
@@ -508,6 +508,39 @@ Use these steps to verify core functionality after deploy or before release:
 - **Production verification:** `node scripts/verify-production-groups.mjs`.
 - **Docs:** [`docs/group-chats.md`](group-chats.md).
 - **Why separate models:** group chats were implemented as their own Prisma domain rather than extending direct conversations or workspace channels. This keeps DM and workspace logic untouched, lets the feature ship with a minimal OWNER/MEMBER permission model, and avoids polluting channel search, invites, and workspace membership with group-only semantics.
+
+## B214. Contacts & Group Invite Links
+
+- **Goal** — let users build a private contact list for quick discovery and enable group owners to invite people via shareable, expiring token links.
+- **Scope:**
+  - Backend:
+    - `ContactsModule` (`apps/api/src/contacts/`) with controller, service, repository, DTO, and `UserContact` Prisma model.
+    - `GroupInvitesService` + `GroupInvitesRepository` + `GroupInvitesController` for group invite link lifecycle.
+    - New Prisma model `GroupInviteLink` with SHA-256 token hash storage, optional expiry, optional max uses, revocation, and use counter.
+  - REST endpoints:
+    - `GET /contacts`, `POST /contacts`, `DELETE /contacts/:contactUserId`, `POST /contacts/:contactUserId/start-dm`.
+    - `POST /groups/:groupId/invites`, `GET /groups/:groupId/invites`, `DELETE /groups/:groupId/invites/:inviteId` (owner only).
+    - `GET /group-invites/:token` (public preview), `POST /group-invites/:token/accept` (authenticated).
+  - Frontend:
+    - New `/contacts` page with user search, add/remove, and start-DM actions.
+    - `GroupSettingsModal` invite-link section for owner create/copy/revoke/list.
+    - New `/group-invites/[token]` public accept page.
+    - Sidebar Contacts link between Groups and Workspaces.
+  - Localization: EN/UK/RU keys for `contacts.*`, `groupInvites.*`, `groupInvite.*`, and `sidebar.contacts`.
+- **Security & privacy:**
+  - Contacts are private per owner; listing is strictly scoped.
+  - Adding self or non-existent users is rejected; re-adding restores a soft-deleted contact.
+  - Only group owners can create/list/revoke invite links.
+  - Raw invite tokens are 256-bit random hex; only SHA-256 hashes are stored.
+  - Revoked/expired/max-used/archived-group invites are rejected on accept.
+  - Public preview leaks only group name, expiry, and validity flag.
+- **Migration:** `20260624180000_add_contacts_and_group_invites`.
+- **Tests:**
+  - API unit: `apps/api/src/contacts/contacts.service.spec.ts` (10 tests), `apps/api/src/groups/group-invites.service.spec.ts` (13 tests).
+  - API E2E: `apps/api/test/contacts.e2e-spec.ts` (11 tests), `apps/api/test/group-invites.e2e-spec.ts` (12 tests).
+- **Production verification:** `pnpm verify:prod:contacts` (`scripts/verify-production-contacts.mjs`).
+- **Docs:** [`docs/contacts-and-invites.md`](contacts-and-invites.md).
+- **Known limitation:** No local DB available during development; migration was created with `--create-only` and will be applied in CI/production.
 
 ## 9. Orphaned Attachment Cleanup
 

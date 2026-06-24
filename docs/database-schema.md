@@ -56,6 +56,9 @@ model User {
   createdGroups         GroupConversation[]
   groupMemberships      GroupMember[]
   groupMessages         GroupMessage[]
+  createdGroupInvites   GroupInviteLink[]
+  ownedContacts         UserContact[]     @relation("ContactOwner")
+  contactOf             UserContact[]     @relation("ContactTarget")
   messages              Message[]
   reactions             Reaction[]
   attachments           Attachment[]
@@ -658,7 +661,79 @@ model GroupMessage {
 
 ---
 
-### 3.17 ReadReceipt
+### 3.17 UserContact
+
+Private, one-way contact list. Soft-deleted rows are restored on re-add.
+
+```prisma
+model UserContact {
+  id            String    @id @default(uuid()) @db.Uuid
+  ownerUserId   String    @db.Uuid
+  contactUserId String    @db.Uuid
+  nickname      String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  owner   User @relation("ContactOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  contact User @relation("ContactTarget", fields: [contactUserId], references: [id], onDelete: Cascade)
+
+  @@unique([ownerUserId, contactUserId])
+  @@index([ownerUserId])
+  @@index([contactUserId])
+}
+```
+
+| Field | Type | Constraints | Index | Notes |
+|-------|------|-------------|-------|-------|
+| `id` | UUID | PK | - | - |
+| `ownerUserId` | UUID | FK, NOT NULL | B-tree composite | Part of `@@unique([ownerUserId, contactUserId])`. |
+| `contactUserId` | UUID | FK, NOT NULL | B-tree composite | - |
+| `nickname` | String | - | - | Optional display override for the owner. |
+| `deletedAt` | DateTime | - | B-tree | Soft delete; re-adding restores the row. |
+
+---
+
+### 3.18 GroupInviteLink
+
+Tokenized invite links for joining a group. Only the SHA-256 hash of the raw token is stored.
+
+```prisma
+model GroupInviteLink {
+  id          String    @id @default(uuid()) @db.Uuid
+  groupId     String    @db.Uuid
+  tokenHash   String    @unique
+  createdById String    @db.Uuid
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  maxUses     Int?
+  useCount    Int       @default(0)
+  roleOnJoin  String    @default("MEMBER")
+  createdAt   DateTime  @default(now())
+
+  group     GroupConversation @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  createdBy User              @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+  @@index([createdById])
+}
+```
+
+| Field | Type | Constraints | Index | Notes |
+|-------|------|-------------|-------|-------|
+| `id` | UUID | PK | - | - |
+| `groupId` | UUID | FK, NOT NULL | B-tree | - |
+| `tokenHash` | String | Unique, NOT NULL | B-tree unique | SHA-256 of raw token; raw token returned once at creation. |
+| `createdById` | UUID | FK, NOT NULL | B-tree | Group owner who created the link. |
+| `expiresAt` | DateTime | - | B-tree | Optional expiry. |
+| `revokedAt` | DateTime | - | B-tree | Revocation timestamp. |
+| `maxUses` | Int | - | B-tree | Optional maximum number of accepts. |
+| `useCount` | Int | NOT NULL, DEFAULT 0 | - | Number of successful accepts. |
+| `roleOnJoin` | String | NOT NULL, DEFAULT `MEMBER` | - | Role assigned on accept. |
+
+---
+
+### 3.19 ReadReceipt
 
 Per-user, per-message read tracking.
 
@@ -722,6 +797,7 @@ Channel ||--o{ Notification : "scoped"
 
 GroupConversation ||--o{ GroupMember : "has"
 GroupConversation ||--o{ GroupMessage : "contains"
+GroupConversation ||--o{ GroupInviteLink : "has"
 GroupConversation ||--o{ User : "createdBy"
 
 Message ||--o{ Message : "replies (parentId)"
@@ -756,6 +832,8 @@ Message ||--o{ Notification : "referenced"
 | GroupConversation | `archivedAt` | Hidden from lists; blocks new messages | Archive is owner-only. Data retained. |
 | GroupMember | `leftAt` | Soft removal from group | Upsert reactivates a previously removed member. |
 | GroupMessage | No | Messages are immutable in MVP | No soft-delete endpoint; only the group can be archived. |
+| UserContact | `deletedAt` | Soft delete | Re-adding restores the row. |
+| GroupInviteLink | `revokedAt` | Revocation | Revoked links cannot be accepted. |
 
 ---
 

@@ -17,7 +17,8 @@ All scripts are located in `scripts/` and are exposed as root package scripts.
 | **PWA** | `pnpm verify:prod:pwa` | Checks manifest validity, service worker presence, offline fallback, icons, and manifest link in HTML. | None | N/A |
 | **Mobile shell** | `pnpm verify:prod:mobile-shell` | Mobile viewport QA for login, dashboard, profile (notifications + app install), direct messages, workspace, and channel composer. | One disposable account, one workspace, one channel | Workspace is deleted at the end |
 | **Group chats** | `node scripts/verify-production-groups.mjs` | Group CRUD, membership, messaging, read state, and access control. | Two disposable accounts, one group | Group is archived at the end |
-| **All** | `pnpm verify:prod:all` | Runs public → auth → permissions → browser → attachments → pwa sequentially. | Same as above | Same as above |
+| **Contacts & group invites** | `pnpm verify:prod:contacts` | Contacts lifecycle/privacy and group invite link create/revoke/accept. | Three disposable accounts, one group | Group is archived at the end |
+| **All** | `pnpm verify:prod:all` | Runs public → auth → permissions → browser → attachments → contacts → pwa sequentially. | Same as above | Same as above |
 
 ---
 
@@ -116,6 +117,38 @@ node scripts/verify-production-groups.mjs
 - Owner can add and remove members.
 - Member can leave the group.
 - Owner can archive the group; archived groups no longer appear in lists.
+
+**Environment variables:**
+
+| Variable | Default | Description |
+|---|---|---|
+| `VERIFY_API_BASE` | `https://lets-chat-api-v2.onrender.com/api/v1` | API endpoint to verify against |
+| `VERIFY_PASSWORD` | random per run | Password for disposable accounts |
+
+The script archives the test group at the end and does not print tokens or passwords.
+
+---
+
+## Contacts & Group Invites Verification
+
+The dedicated verifier is `scripts/verify-production-contacts.mjs`.
+
+```bash
+pnpm verify:prod:contacts
+```
+
+**What it checks:**
+
+- Contact add by `userId` succeeds and is idempotent.
+- Contacts are private — one user cannot see another user's contacts.
+- Self-add and non-existent-user add are rejected.
+- Starting a DM from a contact works; starting a DM with a non-contact is rejected.
+- Removing a contact removes it from the owner's list.
+- Group owner can create an invite link; non-owners cannot.
+- Public invite preview is valid before acceptance.
+- A stranger can accept the invite and join the group.
+- Re-accepting is idempotent for existing members.
+- Owner can revoke an invite link; revoked links are invalid and cannot be accepted.
 
 **Environment variables:**
 

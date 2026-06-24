@@ -8,11 +8,11 @@ Ready-to-tell project pitches and a technical deep-dive for interviews and portf
 
 ### English
 
-> "I rebuilt the archived `lets-chat` project as a modern Slack-like team chat app. It has workspaces, public and private channels, direct messages, secure file attachments, global search, and multi-device session management. The backend is NestJS + PostgreSQL + Prisma, the frontend is Next.js 16 + React 19 + Tailwind CSS, and everything deploys automatically through GitHub Actions, Render, and Vercel."
+> "I rebuilt the archived `lets-chat` project as a modern Slack-like team chat app. It has workspaces, public and private channels, direct messages, group chats with invite links, a contacts list for quick discovery, secure file attachments, global search, and multi-device session management. The backend is NestJS + PostgreSQL + Prisma, the frontend is Next.js 16 + React 19 + Tailwind CSS, and everything deploys automatically through GitHub Actions, Render, and Vercel."
 
 ### Ukrainian
 
-> "Я переписав архівний проєкт `lets-chat` у сучасний командний чат, схожий на Slack. Там є робочі простори, публічні та приватні канали, особисті повідомлення, безпечні файлові вкладення, глобальний пошук і керування сесіями. Backend — NestJS + PostgreSQL + Prisma, frontend — Next.js 16 + React 19 + Tailwind CSS, а все деплоїться автоматично через GitHub Actions, Render і Vercel."
+> "Я переписав архівний проєкт `lets-chat` у сучасний командний чат, схожий на Slack. Там є робочі простори, публічні та приватні канали, особисті повідомлення, групові чати з посиланнями-запрошеннями, список контактів для швидкого пошуку, безпечні файлові вкладення, глобальний пошук і керування сесіями. Backend — NestJS + PostgreSQL + Prisma, frontend — Next.js 16 + React 19 + Tailwind CSS, а все деплоїться автоматично через GitHub Actions, Render і Vercel."
 
 ---
 
@@ -20,7 +20,7 @@ Ready-to-tell project pitches and a technical deep-dive for interviews and portf
 
 ### English
 
-1. **The product:** A real-time team collaboration app. Users create workspaces, join public or private channels, send direct messages, share files, search conversations, and manage active sessions.
+1. **The product:** A real-time team collaboration app. Users create workspaces, join public or private channels, send direct messages, start group chats via invite links, keep a private contacts list, share files, search conversations, and manage active sessions.
 2. **The stack:** NestJS REST API, Prisma ORM, PostgreSQL, Next.js 16 App Router, React 19, Tailwind CSS v4, Socket.io for real-time events, S3-compatible storage for files.
 3. **Security:** Private channels return 404 to non-members at REST, WebSocket, and search layers. JWT access tokens expire in 15 minutes and live in `sessionStorage`; refresh tokens are stored in PostgreSQL and rotated on every refresh.
 4. **Quality:** 1,500+ automated tests, including API E2E smoke tests that run in CI with a PostgreSQL service container.
@@ -29,7 +29,7 @@ Ready-to-tell project pitches and a technical deep-dive for interviews and portf
 
 ### Ukrainian
 
-1. **Продукт:** чат для командної співпраці в реальному часі. Користувачі створюють робочі простори, долучаються до публічних або приватних каналів, надсилають особисті повідомлення, діляться файлами, шукають у листуванні та керують активними сесіями.
+1. **Продукт:** чат для командної співпраці в реальному часі. Користувачі створюють робочі простори, долучаються до публічних або приватних каналів, надсилають особисті повідомлення, створюють групові чати через запрошувальні посилання, ведуть приватний список контактів, діляться файлами, шукають у листуванні та керують активними сесіями.
 2. **Стек:** NestJS REST API, Prisma ORM, PostgreSQL, Next.js 16 App Router, React 19, Tailwind CSS v4, Socket.io для real-time подій, S3-сумісне сховище для файлів.
 3. **Безпека:** приватні канали повертають 404 для не-учасників на рівні REST, WebSocket і пошуку. JWT access токени дійсні 15 хвилин і зберігаються в `sessionStorage`; refresh токени — в PostgreSQL і ротуються при кожному оновленні.
 4. **Якість:** 1500+ автоматичних тестів, включно з API E2E smoke-тестами в CI з PostgreSQL service container.
@@ -49,7 +49,7 @@ Use this when the interviewer asks for details.
 - **Frontend:** Next.js 16 App Router, React Server Components where useful, client components for real-time UI, Tailwind CSS design-system primitives.
 - **Real-time:** Socket.io namespaces/rooms per channel and DM. The server revalidates membership on every live event.
 
-Standalone group chats were added in B213 as a separate Prisma domain (`GroupConversation`, `GroupMember`, `GroupMessage`) so DM and workspace logic could stay untouched. They use a minimal OWNER/MEMBER permission model, their own REST and WebSocket events, and are surfaced in the sidebar between DMs and workspaces.
+Standalone group chats were added in B213 as a separate Prisma domain (`GroupConversation`, `GroupMember`, `GroupMessage`) so DM and workspace logic could stay untouched. They use a minimal OWNER/MEMBER permission model, their own REST and WebSocket events, and are surfaced in the sidebar between DMs and workspaces. B214 added expiring group invite links and a private `UserContact` list for quick user discovery.
 
 ### Database
 
