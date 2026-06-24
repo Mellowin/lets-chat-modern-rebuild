@@ -50,4 +50,5 @@ uploads/
 visual-qa/node_modules/
 visual-qa/screenshots/
 visual-qa/production-attachments/
+visual-qa/mobile-shell/
 visual-qa/package-lock.json
