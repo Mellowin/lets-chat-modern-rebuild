@@ -112,7 +112,10 @@ export function PushNotificationsSection() {
       </CardHeader>
       <CardContent className="space-y-4">
         {!supported && (
-          <div className="flex items-start gap-3 rounded-lg border border-border/80 bg-muted/50 p-4">
+          <div
+            className="flex items-start gap-3 rounded-lg border border-border/80 bg-muted/50 p-4"
+            data-testid="push-notifications-unsupported"
+          >
             <BellOff className="mt-0.5 h-5 w-5 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
               {t("profile.pushNotificationsUnsupported")}
@@ -121,7 +124,10 @@ export function PushNotificationsSection() {
         )}
 
         {supported && blocked && (
-          <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-400">
+          <div
+            className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-400"
+            data-testid="push-notifications-blocked"
+          >
             <BellOff className="mt-0.5 h-5 w-5 shrink-0" />
             <p className="text-sm">{t("profile.pushNotificationsBlocked")}</p>
           </div>
