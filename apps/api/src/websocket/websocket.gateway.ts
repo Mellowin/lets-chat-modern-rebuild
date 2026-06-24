@@ -12,6 +12,7 @@ import { TokenService } from '../auth/token.service';
 import { UsersRepository } from '../users/users.repository';
 import { ChannelsService } from '../channels/channels.service';
 import { DirectConversationsRepository } from '../direct-conversations/direct-conversations.repository';
+import { GroupsRepository } from '../groups/groups.repository';
 import { PresenceService } from './presence.service';
 
 const websocketCorsOrigin = process.env.CORS_ORIGIN
@@ -61,6 +62,7 @@ export class WebsocketGateway
     private readonly usersRepository: UsersRepository,
     private readonly channelsService: ChannelsService,
     private readonly directConversations: DirectConversationsRepository,
+    private readonly groups: GroupsRepository,
     private readonly presence: PresenceService,
   ) {}
 
@@ -524,6 +526,149 @@ export class WebsocketGateway
     payload: { conversationId: unknown },
   ) {
     await this.broadcastDirectTyping(socket, payload.conversationId, false);
+  }
+
+  @SubscribeMessage('group:join')
+  async handleGroupJoin(socket: Socket, payload: { groupId: unknown }) {
+    const userId = this.getUserId(socket);
+    if (!userId) {
+      socket.emit('group:error', { message: 'Not authenticated' });
+      return;
+    }
+
+    const { groupId } = payload;
+
+    if (!isValidUUID(groupId)) {
+      socket.emit('group:error', { message: 'Invalid UUID' });
+      return;
+    }
+
+    const member = await this.groups.findActiveMember(groupId, userId);
+    if (!member) {
+      socket.emit('group:error', { message: 'Access denied' });
+      return;
+    }
+
+    const room = `group-conversation:${groupId}`;
+    await socket.join(room);
+    this.presence.addSocketRoom(socket.id, room);
+    this.presence.addUserRoom(userId, room);
+
+    socket.to(room).emit('presence:online', {
+      user: { id: userId, username: this.getSocketUser(socket)?.username },
+      status: 'online',
+    });
+
+    this.logger.log(
+      { socketId: socket.id, userId, groupId },
+      'Joined group conversation room',
+    );
+    socket.emit('group:joined', { groupId });
+  }
+
+  @SubscribeMessage('group:leave')
+  async handleGroupLeave(socket: Socket, payload: { groupId: unknown }) {
+    const userId = this.getUserId(socket);
+    if (!userId) {
+      socket.emit('group:error', { message: 'Not authenticated' });
+      return;
+    }
+
+    const { groupId } = payload;
+
+    if (!isValidUUID(groupId)) {
+      socket.emit('group:error', { message: 'Invalid UUID' });
+      return;
+    }
+
+    const room = `group-conversation:${groupId}`;
+
+    if (!socket.rooms.has(room)) {
+      socket.emit('group:error', {
+        message: 'Group room not joined',
+        groupId,
+      });
+      return;
+    }
+
+    this.presence.removeSocketRoom(socket.id, room);
+
+    if (!this.presence.hasOtherSocketInRoom(userId, socket.id, room)) {
+      socket.to(room).emit('presence:offline', {
+        user: { id: userId, username: this.getSocketUser(socket)?.username },
+        status: 'offline',
+      });
+      this.presence.removeUserRoom(userId, room);
+    }
+
+    await socket.leave(room);
+
+    this.logger.log(
+      { socketId: socket.id, userId, groupId },
+      'Left group conversation room',
+    );
+    socket.emit('group:left', { groupId });
+  }
+
+  @SubscribeMessage('group:typing:start')
+  async handleGroupTypingStart(socket: Socket, payload: { groupId: unknown }) {
+    await this.broadcastGroupTyping(socket, payload.groupId, true);
+  }
+
+  @SubscribeMessage('group:typing:stop')
+  async handleGroupTypingStop(socket: Socket, payload: { groupId: unknown }) {
+    await this.broadcastGroupTyping(socket, payload.groupId, false);
+  }
+
+  private async broadcastGroupTyping(
+    socket: Socket,
+    groupId: unknown,
+    isTyping: boolean,
+  ) {
+    const userId = this.getUserId(socket);
+    if (!userId) {
+      socket.emit('group:typing:error', { message: 'Not authenticated' });
+      return;
+    }
+
+    if (!isValidUUID(groupId)) {
+      socket.emit('group:typing:error', { message: 'Invalid UUID' });
+      return;
+    }
+
+    const room = `group-conversation:${groupId}`;
+    if (!socket.rooms.has(room)) {
+      socket.emit('group:typing:error', {
+        message: 'Group room not joined',
+        groupId,
+      });
+      return;
+    }
+
+    const member = await this.groups.findActiveMember(groupId, userId);
+    if (!member) {
+      socket.emit('group:typing:error', {
+        message: 'Access denied',
+        groupId,
+      });
+      return;
+    }
+
+    const user = this.getSocketUser(socket);
+    if (!user?.username) {
+      socket.emit('group:typing:error', { message: 'User data missing' });
+      return;
+    }
+
+    socket.to(room).emit('group:typing', {
+      groupId,
+      user: {
+        id: userId,
+        username: user.username,
+        displayName: user.displayName,
+      },
+      isTyping,
+    });
   }
 
   private async broadcastDirectTyping(

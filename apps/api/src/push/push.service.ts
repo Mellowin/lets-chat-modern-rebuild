@@ -9,6 +9,42 @@ const NOTIFICATION_ICON = '/icon.svg';
 const NOTIFICATION_BADGE = '/icon.svg';
 const MAX_BODY_LENGTH = 120;
 
+type Locale = 'en' | 'uk' | 'ru';
+
+function getGroupNotificationStrings(
+  locale: Locale,
+  senderName: string,
+  content: string,
+) {
+  const hasContent = content.trim().length > 0;
+  const body = hasContent ? truncateBody(content) : '';
+
+  switch (locale) {
+    case 'uk':
+      return {
+        title: hasContent
+          ? `${senderName}: нове повідомлення в групі`
+          : `${senderName}: надіслано файл`,
+        body: hasContent ? body : 'У групі надіслано файл',
+      };
+    case 'ru':
+      return {
+        title: hasContent
+          ? `${senderName}: новое сообщение в группе`
+          : `${senderName}: отправлен файл`,
+        body: hasContent ? body : 'В группе отправлен файл',
+      };
+    case 'en':
+    default:
+      return {
+        title: hasContent
+          ? `${senderName}: New group message`
+          : `${senderName}: File shared`,
+        body: hasContent ? body : 'A file was shared in the group',
+      };
+  }
+}
+
 function truncateBody(text: string): string {
   if (text.length <= MAX_BODY_LENGTH) return text;
   return `${text.slice(0, MAX_BODY_LENGTH - 1)}…`;
@@ -213,6 +249,71 @@ export class PushService implements OnModuleInit {
           this.sendNotification(subscription, payload),
         ),
       ),
+    );
+  }
+
+  async notifyGroupMessage(
+    groupId: string,
+    message: { id: string; content: string; authorId: string },
+  ) {
+    if (!this.vapidConfigured) return;
+
+    const [group, sender] = await Promise.all([
+      this.prisma.groupConversation.findUnique({
+        where: { id: groupId },
+      }),
+      this.prisma.user.findUnique({
+        where: { id: message.authorId },
+        select: { displayName: true, username: true },
+      }),
+    ]);
+
+    if (!group || group.archivedAt) return;
+
+    const members = await this.prisma.groupMember.findMany({
+      where: {
+        groupId,
+        leftAt: null,
+        userId: { not: message.authorId },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            interfaceLanguage: true,
+            pushSubscriptions: true,
+          },
+        },
+      },
+    });
+
+    if (members.length === 0) return;
+
+    const senderName = sender?.displayName ?? sender?.username ?? 'Someone';
+
+    await Promise.all(
+      members.flatMap((member) => {
+        const locale = (member.user.interfaceLanguage as Locale) ?? 'en';
+        const { title, body } = getGroupNotificationStrings(
+          locale,
+          senderName,
+          message.content,
+        );
+        const payload: PushMessagePayload = {
+          title,
+          body,
+          icon: NOTIFICATION_ICON,
+          badge: NOTIFICATION_BADGE,
+          data: {
+            type: 'group_message',
+            groupId: group.id,
+            messageId: message.id,
+          },
+        };
+        return member.user.pushSubscriptions.map((subscription) =>
+          this.sendNotification(subscription, payload),
+        );
+      }),
     );
   }
 

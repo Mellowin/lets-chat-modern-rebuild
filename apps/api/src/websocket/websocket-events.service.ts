@@ -420,6 +420,94 @@ export class WebsocketEventsService {
     }
   }
 
+  broadcastGroupMessageCreated(
+    groupId: string,
+    payload: {
+      id: string;
+      groupId: string;
+      content: string;
+      createdAt: Date;
+      updatedAt: Date;
+      author: {
+        id: string;
+        username: string;
+        displayName: string | null;
+        avatarUrl: string | null;
+      };
+    },
+  ) {
+    try {
+      this.gateway.broadcastToRoom(
+        `group-conversation:${groupId}`,
+        'group:message:created',
+        payload,
+      );
+    } catch (error) {
+      this.logger.error(
+        { groupId, messageId: payload.id, error: (error as Error).message },
+        'Failed to broadcast group:message:created',
+      );
+    }
+  }
+
+  broadcastGroupConversationUpdated(
+    groupId: string,
+    payload: unknown,
+    memberUserIds: string[],
+  ) {
+    for (const userId of memberUserIds) {
+      try {
+        this.gateway.broadcastToRoom(
+          `user:${userId}`,
+          'group:conversation:updated',
+          payload,
+        );
+      } catch (error) {
+        this.logger.error(
+          { groupId, userId, error: (error as Error).message },
+          'Failed to broadcast group:conversation:updated',
+        );
+      }
+    }
+  }
+
+  broadcastGroupMemberRemoved(groupId: string, payload: { userId: string }) {
+    try {
+      this.gateway.broadcastToRoom(
+        `group-conversation:${groupId}`,
+        'group:member:removed',
+        payload,
+      );
+    } catch (error) {
+      this.logger.error(
+        { groupId, userId: payload.userId, error: (error as Error).message },
+        'Failed to broadcast group:member:removed',
+      );
+    }
+  }
+
+  broadcastGroupConversationRead(
+    groupId: string,
+    payload: {
+      groupId: string;
+      userId: string;
+      readAt: string;
+    },
+  ) {
+    try {
+      this.gateway.broadcastToRoom(
+        `group-conversation:${groupId}`,
+        'group:conversation:read',
+        payload,
+      );
+    } catch (error) {
+      this.logger.error(
+        { groupId, error: (error as Error).message },
+        'Failed to broadcast group:conversation:read',
+      );
+    }
+  }
+
   broadcastDirectConversationRead(
     conversationId: string,
     payload: {

@@ -56,6 +56,37 @@ export class UsersRepository {
     });
   }
 
+  async search(query: string, excludeUserId: string) {
+    const trimmed = query.trim();
+    const lower = trimmed.toLowerCase();
+    return this.prisma.user.findMany({
+      where: {
+        id: { not: excludeUserId },
+        OR: [
+          {
+            username: {
+              contains: lower,
+              mode: 'insensitive',
+            },
+          },
+          {
+            email: {
+              contains: lower,
+              mode: 'insensitive',
+            },
+          },
+        ],
+      },
+      take: 20,
+      select: {
+        id: true,
+        username: true,
+        displayName: true,
+        avatarUrl: true,
+      },
+    });
+  }
+
   async updateDisplayName(userId: string, displayName: string | null) {
     return this.prisma.user.update({
       where: { id: userId },

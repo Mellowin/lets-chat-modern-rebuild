@@ -26,6 +26,11 @@ enum ChannelRole {
   MEMBER
 }
 
+enum GroupRole {
+  OWNER
+  MEMBER
+}
+
 enum NotificationType {
   MENTION
   THREAD_REPLY
@@ -42,17 +47,17 @@ enum StorageBackend {
 // ── Models ──────────────────────────────────────────────────────────
 
 model User {
-  id            String    @id @default(uuid()) @db.Uuid
-  email         String
-  username      String
-  passwordHash  String
+  id                String    @id @default(uuid()) @db.Uuid
+  email             String
+  username          String
+  passwordHash      String
   displayName       String?
   avatarUrl         String?
   avatarUpdatedAt   DateTime?
   interfaceLanguage String    @default("en")
   createdAt         DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  deletedAt     DateTime?
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
 
   // Email verification
   emailVerifiedAt            DateTime?
@@ -66,33 +71,36 @@ model User {
   passwordResetSentAt    DateTime?
 
   // Email change
-  pendingEmail           String?
-  emailChangeTokenHash   String?
-  emailChangeExpiresAt   DateTime?
-  emailChangeSentAt      DateTime?
+  pendingEmail         String?
+  emailChangeTokenHash String?
+  emailChangeExpiresAt DateTime?
+  emailChangeSentAt    DateTime?
 
   // Relations
-  ownedWorkspaces       Workspace[]
-  workspaceMemberships  WorkspaceMember[]
-  channelMemberships    ChannelMember[]
-  createdChannels       Channel[]
-  messages              Message[]
-  reactions             Reaction[]
-  attachments           Attachment[]
-  sentInvitations       Invitation[]  @relation("InvitationSentBy")
-  acceptedInvitations   Invitation[]  @relation("InvitationAcceptedBy")
-  sentChannelInvitations     ChannelInvitation[] @relation("ChannelInvitationSentBy")
-  acceptedChannelInvitations ChannelInvitation[] @relation("ChannelInvitationAcceptedBy")
-  notifications         Notification[]
-  readReceipts          ReadReceipt[]
-  channelReadStates     ChannelReadState[]
-  refreshTokens         RefreshToken[]
-  auditLogs             AuditLog[]    @relation("AuditLogActor")
-  messageEdits          MessageEdit[]
+  ownedWorkspaces                Workspace[]
+  workspaceMemberships           WorkspaceMember[]
+  channelMemberships             ChannelMember[]
+  createdChannels                Channel[]
+  createdGroups                  GroupConversation[]
+  messages                       Message[]
+  reactions                      Reaction[]
+  attachments                    Attachment[]
+  sentInvitations                Invitation[]                    @relation("InvitationSentBy")
+  acceptedInvitations            Invitation[]                    @relation("InvitationAcceptedBy")
+  sentChannelInvitations         ChannelInvitation[]             @relation("ChannelInvitationSentBy")
+  acceptedChannelInvitations     ChannelInvitation[]             @relation("ChannelInvitationAcceptedBy")
+  notifications                  Notification[]
+  readReceipts                   ReadReceipt[]
+  channelReadStates              ChannelReadState[]
+  refreshTokens                  RefreshToken[]
+  auditLogs                      AuditLog[]                      @relation("AuditLogActor")
+  messageEdits                   MessageEdit[]
   directConversationParticipants DirectConversationParticipant[]
-  directMessages        DirectMessage[]
-  directMessageReactions DirectMessageReaction[]
-  pushSubscriptions     PushSubscription[]
+  directMessages                 DirectMessage[]
+  directMessageReactions         DirectMessageReaction[]
+  groupMemberships               GroupMember[]
+  groupMessages                  GroupMessage[]
+  pushSubscriptions              PushSubscription[]
 
   @@index([email])
   @@index([username])
@@ -101,10 +109,10 @@ model User {
 }
 
 model Workspace {
-  id          String    @id @default(uuid()) @db.Uuid
-  name        String
-  slug        String    @unique
-  description String?
+  id                   String    @id @default(uuid()) @db.Uuid
+  name                 String
+  slug                 String    @unique
+  description          String?
   ownerId              String    @db.Uuid
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
@@ -112,14 +120,14 @@ model Workspace {
   permanentlyDeletedAt DateTime?
 
   // Relations
-  owner       User            @relation(fields: [ownerId], references: [id])
-  members     WorkspaceMember[]
-  channels    Channel[]
-  auditLogs     AuditLog[]
-  invitations   Invitation[]
+  owner              User                @relation(fields: [ownerId], references: [id])
+  members            WorkspaceMember[]
+  channels           Channel[]
+  auditLogs          AuditLog[]
+  invitations        Invitation[]
   channelInvitations ChannelInvitation[]
-  notifications Notification[]
-  channelReadStates ChannelReadState[]
+  notifications      Notification[]
+  channelReadStates  ChannelReadState[]
 
   @@index([ownerId, permanentlyDeletedAt])
 }
@@ -144,28 +152,28 @@ model WorkspaceMember {
 }
 
 model Channel {
-  id                  String      @id @default(uuid()) @db.Uuid
-  workspaceId         String      @db.Uuid
-  name                String
-  slug                String
-  description         String?
-  type                ChannelType @default(PUBLIC)
-  createdById         String      @db.Uuid
-  createdAt           DateTime    @default(now())
-  updatedAt           DateTime    @updatedAt
-  deletedAt           DateTime?
+  id                   String      @id @default(uuid()) @db.Uuid
+  workspaceId          String      @db.Uuid
+  name                 String
+  slug                 String
+  description          String?
+  type                 ChannelType @default(PUBLIC)
+  createdById          String      @db.Uuid
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+  deletedAt            DateTime?
   permanentlyDeletedAt DateTime?
 
   // Relations
-  workspace     Workspace       @relation(fields: [workspaceId], references: [id])
-  createdBy     User            @relation(fields: [createdById], references: [id])
-  members       ChannelMember[]
+  workspace          Workspace           @relation(fields: [workspaceId], references: [id])
+  createdBy          User                @relation(fields: [createdById], references: [id])
+  members            ChannelMember[]
   channelInvitations ChannelInvitation[]
-  messages      Message[]
-  auditLogs     AuditLog[]
-  notifications Notification[]
-  readReceipts  ReadReceipt[]
-  channelReadStates ChannelReadState[]
+  messages           Message[]
+  auditLogs          AuditLog[]
+  notifications      Notification[]
+  readReceipts       ReadReceipt[]
+  channelReadStates  ChannelReadState[]
 
   @@unique([workspaceId, slug])
   @@index([workspaceId, deletedAt])
@@ -192,15 +200,15 @@ model ChannelMember {
 }
 
 model Message {
-  id           String                   @id @default(uuid()) @db.Uuid
-  channelId    String                   @db.Uuid
-  authorId     String                   @db.Uuid
-  parentId     String?                  @db.Uuid
-  content      String
-  editedAt     DateTime?
-  createdAt    DateTime                 @default(now())
-  updatedAt    DateTime                 @updatedAt
-  deletedAt    DateTime?
+  id        String    @id @default(uuid()) @db.Uuid
+  channelId String    @db.Uuid
+  authorId  String    @db.Uuid
+  parentId  String?   @db.Uuid
+  content   String
+  editedAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   // Relations
   channel      Channel       @relation(fields: [channelId], references: [id])
@@ -211,10 +219,10 @@ model Message {
   attachments  Attachment[]
   edits        MessageEdit[]
   readReceipts ReadReceipt[]
+  // Note: GIN index on searchVector is added via raw migration (see database-schema.md §7.2)
 
   @@index([channelId, createdAt, id])
   @@index([parentId, createdAt])
-  // Note: GIN index on searchVector is added via raw migration (see database-schema.md §7.2)
 }
 
 model MessageEdit {
@@ -340,7 +348,7 @@ model ChannelInvitation {
   invitedById  String      @db.Uuid
   role         ChannelRole @default(MEMBER)
   invitedEmail String?
-  tokenHash    String        @unique
+  tokenHash    String      @unique
   expiresAt    DateTime
   usedAt       DateTime?
   usedById     String?     @db.Uuid
@@ -373,9 +381,9 @@ model Notification {
   deletedAt   DateTime?
 
   // Relations
-  user      User      @relation(fields: [userId], references: [id])
+  user      User       @relation(fields: [userId], references: [id])
   workspace Workspace? @relation(fields: [workspaceId], references: [id])
-  channel   Channel?  @relation(fields: [channelId], references: [id])
+  channel   Channel?   @relation(fields: [channelId], references: [id])
 
   @@index([userId, isRead, createdAt])
   @@index([userId, createdAt])
@@ -418,26 +426,26 @@ model ChannelReadState {
 }
 
 model DirectConversation {
-  id            String    @id @default(uuid()) @db.Uuid
-  key           String    @unique
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  participants  DirectConversationParticipant[]
-  messages      DirectMessage[]
+  participants DirectConversationParticipant[]
+  messages     DirectMessage[]
 
   @@index([updatedAt])
 }
 
 model DirectConversationParticipant {
-  id              String     @id @default(uuid()) @db.Uuid
-  conversationId  String     @db.Uuid
-  userId          String     @db.Uuid
-  createdAt       DateTime   @default(now())
-  lastReadAt      DateTime?
+  id             String    @id @default(uuid()) @db.Uuid
+  conversationId String    @db.Uuid
+  userId         String    @db.Uuid
+  createdAt      DateTime  @default(now())
+  lastReadAt     DateTime?
 
-  conversation    DirectConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation DirectConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([conversationId, userId])
   @@index([userId])
@@ -445,21 +453,21 @@ model DirectConversationParticipant {
 }
 
 model DirectMessage {
-  id              String    @id @default(uuid()) @db.Uuid
-  conversationId  String    @db.Uuid
-  authorId        String    @db.Uuid
-  parentId        String?   @db.Uuid
-  content         String
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  editedAt        DateTime?
-  deletedAt       DateTime?
+  id             String    @id @default(uuid()) @db.Uuid
+  conversationId String    @db.Uuid
+  authorId       String    @db.Uuid
+  parentId       String?   @db.Uuid
+  content        String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  editedAt       DateTime?
+  deletedAt      DateTime?
 
-  conversation    DirectConversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  author          User                @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  parent          DirectMessage?      @relation("DirectMessageReplies", fields: [parentId], references: [id])
-  replies         DirectMessage[]     @relation("DirectMessageReplies")
-  reactions       DirectMessageReaction[]
+  conversation DirectConversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  author       User                    @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent       DirectMessage?          @relation("DirectMessageReplies", fields: [parentId], references: [id])
+  replies      DirectMessage[]         @relation("DirectMessageReplies")
+  reactions    DirectMessageReaction[]
 
   @@index([conversationId, createdAt])
   @@index([authorId])
@@ -479,6 +487,55 @@ model DirectMessageReaction {
   @@unique([messageId, userId, emoji])
   @@index([messageId])
   @@index([userId])
+}
+
+model GroupConversation {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String
+  createdById String    @db.Uuid
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  createdBy User           @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  members   GroupMember[]
+  messages  GroupMessage[]
+
+  @@index([updatedAt])
+  @@index([archivedAt])
+}
+
+model GroupMember {
+  id         String    @id @default(uuid()) @db.Uuid
+  groupId    String    @db.Uuid
+  userId     String    @db.Uuid
+  role       GroupRole @default(MEMBER)
+  joinedAt   DateTime  @default(now())
+  leftAt     DateTime?
+  lastReadAt DateTime?
+
+  group GroupConversation @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([groupId])
+  @@index([userId])
+  @@index([groupId, userId])
+}
+
+model GroupMessage {
+  id        String   @id @default(uuid()) @db.Uuid
+  groupId   String   @db.Uuid
+  authorId  String   @db.Uuid
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  group  GroupConversation @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  author User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([groupId, createdAt])
+  @@index([authorId])
 }
 
 model PushSubscription {

@@ -20,6 +20,7 @@ import { InvitesModule } from './invites/invites.module';
 import { ChannelInvitesModule } from './channel-invites/channel-invites.module';
 import { AuditModule } from './audit/audit.module';
 import { DirectConversationsModule } from './direct-conversations/direct-conversations.module';
+import { GroupsModule } from './groups/groups.module';
 import { PushModule } from './push/push.module';
 import { AppController } from './app.controller';
 
@@ -55,6 +56,7 @@ import { AppController } from './app.controller';
     ChannelInvitesModule,
     AuditModule,
     DirectConversationsModule,
+    GroupsModule,
     PushModule,
   ],
   controllers: [AppController],

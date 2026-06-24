@@ -7,6 +7,7 @@ import { TokenService } from '../auth/token.service';
 import { UsersRepository } from '../users/users.repository';
 import { ChannelsService } from '../channels/channels.service';
 import { DirectConversationsRepository } from '../direct-conversations/direct-conversations.repository';
+import { GroupsRepository } from '../groups/groups.repository';
 import { PresenceService } from './presence.service';
 
 function createMockSocket(overrides: Partial<Socket> = {}): Socket {
@@ -80,6 +81,13 @@ describe('WebsocketGateway', () => {
           useValue: {
             findParticipant: jest.fn(),
             findParticipants: jest.fn().mockResolvedValue([]),
+            listForUser: jest.fn().mockResolvedValue([]),
+          },
+        },
+        {
+          provide: GroupsRepository,
+          useValue: {
+            findActiveMember: jest.fn(),
             listForUser: jest.fn().mockResolvedValue([]),
           },
         },
