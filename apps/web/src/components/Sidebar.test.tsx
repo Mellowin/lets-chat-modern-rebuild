@@ -406,7 +406,9 @@ describe("Sidebar — events and refresh", () => {
     await waitFor(() => {
       expect(listDirectConversations).toHaveBeenCalledTimes(2);
     });
-    expect(screen.getByTestId("sidebar-direct-unread-badge")).toHaveTextContent("5");
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-direct-unread-badge")).toHaveTextContent("5");
+    });
   });
 
   it("reloads workspaces on workspaces:changed event", async () => {
