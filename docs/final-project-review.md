@@ -35,6 +35,7 @@
 - **Read receipts & unread counters** — per-message seen status, channel/DM unread badges, global unread summary in tab title.
 - **Global search** — search across workspaces, channels, and DMs with highlight and jump-to-message.
 - **Authenticated file attachments** — drag-and-drop upload, authenticated proxy download, inline image previews, file type validation, Cyrillic filenames.
+- **PWA installability** — manifest, icons, service worker offline shell, and Profile → App install section; works alongside Web Push notifications.
 - **EN/UK/RU localization** — UI strings and Cyrillic username/workspace-name support with auto-transliteration to URL slugs.
 
 ### Auth & Security

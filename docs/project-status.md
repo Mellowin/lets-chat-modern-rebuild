@@ -88,7 +88,6 @@ See [`docs/deployment-vercel.md`](deployment-vercel.md) for full deployment guid
   - Header shows global unread badge when total > 0
   - Realtime updates: channel and DM unread changes propagate to global total immediately
   - Limitations:
-    - No push/browser notifications yet
     - No OS-level notifications yet
     - No email notifications yet
 
@@ -478,6 +477,20 @@ Use these steps to verify core functionality after deploy or before release:
 - **Migration:** `20260623180000_add_push_subscriptions`.
 - **Tests:** API push service spec, web push section component tests, updated message/direct-conversation service tests.
 - **Docs:** `docs/b211-push-notifications.md`.
+
+## B212. PWA Installability and Mobile App Shell
+
+- **Goal** — make the web app installable as a PWA and improve the mobile app shell before any future Android TWA/Play Market step.
+- **Scope:**
+  - `public/manifest.webmanifest` with name, icons, theme, and `standalone` display.
+  - Generated 192×192 / 512×512 icons plus maskable variants and Apple touch icon.
+  - `layout.tsx` metadata for manifest, theme color, and Apple web app.
+  - Service worker extended with safe app-shell/static caching and `/offline.html` fallback.
+  - Profile → App install section with `beforeinstallprompt` handling and EN/UK/RU translations.
+  - Mobile viewport QA script (`scripts/verify-mobile-shell.mjs`).
+  - Production PWA verifier (`scripts/verify-production-pwa.mjs`).
+- **Out of scope:** full offline message queue, background sync, Android TWA / Play Market.
+- **Docs:** `docs/pwa.md`.
 
 ## 9. Orphaned Attachment Cleanup
 

@@ -58,6 +58,7 @@ Portfolio guidance:
 - **Reactions** — emoji reactions with toggle/replace behavior.
 - **Read receipts** — per-message seen status.
 - **Push notifications** — Web Push with VAPID for new direct messages and channel messages; opt-in from Profile → Notifications.
+- **PWA installability** — add to home screen, standalone app shell, offline fallback page; install section in Profile → App install.
 - **Global search** — search across workspaces, channels, and DMs with jump-to-message.
 
 ### Auth & Security

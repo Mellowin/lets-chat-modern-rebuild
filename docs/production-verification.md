@@ -14,7 +14,9 @@ All scripts are located in `scripts/` and are exposed as root package scripts.
 | **Auth flow** | `pnpm verify:prod:auth` | Registers a disposable Mail.tm account, verifies email, logs in, refreshes tokens, validates new token, logs out, confirms revoked refresh token is rejected. | One disposable account | None (API has no self-delete) |
 | **Permissions** | `pnpm verify:prod:permissions` | Owner vs member permissions: workspace/channel creation, channel invite/accept, member cannot delete channel, owner can delete channel/workspace, deleted content is invisible and excluded from search. | Owner account, member account, one workspace, one channel | Workspace is deleted at the end when destructive tests are enabled |
 | **Browser sanity** | `pnpm verify:prod:browser` | Playwright checks: public login page, authenticated dashboard/workspace/channel, B202C workspace-search validation, owner delete affordances, non-owner hidden delete UI, mobile viewport smoke. | Owner account, member account, one workspace, one channel | Workspace is deleted at the end |
-| **All** | `pnpm verify:prod:all` | Runs public → auth → permissions → browser sequentially. | Same as above | Same as above |
+| **PWA** | `pnpm verify:prod:pwa` | Checks manifest validity, service worker presence, offline fallback, icons, and manifest link in HTML. | None | N/A |
+| **Mobile shell** | `pnpm verify:prod:mobile-shell` | Mobile viewport QA for login, dashboard, profile (notifications + app install), direct messages, workspace, and channel composer. | One disposable account, one workspace, one channel | Workspace is deleted at the end |
+| **All** | `pnpm verify:prod:all` | Runs public → auth → permissions → browser → attachments → pwa sequentially. | Same as above | Same as above |
 
 ---
 
@@ -88,6 +90,8 @@ The main `CI` workflow also runs the API E2E security smoke tests (`apps/api/tes
 - Mail.tm has rate limits. Running the full pack repeatedly from the same IP in a short window may hit `429 Too Many Requests`. Wait a few seconds between runs if this happens.
 - Disposable accounts cannot be deleted through the API. They accumulate over time but remain harmless (no workspaces/channels/memberships).
 - Browser checks rely on production `data-testid` attributes. If the UI changes, the selectors may need updating.
+- PWA checks assume the production build has exposed `/manifest.webmanifest`, `/service-worker.js`, and `/offline.html`.
+- Mobile shell QA opens a visible Chromium window by default (`headless: false`) because some PWA APIs are only available in real browsers. Set `HEADLESS=true` to run headlessly.
 - The pack verifies behavior against the live production deployment. Do not run destructive tests against a shared staging environment that other people are using.
 
 ---
