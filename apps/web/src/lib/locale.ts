@@ -457,10 +457,59 @@ export type TranslationKey =
   | "direct.typing"
   | "direct.typingFallback"
   | "direct.unreadMessages"
+  | "groups.title"
+  | "groups.subtitle"
+  | "groups.createGroup"
+  | "groups.createGroupDescription"
+  | "groups.groupName"
+  | "groups.groupNamePlaceholder"
+  | "groups.searchMembers"
+  | "groups.noMembersFound"
+  | "groups.selectedMembers"
+  | "groups.members"
+  | "groups.memberCount"
+  | "groups.owner"
+  | "groups.member"
+  | "groups.leaveGroup"
+  | "groups.archiveGroup"
+  | "groups.renameGroup"
+  | "groups.addMember"
+  | "groups.removeMember"
+  | "groups.settings"
+  | "groups.closeSettings"
+  | "groups.noGroups"
+  | "groups.noGroupsDescription"
+  | "groups.noMessages"
+  | "groups.loadingGroups"
+  | "groups.loadingMessages"
+  | "groups.failedLoadGroups"
+  | "groups.failedLoadMessages"
+  | "groups.failedSendMessage"
+  | "groups.failedCreateGroup"
+  | "groups.groupArchived"
+  | "groups.youRemoved"
+  | "groups.leaveOwnerError"
+  | "groups.confirmArchive"
+  | "groups.confirmLeave"
+  | "groups.confirmRemoveMember"
+  | "groups.backToGroups"
+  | "groups.send"
+  | "groups.sending"
+  | "groups.typeMessage"
+  | "groups.failedRenameGroup"
+  | "groups.failedAddMember"
+  | "groups.failedRemoveMember"
+  | "groups.failedLeaveGroup"
+  | "groups.failedArchiveGroup"
+  | "groups.groupRenamed"
+  | "groups.memberAdded"
+  | "groups.memberRemoved"
+  | "groups.leftGroup"
   | "sidebar.moveUp"
   | "sidebar.moveDown"
   | "sidebar.direct"
   | "sidebar.directMessages"
+  | "sidebar.groups"
   | "sidebar.workspaces"
   | "sidebar.overview"
   | "sidebar.loading"
@@ -974,10 +1023,59 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "direct.typing": "{arg0} is typing…",
     "direct.typingFallback": "Someone is typing…",
     "direct.unreadMessages": "Unread messages",
+    "groups.title": "Groups",
+    "groups.subtitle": "Chat with multiple people in simple groups.",
+    "groups.createGroup": "Create group",
+    "groups.createGroupDescription": "Create a new group and add members to start chatting.",
+    "groups.groupName": "Group name",
+    "groups.groupNamePlaceholder": "Enter group name",
+    "groups.searchMembers": "Search members…",
+    "groups.noMembersFound": "No members found.",
+    "groups.selectedMembers": "Selected members",
+    "groups.members": "Members",
+    "groups.memberCount": "{arg0} members",
+    "groups.owner": "Owner",
+    "groups.member": "Member",
+    "groups.leaveGroup": "Leave group",
+    "groups.archiveGroup": "Archive group",
+    "groups.renameGroup": "Rename group",
+    "groups.addMember": "Add member",
+    "groups.removeMember": "Remove",
+    "groups.settings": "Settings",
+    "groups.closeSettings": "Close settings",
+    "groups.noGroups": "No groups yet.",
+    "groups.noGroupsDescription": "Create a group to start chatting with multiple people.",
+    "groups.noMessages": "No messages yet.",
+    "groups.loadingGroups": "Loading groups…",
+    "groups.loadingMessages": "Loading messages…",
+    "groups.failedLoadGroups": "Failed to load groups",
+    "groups.failedLoadMessages": "Failed to load messages",
+    "groups.failedSendMessage": "Failed to send message",
+    "groups.failedCreateGroup": "Failed to create group",
+    "groups.groupArchived": "Group archived.",
+    "groups.youRemoved": "You were removed from the group.",
+    "groups.leaveOwnerError": "The owner cannot leave the group. Archive it instead.",
+    "groups.confirmArchive": "Archive this group? It will be hidden for all members.",
+    "groups.confirmLeave": "Leave this group?",
+    "groups.confirmRemoveMember": "Remove this member from the group?",
+    "groups.backToGroups": "← Back to groups",
+    "groups.send": "Send",
+    "groups.sending": "Sending…",
+    "groups.typeMessage": "Type a message…",
+    "groups.failedRenameGroup": "Failed to rename group",
+    "groups.failedAddMember": "Failed to add member",
+    "groups.failedRemoveMember": "Failed to remove member",
+    "groups.failedLeaveGroup": "Failed to leave group",
+    "groups.failedArchiveGroup": "Failed to archive group",
+    "groups.groupRenamed": "Group renamed.",
+    "groups.memberAdded": "Member added.",
+    "groups.memberRemoved": "Member removed.",
+    "groups.leftGroup": "You left the group.",
     "sidebar.moveUp": "Move up",
     "sidebar.moveDown": "Move down",
     "sidebar.direct": "Direct",
     "sidebar.directMessages": "Direct messages",
+    "sidebar.groups": "Groups",
     "sidebar.workspaces": "Workspaces",
     "sidebar.overview": "Overview",
     "sidebar.loading": "Loading…",
@@ -1586,10 +1684,59 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "direct.typing": "{arg0} друкує…",
     "direct.typingFallback": "Хтось друкує…",
     "direct.unreadMessages": "Непрочитані повідомлення",
+    "groups.title": "Групи",
+    "groups.subtitle": "Спілкуйтеся з кількома людьми у простих групах.",
+    "groups.createGroup": "Створити групу",
+    "groups.createGroupDescription": "Створіть нову групу та додайте учасників, щоб почати спілкування.",
+    "groups.groupName": "Назва групи",
+    "groups.groupNamePlaceholder": "Введіть назву групи",
+    "groups.searchMembers": "Пошук учасників…",
+    "groups.noMembersFound": "Учасників не знайдено.",
+    "groups.selectedMembers": "Обрані учасники",
+    "groups.members": "Учасники",
+    "groups.memberCount": "{arg0} учасників",
+    "groups.owner": "Власник",
+    "groups.member": "Участник",
+    "groups.leaveGroup": "Покинути групу",
+    "groups.archiveGroup": "Архівувати групу",
+    "groups.renameGroup": "Перейменувати групу",
+    "groups.addMember": "Додати учасника",
+    "groups.removeMember": "Вилучити",
+    "groups.settings": "Налаштування",
+    "groups.closeSettings": "Закрити налаштування",
+    "groups.noGroups": "Груп ще немає.",
+    "groups.noGroupsDescription": "Створіть групу, щоб спілкуватися з кількома людьми.",
+    "groups.noMessages": "Повідомлень ще немає.",
+    "groups.loadingGroups": "Завантажуємо групи…",
+    "groups.loadingMessages": "Завантажуємо повідомлення…",
+    "groups.failedLoadGroups": "Не вдалося завантажити групи",
+    "groups.failedLoadMessages": "Не вдалося завантажити повідомлення",
+    "groups.failedSendMessage": "Не вдалося надіслати повідомлення",
+    "groups.failedCreateGroup": "Не вдалося створити групу",
+    "groups.groupArchived": "Групу архівовано.",
+    "groups.youRemoved": "Вас вилучено з групи.",
+    "groups.leaveOwnerError": "Власник не може покинути групу. Натомість архівуйте її.",
+    "groups.confirmArchive": "Архівувати цю групу? Вона буде прихована для всіх учасників.",
+    "groups.confirmLeave": "Покинути цю групу?",
+    "groups.confirmRemoveMember": "Вилучити цього учасника з групи?",
+    "groups.backToGroups": "← Назад до груп",
+    "groups.send": "Надіслати",
+    "groups.sending": "Надсилаємо…",
+    "groups.typeMessage": "Напишіть повідомлення…",
+    "groups.failedRenameGroup": "Не вдалося перейменувати групу",
+    "groups.failedAddMember": "Не вдалося додати учасника",
+    "groups.failedRemoveMember": "Не вдалося вилучити учасника",
+    "groups.failedLeaveGroup": "Не вдалося покинути групу",
+    "groups.failedArchiveGroup": "Не вдалося архівувати групу",
+    "groups.groupRenamed": "Групу перейменовано.",
+    "groups.memberAdded": "Учасника додано.",
+    "groups.memberRemoved": "Учасника вилучено.",
+    "groups.leftGroup": "Ви покинули групу.",
     "sidebar.moveUp": "Перемістити вгору",
     "sidebar.moveDown": "Перемістити вниз",
     "sidebar.direct": "Особисті",
     "sidebar.directMessages": "Особисті повідомлення",
+    "sidebar.groups": "Групи",
     "sidebar.workspaces": "Робочі простори",
     "sidebar.overview": "Огляд",
     "sidebar.loading": "Завантаження…",
@@ -2198,10 +2345,59 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "direct.typing": "{arg0} печатает…",
     "direct.typingFallback": "Кто-то печатает…",
     "direct.unreadMessages": "Непрочитанные сообщения",
+    "groups.title": "Группы",
+    "groups.subtitle": "Общайтесь с несколькими людьми в простых группах.",
+    "groups.createGroup": "Создать группу",
+    "groups.createGroupDescription": "Создайте новую группу и добавьте участников, чтобы начать общение.",
+    "groups.groupName": "Название группы",
+    "groups.groupNamePlaceholder": "Введите название группы",
+    "groups.searchMembers": "Поиск участников…",
+    "groups.noMembersFound": "Участники не найдены.",
+    "groups.selectedMembers": "Выбранные участники",
+    "groups.members": "Участники",
+    "groups.memberCount": "{arg0} участников",
+    "groups.owner": "Владелец",
+    "groups.member": "Участник",
+    "groups.leaveGroup": "Покинуть группу",
+    "groups.archiveGroup": "Архивировать группу",
+    "groups.renameGroup": "Переименовать группу",
+    "groups.addMember": "Добавить участника",
+    "groups.removeMember": "Удалить",
+    "groups.settings": "Настройки",
+    "groups.closeSettings": "Закрыть настройки",
+    "groups.noGroups": "Групп пока нет.",
+    "groups.noGroupsDescription": "Создайте группу, чтобы общаться с несколькими людьми.",
+    "groups.noMessages": "Сообщений пока нет.",
+    "groups.loadingGroups": "Загружаем группы…",
+    "groups.loadingMessages": "Загружаем сообщения…",
+    "groups.failedLoadGroups": "Не удалось загрузить группы",
+    "groups.failedLoadMessages": "Не удалось загрузить сообщения",
+    "groups.failedSendMessage": "Не удалось отправить сообщение",
+    "groups.failedCreateGroup": "Не удалось создать группу",
+    "groups.groupArchived": "Группа архивирована.",
+    "groups.youRemoved": "Вас удалили из группы.",
+    "groups.leaveOwnerError": "Владелец не может покинуть группу. Вместо этого архивируйте её.",
+    "groups.confirmArchive": "Архивировать эту группу? Она будет скрыта для всех участников.",
+    "groups.confirmLeave": "Покинуть эту группу?",
+    "groups.confirmRemoveMember": "Удалить этого участника из группы?",
+    "groups.backToGroups": "← Назад к группам",
+    "groups.send": "Отправить",
+    "groups.sending": "Отправляем…",
+    "groups.typeMessage": "Напишите сообщение…",
+    "groups.failedRenameGroup": "Не удалось переименовать группу",
+    "groups.failedAddMember": "Не удалось добавить участника",
+    "groups.failedRemoveMember": "Не удалось удалить участника",
+    "groups.failedLeaveGroup": "Не удалось покинуть группу",
+    "groups.failedArchiveGroup": "Не удалось архивировать группу",
+    "groups.groupRenamed": "Группа переименована.",
+    "groups.memberAdded": "Участник добавлен.",
+    "groups.memberRemoved": "Участник удалён.",
+    "groups.leftGroup": "Вы покинули группу.",
     "sidebar.moveUp": "Переместить вверх",
     "sidebar.moveDown": "Переместить вниз",
     "sidebar.direct": "Личные",
     "sidebar.directMessages": "Личные сообщения",
+    "sidebar.groups": "Группы",
     "sidebar.workspaces": "Рабочие пространства",
     "sidebar.overview": "Обзор",
     "sidebar.loading": "Загрузка…",

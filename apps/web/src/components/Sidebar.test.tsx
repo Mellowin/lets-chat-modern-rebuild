@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { getWorkspaces } from "@/lib/workspaces-api";
 import { getChannels } from "@/lib/channels-api";
 import { listDirectConversations } from "@/lib/direct-conversations-api";
+import { listGroups } from "@/lib/groups-api";
 import { createWorkspace, createChannel } from "@/test/factories";
 import { createSocketMock } from "@/test/socket-mock";
 
@@ -40,6 +41,10 @@ vi.mock("@/lib/channels-api", () => ({
 
 vi.mock("@/lib/direct-conversations-api", () => ({
   listDirectConversations: vi.fn(),
+}));
+
+vi.mock("@/lib/groups-api", () => ({
+  listGroups: vi.fn(),
 }));
 
 vi.mock("@/lib/socket-client", () => ({
@@ -105,6 +110,7 @@ function setupDefaultMocks(pathname = "/dashboard") {
     return [];
   });
   vi.mocked(listDirectConversations).mockResolvedValue(directConversationsData);
+  vi.mocked(listGroups).mockResolvedValue([]);
 }
 
 beforeEach(() => {

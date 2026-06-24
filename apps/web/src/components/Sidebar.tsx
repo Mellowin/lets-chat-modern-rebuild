@@ -18,6 +18,7 @@ import { useAuth } from "@/lib/auth-context";
 import { getWorkspaces, type Workspace } from "@/lib/workspaces-api";
 import { getChannels, type Channel } from "@/lib/channels-api";
 import { listDirectConversations, type DirectConversation } from "@/lib/direct-conversations-api";
+import { listGroups, type GroupSummary } from "@/lib/groups-api";
 import { type Message } from "@/lib/messages-api";
 import { createSocket } from "@/lib/socket-client";
 import { useLocale } from "@/lib/locale";
@@ -40,6 +41,12 @@ type DirectConversationsState =
   | { kind: "idle" }
   | { kind: "loading" }
   | { kind: "success"; data: DirectConversation[] }
+  | { kind: "error" };
+
+type GroupsState =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "success"; data: GroupSummary[] }
   | { kind: "error" };
 
 type SectionOrder = "direct-first" | "workspaces-first";
@@ -87,9 +94,13 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
   const [workspaces, setWorkspaces] = useState<WorkspacesState>({ kind: "idle" });
   const [workspaceChannels, setWorkspaceChannels] = useState<Record<string, WorkspaceChannelsState>>({});
   const [directConversations, setDirectConversations] = useState<DirectConversationsState>({ kind: "idle" });
+  const [groups, setGroups] = useState<GroupsState>({ kind: "idle" });
 
   const [directExpanded, setDirectExpanded] = useState(() =>
     typeof window !== "undefined" ? localStorage.getItem("sidebar:direct:expanded") !== "false" : true
+  );
+  const [groupsExpanded, setGroupsExpanded] = useState(() =>
+    typeof window !== "undefined" ? localStorage.getItem("sidebar:groups:expanded") !== "false" : true
   );
   const [workspacesExpanded, setWorkspacesExpanded] = useState(() =>
     typeof window !== "undefined" ? localStorage.getItem("sidebar:workspaces:expanded") !== "false" : true
@@ -106,6 +117,10 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
     : null;
 
   const activeDirectConversationId = pathname?.startsWith("/direct/") && pathname.split("/").length >= 3
+    ? pathname.split("/")[2]
+    : null;
+
+  const activeGroupId = pathname?.startsWith("/groups/") && pathname.split("/").length >= 3
     ? pathname.split("/")[2]
     : null;
 
@@ -275,6 +290,39 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
     };
   }, [isAuthenticated, accessToken]);
 
+  // Load groups
+  useEffect(() => {
+    if (!isAuthenticated || !accessToken) return;
+    let cancelled = false;
+    async function load(token: string) {
+      setGroups({ kind: "loading" });
+      try {
+        const data = await listGroups(token);
+        if (!cancelled) setGroups({ kind: "success", data });
+      } catch {
+        if (!cancelled) setGroups({ kind: "error" });
+      }
+    }
+    load(accessToken);
+    function handleGroupsChanged() {
+      if (!accessToken) return;
+      load(accessToken);
+    }
+    window.addEventListener("groups:changed", handleGroupsChanged);
+    const token = accessToken;
+    const socket = createSocket(token);
+    function handleGroupConversationUpdated() {
+      load(token);
+    }
+    socket.on("group:conversation:updated", handleGroupConversationUpdated);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("groups:changed", handleGroupsChanged);
+      socket.off("group:conversation:updated", handleGroupConversationUpdated);
+      socket.disconnect();
+    };
+  }, [isAuthenticated, accessToken]);
+
   const loadChannelsForWorkspace = useCallback(async (token: string, wsId: string, force = false) => {
     if (!force) {
       setWorkspaceChannels((prev) => {
@@ -386,6 +434,13 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
         .catch(() => {
           // ignore
         });
+      listGroups(token)
+        .then((data) => {
+          setGroups({ kind: "success", data });
+        })
+        .catch(() => {
+          // ignore
+        });
     }
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
@@ -395,6 +450,14 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
     setDirectExpanded((prev) => {
       const next = !prev;
       localStorage.setItem("sidebar:direct:expanded", next ? "true" : "false");
+      return next;
+    });
+  }
+
+  function toggleGroups() {
+    setGroupsExpanded((prev) => {
+      const next = !prev;
+      localStorage.setItem("sidebar:groups:expanded", next ? "true" : "false");
       return next;
     });
   }
@@ -451,7 +514,12 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
     0,
   );
 
-  const totalUnread = channelUnreadTotal + directUnreadTotal;
+  const groupUnreadTotal =
+    groups.kind === "success"
+      ? groups.data.reduce((sum, g) => sum + g.unreadCount, 0)
+      : 0;
+
+  const totalUnread = channelUnreadTotal + directUnreadTotal + groupUnreadTotal;
 
   useEffect(() => {
     updateDocumentTitle(totalUnread);
@@ -527,9 +595,75 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
     </div>
   );
 
+  const groupsSectionHeader = (
+    <button
+      onClick={toggleGroups}
+      data-testid="sidebar-groups-toggle"
+      className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-sidebar-muted transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-sm"
+    >
+      <ChevronRight
+        size={14}
+        className={`shrink-0 transition-transform ${groupsExpanded ? "rotate-90" : ""}`}
+      />
+      <Users size={14} />
+      <span>{t("sidebar.groups")}</span>
+    </button>
+  );
+
   const baseItem = "flex items-center rounded-md px-2 py-1.5 text-sm transition-all";
   const activeItem = "bg-gradient-to-r from-sidebar-active to-sidebar-active/90 text-sidebar-active-foreground font-semibold shadow-sm ring-1 ring-white/10";
   const hoverItem = "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-sm";
+
+  const groupsSection = (
+    <div data-testid="sidebar-groups-section">
+      {groupsSectionHeader}
+      {groupsExpanded && (
+        <div className="mt-1">
+          <ul className="space-y-0.5">
+            <li>
+              <Link
+                href="/groups"
+                data-testid="sidebar-groups-link"
+                data-active={pathname?.startsWith("/groups") ? "true" : undefined}
+                className={`${baseItem} justify-between ${
+                  pathname?.startsWith("/groups") ? activeItem : `text-sidebar-foreground/90 ${hoverItem}`
+                }`}
+              >
+                <span className="block truncate">{t("sidebar.groups")}</span>
+                {unreadBadge(groupUnreadTotal, "sidebar-groups-unread-badge")}
+              </Link>
+            </li>
+          </ul>
+          {groups.kind === "success" && groups.data.length > 0 && (
+            <ul className="mt-1 space-y-0.5">
+              {groups.data.map((g) => {
+                const isActive = g.id === activeGroupId;
+                return (
+                  <li key={g.id}>
+                    <Link
+                      href={`/groups/${g.id}`}
+                      data-testid={`sidebar-group-link-${g.id}`}
+                      data-active={isActive ? "true" : undefined}
+                      className={`${baseItem} gap-2 ${
+                        isActive
+                          ? activeItem
+                          : g.hasUnread
+                            ? `font-medium text-sidebar-foreground ${hoverItem}`
+                            : `text-sidebar-foreground/80 ${hoverItem}`
+                      }`}
+                    >
+                      <span className="flex-1 truncate">{g.name}</span>
+                      {unreadBadge(g.unreadCount)}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
 
   const directSection = (
     <div data-testid="sidebar-direct-section">
@@ -722,11 +856,13 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
         {sectionOrder === "direct-first" ? (
           <>
             {directSection}
+            {groupsSection}
             {workspacesSection}
           </>
         ) : (
           <>
             {workspacesSection}
+            {groupsSection}
             {directSection}
           </>
         )}
