@@ -1319,3 +1319,154 @@ Server-side idempotency with `Idempotency-Key` header is a **post-MVP** feature.
 - API version is URL-prefixed: `/api/v1/...`
 - `X-API-Version: v1` header included in every response.
 - Breaking changes require new version path (`/api/v2/...`).
+
+---
+
+## 10. Group Chat Endpoints
+
+Group chats live outside workspaces and channels. All routes require Bearer auth and use UUID identifiers.
+
+### 10.1 Create Group
+
+```http
+POST /groups
+```
+
+**Permission:** Authenticated user.
+
+**Request:**
+
+```json
+{
+  "name": "Weekend trip",
+  "memberIds": ["user-uuid-1", "user-uuid-2"]
+}
+```
+
+**Validation:**
+
+- `name`: required, max 100 chars.
+- `memberIds`: at least one UUID; creator must not include themselves.
+
+**Response 201:** `GroupSummary` with creator as `OWNER`.
+
+### 10.2 List My Groups
+
+```http
+GET /groups
+```
+
+Returns groups where the user is an active member, ordered by `updatedAt DESC`.
+
+### 10.3 Get Group
+
+```http
+GET /groups/:groupId
+```
+
+**Permission:** Active group member. Non-members receive `404`.
+
+### 10.4 Rename Group
+
+```http
+PATCH /groups/:groupId
+```
+
+**Permission:** Group `OWNER` only.
+
+**Request:** `{ "name": "New name" }`
+
+### 10.5 Archive Group
+
+```http
+DELETE /groups/:groupId
+```
+
+**Permission:** Group `OWNER` only.
+
+**Response 200:** `{ "success": true }`
+
+### 10.6 Add Member
+
+```http
+POST /groups/:groupId/members
+```
+
+**Permission:** Group `OWNER` only.
+
+**Request:** `{ "userId": "user-uuid" }`
+
+### 10.7 Remove Member
+
+```http
+DELETE /groups/:groupId/members/:userId
+```
+
+**Permission:** Group `OWNER` only. Owner cannot remove themselves.
+
+### 10.8 Leave Group
+
+```http
+POST /groups/:groupId/leave
+```
+
+**Permission:** Active group member. The sole owner cannot leave.
+
+### 10.9 List Group Messages
+
+```http
+GET /groups/:groupId/messages
+```
+
+**Permission:** Active group member.
+
+Returns messages oldest-first.
+
+### 10.10 Send Group Message
+
+```http
+POST /groups/:groupId/messages
+```
+
+**Permission:** Active group member.
+
+**Request:** `{ "content": "Hello everyone!" }`
+
+Replies (`parentId`) are not supported in groups.
+
+### 10.11 Mark Group as Read
+
+```http
+POST /groups/:groupId/read
+```
+
+**Permission:** Active group member.
+
+**Response 200:** `{ "success": true, "lastReadAt": "..." }`
+
+### 10.12 Search Users
+
+```http
+GET /users/search?q=<query>
+```
+
+**Permission:** Authenticated user.
+
+Used by the create-group modal to find users to add.
+
+### 10.13 Events Summary
+
+| Endpoint | Method | Auth | Permission | Notes |
+|----------|--------|------|------------|-------|
+| `/groups` | GET | Bearer | Active member | List my groups |
+| `/groups` | POST | Bearer | Authenticated | Create group |
+| `/groups/:groupId` | GET | Bearer | Active member | Group details |
+| `/groups/:groupId` | PATCH | Bearer | `OWNER` | Rename |
+| `/groups/:groupId` | DELETE | Bearer | `OWNER` | Archive |
+| `/groups/:groupId/members` | POST | Bearer | `OWNER` | Add member |
+| `/groups/:groupId/members/:userId` | DELETE | Bearer | `OWNER` | Remove member |
+| `/groups/:groupId/leave` | POST | Bearer | Active member | Leave group |
+| `/groups/:groupId/messages` | GET | Bearer | Active member | List messages |
+| `/groups/:groupId/messages` | POST | Bearer | Active member | Send message |
+| `/groups/:groupId/read` | POST | Bearer | Active member | Mark as read |
+| `/users/search` | GET | Bearer | Authenticated | User search |

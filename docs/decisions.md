@@ -153,3 +153,26 @@
 **Consequences:**
 - Docs must be kept in sync with `package.json` files.
 - React 19 may have minor breaking changes vs 18; shadcn/ui components must be verified.
+
+---
+
+## D10. Group Chats as a Separate Prisma Domain
+
+**Context:** B213 asks for simple group chats. The two obvious alternatives were (1) extend direct conversations to support multiple participants, or (2) reuse workspace channels with a synthetic workspace.
+
+**Decision:**
+- Group chats are implemented as their own Prisma models: `GroupConversation`, `GroupMember`, `GroupMessage`.
+- A simple `GroupRole` enum with `OWNER` and `MEMBER` is used; no `ADMIN` role.
+- Read state lives on `GroupMember.lastReadAt` instead of a separate table.
+- Frontend gets its own route (`/groups`) and API module (`apps/web/src/lib/groups-api.ts`).
+
+**Rationale:**
+- Keeps direct-message and workspace/channel code paths unchanged.
+- Avoids forcing group semantics into workspace invites, channel search, and workspace membership.
+- Simpler permission model matches the "simple group chats" requirement.
+- The domain can evolve independently (e.g., group admins, mentions, attachments) without touching core workspace logic.
+
+**Consequences:**
+- Additional models and migration to maintain.
+- Global unread aggregation must include group unread counts.
+- Push notification and WebSocket event namespaces must be added for groups.

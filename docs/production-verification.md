@@ -16,6 +16,7 @@ All scripts are located in `scripts/` and are exposed as root package scripts.
 | **Browser sanity** | `pnpm verify:prod:browser` | Playwright checks: public login page, authenticated dashboard/workspace/channel, B202C workspace-search validation, owner delete affordances, non-owner hidden delete UI, mobile viewport smoke. | Owner account, member account, one workspace, one channel | Workspace is deleted at the end |
 | **PWA** | `pnpm verify:prod:pwa` | Checks manifest validity, service worker presence, offline fallback, icons, and manifest link in HTML. | None | N/A |
 | **Mobile shell** | `pnpm verify:prod:mobile-shell` | Mobile viewport QA for login, dashboard, profile (notifications + app install), direct messages, workspace, and channel composer. | One disposable account, one workspace, one channel | Workspace is deleted at the end |
+| **Group chats** | `node scripts/verify-production-groups.mjs` | Group CRUD, membership, messaging, read state, and access control. | Two disposable accounts, one group | Group is archived at the end |
 | **All** | `pnpm verify:prod:all` | Runs public → auth → permissions → browser → attachments → pwa sequentially. | Same as above | Same as above |
 
 ---
@@ -93,6 +94,37 @@ The main `CI` workflow also runs the API E2E security smoke tests (`apps/api/tes
 - PWA checks assume the production build has exposed `/manifest.webmanifest`, `/service-worker.js`, and `/offline.html`.
 - Mobile shell QA opens a visible Chromium window by default (`headless: false`) because some PWA APIs are only available in real browsers. Set `HEADLESS=true` to run headlessly.
 - The pack verifies behavior against the live production deployment. Do not run destructive tests against a shared staging environment that other people are using.
+
+---
+
+## Group Chats Verification
+
+The standalone group-chats verifier is `scripts/verify-production-groups.mjs`.
+
+```bash
+node scripts/verify-production-groups.mjs
+```
+
+**What it checks:**
+
+- Owner can create a group with initial members.
+- Group appears in both owner and member lists.
+- Member can fetch group details; non-member receives `404`.
+- Owner can rename the group; member cannot.
+- Members can send messages; non-members cannot list or send messages.
+- Owner can mark the group as read.
+- Owner can add and remove members.
+- Member can leave the group.
+- Owner can archive the group; archived groups no longer appear in lists.
+
+**Environment variables:**
+
+| Variable | Default | Description |
+|---|---|---|
+| `VERIFY_API_BASE` | `https://lets-chat-api-v2.onrender.com/api/v1` | API endpoint to verify against |
+| `VERIFY_PASSWORD` | random per run | Password for disposable accounts |
+
+The script archives the test group at the end and does not print tokens or passwords.
 
 ---
 

@@ -26,6 +26,14 @@ Channel roles are explicit grants stored in `ChannelMember`. They are **evaluate
 | `ADMIN` | Channel | Elevated channel participant. Can moderate messages and manage membership. Granted explicitly by a workspace OWNER/ADMIN or channel OWNER. |
 | `MEMBER` | Channel | Participant with read/write access. Granted by joining (public) or being invited (private). |
 
+### 1.2 Group-Level Roles
+Group chats use a simpler role model stored in `GroupMember`.
+
+| Role | Scope | Definition |
+|------|-------|------------|
+| `OWNER` | Group | Creator of the group. Can rename, add/remove members, and archive the group. Cannot leave while they are the sole owner. |
+| `MEMBER` | Group | Participant with read/write access. Can send messages and leave the group. |
+
 ---
 
 ## 2. Permission Matrix
@@ -108,6 +116,23 @@ Evaluated against **effective channel role** (workspace role + explicit channel 
 | `audit-log:write` | N | N | N | Append-only by system. No user-facing write endpoint. |
 | `audit-log:delete` | N | N | N | Immutable. No user-facing delete endpoint. |
 
+### 2.7 Group Chat Permissions
+
+Group permissions are independent of workspace/channel roles.
+
+| Permission | OWNER | MEMBER | Notes |
+|------------|:-----:|:------:|-------|
+| `group:read` | Y | Y | View group details and member list. Non-members receive `404`. |
+| `group:create` | Y | Y | Any authenticated user can create a group. |
+| `group:update` | Y | N | Rename the group. |
+| `group:archive` | Y | N | Soft-archive the group. |
+| `group:members:add` | Y | N | Add a user by `userId`. |
+| `group:members:remove` | Y | N | Remove any member except themselves. |
+| `group:leave` | N* | Y | Owner can leave only after transferring ownership; sole owner cannot leave. |
+| `group:message:create` | Y | Y | Send a text message; archived groups block sends. |
+| `group:message:read` | Y | Y | List group messages. |
+| `group:read:write` | Y | Y | Mark own read watermark. |
+
 ---
 
 ## 3. Permission Inheritance Rules
@@ -160,6 +185,7 @@ A workspace OWNER outranks a channel OWNER for destructive actions:
 - A workspace OWNER cannot leave a workspace. They must transfer ownership first.
 - A workspace OWNER cannot demote themselves. They must transfer ownership first.
 - A user cannot change their own workspace role.
+- A group OWNER cannot leave while they are the sole owner; they must transfer ownership or archive the group.
 
 ### 4.3 Last Admin Protection
 - A workspace must retain at least one OWNER. API rejects ownership transfer, role demotion, or leave actions if they would leave the workspace ownerless.

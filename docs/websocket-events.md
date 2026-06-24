@@ -503,7 +503,120 @@ socket.emit('presence:synced', {
 
 ---
 
-## 6. Event Naming Convention
+## 6. Part 5 — Group Chat Events
+
+Group chat events use the same Socket.io connection as channels and DMs. Clients subscribe to a group room by emitting `group:join`; the server verifies active membership before joining.
+
+### 6.1 Group Join / Leave
+
+```typescript
+// Client → Server
+socket.emit('group:join', { groupId: 'uuid' });
+
+// Server → Client (success)
+socket.emit('group:joined', { groupId: 'uuid' });
+
+// Server → Client (failure)
+socket.emit('group:error', { message: 'Access denied' });
+```
+
+```typescript
+// Client → Server
+socket.emit('group:leave', { groupId: 'uuid' });
+
+// Server → Client (success)
+socket.emit('group:left', { groupId: 'uuid' });
+```
+
+**Room name:** `group-conversation:<groupId>`
+
+**Access rule:** active `GroupMember` record required (`leftAt IS NULL`).
+
+### 6.2 Group Message Created
+
+After a successful REST `POST /api/v1/groups/:groupId/messages`:
+
+```typescript
+// Server → group room users
+io.to('group-conversation:uuid').emit('group:message:created', {
+  id: 'msg-uuid',
+  groupId: 'group-uuid',
+  content: 'Hello everyone',
+  createdAt: '2026-06-24T12:00:00Z',
+  updatedAt: '2026-06-24T12:00:00Z',
+  author: {
+    id: 'user-uuid',
+    username: 'johndoe',
+    displayName: 'John Doe',
+    avatarUrl: 'https://...'
+  }
+});
+```
+
+### 6.3 Group Conversation Updated
+
+Sent to each member's personal room when the group metadata changes (rename, member added/removed, archive, new last message).
+
+```typescript
+// Server → user room
+io.to('user:user-uuid').emit('group:conversation:updated', {
+  // full or partial GroupSummary
+});
+```
+
+### 6.4 Group Member Removed
+
+```typescript
+// Server → group room users
+io.to('group-conversation:uuid').emit('group:member:removed', {
+  userId: 'user-uuid'
+});
+```
+
+### 6.5 Group Conversation Read
+
+```typescript
+// Server → group room users
+io.to('group-conversation:uuid').emit('group:conversation:read', {
+  groupId: 'group-uuid',
+  userId: 'user-uuid',
+  readAt: '2026-06-24T12:05:00Z'
+});
+```
+
+### 6.6 Group Typing Indicators
+
+```typescript
+// Client → Server
+socket.emit('group:typing:start', { groupId: 'group-uuid' });
+socket.emit('group:typing:stop', { groupId: 'group-uuid' });
+
+// Server → group room users (excluding sender)
+socket.to('group-conversation:uuid').emit('group:typing', {
+  groupId: 'group-uuid',
+  user: { id: 'user-uuid', username: 'johndoe', displayName: 'John Doe' },
+  isTyping: true
+});
+```
+
+### 6.7 Events Summary (Part 5)
+
+| Event | Direction | Room | Trigger / Permission |
+|-------|-----------|------|----------------------|
+| `group:join` | Client → Server | — | Active group membership |
+| `group:joined` | Server → Client | personal | Ack after joining |
+| `group:leave` | Client → Server | — | Leave group room |
+| `group:left` | Server → Client | personal | Ack after leaving |
+| `group:message:created` | Server → broadcast | `group-conversation:<id>` | REST message create |
+| `group:conversation:updated` | Server → targeted | `user:<id>` | Group metadata change |
+| `group:member:removed` | Server → broadcast | `group-conversation:<id>` | Member removed/left |
+| `group:conversation:read` | Server → broadcast | `group-conversation:<id>` | Mark-as-read |
+| `group:typing:start` / `group:typing:stop` | Client → Server | — | Must have joined room |
+| `group:typing` | Server → broadcast | `group-conversation:<id>` | Forwarded typing state |
+
+---
+
+## 7. Event Naming Convention
 
 | Rule | Example | Counter-example |
 |------|---------|-----------------|
@@ -515,7 +628,7 @@ socket.emit('presence:synced', {
 
 ---
 
-## 7. Error Handling
+## 8. Error Handling
 
 All WebSocket errors follow this envelope:
 
@@ -544,7 +657,7 @@ Common error codes:
 
 ---
 
-## 8. Rate Limiting (Socket Layer)
+## 9. Rate Limiting (Socket Layer)
 
 Socket events are rate-limited separately from HTTP. Redis-backed sliding window per `userId`.
 
@@ -559,7 +672,7 @@ Burst violations emit `error:rate_limited` and drop the event (no disconnect).
 
 ---
 
-## 9. Security Notes
+## 10. Security Notes
 
 1. **No sensitive data in handshake.** `auth.token` is the only sensitive field. Everything else travels inside the encrypted WebSocket frame (WSS).
 2. **Room isolation.** Private channel rooms must never leak events to non-members. Always verify `CanAccessChannel` before `socket.join(channelId)`.

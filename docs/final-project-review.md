@@ -191,3 +191,22 @@ These limitations are intentional scope boundaries, not defects, and are safe to
 - [`docs/portfolio-summary.md`](portfolio-summary.md) — one-page portfolio summary.
 - [`docs/production-verification.md`](production-verification.md) — runnable verification scripts.
 - [`docs/deployment-vercel.md`](deployment-vercel.md) — deployment guide.
+
+---
+
+## 13. B213 Group Chats
+
+Group chats were added as a standalone conversation type, separate from workspaces and direct messages.
+
+**What was built:**
+
+- A new NestJS domain `GroupsModule` (`apps/api/src/groups/`) with controller, service, repository, and DTOs.
+- REST endpoints under `/api/v1/groups` for list, create, details, rename, archive, member management, leave, messages, and mark-as-read.
+- Dedicated Prisma models: `GroupConversation`, `GroupMember`, `GroupMessage`, and a `GroupRole` enum. Read state is tracked on `GroupMember.lastReadAt`.
+- Real-time delivery via Socket.io (`group:join`, `group:leave`, `group:message:created`, `group:conversation:updated`, `group:member:removed`, `group:conversation:read`).
+- Web Push support for group messages (`group_message` payload with `groupId` and `messageId` only; sender excluded).
+- Frontend pages `/groups` and `/groups/[groupId]`, plus `GroupSettingsModal` and sidebar integration with global unread.
+- Tests: service unit tests, push service tests, E2E security tests, and the production verifier `scripts/verify-production-groups.mjs`.
+
+**Why separate models were chosen:**
+Group chats were implemented with their own Prisma models rather than reusing direct conversations or workspace channels. This keeps DM and workspace logic untouched, allows a simple OWNER/MEMBER permission model, and avoids forcing group semantics into channel invites, workspace membership, and search. It also makes the feature easier to remove or evolve independently in the future.

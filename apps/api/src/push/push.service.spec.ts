@@ -29,6 +29,9 @@ const mockSubscription = {
   updatedAt: new Date(),
 };
 
+const objectContaining = <T>(expected: T) =>
+  expect.objectContaining(expected) as unknown as T;
+
 describe('PushService', () => {
   let service: PushService;
   let configService: { get: jest.Mock };
@@ -41,6 +44,8 @@ describe('PushService', () => {
     channel: { findUnique: jest.Mock };
     channelMember: { findMany: jest.Mock };
     directConversation: { findUnique: jest.Mock };
+    groupConversation: { findUnique: jest.Mock };
+    groupMember: { findMany: jest.Mock };
     user: { findUnique: jest.Mock };
   };
 
@@ -55,6 +60,8 @@ describe('PushService', () => {
       channel: { findUnique: jest.fn() },
       channelMember: { findMany: jest.fn() },
       directConversation: { findUnique: jest.fn() },
+      groupConversation: { findUnique: jest.fn() },
+      groupMember: { findMany: jest.fn() },
       user: { findUnique: jest.fn() },
     };
 
@@ -302,6 +309,273 @@ describe('PushService', () => {
         conversationId: 'conv-1',
         messageId: 'msg-1',
       });
+    });
+  });
+
+  describe('notifyGroupMessage', () => {
+    beforeEach(() => {
+      configService.get.mockImplementation((key: string) => {
+        if (key === 'VAPID_PUBLIC_KEY') return 'public-key';
+        if (key === 'VAPID_PRIVATE_KEY') return 'private-key';
+        return undefined;
+      });
+      service.onModuleInit();
+    });
+
+    function makeGroupSubscription(userId: string, subId: string) {
+      return {
+        ...mockSubscription,
+        id: subId,
+        userId,
+        endpoint: `https://push.example/${subId}`,
+      };
+    }
+
+    it('sends push notifications to group members except sender', async () => {
+      prisma.groupConversation.findUnique.mockResolvedValue({
+        id: 'group-1',
+        archivedAt: null,
+      });
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-a',
+        displayName: 'Alice',
+        username: 'alice',
+      });
+      prisma.groupMember.findMany.mockResolvedValue([
+        {
+          userId: 'user-b',
+          user: {
+            id: 'user-b',
+            interfaceLanguage: 'en',
+            pushSubscriptions: [makeGroupSubscription('user-b', 'sub-b')],
+          },
+        },
+        {
+          userId: 'user-c',
+          user: {
+            id: 'user-c',
+            interfaceLanguage: 'en',
+            pushSubscriptions: [makeGroupSubscription('user-c', 'sub-c')],
+          },
+        },
+      ]);
+
+      await service.notifyGroupMessage('group-1', {
+        id: 'msg-1',
+        content: 'Hello group',
+        authorId: 'user-a',
+      });
+
+      expect(webpush.sendNotification).toHaveBeenCalledTimes(2);
+    });
+
+    it('uses English localized title and body by default', async () => {
+      prisma.groupConversation.findUnique.mockResolvedValue({
+        id: 'group-1',
+        archivedAt: null,
+      });
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-a',
+        displayName: 'Alice',
+        username: 'alice',
+      });
+      prisma.groupMember.findMany.mockResolvedValue([
+        {
+          userId: 'user-b',
+          user: {
+            id: 'user-b',
+            interfaceLanguage: 'en',
+            pushSubscriptions: [makeGroupSubscription('user-b', 'sub-b')],
+          },
+        },
+      ]);
+
+      await service.notifyGroupMessage('group-1', {
+        id: 'msg-1',
+        content: 'Hello group',
+        authorId: 'user-a',
+      });
+
+      const calls = (webpush.sendNotification as jest.Mock).mock.calls as [
+        unknown,
+        string,
+      ][];
+      const payload = JSON.parse(calls[0][1]) as {
+        title: string;
+        body: string;
+        data: Record<string, unknown>;
+      };
+      expect(payload.title).toBe('Alice: New group message');
+      expect(payload.body).toBe('Hello group');
+      expect(payload.data).toEqual({
+        type: 'group_message',
+        groupId: 'group-1',
+        messageId: 'msg-1',
+      });
+    });
+
+    it('uses Ukrainian localized title and body for uk locale', async () => {
+      prisma.groupConversation.findUnique.mockResolvedValue({
+        id: 'group-1',
+        archivedAt: null,
+      });
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-a',
+        displayName: 'Alice',
+        username: 'alice',
+      });
+      prisma.groupMember.findMany.mockResolvedValue([
+        {
+          userId: 'user-b',
+          user: {
+            id: 'user-b',
+            interfaceLanguage: 'uk',
+            pushSubscriptions: [makeGroupSubscription('user-b', 'sub-b')],
+          },
+        },
+      ]);
+
+      await service.notifyGroupMessage('group-1', {
+        id: 'msg-1',
+        content: 'Hello group',
+        authorId: 'user-a',
+      });
+
+      const calls = (webpush.sendNotification as jest.Mock).mock.calls as [
+        unknown,
+        string,
+      ][];
+      const payload = JSON.parse(calls[0][1]) as {
+        title: string;
+        body: string;
+        data: Record<string, unknown>;
+      };
+      expect(payload.title).toBe('Alice: нове повідомлення в групі');
+      expect(payload.body).toBe('Hello group');
+      expect(payload.data).toEqual({
+        type: 'group_message',
+        groupId: 'group-1',
+        messageId: 'msg-1',
+      });
+    });
+
+    it('does not notify non-members', async () => {
+      prisma.groupConversation.findUnique.mockResolvedValue({
+        id: 'group-1',
+        archivedAt: null,
+      });
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-a',
+        displayName: 'Alice',
+        username: 'alice',
+      });
+      prisma.groupMember.findMany.mockResolvedValue([]);
+
+      await service.notifyGroupMessage('group-1', {
+        id: 'msg-1',
+        content: 'Hello group',
+        authorId: 'user-a',
+      });
+
+      expect(webpush.sendNotification).not.toHaveBeenCalled();
+    });
+
+    it('does not notify removed or left members', async () => {
+      prisma.groupConversation.findUnique.mockResolvedValue({
+        id: 'group-1',
+        archivedAt: null,
+      });
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-a',
+        displayName: 'Alice',
+        username: 'alice',
+      });
+      prisma.groupMember.findMany.mockResolvedValue([]);
+
+      await service.notifyGroupMessage('group-1', {
+        id: 'msg-1',
+        content: 'Hello group',
+        authorId: 'user-a',
+      });
+
+      expect(webpush.sendNotification).not.toHaveBeenCalled();
+      expect(prisma.groupMember.findMany).toHaveBeenCalledWith(
+        objectContaining({
+          where: objectContaining({ leftAt: null }),
+        }),
+      );
+    });
+
+    it('does not notify archived groups', async () => {
+      prisma.groupConversation.findUnique.mockResolvedValue({
+        id: 'group-1',
+        archivedAt: new Date(),
+      });
+
+      await service.notifyGroupMessage('group-1', {
+        id: 'msg-1',
+        content: 'Hello group',
+        authorId: 'user-a',
+      });
+
+      expect(webpush.sendNotification).not.toHaveBeenCalled();
+      expect(prisma.groupMember.findMany).not.toHaveBeenCalled();
+    });
+
+    it('payload data contains type, groupId, and messageId only', async () => {
+      prisma.groupConversation.findUnique.mockResolvedValue({
+        id: 'group-1',
+        archivedAt: null,
+      });
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'user-a',
+        displayName: 'Alice',
+        username: 'alice',
+      });
+      prisma.groupMember.findMany.mockResolvedValue([
+        {
+          userId: 'user-b',
+          user: {
+            id: 'user-b',
+            interfaceLanguage: 'en',
+            pushSubscriptions: [makeGroupSubscription('user-b', 'sub-b')],
+          },
+        },
+      ]);
+
+      await service.notifyGroupMessage('group-1', {
+        id: 'msg-1',
+        content: 'Hello group',
+        authorId: 'user-a',
+      });
+
+      const calls = (webpush.sendNotification as jest.Mock).mock.calls as [
+        unknown,
+        string,
+      ][];
+      const payload = JSON.parse(calls[0][1]) as {
+        data: Record<string, unknown>;
+      };
+      expect(Object.keys(payload.data)).toEqual([
+        'type',
+        'groupId',
+        'messageId',
+      ]);
+      expect(payload.data).not.toHaveProperty('tokens');
+      expect(payload.data).not.toHaveProperty('fileUrl');
+    });
+
+    it('does nothing when VAPID is not configured', async () => {
+      configService.get.mockReturnValue(undefined);
+      service.onModuleInit();
+
+      await service.notifyGroupMessage('group-1', {
+        id: 'msg-1',
+        content: 'Hello group',
+        authorId: 'user-a',
+      });
+
+      expect(webpush.sendNotification).not.toHaveBeenCalled();
     });
   });
 });

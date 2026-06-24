@@ -26,6 +26,7 @@
 | `WorkspaceRole` | `OWNER`, `ADMIN`, `MEMBER` | `WorkspaceMember.role` | Hierarchical. Only one `OWNER` per workspace at any time. |
 | `ChannelType` | `PUBLIC`, `PRIVATE` | `Channel.type` | Immutable in MVP (see `decisions.md` D6). |
 | `ChannelRole` | `OWNER`, `ADMIN`, `MEMBER` | `ChannelMember.role` | Effective role = `max(workspaceRole, channelRole)`. |
+| `GroupRole` | `OWNER`, `MEMBER` | `GroupMember.role` | Simple group permission model. |
 | `NotificationType` | `MENTION`, `THREAD_REPLY`, `CHANNEL_INVITE`, `SYSTEM` | `Notification.type` | Extensible enum for in-app bell. |
 | `StorageBackend` | `LOCAL`, `S3`, `MINIO` | `Attachment.storageBackend` | Local for dev; S3/MinIO for prod. |
 | `AuditAction` | Documented string constants (not Prisma enum) | `AuditLog.action` | Namespaced string constants to avoid enum migrations. |
@@ -52,6 +53,9 @@ model User {
   ownedWorkspaces       Workspace[]
   workspaceMemberships  WorkspaceMember[]
   channelMemberships    ChannelMember[]
+  createdGroups         GroupConversation[]
+  groupMemberships      GroupMember[]
+  groupMessages         GroupMessage[]
   messages              Message[]
   reactions             Reaction[]
   attachments           Attachment[]
@@ -553,7 +557,108 @@ model Notification {
 
 ---
 
-### 3.14 ReadReceipt
+### 3.14 GroupConversation
+
+Standalone group chat container.
+
+```prisma
+model GroupConversation {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String
+  createdById String    @db.Uuid
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  createdBy User           @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  members   GroupMember[]
+  messages  GroupMessage[]
+
+  @@index([updatedAt])
+  @@index([archivedAt])
+}
+```
+
+| Field | Type | Constraints | Index | Notes |
+|-------|------|-------------|-------|-------|
+| `id` | UUID | PK | - | - |
+| `name` | String | NOT NULL | - | Display name. |
+| `createdById` | UUID | FK -> User.id, NOT NULL | B-tree | Creator becomes `OWNER` via `GroupMember`. |
+| `archivedAt` | DateTime | - | B-tree | Soft archive; archived groups are hidden and block new messages. |
+| `createdAt` | DateTime | NOT NULL | B-tree | - |
+| `updatedAt` | DateTime | NOT NULL | B-tree | Bumped on message send for list ordering. |
+
+---
+
+### 3.15 GroupMember
+
+Junction + role + per-member read state for group chats.
+
+```prisma
+model GroupMember {
+  id         String    @id @default(uuid()) @db.Uuid
+  groupId    String    @db.Uuid
+  userId     String    @db.Uuid
+  role       GroupRole @default(MEMBER)
+  joinedAt   DateTime  @default(now())
+  leftAt     DateTime?
+  lastReadAt DateTime?
+
+  group GroupConversation @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([groupId])
+  @@index([userId])
+  @@index([groupId, userId])
+}
+```
+
+| Field | Type | Constraints | Index | Notes |
+|-------|------|-------------|-------|-------|
+| `id` | UUID | PK | - | - |
+| `groupId` | UUID | FK, NOT NULL | B-tree composite | Part of `@@unique([groupId, userId])`. |
+| `userId` | UUID | FK, NOT NULL | B-tree composite | - |
+| `role` | Enum | NOT NULL, DEFAULT `MEMBER` | - | `OWNER` or `MEMBER`. |
+| `joinedAt` | DateTime | NOT NULL | - | - |
+| `leftAt` | DateTime | - | B-tree | Soft removal; re-adding a left member upserts the row. |
+| `lastReadAt` | DateTime | - | B-tree | Per-member read watermark. |
+
+---
+
+### 3.16 GroupMessage
+
+Messages inside a group conversation.
+
+```prisma
+model GroupMessage {
+  id        String   @id @default(uuid()) @db.Uuid
+  groupId   String   @db.Uuid
+  authorId  String   @db.Uuid
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  group  GroupConversation @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  author User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([groupId, createdAt])
+  @@index([authorId])
+}
+```
+
+| Field | Type | Constraints | Index | Notes |
+|-------|------|-------------|-------|-------|
+| `id` | UUID | PK | - | - |
+| `groupId` | UUID | FK, NOT NULL | B-tree composite | Part of cursor/message-list index. |
+| `authorId` | UUID | FK -> User.id, NOT NULL | B-tree | - |
+| `content` | String | NOT NULL | - | Max 4000 chars enforced in app. |
+| `createdAt` | DateTime | NOT NULL | B-tree | - |
+| `updatedAt` | DateTime | NOT NULL | B-tree | - |
+
+---
+
+### 3.17 ReadReceipt
 
 Per-user, per-message read tracking.
 
@@ -600,6 +705,9 @@ User ||--o{ ReadReceipt : "reads"
 User ||--o{ Invitation : "sends"
 User ||--o{ Invitation : "accepts"
 User ||--o{ AuditLog : "actor"
+User ||--o{ GroupConversation : "creates"
+User ||--o{ GroupMember : "group member of"
+User ||--o{ GroupMessage : "group author"
 
 Workspace ||--o{ WorkspaceMember : "has"
 Workspace ||--o{ Channel : "contains"
@@ -611,6 +719,10 @@ Channel ||--o{ ChannelMember : "has"
 Channel ||--o{ Message : "contains"
 Channel ||--o{ AuditLog : "logged"
 Channel ||--o{ Notification : "scoped"
+
+GroupConversation ||--o{ GroupMember : "has"
+GroupConversation ||--o{ GroupMessage : "contains"
+GroupConversation ||--o{ User : "createdBy"
 
 Message ||--o{ Message : "replies (parentId)"
 Message ||--o{ Reaction : "has"
@@ -641,6 +753,9 @@ Message ||--o{ Notification : "referenced"
 | Invitation | Yes | Revoked invites soft-deleted | Prevents reuse. |
 | Notification | Yes | Dismissed notifications soft-deleted | Or hard delete if privacy needed; soft delete for consistency. |
 | ReadReceipt | **No** | Event/fact entity; no `deletedAt` | MVP has no mark-as-unread action. Row is created or `readAt` is updated. |
+| GroupConversation | `archivedAt` | Hidden from lists; blocks new messages | Archive is owner-only. Data retained. |
+| GroupMember | `leftAt` | Soft removal from group | Upsert reactivates a previously removed member. |
+| GroupMessage | No | Messages are immutable in MVP | No soft-delete endpoint; only the group can be archived. |
 
 ---
 
@@ -789,6 +904,13 @@ MVP supports only one level of threading (flat replies). Only messages with `par
 | Notification | `[userId, isRead, createdAt]` | B-tree | Unread bell queries. |
 | ReadReceipt | `[messageId, userId]` | Unique | One read receipt per user per message. |
 | ReadReceipt | `[channelId, userId, readAt]` | B-tree | Channel read status aggregation. |
+| GroupConversation | `[updatedAt]` | B-tree | Group list ordering. |
+| GroupConversation | `[archivedAt]` | B-tree | Exclude archived groups. |
+| GroupMember | `[groupId, userId]` | Unique | One membership record per user per group. |
+| GroupMember | `[groupId]` | B-tree | Fast member lookups. |
+| GroupMember | `[userId]` | B-tree | Fast group membership lookups. |
+| GroupMessage | `[groupId, createdAt]` | B-tree | Message list ordering. |
+| GroupMessage | `[authorId]` | B-tree | Author message lookups. |
 
 ---
 
@@ -807,8 +929,11 @@ MVP supports only one level of threading (flat replies). Only messages with `par
 11. `Invitation` (FK: Workspace, User x2)
 12. `Notification` (FK: User, Workspace, Channel)
 13. `ReadReceipt` (FK: Message, User)
-14. `AuditLog` (FK: User, Workspace, Channel - nullable)
-15. Raw SQL: `Message.searchVector` generated column + GIN index
+14. `GroupConversation` (FK: User)
+15. `GroupMember` (FK: GroupConversation, User)
+16. `GroupMessage` (FK: GroupConversation, User)
+17. `AuditLog` (FK: User, Workspace, Channel - nullable)
+18. Raw SQL: `Message.searchVector` generated column + GIN index
 16. Raw SQL: Partial unique indexes for soft-deletable junction tables:
     ```sql
     CREATE UNIQUE INDEX idx_workspace_member_active ON "WorkspaceMember" ("workspaceId", "userId") WHERE "deletedAt" IS NULL;

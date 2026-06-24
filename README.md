@@ -53,11 +53,12 @@ Portfolio guidance:
 - **Workspaces** — multi-tenant teams with OWNER / ADMIN / MEMBER roles.
 - **Channels** — public and private; private channels return `404` to non-members.
 - **Direct Messages** — 1-to-1 conversations with participant-only access.
+- **Group Chats** — standalone multi-member conversations outside workspaces, with owner/member roles, unread counts, and real-time delivery.
 - **Real-time messaging** — live create/update/delete/reaction events via WebSocket rooms.
 - **Replies & Forwarding** — thread replies and message forwarding between channels.
 - **Reactions** — emoji reactions with toggle/replace behavior.
 - **Read receipts** — per-message seen status.
-- **Push notifications** — Web Push with VAPID for new direct messages and channel messages; opt-in from Profile → Notifications.
+- **Push notifications** — Web Push with VAPID for new direct messages, channel messages, and group messages; opt-in from Profile → Notifications.
 - **PWA installability** — add to home screen, standalone app shell, offline fallback page; install section in Profile → App install.
 - **Global search** — search across workspaces, channels, and DMs with jump-to-message.
 
@@ -101,13 +102,13 @@ Portfolio guidance:
 
 | Suite | Count | Status |
 |---|---|---|
-| API unit tests | 810 (36 suites) | ✅ passing |
-| Web unit + page tests | 700 (32 files) | ✅ passing |
-| E2E security smoke tests | 7 (2 suites) | ✅ passing in CI (PostgreSQL service) |
+| API unit tests | 845 (38 suites) | ✅ passing |
+| Web unit + page tests | 706 (33 files) | ✅ passing |
+| E2E security smoke tests | 17 (3 suites) | ✅ passing in CI (PostgreSQL service) |
 
 - **CI:** GitHub Actions runs lint, typecheck, unit tests, builds, and API E2E security smoke tests (with a PostgreSQL service container) on every push.
 - **Deploy:** Render deploy hook fires only after green CI; Vercel builds the frontend in parallel.
-- **Verification:** `scripts/smoke-deploy.mjs` and `scripts/verify-production-attachments.mjs` run against production after deploy.
+- **Verification:** `scripts/smoke-deploy.mjs`, `scripts/verify-production-attachments.mjs`, and `scripts/verify-production-groups.mjs` run against production after deploy.
 
 ---
 
@@ -264,7 +265,7 @@ push main → GitHub Actions (lint/typecheck/test/build)
                 ↓
       Vercel production deploy
                 ↓
-      smoke-deploy.mjs + verify-production-attachments.mjs
+      smoke-deploy.mjs + verify-production-attachments.mjs + verify-production-groups.mjs
 ```
 
 No secrets, credentials, or DB URLs are committed to the repository.

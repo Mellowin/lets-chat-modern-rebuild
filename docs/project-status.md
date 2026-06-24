@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-06-17 (B203 production verification pack complete)  
+> Last updated: 2026-06-24 (B213 group chats complete)  
 > Code checkpoint: `main`  
 > Docs checkpoint: `main`
 >
@@ -491,6 +491,23 @@ Use these steps to verify core functionality after deploy or before release:
   - Production PWA verifier (`scripts/verify-production-pwa.mjs`).
 - **Out of scope:** full offline message queue, background sync, Android TWA / Play Market.
 - **Docs:** `docs/pwa.md`.
+
+## B213. Group Chats
+
+- **Goal** — add simple standalone group chats so users can have multi-member conversations without creating a workspace.
+- **Scope:**
+  - Backend: `GroupsModule` with controller, service, repository, DTOs (`apps/api/src/groups/`).
+  - Prisma models: `GroupConversation`, `GroupMember`, `GroupMessage`, plus `GroupRole` enum. Read state lives on `GroupMember.lastReadAt`.
+  - REST endpoints under `/api/v1/groups` for create, list, details, rename, archive, members, leave, messages, and mark-read.
+  - WebSocket events: `group:join`, `group:leave`, `group:message:created`, `group:conversation:updated`, `group:member:removed`, `group:conversation:read`.
+  - Push notifications: `group_message` payload with `groupId` and `messageId` only; sender excluded.
+  - Frontend: `/groups` list + create modal, `/groups/[groupId]` conversation, `GroupSettingsModal`, sidebar Groups link with unread in global total.
+  - User search: `GET /users/search?q=` reused for adding members.
+- **Security:** JWT required; non-members receive `404`; only `OWNER` can rename/add/remove/archive; sole owner cannot leave; archived groups block messages.
+- **Tests:** `apps/api/src/groups/groups.service.spec.ts`, `apps/api/src/push/push.service.spec.ts`, `apps/api/test/groups.e2e-spec.ts`.
+- **Production verification:** `node scripts/verify-production-groups.mjs`.
+- **Docs:** [`docs/group-chats.md`](group-chats.md).
+- **Why separate models:** group chats were implemented as their own Prisma domain rather than extending direct conversations or workspace channels. This keeps DM and workspace logic untouched, lets the feature ship with a minimal OWNER/MEMBER permission model, and avoids polluting channel search, invites, and workspace membership with group-only semantics.
 
 ## 9. Orphaned Attachment Cleanup
 

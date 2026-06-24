@@ -49,6 +49,8 @@ Use this when the interviewer asks for details.
 - **Frontend:** Next.js 16 App Router, React Server Components where useful, client components for real-time UI, Tailwind CSS design-system primitives.
 - **Real-time:** Socket.io namespaces/rooms per channel and DM. The server revalidates membership on every live event.
 
+Standalone group chats were added in B213 as a separate Prisma domain (`GroupConversation`, `GroupMember`, `GroupMessage`) so DM and workspace logic could stay untouched. They use a minimal OWNER/MEMBER permission model, their own REST and WebSocket events, and are surfaced in the sidebar between DMs and workspaces.
+
 ### Database
 
 - PostgreSQL 15 managed by Prisma.
