@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { UsersModule } from '../users/users.module';
 import { WebsocketModule } from '../websocket/websocket.module';
 import { PushModule } from '../push/push.module';
@@ -7,7 +7,7 @@ import { GroupsService } from './groups.service';
 import { GroupsRepository } from './groups.repository';
 
 @Module({
-  imports: [UsersModule, WebsocketModule, PushModule],
+  imports: [UsersModule, forwardRef(() => WebsocketModule), PushModule],
   controllers: [GroupsController],
   providers: [GroupsService, GroupsRepository],
   exports: [GroupsService, GroupsRepository],
