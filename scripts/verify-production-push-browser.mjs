@@ -205,14 +205,19 @@ async function verifyDmPush(accountA, accountB, ctxA, swA, ctxB, swB) {
 
   try {
     const checkPage = await ctxA.newPage();
+    await checkPage.goto(WEB_BASE, { waitUntil: "domcontentloaded" });
+    await checkPage.evaluate((t) => {
+      sessionStorage.setItem("accessToken", t.accessToken);
+      sessionStorage.setItem("refreshToken", t.refreshToken);
+    }, accountA);
     await checkPage.goto(`${WEB_BASE}${expectedUrl}`, { waitUntil: "networkidle" });
-    const body = await checkPage.evaluate(() => document.body.innerText);
+    await checkPage.waitForFunction(
+      (text) => document.body.innerText.includes(text),
+      messageText,
+      { timeout: 10000 },
+    );
     await checkPage.close();
-    if (body.includes(messageText)) {
-      pass("DM: clicking notification opens correct conversation");
-    } else {
-      fail("DM: opened conversation does not contain message");
-    }
+    pass("DM: clicking notification opens correct conversation");
   } catch (err) {
     fail("DM: navigate to notification URL", err.message);
   }
@@ -305,14 +310,19 @@ async function verifyChannelPush(accountA, accountB, ctxA, swA, swB) {
 
   try {
     const checkPage = await ctxA.newPage();
+    await checkPage.goto(WEB_BASE, { waitUntil: "domcontentloaded" });
+    await checkPage.evaluate((t) => {
+      sessionStorage.setItem("accessToken", t.accessToken);
+      sessionStorage.setItem("refreshToken", t.refreshToken);
+    }, accountA);
     await checkPage.goto(`${WEB_BASE}${expectedUrl}`, { waitUntil: "networkidle" });
-    const body = await checkPage.evaluate(() => document.body.innerText);
+    await checkPage.waitForFunction(
+      (text) => document.body.innerText.includes(text),
+      messageText,
+      { timeout: 10000 },
+    );
     await checkPage.close();
-    if (body.includes(messageText)) {
-      pass("Channel: clicking notification opens correct channel");
-    } else {
-      fail("Channel: opened channel does not contain message");
-    }
+    pass("Channel: clicking notification opens correct channel");
   } catch (err) {
     fail("Channel: navigate to notification URL", err.message);
   }
