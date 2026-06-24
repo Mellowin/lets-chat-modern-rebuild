@@ -96,6 +96,7 @@ describe("ProfilePage — authenticated", () => {
     expect(screen.getByRole("button", { name: /Sessions/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Language/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Notifications/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /App install/i })).toBeInTheDocument();
   });
 
   it("shows account section by default", async () => {
@@ -498,6 +499,18 @@ describe("ProfilePage — authenticated", () => {
       await openTab("Notifications");
       await waitFor(() => {
         expect(screen.getByRole("heading", { name: /Push notifications/i })).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe("app install", () => {
+    it("renders PWA install section", async () => {
+      mockAuth();
+      render(<ProfilePage />);
+
+      await openTab("App install");
+      await waitFor(() => {
+        expect(screen.getByRole("heading", { name: /App install/i })).toBeInTheDocument();
       });
     });
   });

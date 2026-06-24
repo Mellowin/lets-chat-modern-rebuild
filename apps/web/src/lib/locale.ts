@@ -617,7 +617,17 @@ export type TranslationKey =
   | "projectStatus.appLinkLabel"
   | "projectStatus.apiHealthLabel"
   | "projectStatus.apiDocsLabel"
-  | "projectStatus.sourceLabel";
+  | "projectStatus.sourceLabel"
+  | "profile.appInstall"
+  | "profile.appInstallDescription"
+  | "profile.installAppButton"
+  | "profile.addToHomeScreen"
+  | "profile.appInstalled"
+  | "profile.pwaUnsupported"
+  | "profile.pwaManualInstructions"
+  | "profile.installingApp"
+  | "profile.installAppAccepted"
+  | "profile.installAppDismissed";
 
 const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string) => string)>> = {
   en: {
@@ -1221,6 +1231,16 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "projectStatus.apiHealthLabel": "API health:",
     "projectStatus.apiDocsLabel": "API docs (Swagger):",
     "projectStatus.sourceLabel": "Source:",
+    "profile.appInstall": "App install",
+    "profile.appInstallDescription": "Add Lets Chat to your home screen for quick access.",
+    "profile.installAppButton": "Install app",
+    "profile.addToHomeScreen": "Add to home screen",
+    "profile.appInstalled": "App is installed on this device.",
+    "profile.pwaUnsupported": "This browser does not support PWA installation.",
+    "profile.pwaManualInstructions": "Open the browser menu and choose \"Add to home screen\".",
+    "profile.installingApp": "Installing…",
+    "profile.installAppAccepted": "Installation started.",
+    "profile.installAppDismissed": "Installation dismissed.",
   },
   uk: {
     "header.profile": "Профіль",
@@ -1823,6 +1843,16 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "projectStatus.apiHealthLabel": "Стан API:",
     "projectStatus.apiDocsLabel": "Документація API (Swagger):",
     "projectStatus.sourceLabel": "Джерело:",
+    "profile.appInstall": "Встановлення додатка",
+    "profile.appInstallDescription": "Додайте Lets Chat на головний екран для швидкого доступу.",
+    "profile.installAppButton": "Встановити додаток",
+    "profile.addToHomeScreen": "Додати на головний екран",
+    "profile.appInstalled": "Додаток встановлено на цьому пристрої.",
+    "profile.pwaUnsupported": "Цей браузер не підтримує встановлення PWA.",
+    "profile.pwaManualInstructions": "Відкрийте меню браузера та оберіть «Додати на головний екран».",
+    "profile.installingApp": "Встановлюємо…",
+    "profile.installAppAccepted": "Встановлення розпочато.",
+    "profile.installAppDismissed": "Встановлення скасовано.",
   },
   ru: {
     "header.profile": "Профиль",
@@ -2425,6 +2455,16 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "projectStatus.apiHealthLabel": "Состояние API:",
     "projectStatus.apiDocsLabel": "Документация API (Swagger):",
     "projectStatus.sourceLabel": "Источник:",
+    "profile.appInstall": "Установка приложения",
+    "profile.appInstallDescription": "Добавьте Lets Chat на главный экран для быстрого доступа.",
+    "profile.installAppButton": "Установить приложение",
+    "profile.addToHomeScreen": "Добавить на главный экран",
+    "profile.appInstalled": "Приложение установлено на этом устройстве.",
+    "profile.pwaUnsupported": "Этот браузер не поддерживает установку PWA.",
+    "profile.pwaManualInstructions": "Откройте меню браузера и выберите «Добавить на главный экран».",
+    "profile.installingApp": "Устанавливаем…",
+    "profile.installAppAccepted": "Установка началась.",
+    "profile.installAppDismissed": "Установка отменена.",
   },
 };
 

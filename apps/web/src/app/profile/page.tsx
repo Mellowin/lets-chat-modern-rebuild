@@ -42,6 +42,7 @@ import {
 import { Input } from "@/components/ui/Input";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PushNotificationsSection } from "./PushNotificationsSection";
+import { PwaInstallSection } from "./PwaInstallSection";
 
 type FormState =
   | { kind: "idle" }
@@ -54,7 +55,7 @@ const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 const LOCALE_OPTIONS: Locale[] = ["en", "uk", "ru"];
 
-type TabKey = "account" | "security" | "sessions" | "language" | "notifications";
+type TabKey = "account" | "security" | "sessions" | "language" | "notifications" | "app";
 
 function Alert({
   variant,
@@ -374,6 +375,11 @@ export default function ProfilePage() {
       key: "notifications",
       label: t("profile.notifications"),
       icon: <Bell size={16} />,
+    },
+    {
+      key: "app",
+      label: t("profile.appInstall"),
+      icon: <Smartphone size={16} />,
     },
   ];
 
@@ -989,6 +995,8 @@ export default function ProfilePage() {
       )}
 
       {activeTab === "notifications" && <PushNotificationsSection />}
+
+      {activeTab === "app" && <PwaInstallSection />}
 
       {activeTab === "language" && (
         <Card>
