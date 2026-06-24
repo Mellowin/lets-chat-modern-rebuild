@@ -1,7 +1,32 @@
 /// <reference lib="webworker" />
 
+const CACHE_VERSION = 'v1';
+const APP_SHELL_CACHE = `lets-chat-shell-${CACHE_VERSION}`;
+const STATIC_CACHE = `lets-chat-static-${CACHE_VERSION}`;
+const OFFLINE_PAGE = '/offline.html';
 const ICON = '/icon.svg';
 const BADGE = '/icon.svg';
+
+const SHELL_URLS = [
+  '/',
+  '/login',
+  '/register',
+  '/dashboard',
+  '/direct',
+  '/profile',
+  '/project-status',
+  '/offline.html',
+];
+
+const STATIC_ASSET_URLS = [
+  '/icon.svg',
+  '/apple-touch-icon.png',
+  '/icons/icon-192x192.png',
+  '/icons/icon-512x512.png',
+  '/icons/icon-maskable-192x192.png',
+  '/icons/icon-maskable-512x512.png',
+  '/manifest.webmanifest',
+];
 
 /**
  * @param {PushEvent} event
@@ -71,13 +96,126 @@ function handleNotificationClick(event) {
   );
 }
 
+/**
+ * @param {FetchEvent} event
+ */
+function handleFetch(event) {
+  const { request } = event;
+  const url = new URL(request.url);
+
+  if (request.method !== 'GET') {
+    return;
+  }
+
+  // Never intercept or cache API calls, auth flows or attachment downloads.
+  if (
+    url.pathname.startsWith('/api/') ||
+    url.pathname.startsWith('/uploads/') ||
+    url.pathname.startsWith('/auth/')
+  ) {
+    return;
+  }
+
+  // Navigation requests: try network first, fall back to cached shell/offline page.
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          const cache = caches.open(APP_SHELL_CACHE);
+          cache.then((c) =>
+            c.put(request, response.clone()).catch(() => {}),
+          );
+          return response;
+        })
+        .catch(() =>
+          caches
+            .match(request)
+            .then((cached) => cached || caches.match(OFFLINE_PAGE))
+            .then((cached) => cached || new Response('Offline', { status: 503 })),
+        ),
+    );
+    return;
+  }
+
+  // Static assets: serve from cache first, then network.
+  const isStaticAsset =
+    url.pathname.startsWith('/_next/static/') ||
+    /\.(js|css|png|jpg|jpeg|gif|svg|webp|ico|woff2?|ttf|otf|webmanifest)$/i.test(
+      url.pathname,
+    );
+
+  if (isStaticAsset) {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        if (cached) {
+          return cached;
+        }
+        return fetch(request).then((response) => {
+          if (!response || response.status !== 200 || response.type !== 'basic') {
+            return response;
+          }
+          const cache = caches.open(STATIC_CACHE);
+          cache.then((c) => c.put(request, response.clone()).catch(() => {}));
+          return response;
+        });
+      }),
+    );
+    return;
+  }
+
+  // Other same-origin GET requests: network first with cache fallback.
+  if (url.origin === self.location.origin) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response && response.status === 200 && response.type === 'basic') {
+            const cache = caches.open(APP_SHELL_CACHE);
+            cache.then((c) => c.put(request, response.clone()).catch(() => {}));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request).then((cached) => cached || fetch(request))),
+    );
+  }
+}
+
 self.addEventListener('install', (event) => {
-  event.waitUntil(self.skipWaiting());
+  event.waitUntil(
+    caches
+      .open(APP_SHELL_CACHE)
+      .then((cache) =>
+        cache.addAll(SHELL_URLS).catch(() => {}),
+      )
+      .then(() =>
+        caches
+          .open(STATIC_CACHE)
+          .then((cache) => cache.addAll(STATIC_ASSET_URLS).catch(() => {})),
+      )
+      .then(() => self.skipWaiting()),
+  );
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter(
+              (key) =>
+                (key.startsWith('lets-chat-shell-') ||
+                  key.startsWith('lets-chat-static-')) &&
+                key !== APP_SHELL_CACHE &&
+                key !== STATIC_CACHE,
+            )
+            .map((key) => caches.delete(key)),
+        ),
+      )
+      .then(() => self.clients.claim()),
+  );
 });
 
+self.addEventListener('fetch', handleFetch);
 self.addEventListener('push', handlePush);
 self.addEventListener('notificationclick', handleNotificationClick);
