@@ -41,7 +41,7 @@ export class GroupInvitesController {
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   async create(
     @Param('groupId', ParseUUIDPipe) groupId: string,
-    @Body() dto: CreateGroupInviteDto,
+    @Body() dto: CreateGroupInviteDto = {},
     @CurrentUser() user: AuthUserResponse,
   ) {
     return this.groupInvites.createInvite(groupId, dto, user.id);
