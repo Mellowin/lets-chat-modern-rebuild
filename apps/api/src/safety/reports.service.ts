@@ -21,6 +21,10 @@ export class ReportsService {
       throw new BadRequestException('Cannot report yourself');
     }
 
+    if (!dto.reason || typeof dto.reason !== 'string' || dto.reason.trim().length === 0) {
+      throw new BadRequestException('Reason is required');
+    }
+
     const reportedUser = await this.users.findById(dto.reportedUserId);
     if (!reportedUser) {
       throw new NotFoundException('User not found');
