@@ -10,7 +10,7 @@
 - **Telegram / Телефон:** +380638352650
 - **GitHub:** [github.com/Mellowin](https://github.com/Mellowin)
 - **Portfolio:** [lets-chat-web.vercel.app](https://lets-chat-web.vercel.app)
-- **LinkedIn:** [LinkedIn URL]
+- **LinkedIn:** [https://www.linkedin.com/in/valeriy-khoidas-18622290/](https://www.linkedin.com/in/valeriy-khoidas-18622290/)
 
 ---
 
@@ -76,4 +76,4 @@ Junior Backend / Full-stack розробник з досвідом створе�
 ## Мови
 
 - Українська: вільно
-- Англійська: [рівень]
+- Англійська: A2–B1 / Pre-Intermediate

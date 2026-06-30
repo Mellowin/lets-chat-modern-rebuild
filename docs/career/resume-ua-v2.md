@@ -3,10 +3,10 @@
 **Роль:** Junior Backend Developer · Junior Full-stack Developer · TypeScript / Node.js Developer
 
 **Контакти:**
-- Email: [your.email@example.com]
-- Telegram / Phone: [+380XXXXXXXXX / @username]
+- Email: [mellowin1987@gmail.com](mailto:mellowin1987@gmail.com)
+- Telegram / Телефон: +380638352650
 - GitHub: https://github.com/Mellowin
-- LinkedIn: [https://linkedin.com/in/your-profile]
+- LinkedIn: https://www.linkedin.com/in/valeriy-khoidas-18622290/
 - Portfolio: https://lets-chat-web.vercel.app
 
 ---
@@ -81,5 +81,5 @@ Junior-розробник з досвідом створення production full
 ## Освіта / додатково
 
 - [Укажіть освіту або курси, якщо бажаєте]
-- Англійська: [рівень]
+- Англійська: A2–B1 / Pre-Intermediate
 - Українська: вільно
