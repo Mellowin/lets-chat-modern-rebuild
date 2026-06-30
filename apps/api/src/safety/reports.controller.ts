@@ -29,6 +29,7 @@ export class ReportsController {
     @Body() dto: CreateReportDto,
     @CurrentUser() user: AuthUserResponse,
   ) {
-    return this.reports.createReport(user.id, dto);
+    await this.reports.createReport(user.id, dto);
+    return { success: true };
   }
 }
