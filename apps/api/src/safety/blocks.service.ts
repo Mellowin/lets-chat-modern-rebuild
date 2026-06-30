@@ -21,7 +21,7 @@ export class BlocksService {
   ): Promise<{
     id: string;
     blockerId: string;
-    blockedId: string;
+    blockedUserId: string;
     reason: string | null;
     createdAt: Date;
     blocked: {
