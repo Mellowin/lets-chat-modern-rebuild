@@ -21,7 +21,11 @@ export class ReportsService {
       throw new BadRequestException('Cannot report yourself');
     }
 
-    if (!dto.reason || typeof dto.reason !== 'string' || dto.reason.trim().length === 0) {
+    if (
+      !dto.reason ||
+      typeof dto.reason !== 'string' ||
+      dto.reason.trim().length === 0
+    ) {
       throw new BadRequestException('Reason is required');
     }
 
