@@ -261,6 +261,9 @@ export type TranslationKey =
   | "channel.send"
   | "channel.sending"
   | "channel.loadingMessages"
+  | "channel.loadOlderMessages"
+  | "channel.loadingOlderMessages"
+  | "channel.errorLoadMessagesFailed"
   | "channel.noMessages"
   | "channel.members"
   | "channel.invitePlaceholder"
@@ -425,6 +428,8 @@ export type TranslationKey =
   | "direct.send"
   | "direct.sending"
   | "direct.loadingMessages"
+  | "direct.loadOlderMessages"
+  | "direct.loadingOlderMessages"
   | "direct.noMessages"
   | "direct.online"
   | "direct.offline"
@@ -482,6 +487,8 @@ export type TranslationKey =
   | "groups.noMessages"
   | "groups.loadingGroups"
   | "groups.loadingMessages"
+  | "groups.loadOlderMessages"
+  | "groups.loadingOlderMessages"
   | "groups.failedLoadGroups"
   | "groups.failedLoadMessages"
   | "groups.failedSendMessage"
@@ -968,6 +975,9 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.send": "Send",
     "channel.sending": "Sending…",
     "channel.loadingMessages": "Loading messages…",
+    "channel.loadOlderMessages": "Load older messages",
+    "channel.loadingOlderMessages": "Loading older messages…",
+    "channel.errorLoadMessagesFailed": "Failed to load older messages",
     "channel.noMessages": "No messages yet.",
     "channel.members": "Members",
     "channel.invitePlaceholder": "Username or email",
@@ -1074,6 +1084,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "direct.send": "Send",
     "direct.sending": "Sending…",
     "direct.loadingMessages": "Loading messages…",
+    "direct.loadOlderMessages": "Load older messages",
+    "direct.loadingOlderMessages": "Loading older messages…",
     "direct.noMessages": "No messages yet.",
     "direct.online": "Online",
     "direct.offline": "Offline",
@@ -1131,6 +1143,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "groups.noMessages": "No messages yet.",
     "groups.loadingGroups": "Loading groups…",
     "groups.loadingMessages": "Loading messages…",
+    "groups.loadOlderMessages": "Load older messages",
+    "groups.loadingOlderMessages": "Loading older messages…",
     "groups.failedLoadGroups": "Failed to load groups",
     "groups.failedLoadMessages": "Failed to load messages",
     "groups.failedSendMessage": "Failed to send message",
@@ -1712,6 +1726,9 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.send": "Надіслати",
     "channel.sending": "Надсилаємо…",
     "channel.loadingMessages": "Завантажуємо повідомлення…",
+    "channel.loadOlderMessages": "Завантажити старіші повідомлення",
+    "channel.loadingOlderMessages": "Завантажуємо старіші повідомлення…",
+    "channel.errorLoadMessagesFailed": "Не вдалося завантажити старіші повідомлення",
     "channel.noMessages": "Повідомлень ще немає.",
     "channel.members": "Учасники",
     "channel.invitePlaceholder": "Імʼя користувача або email",
@@ -1818,6 +1835,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "direct.send": "Надіслати",
     "direct.sending": "Надсилаємо…",
     "direct.loadingMessages": "Завантажуємо повідомлення…",
+    "direct.loadOlderMessages": "Завантажити старіші повідомлення",
+    "direct.loadingOlderMessages": "Завантажуємо старіші повідомлення…",
     "direct.noMessages": "Повідомлень ще немає.",
     "direct.online": "Онлайн",
     "direct.offline": "Офлайн",
@@ -1875,6 +1894,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "groups.noMessages": "Повідомлень ще немає.",
     "groups.loadingGroups": "Завантажуємо групи…",
     "groups.loadingMessages": "Завантажуємо повідомлення…",
+    "groups.loadOlderMessages": "Завантажити старіші повідомлення",
+    "groups.loadingOlderMessages": "Завантажуємо старіші повідомлення…",
     "groups.failedLoadGroups": "Не вдалося завантажити групи",
     "groups.failedLoadMessages": "Не вдалося завантажити повідомлення",
     "groups.failedSendMessage": "Не вдалося надіслати повідомлення",
@@ -2456,6 +2477,9 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.send": "Отправить",
     "channel.sending": "Отправляем…",
     "channel.loadingMessages": "Загружаем сообщения…",
+    "channel.loadOlderMessages": "Загрузить старые сообщения",
+    "channel.loadingOlderMessages": "Загружаем старые сообщения…",
+    "channel.errorLoadMessagesFailed": "Не удалось загрузить старые сообщения",
     "channel.noMessages": "Сообщений пока нет.",
     "channel.members": "Участники",
     "channel.invitePlaceholder": "Имя пользователя или email",
@@ -2562,6 +2586,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "direct.send": "Отправить",
     "direct.sending": "Отправляем…",
     "direct.loadingMessages": "Загружаем сообщения…",
+    "direct.loadOlderMessages": "Загрузить старые сообщения",
+    "direct.loadingOlderMessages": "Загружаем старые сообщения…",
     "direct.noMessages": "Сообщений пока нет.",
     "direct.online": "Онлайн",
     "direct.offline": "Офлайн",
@@ -2619,6 +2645,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "groups.noMessages": "Сообщений пока нет.",
     "groups.loadingGroups": "Загружаем группы…",
     "groups.loadingMessages": "Загружаем сообщения…",
+    "groups.loadOlderMessages": "Загрузить старые сообщения",
+    "groups.loadingOlderMessages": "Загружаем старые сообщения…",
     "groups.failedLoadGroups": "Не удалось загрузить группы",
     "groups.failedLoadMessages": "Не удалось загрузить сообщения",
     "groups.failedSendMessage": "Не удалось отправить сообщение",

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService, StorageBackend } from '@lets-chat/database';
+import { buildMessageCursorWhereClause } from '../common/cursor-pagination';
 
 interface CreateMessageInput {
   channelId: string;
@@ -87,15 +88,19 @@ export class MessagesRepository {
     });
   }
 
-  async listForChannel(channelId: string, limit: number, before?: Date) {
+  async listForChannel(
+    channelId: string,
+    limit: number,
+    cursor?: { createdAt: Date; id: string },
+  ) {
     return this.prisma.message.findMany({
       where: {
         channelId,
         deletedAt: null,
-        ...(before ? { createdAt: { lt: before } } : {}),
+        ...(cursor ? { OR: buildMessageCursorWhereClause(cursor) } : {}),
       },
-      orderBy: { createdAt: 'asc' },
-      take: limit,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit + 1,
       include: {
         author: {
           select: {

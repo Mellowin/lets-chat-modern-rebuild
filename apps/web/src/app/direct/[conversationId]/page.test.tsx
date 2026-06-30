@@ -78,7 +78,11 @@ beforeEach(() => {
 });
 
 function mockMessages(messagesData: unknown[] = []) {
-  vi.mocked(listDirectMessages).mockResolvedValueOnce(messagesData as DirectMessage[]);
+  vi.mocked(listDirectMessages).mockResolvedValueOnce({
+    items: messagesData as DirectMessage[],
+    nextCursor: null,
+    hasMore: false,
+  });
 }
 
 describe("DirectConversationPage — locale", () => {

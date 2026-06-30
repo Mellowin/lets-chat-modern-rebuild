@@ -16,7 +16,7 @@ describe("messages-api", () => {
 
   describe("getMessages", () => {
     it("sends GET with limit=50", async () => {
-      const mock = [{ id: "m1", channelId: "ch1", content: "hello", parentId: null, createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", editedAt: null, author }];
+      const mock = { items: [{ id: "m1", channelId: "ch1", content: "hello", parentId: null, createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", editedAt: null, author }], nextCursor: null, hasMore: false };
       vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(mock), { status: 200 }));
 
       const result = await getMessages("token", "ws1", "ch1");
@@ -26,6 +26,18 @@ describe("messages-api", () => {
         expect.objectContaining({ method: "GET" }),
       );
       expect(result).toEqual(mock);
+    });
+
+    it("sends GET with cursor when provided", async () => {
+      const mock = { items: [{ id: "m2", channelId: "ch1", content: "older", parentId: null, createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", editedAt: null, author }], nextCursor: null, hasMore: false };
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(mock), { status: 200 }));
+
+      await getMessages("token", "ws1", "ch1", { cursor: "2024-01-01T00:00:00Z:m1" });
+
+      expect(fetch).toHaveBeenCalledWith(
+        `${API_BASE}/workspaces/ws1/channels/ch1/messages?limit=50&cursor=2024-01-01T00%3A00%3A00Z%3Am1`,
+        expect.objectContaining({ method: "GET" }),
+      );
     });
 
     it("throws with backend error message", async () => {

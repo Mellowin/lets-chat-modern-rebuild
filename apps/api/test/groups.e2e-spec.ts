@@ -18,6 +18,12 @@ interface GroupMessageResponse {
   content: string;
 }
 
+interface PaginatedGroupMessageList {
+  items: Array<{ id: string; content: string }>;
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
 describe('Groups E2E Security', () => {
   let app: INestApplication<App>;
   let prisma: PrismaService;
@@ -129,7 +135,19 @@ describe('Groups E2E Security', () => {
       return request(app.getHttpServer())
         .get(`/groups/${group.id}/messages`)
         .set('Authorization', `Bearer ${tokenB}`)
-        .expect(200);
+        .expect(200)
+        .expect((res) => {
+          const body = res.body as {
+            items: Array<{ id: string; content: string }>;
+            nextCursor: string | null;
+            hasMore: boolean;
+          };
+          expect(Array.isArray(body.items)).toBe(true);
+          expect(typeof body.hasMore).toBe('boolean');
+          expect(
+            body.nextCursor === null || typeof body.nextCursor === 'string',
+          ).toBe(true);
+        });
     });
 
     it('non-member cannot list group messages', () => {
@@ -157,6 +175,87 @@ describe('Groups E2E Security', () => {
         .set('Authorization', `Bearer ${tokenC}`)
         .send({ content: 'intruder' })
         .expect(404);
+    });
+  });
+
+  describe('group message cursor pagination', () => {
+    it('returns pages ordered from newest to oldest and stable cursors', async () => {
+      await prisma.groupMessage.deleteMany({ where: { groupId: group.id } });
+      await prisma.groupMessage.createMany({
+        data: [
+          {
+            groupId: group.id,
+            authorId: userB.id,
+            content: 'group-msg-1-oldest',
+            createdAt: new Date('2026-06-30T10:00:00.000Z'),
+          },
+          {
+            groupId: group.id,
+            authorId: userB.id,
+            content: 'group-msg-2',
+            createdAt: new Date('2026-06-30T10:01:00.000Z'),
+          },
+          {
+            groupId: group.id,
+            authorId: userB.id,
+            content: 'group-msg-3',
+            createdAt: new Date('2026-06-30T10:02:00.000Z'),
+          },
+          {
+            groupId: group.id,
+            authorId: userB.id,
+            content: 'group-msg-4',
+            createdAt: new Date('2026-06-30T10:03:00.000Z'),
+          },
+          {
+            groupId: group.id,
+            authorId: userB.id,
+            content: 'group-msg-5-newest',
+            createdAt: new Date('2026-06-30T10:04:00.000Z'),
+          },
+        ],
+      });
+
+      const first = await request(app.getHttpServer())
+        .get(`/groups/${group.id}/messages?limit=2`)
+        .set('Authorization', `Bearer ${tokenB}`)
+        .expect(200);
+      const firstBody = first.body as PaginatedGroupMessageList;
+
+      expect(firstBody.items).toHaveLength(2);
+      expect(
+        firstBody.items.map((m: { content: string }) => m.content),
+      ).toEqual(['group-msg-4', 'group-msg-5-newest']);
+      expect(firstBody.hasMore).toBe(true);
+      expect(typeof firstBody.nextCursor).toBe('string');
+
+      const second = await request(app.getHttpServer())
+        .get(
+          `/groups/${group.id}/messages?limit=2&cursor=${encodeURIComponent(firstBody.nextCursor as string)}`,
+        )
+        .set('Authorization', `Bearer ${tokenB}`)
+        .expect(200);
+      const secondBody = second.body as PaginatedGroupMessageList;
+
+      expect(secondBody.items).toHaveLength(2);
+      expect(
+        secondBody.items.map((m: { content: string }) => m.content),
+      ).toEqual(['group-msg-2', 'group-msg-3']);
+      expect(secondBody.hasMore).toBe(true);
+      expect(typeof secondBody.nextCursor).toBe('string');
+
+      const third = await request(app.getHttpServer())
+        .get(
+          `/groups/${group.id}/messages?limit=2&cursor=${encodeURIComponent(secondBody.nextCursor as string)}`,
+        )
+        .set('Authorization', `Bearer ${tokenB}`)
+        .expect(200);
+      const thirdBody = third.body as PaginatedGroupMessageList;
+
+      expect(thirdBody.items).toHaveLength(1);
+      expect(thirdBody.items[0].content).toBe('group-msg-1-oldest');
+      expect(thirdBody.hasMore).toBe(false);
+      expect(thirdBody.nextCursor).toBeNull();
     });
   });
 

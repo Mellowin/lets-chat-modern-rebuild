@@ -70,6 +70,11 @@ export default function DirectConversationPage() {
   const searchParams = useSearchParams();
   const handledQueryMessageIdRef = useRef<string | null>(null);
   const [messages, setMessages] = useState<MessagesState>({ kind: "idle" });
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [olderMessagesState, setOlderMessagesState] = useState<
+    { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string }
+  >({ kind: "idle" });
   const [conversation, setConversation] = useState<ConversationState>({ kind: "idle" });
   const conversationRef = useRef<ConversationState>(conversation);
   useEffect(() => {
@@ -341,6 +346,41 @@ export default function DirectConversationPage() {
     });
   }
 
+  async function loadOlderMessages() {
+    if (!accessToken || !conversationId || !nextCursor) return;
+    setOlderMessagesState({ kind: "loading" });
+
+    const scrollEl = messagesScrollRef.current;
+    const previousScrollHeight = scrollEl?.scrollHeight ?? 0;
+
+    try {
+      const result = await listDirectMessages(accessToken, conversationId, {
+        cursor: nextCursor,
+        limit: 50,
+      });
+
+      setMessages((prev) => {
+        if (prev.kind !== "success") return prev;
+        const existingIds = new Set(prev.data.map((m) => m.id));
+        const newItems = result.items.filter((m) => !existingIds.has(m.id));
+        return { kind: "success", data: [...newItems, ...prev.data] };
+      });
+      setNextCursor(result.nextCursor);
+      setHasMoreMessages(result.hasMore);
+      setOlderMessagesState({ kind: "idle" });
+
+      requestAnimationFrame(() => {
+        if (scrollEl) {
+          const heightDelta = scrollEl.scrollHeight - previousScrollHeight;
+          scrollEl.scrollTop += heightDelta;
+        }
+      });
+    } catch (err) {
+      const message = localizeApiError(err, "direct.failedLoadMessages", t);
+      setOlderMessagesState({ kind: "error", message });
+    }
+  }
+
   const markAllReadInState = useCallback(() => {
     setMessages((prev) => {
       if (prev.kind !== "success") return prev;
@@ -465,7 +505,9 @@ export default function DirectConversationPage() {
           listDirectConversations(token),
         ]);
         if (!cancelled) {
-          setMessages({ kind: "success", data: msgData });
+          setMessages({ kind: "success", data: msgData.items });
+          setNextCursor(msgData.nextCursor);
+          setHasMoreMessages(msgData.hasMore);
           const conv = convsData.find((c) => c.id === id) ?? null;
           setConversation({ kind: "success", data: conv });
           setForwardConversations(convsData);
@@ -853,7 +895,9 @@ export default function DirectConversationPage() {
       }
       // If forwarded to current conversation, reload messages to show it
       const refreshed = await listDirectMessages(accessToken, conversationId);
-      setMessages({ kind: "success", data: refreshed });
+      setMessages({ kind: "success", data: refreshed.items });
+      setNextCursor(refreshed.nextCursor);
+      setHasMoreMessages(refreshed.hasMore);
     } catch (err) {
       const message = localizeApiError(err, "direct.failedForwardMessage", t);
       setForwardState({ kind: "error", message });
@@ -945,7 +989,9 @@ export default function DirectConversationPage() {
                     showLabel={false}
                     onBlocked={() => {
                       void listDirectMessages(accessToken ?? "", conversationId).then((data) => {
-                        setMessages({ kind: "success", data });
+                        setMessages({ kind: "success", data: data.items });
+                        setNextCursor(data.nextCursor);
+                        setHasMoreMessages(data.hasMore);
                       }).catch(() => {
                         // non-blocking
                       });
@@ -977,6 +1023,29 @@ export default function DirectConversationPage() {
         <div className="mt-4 flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-border/80 bg-card shadow-md">
           <div ref={messagesScrollRef} data-testid="direct-messages-scroll" onScroll={() => { setMessageMenuId(null); setMessageMenuPosition(null); setReactionPickerMessageId(null); setReactionPickerPosition(null); }} className="chat-canvas min-h-0 flex-1 overflow-y-auto px-4 py-3">
             <div className="flex w-full max-w-3xl flex-col">
+              {messages.kind === "success" && hasMoreMessages && (
+                <div className="mb-2 flex justify-center">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={loadOlderMessages}
+                    disabled={olderMessagesState.kind === "loading"}
+                    data-testid="direct-load-older-messages"
+                  >
+                    {olderMessagesState.kind === "loading" ? (
+                      <><Loader2 size={14} className="mr-1.5 animate-spin" />{t("direct.loadingOlderMessages")}</>
+                    ) : (
+                      t("direct.loadOlderMessages")
+                    )}
+                  </Button>
+                </div>
+              )}
+              {olderMessagesState.kind === "error" && (
+                <div className="mb-2 rounded-lg border border-destructive/20 bg-destructive/10 p-2 text-xs text-destructive">
+                  {olderMessagesState.message}
+                </div>
+              )}
               {messages.kind === "loading" && (
                 <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 size={16} className="animate-spin" />

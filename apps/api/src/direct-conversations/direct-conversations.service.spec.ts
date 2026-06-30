@@ -469,10 +469,67 @@ describe('DirectConversationsService', () => {
       ]);
       repository.getDirectMessageReactions.mockResolvedValue([]);
 
-      const result = await service.listMessages(conversationId, userId);
+      const result = (await service.listMessages(conversationId, userId)).items;
       expect(result).toHaveLength(1);
       expect(result[0].content).toBe('hello');
       expect(result[0].reactions).toEqual([]);
+    });
+
+    it('paginates messages newest-first and returns a nextCursor for the oldest loaded', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: null },
+      ]);
+      repository.listMessagesForConversation.mockResolvedValue([
+        makeMessage({
+          id: 'msg-newest',
+          content: 'newest',
+          createdAt: new Date('2026-06-30T12:00:02.000Z'),
+        }),
+        makeMessage({
+          id: 'msg-middle',
+          content: 'middle',
+          createdAt: new Date('2026-06-30T12:00:01.000Z'),
+        }),
+        makeMessage({
+          id: 'msg-oldest',
+          content: 'oldest',
+          createdAt: new Date('2026-06-30T12:00:00.000Z'),
+        }),
+      ]);
+      repository.getDirectMessageReactions.mockResolvedValue([]);
+
+      const result = await service.listMessages(conversationId, userId, {
+        limit: 2,
+      });
+
+      expect(result.items).toHaveLength(2);
+      expect(result.items.map((m) => m.content)).toEqual(['middle', 'newest']);
+      expect(result.hasMore).toBe(true);
+      expect(result.nextCursor).toBe('2026-06-30T12:00:01.000Z:msg-middle');
+    });
+
+    it('throws BadRequestException for an invalid cursor', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+
+      await expect(
+        service.listMessages(conversationId, userId, {
+          cursor: 'not-a-cursor',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('marks own messages as readByOtherParticipant true when other lastReadAt >= createdAt', async () => {
@@ -497,7 +554,7 @@ describe('DirectConversationsService', () => {
       ]);
       repository.getDirectMessageReactions.mockResolvedValue([]);
 
-      const result = await service.listMessages(conversationId, userId);
+      const result = (await service.listMessages(conversationId, userId)).items;
       expect(result[0].readByOtherParticipant).toBe(true);
     });
 
@@ -523,7 +580,7 @@ describe('DirectConversationsService', () => {
       ]);
       repository.getDirectMessageReactions.mockResolvedValue([]);
 
-      const result = await service.listMessages(conversationId, userId);
+      const result = (await service.listMessages(conversationId, userId)).items;
       expect(result[0].readByOtherParticipant).toBe(false);
     });
 
@@ -552,7 +609,7 @@ describe('DirectConversationsService', () => {
       ]);
       repository.getDirectMessageReactions.mockResolvedValue([]);
 
-      const result = await service.listMessages(conversationId, userId);
+      const result = (await service.listMessages(conversationId, userId)).items;
       expect(result[0].readByOtherParticipant).toBe(false);
     });
 
@@ -584,7 +641,7 @@ describe('DirectConversationsService', () => {
       ]);
       repository.getDirectMessageReactions.mockResolvedValue([]);
 
-      const result = await service.listMessages(conversationId, userId);
+      const result = (await service.listMessages(conversationId, userId)).items;
       expect(result[0].isUnreadForMe).toBe(true);
     });
 
@@ -616,7 +673,7 @@ describe('DirectConversationsService', () => {
       ]);
       repository.getDirectMessageReactions.mockResolvedValue([]);
 
-      const result = await service.listMessages(conversationId, userId);
+      const result = (await service.listMessages(conversationId, userId)).items;
       expect(result[0].isUnreadForMe).toBe(false);
     });
 
@@ -637,7 +694,7 @@ describe('DirectConversationsService', () => {
       ]);
       repository.getDirectMessageReactions.mockResolvedValue([]);
 
-      const result = await service.listMessages(conversationId, userId);
+      const result = (await service.listMessages(conversationId, userId)).items;
       expect(result[0].isUnreadForMe).toBe(false);
     });
 
@@ -666,7 +723,7 @@ describe('DirectConversationsService', () => {
       ]);
       repository.getDirectMessageReactions.mockResolvedValue([]);
 
-      const result = await service.listMessages(conversationId, userId);
+      const result = (await service.listMessages(conversationId, userId)).items;
       expect(result[0].isUnreadForMe).toBe(true);
     });
   });

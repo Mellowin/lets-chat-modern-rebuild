@@ -88,28 +88,44 @@ describe("direct-conversations-api", () => {
 
   describe("listDirectMessages", () => {
     it("sends GET /direct-conversations/:id/messages", async () => {
-      const mock = [
-        {
-          id: "dm1",
-          conversationId: "dc1",
-          content: "hello",
-          parentId: null,
-          createdAt: "2024-01-01T00:00:00Z",
-          updatedAt: "2024-01-01T00:00:00Z",
-          editedAt: null,
-          author,
-          parent: null,
-        },
-      ];
+      const mock = {
+        items: [
+          {
+            id: "dm1",
+            conversationId: "dc1",
+            content: "hello",
+            parentId: null,
+            createdAt: "2024-01-01T00:00:00Z",
+            updatedAt: "2024-01-01T00:00:00Z",
+            editedAt: null,
+            author,
+            parent: null,
+          },
+        ],
+        nextCursor: null,
+        hasMore: false,
+      };
       vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(mock), { status: 200 }));
 
       const result = await listDirectMessages("token", "dc1");
 
       expect(fetch).toHaveBeenCalledWith(
-        `${API_BASE}/direct-conversations/dc1/messages`,
+        `${API_BASE}/direct-conversations/dc1/messages?limit=50`,
         expect.objectContaining({ method: "GET" }),
       );
       expect(result).toEqual(mock);
+    });
+
+    it("sends GET with cursor when provided", async () => {
+      const mock = { items: [], nextCursor: null, hasMore: false };
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(mock), { status: 200 }));
+
+      await listDirectMessages("token", "dc1", { cursor: "2024-01-01T00:00:00Z:dm1" });
+
+      expect(fetch).toHaveBeenCalledWith(
+        `${API_BASE}/direct-conversations/dc1/messages?limit=50&cursor=2024-01-01T00%3A00%3A00Z%3Adm1`,
+        expect.objectContaining({ method: "GET" }),
+      );
     });
 
     it("throws with backend error message", async () => {

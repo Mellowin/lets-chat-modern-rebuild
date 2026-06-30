@@ -88,9 +88,14 @@ export async function getMessages(
   accessToken: string,
   workspaceId: string,
   channelId: string,
-): Promise<Message[]> {
+  options?: { cursor?: string; limit?: number },
+): Promise<PaginatedMessages> {
+  const params = new URLSearchParams();
+  params.set("limit", String(options?.limit ?? 50));
+  if (options?.cursor) params.set("cursor", options.cursor);
+
   const res = await authFetch(
-    `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/messages?limit=50`,
+    `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/messages?${params.toString()}`,
     {
       method: "GET",
       headers: {
@@ -112,7 +117,7 @@ export async function getMessages(
     throw new Error(message);
   }
 
-  return res.json() as Promise<Message[]>;
+  return res.json() as Promise<PaginatedMessages>;
 }
 
 export async function presignAttachmentUpload(
@@ -510,6 +515,12 @@ export async function removeMessageReaction(
   }
 
   return res.json() as Promise<ReactionSummary[]>;
+}
+
+export interface PaginatedMessages {
+  items: Message[];
+  nextCursor: string | null;
+  hasMore: boolean;
 }
 
 export interface SearchChannelMessagesResult {

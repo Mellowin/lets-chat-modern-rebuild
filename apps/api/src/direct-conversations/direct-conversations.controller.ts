@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   UseGuards,
   ParseUUIDPipe,
 } from '@nestjs/common';
@@ -25,6 +26,7 @@ import { CreateDirectConversationDto } from './dto/create-direct-conversation.dt
 import { CreateDirectMessageDto } from './dto/create-direct-message.dto';
 import { CreateDirectReactionDto } from './dto/create-direct-reaction.dto';
 import { UpdateDirectMessageDto } from './dto/update-direct-message.dto';
+import { ListDirectMessagesQueryDto } from './dto/list-direct-messages-query.dto';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUserResponse } from '../auth/auth.service';
@@ -68,9 +70,14 @@ export class DirectConversationsController {
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   async findMessages(
     @Param('conversationId', ParseUUIDPipe) conversationId: string,
+    @Query() query: ListDirectMessagesQueryDto,
     @CurrentUser() user: AuthUserResponse,
   ) {
-    return this.directConversations.listMessages(conversationId, user.id);
+    return this.directConversations.listMessages(
+      conversationId,
+      user.id,
+      query,
+    );
   }
 
   @Post(':conversationId/messages')

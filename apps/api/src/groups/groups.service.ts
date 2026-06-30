@@ -4,6 +4,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import {
+  decodeMessageCursor,
+  encodeMessageCursor,
+} from '../common/cursor-pagination';
 import { UsersRepository } from '../users/users.repository';
 import { WebsocketEventsService } from '../websocket/websocket-events.service';
 import { PushService } from '../push/push.service';
@@ -13,6 +17,7 @@ import { CreateGroupDto } from './dto/create-group.dto';
 import { UpdateGroupDto } from './dto/update-group.dto';
 import { AddGroupMemberDto } from './dto/add-group-member.dto';
 import { CreateGroupMessageDto } from './dto/create-group-message.dto';
+import { ListGroupMessagesQueryDto } from './dto/list-group-messages-query.dto';
 
 @Injectable()
 export class GroupsService {
@@ -271,10 +276,26 @@ export class GroupsService {
     return { success: true };
   }
 
-  async listMessages(groupId: string, currentUserId: string) {
+  async listMessages(
+    groupId: string,
+    currentUserId: string,
+    query?: ListGroupMessagesQueryDto,
+  ) {
     await this.requireGroupAccessible(groupId, currentUserId);
-    const messages = await this.groups.listMessages(groupId);
-    return messages.map((m) => ({
+
+    const limit = Math.min(query?.limit ?? 50, 100);
+    const cursor = query?.cursor
+      ? decodeMessageCursor(query.cursor)
+      : undefined;
+    if (query?.cursor && !cursor) {
+      throw new BadRequestException('Invalid cursor format');
+    }
+
+    const rows = await this.groups.listMessages(groupId, limit, cursor);
+    const hasMore = rows.length > limit;
+    const page = (hasMore ? rows.slice(0, limit) : rows).reverse();
+
+    const items = page.map((m) => ({
       id: m.id,
       groupId: m.groupId,
       content: m.content,
@@ -282,6 +303,13 @@ export class GroupsService {
       updatedAt: m.updatedAt,
       author: m.author,
     }));
+
+    return {
+      items,
+      nextCursor:
+        hasMore && page.length > 0 ? encodeMessageCursor(page[0]) : null,
+      hasMore,
+    };
   }
 
   async createMessage(

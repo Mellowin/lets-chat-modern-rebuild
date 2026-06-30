@@ -50,6 +50,12 @@ export interface GroupMessage {
   author: GroupMessageAuthor;
 }
 
+export interface PaginatedGroupMessages {
+  items: GroupMessage[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
 export interface CreateGroupInput {
   name: string;
   memberIds: string[];
@@ -223,8 +229,16 @@ export async function leaveGroup(accessToken: string, groupId: string): Promise<
   return res.json() as Promise<{ success: true }>;
 }
 
-export async function listGroupMessages(accessToken: string, groupId: string): Promise<GroupMessage[]> {
-  const res = await authFetch(`${API_BASE}/groups/${encodeURIComponent(groupId)}/messages`, {
+export async function listGroupMessages(
+  accessToken: string,
+  groupId: string,
+  options?: { cursor?: string; limit?: number },
+): Promise<PaginatedGroupMessages> {
+  const params = new URLSearchParams();
+  params.set("limit", String(options?.limit ?? 50));
+  if (options?.cursor) params.set("cursor", options.cursor);
+
+  const res = await authFetch(`${API_BASE}/groups/${encodeURIComponent(groupId)}/messages?${params.toString()}`, {
     method: "GET",
     headers: authHeaders(accessToken),
   });
@@ -233,7 +247,7 @@ export async function listGroupMessages(accessToken: string, groupId: string): P
     throw new Error(await parseErrorMessage(res, `Failed to load messages: ${res.status} ${res.statusText}`));
   }
 
-  return res.json() as Promise<GroupMessage[]>;
+  return res.json() as Promise<PaginatedGroupMessages>;
 }
 
 export async function sendGroupMessage(

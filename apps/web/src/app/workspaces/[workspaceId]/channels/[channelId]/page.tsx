@@ -317,6 +317,11 @@ export default function ChannelDetailPage() {
   const handledQueryMessageIdRef = useRef<string | null>(null);
   const [channel, setChannel] = useState<ChannelState>({ kind: "idle" });
   const [messages, setMessages] = useState<MessagesState>({ kind: "idle" });
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [olderMessagesState, setOlderMessagesState] = useState<
+    { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string }
+  >({ kind: "idle" });
   const [members, setMembers] = useState<MembersState>({ kind: "idle" });
   const [contextMode, setContextMode] = useState<
     | { kind: "idle" }
@@ -493,7 +498,9 @@ export default function ChannelDetailPage() {
         ]);
         if (!cancelled) {
           setChannel({ kind: "success", data: chData });
-          setMessages({ kind: "success", data: msgData });
+          setMessages({ kind: "success", data: msgData.items });
+          setNextCursor(msgData.nextCursor);
+          setHasMoreMessages(msgData.hasMore);
           // mark channel as read after successful load; dedupe in-flight calls
           if (!markReadInFlightRef.current) {
             markReadInFlightRef.current = markChannelRead(token, ws, ch)
@@ -819,6 +826,41 @@ export default function ChannelDetailPage() {
       if (prev.data.some((m) => m.id === msg.id)) return prev;
       return { kind: "success", data: [...prev.data, msg] };
     });
+  }
+
+  async function loadOlderMessages() {
+    if (!accessToken || !workspaceId || !channelId || !nextCursor) return;
+    setOlderMessagesState({ kind: "loading" });
+
+    const scrollEl = messagesScrollRef.current;
+    const previousScrollHeight = scrollEl?.scrollHeight ?? 0;
+
+    try {
+      const result = await getMessages(accessToken, workspaceId, channelId, {
+        cursor: nextCursor,
+        limit: 50,
+      });
+
+      setMessages((prev) => {
+        if (prev.kind !== "success") return prev;
+        const existingIds = new Set(prev.data.map((m) => m.id));
+        const newItems = result.items.filter((m) => !existingIds.has(m.id));
+        return { kind: "success", data: [...newItems, ...prev.data] };
+      });
+      setNextCursor(result.nextCursor);
+      setHasMoreMessages(result.hasMore);
+      setOlderMessagesState({ kind: "idle" });
+
+      requestAnimationFrame(() => {
+        if (scrollEl) {
+          const heightDelta = scrollEl.scrollHeight - previousScrollHeight;
+          scrollEl.scrollTop += heightDelta;
+        }
+      });
+    } catch (err) {
+      const message = localizeApiError(err, "channel.errorLoadMessagesFailed", t);
+      setOlderMessagesState({ kind: "error", message });
+    }
   }
 
   function updateMessageInState(msg: Message) {
@@ -1703,6 +1745,29 @@ export default function ChannelDetailPage() {
 
         <div ref={messagesScrollRef} onScroll={() => { closeMenuAndPicker(); }} className="chat-canvas min-h-0 flex-1 overflow-y-auto px-4 py-3">
           <div className="flex w-full max-w-3xl flex-col">
+            {!isContextMode && messages.kind === "success" && hasMoreMessages && (
+              <div className="mb-2 flex justify-center">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={loadOlderMessages}
+                  disabled={olderMessagesState.kind === "loading"}
+                  data-testid="channel-load-older-messages"
+                >
+                  {olderMessagesState.kind === "loading" ? (
+                    <><Loader2 size={14} className="mr-1.5 animate-spin" />{t("channel.loadingOlderMessages")}</>
+                  ) : (
+                    t("channel.loadOlderMessages")
+                  )}
+                </Button>
+              </div>
+            )}
+            {olderMessagesState.kind === "error" && !isContextMode && (
+              <div className="mb-2 rounded-lg border border-destructive/20 bg-destructive/10 p-2 text-xs text-destructive">
+                {olderMessagesState.message}
+              </div>
+            )}
             {messages.kind === "loading" && !isContextMode && (
               <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 size={16} className="animate-spin" />

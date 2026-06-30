@@ -19,6 +19,10 @@ import {
   validateAttachmentBatch,
   assertAttachmentBatchAllowed,
 } from './attachment-validation';
+import {
+  decodeMessageCursor,
+  encodeMessageCursor,
+} from '../common/cursor-pagination';
 
 export type AttachmentKind = 'image' | 'file';
 
@@ -220,13 +224,22 @@ export class MessagesService {
     await this.validateChannelAccess(workspaceId, channelId, userId);
 
     const limit = Math.min(query.limit ?? 50, 100);
-    const before = query.before ? new Date(query.before) : undefined;
-    const messages = await this.messages.listForChannel(
-      channelId,
-      limit,
-      before,
-    );
-    return messages.map((m) => this.toMessageResponse(m, userId));
+    const cursor = query.cursor ? decodeMessageCursor(query.cursor) : undefined;
+    if (query.cursor && !cursor) {
+      throw new BadRequestException('Invalid cursor format');
+    }
+
+    const rows = await this.messages.listForChannel(channelId, limit, cursor);
+    const hasMore = rows.length > limit;
+    const page = (hasMore ? rows.slice(0, limit) : rows).reverse();
+    const items = page.map((m) => this.toMessageResponse(m, userId));
+
+    return {
+      items,
+      nextCursor:
+        hasMore && page.length > 0 ? encodeMessageCursor(page[0]) : null,
+      hasMore,
+    };
   }
 
   async searchChannelMessages(

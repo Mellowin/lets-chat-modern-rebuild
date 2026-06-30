@@ -100,7 +100,11 @@ function mockChannelAndMessages(messagesData: unknown[] = [], membersData: unkno
     updatedAt: "2024-01-01T00:00:00Z",
     deletedAt: null,
   });
-  vi.mocked(getMessages).mockResolvedValueOnce(messagesData as Message[]);
+  vi.mocked(getMessages).mockResolvedValueOnce({
+    items: messagesData as Message[],
+    nextCursor: null,
+    hasMore: false,
+  });
   vi.mocked(getChannelMembers).mockResolvedValueOnce(membersData as ChannelMember[]);
 }
 
@@ -2444,7 +2448,7 @@ describe("ChannelDetailPage — members drawer", () => {
       updatedAt: "2024-01-01T00:00:00Z",
       deletedAt: null,
     });
-    vi.mocked(getMessages).mockResolvedValueOnce([]);
+    vi.mocked(getMessages).mockResolvedValueOnce({ items: [], nextCursor: null, hasMore: false });
     vi.mocked(getChannelMembers).mockResolvedValueOnce([ownerMember]);
     render(<ChannelDetailPage />);
     await waitFor(() => {

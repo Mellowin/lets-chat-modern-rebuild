@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@lets-chat/database';
+import { buildMessageCursorWhereClause } from '../common/cursor-pagination';
 
 interface CreateConversationInput {
   key: string;
@@ -243,13 +244,19 @@ export class DirectConversationsRepository {
     });
   }
 
-  async listMessagesForConversation(conversationId: string) {
+  async listMessagesForConversation(
+    conversationId: string,
+    limit: number,
+    cursor?: { createdAt: Date; id: string },
+  ) {
     return this.prisma.directMessage.findMany({
       where: {
         conversationId,
         deletedAt: null,
+        ...(cursor ? { OR: buildMessageCursorWhereClause(cursor) } : {}),
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit + 1,
       include: {
         author: {
           select: {

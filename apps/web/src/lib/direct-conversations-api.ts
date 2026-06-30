@@ -67,6 +67,12 @@ export interface DirectMessage {
   isUnreadForMe: boolean;
 }
 
+export interface PaginatedDirectMessages {
+  items: DirectMessage[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
 export interface SendDirectMessageInput {
   content: string;
   parentId?: string;
@@ -125,9 +131,17 @@ export async function createDirectConversation(
   return res.json() as Promise<DirectConversation>;
 }
 
-export async function listDirectMessages(accessToken: string, conversationId: string): Promise<DirectMessage[]> {
+export async function listDirectMessages(
+  accessToken: string,
+  conversationId: string,
+  options?: { cursor?: string; limit?: number },
+): Promise<PaginatedDirectMessages> {
+  const params = new URLSearchParams();
+  params.set("limit", String(options?.limit ?? 50));
+  if (options?.cursor) params.set("cursor", options.cursor);
+
   const res = await authFetch(
-    `${API_BASE}/direct-conversations/${encodeURIComponent(conversationId)}/messages`,
+    `${API_BASE}/direct-conversations/${encodeURIComponent(conversationId)}/messages?${params.toString()}`,
     {
       method: "GET",
       headers: {
@@ -141,7 +155,7 @@ export async function listDirectMessages(accessToken: string, conversationId: st
     throw new Error(await parseErrorMessage(res, `Failed to load messages: ${res.status} ${res.statusText}`));
   }
 
-  return res.json() as Promise<DirectMessage[]>;
+  return res.json() as Promise<PaginatedDirectMessages>;
 }
 
 export async function sendDirectMessage(

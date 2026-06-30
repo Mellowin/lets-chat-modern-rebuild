@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   UseGuards,
   ParseUUIDPipe,
 } from '@nestjs/common';
@@ -25,6 +26,7 @@ import { CreateGroupDto } from './dto/create-group.dto';
 import { UpdateGroupDto } from './dto/update-group.dto';
 import { AddGroupMemberDto } from './dto/add-group-member.dto';
 import { CreateGroupMessageDto } from './dto/create-group-message.dto';
+import { ListGroupMessagesQueryDto } from './dto/list-group-messages-query.dto';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUserResponse } from '../auth/auth.service';
@@ -145,9 +147,10 @@ export class GroupsController {
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   async findMessages(
     @Param('groupId', ParseUUIDPipe) groupId: string,
+    @Query() query: ListGroupMessagesQueryDto,
     @CurrentUser() user: AuthUserResponse,
   ) {
-    return this.groups.listMessages(groupId, user.id);
+    return this.groups.listMessages(groupId, user.id, query);
   }
 
   @Post(':groupId/messages')

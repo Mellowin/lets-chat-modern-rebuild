@@ -467,9 +467,15 @@ describe('GroupsService', () => {
 
       const result = await service.listMessages(groupId, userId);
 
-      expect(result).toHaveLength(1);
-      expect(result[0].content).toBe('Hi team');
-      expect(groupsRepository.listMessages).toHaveBeenCalledWith(groupId);
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].content).toBe('Hi team');
+      expect(result.hasMore).toBe(false);
+      expect(result.nextCursor).toBeNull();
+      expect(groupsRepository.listMessages).toHaveBeenCalledWith(
+        groupId,
+        50,
+        undefined,
+      );
     });
 
     it('throws NotFoundException for a non-member', async () => {
@@ -479,6 +485,42 @@ describe('GroupsService', () => {
         service.listMessages(groupId, thirdUserId),
       ).rejects.toBeInstanceOf(NotFoundException);
       expect(groupsRepository.listMessages).not.toHaveBeenCalled();
+    });
+
+    it('paginates messages newest-first and returns a nextCursor for the oldest loaded', async () => {
+      groupsRepository.findById.mockResolvedValue(makeGroup());
+      groupsRepository.listMessages.mockResolvedValue([
+        makeMessage({
+          id: 'msg-newest',
+          content: 'newest',
+          createdAt: new Date('2026-06-30T12:00:02.000Z'),
+        }),
+        makeMessage({
+          id: 'msg-middle',
+          content: 'middle',
+          createdAt: new Date('2026-06-30T12:00:01.000Z'),
+        }),
+        makeMessage({
+          id: 'msg-oldest',
+          content: 'oldest',
+          createdAt: new Date('2026-06-30T12:00:00.000Z'),
+        }),
+      ]);
+
+      const result = await service.listMessages(groupId, userId, { limit: 2 });
+
+      expect(result.items).toHaveLength(2);
+      expect(result.items.map((m) => m.content)).toEqual(['middle', 'newest']);
+      expect(result.hasMore).toBe(true);
+      expect(result.nextCursor).toBe('2026-06-30T12:00:01.000Z:msg-middle');
+    });
+
+    it('throws BadRequestException for an invalid cursor', async () => {
+      groupsRepository.findById.mockResolvedValue(makeGroup());
+
+      await expect(
+        service.listMessages(groupId, userId, { cursor: 'not-a-cursor' }),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 

@@ -122,6 +122,80 @@ describe('MessagesService', () => {
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
+    it('paginates messages newest-first and returns a nextCursor for the oldest loaded', async () => {
+      const messages = [
+        {
+          id: 'msg-newest',
+          channelId,
+          content: 'newest',
+          createdAt: new Date('2026-06-30T12:00:02.000Z'),
+          author: {
+            id: userId,
+            username: 'user',
+            displayName: null,
+            avatarUrl: null,
+          },
+        },
+        {
+          id: 'msg-middle',
+          channelId,
+          content: 'middle',
+          createdAt: new Date('2026-06-30T12:00:01.000Z'),
+          author: {
+            id: userId,
+            username: 'user',
+            displayName: null,
+            avatarUrl: null,
+          },
+        },
+        {
+          id: 'msg-oldest',
+          channelId,
+          content: 'oldest',
+          createdAt: new Date('2026-06-30T12:00:00.000Z'),
+          author: {
+            id: userId,
+            username: 'user',
+            displayName: null,
+            avatarUrl: null,
+          },
+        },
+      ] as ListedMessage[];
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      messagesRepository.listForChannel.mockResolvedValue(messages);
+
+      const result = await service.list(workspaceId, channelId, userId, {
+        limit: 2,
+      });
+
+      expect(result.items).toHaveLength(2);
+      expect(result.items.map((m) => m.content)).toEqual(['middle', 'newest']);
+      expect(result.hasMore).toBe(true);
+      expect(result.nextCursor).toBe('2026-06-30T12:00:01.000Z:msg-middle');
+    });
+
+    it('throws BadRequestException for an invalid cursor', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+
+      await expect(
+        service.list(workspaceId, channelId, userId, {
+          cursor: 'not-a-cursor',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
     it('throws NotFoundException for PUBLIC channel when user is not channel member', async () => {
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
       channelsRepository.findActiveById.mockResolvedValue({
@@ -464,8 +538,10 @@ describe('MessagesService', () => {
       messagesRepository.listForChannel.mockResolvedValue(messages);
 
       const result = await service.list(workspaceId, channelId, userId, {});
-      expect(result).toHaveLength(1);
-      expect(result[0].content).toBe('hello');
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].content).toBe('hello');
+      expect(result.hasMore).toBe(false);
+      expect(result.nextCursor).toBeNull();
     });
 
     it('throws NotFoundException for PUBLIC channel when user is not channel member', async () => {
@@ -533,8 +609,10 @@ describe('MessagesService', () => {
       messagesRepository.listForChannel.mockResolvedValue(messages);
 
       const result = await service.list(workspaceId, channelId, userId, {});
-      expect(result).toHaveLength(1);
-      expect(result[0].content).toBe('secret');
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].content).toBe('secret');
+      expect(result.hasMore).toBe(false);
+      expect(result.nextCursor).toBeNull();
     });
   });
 

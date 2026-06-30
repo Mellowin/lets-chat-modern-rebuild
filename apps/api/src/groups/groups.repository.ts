@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@lets-chat/database';
+import { buildMessageCursorWhereClause } from '../common/cursor-pagination';
 
 interface CreateGroupInput {
   name: string;
@@ -338,10 +339,18 @@ export class GroupsRepository {
     });
   }
 
-  async listMessages(groupId: string) {
+  async listMessages(
+    groupId: string,
+    limit: number,
+    cursor?: { createdAt: Date; id: string },
+  ) {
     return this.prisma.groupMessage.findMany({
-      where: { groupId },
-      orderBy: { createdAt: 'asc' },
+      where: {
+        groupId,
+        ...(cursor ? { OR: buildMessageCursorWhereClause(cursor) } : {}),
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit + 1,
       include: {
         author: {
           select: {

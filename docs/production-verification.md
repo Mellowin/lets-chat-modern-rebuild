@@ -18,6 +18,7 @@ All scripts are located in `scripts/` and are exposed as root package scripts.
 | **Mobile shell** | `pnpm verify:prod:mobile-shell` | Mobile viewport QA for login, dashboard, profile (notifications + app install), direct messages, workspace, and channel composer. | One disposable account, one workspace, one channel | Workspace is deleted at the end |
 | **Group chats** | `node scripts/verify-production-groups.mjs` | Group CRUD, membership, messaging, read state, and access control. | Two disposable accounts, one group | Group is archived at the end |
 | **Contacts & group invites** | `pnpm verify:prod:contacts` | Contacts lifecycle/privacy and group invite link create/revoke/accept. | Three disposable accounts, one group | Group is archived at the end |
+| **Message pagination** | `pnpm verify:prod:pagination` | Channel and group message lists return `{ items, nextCursor, hasMore }`; cursors walk through older pages without overlap. | One disposable account, one workspace, one channel, one group | Channel and group are archived at the end |
 | **All** | `pnpm verify:prod:all` | Runs public → auth → permissions → browser → attachments → contacts → pwa sequentially. | Same as above | Same as above |
 
 ---
@@ -135,6 +136,8 @@ The dedicated verifier is `scripts/verify-production-contacts.mjs`.
 
 ```bash
 pnpm verify:prod:contacts
+
+pnpm verify:prod:pagination
 ```
 
 **What it checks:**

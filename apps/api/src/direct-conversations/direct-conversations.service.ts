@@ -4,6 +4,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import {
+  decodeMessageCursor,
+  encodeMessageCursor,
+} from '../common/cursor-pagination';
 import { UsersRepository } from '../users/users.repository';
 import { WebsocketEventsService } from '../websocket/websocket-events.service';
 import { PresenceService } from '../websocket/presence.service';
@@ -13,6 +17,7 @@ import { DirectConversationsRepository } from './direct-conversations.repository
 import { CreateDirectConversationDto } from './dto/create-direct-conversation.dto';
 import { CreateDirectMessageDto } from './dto/create-direct-message.dto';
 import { CreateDirectReactionDto } from './dto/create-direct-reaction.dto';
+import { ListDirectMessagesQueryDto } from './dto/list-direct-messages-query.dto';
 
 @Injectable()
 export class DirectConversationsService {
@@ -188,13 +193,25 @@ export class DirectConversationsService {
     );
   }
 
-  async listMessages(conversationId: string, currentUserId: string) {
+  async listMessages(
+    conversationId: string,
+    currentUserId: string,
+    query?: ListDirectMessagesQueryDto,
+  ) {
     const participant = await this.directConversations.findParticipant(
       conversationId,
       currentUserId,
     );
     if (!participant) {
       throw new ForbiddenException('Access denied');
+    }
+
+    const limit = Math.min(query?.limit ?? 50, 100);
+    const cursor = query?.cursor
+      ? decodeMessageCursor(query.cursor)
+      : undefined;
+    if (query?.cursor && !cursor) {
+      throw new BadRequestException('Invalid cursor format');
     }
 
     const participants =
@@ -206,15 +223,19 @@ export class DirectConversationsService {
     );
     const otherParticipantLastReadAt = otherParticipant?.lastReadAt ?? null;
 
-    const messages =
-      await this.directConversations.listMessagesForConversation(
-        conversationId,
-      );
+    const rows = await this.directConversations.listMessagesForConversation(
+      conversationId,
+      limit,
+      cursor,
+    );
+    const hasMore = rows.length > limit;
+    const page = (hasMore ? rows.slice(0, limit) : rows).reverse();
+
     const reactionsMap = new Map<
       string,
       Array<{ emoji: string; count: number; reactedByMe: boolean }>
     >();
-    for (const message of messages) {
+    for (const message of page) {
       const reactions =
         await this.directConversations.getDirectMessageReactions(
           message.id,
@@ -222,7 +243,8 @@ export class DirectConversationsService {
         );
       reactionsMap.set(message.id, reactions);
     }
-    return messages.map((m) =>
+
+    const items = page.map((m) =>
       this.toMessageResponse(
         m,
         currentUserId,
@@ -231,6 +253,13 @@ export class DirectConversationsService {
         reactionsMap.get(m.id) ?? [],
       ),
     );
+
+    return {
+      items,
+      nextCursor:
+        hasMore && page.length > 0 ? encodeMessageCursor(page[0]) : null,
+      hasMore,
+    };
   }
 
   async createMessage(

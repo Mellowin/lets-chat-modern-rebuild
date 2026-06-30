@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsOptional, IsInt, Min, Max, IsString } from 'class-validator';
 import { Transform } from 'class-transformer';
 
-export class ListMessagesQueryDto {
+export class ListDirectMessagesQueryDto {
   @ApiProperty({ required: false, example: 50 })
   @IsOptional()
   @IsInt()

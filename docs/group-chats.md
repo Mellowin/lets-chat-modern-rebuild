@@ -115,7 +115,7 @@ All routes are prefixed with `/api/v1` and require a valid JWT access token.
 | `/groups/:groupId/members` | POST | Bearer | Group `OWNER` only | Add a member by `userId`. |
 | `/groups/:groupId/members/:userId` | DELETE | Bearer | Group `OWNER` only | Remove a member. |
 | `/groups/:groupId/leave` | POST | Bearer | Active group member | Owner cannot leave if sole owner. |
-| `/groups/:groupId/messages` | GET | Bearer | Active group member | List messages oldest-first. |
+| `/groups/:groupId/messages` | GET | Bearer | Active group member | List messages (cursor-paginated, oldest-first page). Supports `limit` and `cursor`. |
 | `/groups/:groupId/messages` | POST | Bearer | Active group member | Send a text message. `parentId` is rejected. |
 | `/groups/:groupId/read` | POST | Bearer | Active group member | Mark group as read for current user. |
 | `/users/search?q=` | GET | Bearer | Authenticated | Search users by username/email when adding members. |

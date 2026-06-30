@@ -476,7 +476,7 @@ model DirectMessage {
   replies      DirectMessage[]         @relation("DirectMessageReplies")
   reactions    DirectMessageReaction[]
 
-  @@index([conversationId, createdAt])
+  @@index([conversationId, createdAt, id])
   @@index([authorId])
   @@index([parentId])
 }
@@ -618,7 +618,7 @@ model GroupMessage {
   group  GroupConversation @relation(fields: [groupId], references: [id], onDelete: Cascade)
   author User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
-  @@index([groupId, createdAt])
+  @@index([groupId, createdAt, id])
   @@index([authorId])
 }
 

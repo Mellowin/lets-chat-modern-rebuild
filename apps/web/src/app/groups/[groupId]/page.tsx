@@ -40,6 +40,11 @@ export default function GroupConversationPage() {
   const { t } = useLocale();
   const router = useRouter();
   const [messages, setMessages] = useState<MessagesState>({ kind: "idle" });
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [olderMessagesState, setOlderMessagesState] = useState<
+    { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string }
+  >({ kind: "idle" });
   const [group, setGroup] = useState<GroupState>({ kind: "idle" });
   const [content, setContent] = useState("");
   const [sendState, setSendState] = useState<
@@ -95,7 +100,9 @@ export default function GroupConversationPage() {
           getGroup(token, id),
         ]);
         if (!cancelled) {
-          setMessages({ kind: "success", data: msgData });
+          setMessages({ kind: "success", data: msgData.items });
+          setNextCursor(msgData.nextCursor);
+          setHasMoreMessages(msgData.hasMore);
           setGroup({ kind: "success", data: groupData });
         }
       } catch (err) {
@@ -245,6 +252,41 @@ export default function GroupConversationPage() {
     });
   }
 
+  async function loadOlderMessages() {
+    if (!accessToken || !groupId || !nextCursor) return;
+    setOlderMessagesState({ kind: "loading" });
+
+    const scrollEl = messagesScrollRef.current;
+    const previousScrollHeight = scrollEl?.scrollHeight ?? 0;
+
+    try {
+      const result = await listGroupMessages(accessToken, groupId, {
+        cursor: nextCursor,
+        limit: 50,
+      });
+
+      setMessages((prev) => {
+        if (prev.kind !== "success") return prev;
+        const existingIds = new Set(prev.data.map((m) => m.id));
+        const newItems = result.items.filter((m) => !existingIds.has(m.id));
+        return { kind: "success", data: [...newItems, ...prev.data] };
+      });
+      setNextCursor(result.nextCursor);
+      setHasMoreMessages(result.hasMore);
+      setOlderMessagesState({ kind: "idle" });
+
+      requestAnimationFrame(() => {
+        if (scrollEl) {
+          const heightDelta = scrollEl.scrollHeight - previousScrollHeight;
+          scrollEl.scrollTop += heightDelta;
+        }
+      });
+    } catch (err) {
+      const message = localizeApiError(err, "groups.failedLoadMessages", t);
+      setOlderMessagesState({ kind: "error", message });
+    }
+  }
+
   function getMessageAuthorName(msg: GroupMessage) {
     return msg.author.displayName || msg.author.username || t("messageAuthor.unknownUser");
   }
@@ -326,6 +368,29 @@ export default function GroupConversationPage() {
             className="chat-canvas min-h-0 flex-1 overflow-y-auto px-4 py-3"
           >
             <div className="flex w-full max-w-3xl flex-col">
+              {messages.kind === "success" && hasMoreMessages && (
+                <div className="mb-2 flex justify-center">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={loadOlderMessages}
+                    disabled={olderMessagesState.kind === "loading"}
+                    data-testid="group-load-older-messages"
+                  >
+                    {olderMessagesState.kind === "loading" ? (
+                      <><Loader2 size={14} className="mr-1.5 animate-spin" />{t("groups.loadingOlderMessages")}</>
+                    ) : (
+                      t("groups.loadOlderMessages")
+                    )}
+                  </Button>
+                </div>
+              )}
+              {olderMessagesState.kind === "error" && (
+                <div className="mb-2 rounded-lg border border-destructive/20 bg-destructive/10 p-2 text-xs text-destructive">
+                  {olderMessagesState.message}
+                </div>
+              )}
               {messages.kind === "loading" && (
                 <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 size={16} className="animate-spin" />

@@ -748,27 +748,27 @@ POST /channels/:channelId/messages
 ### 7.10 List Messages
 
 ```http
-GET /channels/:channelId/messages
+GET /workspaces/:workspaceId/channels/:channelId/messages
 ```
 
 **Permission:** `CanAccessChannel`
 
 **Query params:**
-- `limit` — max 50, default 20
-- `cursor` — pagination cursor (messageId)
-- `parentId` — filter by thread parent; null = top-level only
-
-- `authorId` — filter by author
-- `from` / `to` — ISO 8601 date range
+- `limit` — max 100, default 50
+- `cursor` — pagination cursor (`createdAt:messageId`) returned by a previous page
 
 **Response 200:**
 ```json
 {
-  "data": [ /* message objects */ ],
-  "nextCursor": "eyJpZCI6...",
+  "items": [ /* message objects, oldest-first within the page */ ],
+  "nextCursor": "2026-06-30T12:00:00.000Z:msg-id",
   "hasMore": true
 }
 ```
+
+- Pages are ordered by `(createdAt DESC, id DESC)` internally and reversed so each `items` array is oldest-first.
+- `nextCursor` points to the oldest message in the current page; pass it to load the next page of older messages.
+- The cursor is a stable composite key on `(createdAt, id)`; it is **not** an offset.
 
 **Note:** Soft-deleted messages are returned with `deletedAt != null` and `content: null` only where user is allowed to see deletion context. Regular members do not receive deleted messages in normal list responses.
 
