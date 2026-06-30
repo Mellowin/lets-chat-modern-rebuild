@@ -136,21 +136,41 @@ jobs:
           set -o pipefail
           pnpm --filter api test:e2e 2>&1 | tee e2e-output.log
 
-      - name: Upload E2E failure summary
+      - name: Upload E2E output artifact
         if: failure() && steps.e2e.outcome == 'failure'
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-output
+          path: e2e-output.log
+          retention-days: 5
+
+      - name: Print E2E failure details
+        if: failure() && steps.e2e.outcome == 'failure'
+        continue-on-error: true
+        run: |
+          echo "::group::Filtered failure lines"
+          grep -E 'FAIL|●|Expected|Received' e2e-output.log || true
+          echo "::endgroup::"
+          echo "::group::Last 200 lines"
+          tail -n 200 e2e-output.log
+          echo "::endgroup::"
+
+      - name: Summarize E2E failure
+        if: failure() && steps.e2e.outcome == 'failure'
+        continue-on-error: true
         run: |
           echo "## API E2E test failure output" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Filtered failure lines" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          tail -n 120 e2e-output.log >> "$GITHUB_STEP_SUMMARY"
+          grep -E 'FAIL|●|Expected|Received' e2e-output.log >> "$GITHUB_STEP_SUMMARY" || true
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Annotate E2E failure output
-        if: failure() && steps.e2e.outcome == 'failure'
-        run: |
-          echo "::error::API E2E tests failed. Last 40 lines of output:"
-          tail -n 40 e2e-output.log | while IFS= read -r line; do
-            printf '%s\n' "$line" | sed 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g' | xargs -I {} echo "::error::{}"
-          done
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Last 200 lines" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          tail -n 200 e2e-output.log >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
 
   migrate:
     name: Migrate production database
