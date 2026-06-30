@@ -14,6 +14,7 @@ import { UsersRepository } from '../users/users.repository';
 import { WebsocketEventsService } from '../websocket/websocket-events.service';
 import { PresenceService } from '../websocket/presence.service';
 import { PushService } from '../push/push.service';
+import { BlocksService } from '../safety/blocks.service';
 
 const userId = '11111111-1111-1111-1111-111111111111';
 const otherUserId = '22222222-2222-2222-2222-222222222222';
@@ -150,6 +151,14 @@ describe('DirectConversationsService', () => {
           provide: PushService,
           useValue: {
             notifyDirectMessage: jest.fn().mockResolvedValue(undefined),
+          },
+        },
+        {
+          provide: BlocksService,
+          useValue: {
+            requireNoBlockInEitherDirection: jest
+              .fn()
+              .mockResolvedValue(undefined),
           },
         },
       ],
@@ -899,6 +908,10 @@ describe('DirectConversationsService', () => {
         createdAt: new Date(),
         lastReadAt: new Date(),
       });
+      repository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: null },
+      ]);
       repository.findMessageById.mockResolvedValue({
         id: parentId,
         conversationId: '99999999-9999-9999-9999-999999999999',
@@ -929,6 +942,10 @@ describe('DirectConversationsService', () => {
         createdAt: new Date(),
         lastReadAt: new Date(),
       });
+      repository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: null },
+      ]);
       repository.findMessageById.mockResolvedValue({
         id: parentId,
         conversationId,
@@ -959,6 +976,10 @@ describe('DirectConversationsService', () => {
         createdAt: new Date(),
         lastReadAt: new Date(),
       });
+      repository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: null },
+      ]);
       repository.findMessageById.mockResolvedValue({
         id: parentId,
         conversationId,

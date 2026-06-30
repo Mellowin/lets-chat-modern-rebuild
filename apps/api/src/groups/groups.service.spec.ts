@@ -13,6 +13,7 @@ import {
 import { UsersRepository } from '../users/users.repository';
 import { WebsocketEventsService } from '../websocket/websocket-events.service';
 import { PushService } from '../push/push.service';
+import { BlocksService } from '../safety/blocks.service';
 
 const userId = '11111111-1111-1111-1111-111111111111';
 const otherUserId = '22222222-2222-2222-2222-222222222222';
@@ -180,6 +181,15 @@ describe('GroupsService', () => {
           provide: PushService,
           useValue: {
             notifyGroupMessage: jest.fn().mockResolvedValue(undefined),
+          },
+        },
+        {
+          provide: BlocksService,
+          useValue: {
+            requireNoBlockInEitherDirection: jest
+              .fn()
+              .mockResolvedValue(undefined),
+            isBlockedBy: jest.fn().mockResolvedValue(false),
           },
         },
       ],

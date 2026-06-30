@@ -3,6 +3,7 @@ import { AuthModule } from '../auth/auth.module';
 import { UsersModule } from '../users/users.module';
 import { WebsocketModule } from '../websocket/websocket.module';
 import { PushModule } from '../push/push.module';
+import { SafetyModule } from '../safety/safety.module';
 import { GroupsController } from './groups.controller';
 import { GroupInvitesController } from './group-invites.controller';
 import { GroupsService } from './groups.service';
@@ -16,6 +17,7 @@ import { GroupInvitesRepository } from './group-invites.repository';
     UsersModule,
     forwardRef(() => WebsocketModule),
     PushModule,
+    SafetyModule,
   ],
   controllers: [GroupsController, GroupInvitesController],
   providers: [

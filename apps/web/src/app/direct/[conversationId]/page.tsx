@@ -9,6 +9,7 @@ import {
   CheckCheck,
   Copy,
   Edit3,
+  Flag,
   Forward,
   Loader2,
   MessageSquare,
@@ -23,6 +24,8 @@ import { useAuth } from "@/lib/auth-context";
 import { useLocale } from "@/lib/locale";
 import { localizeApiError } from "@/lib/api-errors";
 import { Avatar } from "@/components/ui/Avatar";
+import { BlockUserButton } from "@/components/BlockUserButton";
+import { ReportModal } from "@/components/ReportModal";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -80,6 +83,7 @@ export default function DirectConversationPage() {
   const [replyToMessage, setReplyToMessage] = useState<DirectMessage | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const [forwardMessage, setForwardMessage] = useState<DirectMessage | null>(null);
+  const [reportTarget, setReportTarget] = useState<{ userId: string; name: string } | null>(null);
   const [messageMenuId, setMessageMenuId] = useState<string | null>(null);
   const [messageMenuPosition, setMessageMenuPosition] = useState<MenuPosition | null>(null);
   const [reactionPickerMessageId, setReactionPickerMessageId] = useState<string | null>(null);
@@ -927,6 +931,44 @@ export default function DirectConversationPage() {
                     {presenceStatus === "online" ? t("direct.online") : t("direct.offline")}
                   </p>
                 </div>
+                <div className="ml-auto flex items-center gap-2">
+                  <BlockUserButton
+                    accessToken={accessToken ?? ""}
+                    userId={conversation.data?.otherParticipant?.id ?? ""}
+                    userName={
+                      conversation.data?.otherParticipant?.displayName ||
+                      conversation.data?.otherParticipant?.username ||
+                      ""
+                    }
+                    variant="ghost"
+                    size="sm"
+                    showLabel={false}
+                    onBlocked={() => {
+                      void listDirectMessages(accessToken ?? "", conversationId).then((data) => {
+                        setMessages({ kind: "success", data });
+                      }).catch(() => {
+                        // non-blocking
+                      });
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    aria-label={t("direct.report")}
+                    onClick={() =>
+                      setReportTarget({
+                        userId: conversation.data?.otherParticipant?.id ?? "",
+                        name:
+                          conversation.data?.otherParticipant?.displayName ||
+                          conversation.data?.otherParticipant?.username ||
+                          "",
+                      })
+                    }
+                  >
+                    <Flag size={14} />
+                  </Button>
+                </div>
               </div>
             )}
           </div>
@@ -1445,6 +1487,18 @@ export default function DirectConversationPage() {
           </div>
         </div>
       )}
+
+      <ReportModal
+        isOpen={reportTarget !== null}
+        onClose={() => setReportTarget(null)}
+        accessToken={accessToken ?? ""}
+        reportedUserId={reportTarget?.userId ?? ""}
+        reportedUserName={reportTarget?.name ?? ""}
+        directConversationId={conversationId}
+        onSubmitted={() => {
+          setTimeout(() => setReportTarget(null), 1500);
+        }}
+      />
     </div>
   );
 }

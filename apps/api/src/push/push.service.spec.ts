@@ -4,6 +4,7 @@ import { PrismaService } from '@lets-chat/database';
 import * as webpush from 'web-push';
 import { PushService } from './push.service';
 import { PushRepository } from './push.repository';
+import { BlocksService } from '../safety/blocks.service';
 import { CreatePushSubscriptionDto } from './dto/create-push-subscription.dto';
 
 jest.mock('web-push', () => ({
@@ -48,6 +49,7 @@ describe('PushService', () => {
     groupMember: { findMany: jest.Mock };
     user: { findUnique: jest.Mock };
   };
+  let blocksService: { findBlockerIdsWhoBlockedUser: jest.Mock };
 
   beforeEach(async () => {
     configService = { get: jest.fn() };
@@ -64,6 +66,9 @@ describe('PushService', () => {
       groupMember: { findMany: jest.fn() },
       user: { findUnique: jest.fn() },
     };
+    blocksService = {
+      findBlockerIdsWhoBlockedUser: jest.fn().mockResolvedValue([]),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -71,6 +76,7 @@ describe('PushService', () => {
         { provide: ConfigService, useValue: configService },
         { provide: PushRepository, useValue: pushRepository },
         { provide: PrismaService, useValue: prisma },
+        { provide: BlocksService, useValue: blocksService },
       ],
     }).compile();
 

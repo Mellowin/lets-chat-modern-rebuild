@@ -7,6 +7,7 @@ import {
 import { UsersRepository } from '../users/users.repository';
 import { WebsocketEventsService } from '../websocket/websocket-events.service';
 import { PushService } from '../push/push.service';
+import { BlocksService } from '../safety/blocks.service';
 import { GroupsRepository } from './groups.repository';
 import { CreateGroupDto } from './dto/create-group.dto';
 import { UpdateGroupDto } from './dto/update-group.dto';
@@ -20,6 +21,7 @@ export class GroupsService {
     private readonly users: UsersRepository,
     private readonly websocketEvents: WebsocketEventsService,
     private readonly pushService: PushService,
+    private readonly blocks: BlocksService,
   ) {}
 
   private async toGroupResponse(
@@ -197,6 +199,12 @@ export class GroupsService {
     if (!targetUser) {
       throw new NotFoundException('User not found');
     }
+
+    await this.blocks.requireNoBlockInEitherDirection(
+      currentUserId,
+      dto.userId,
+      'Cannot add this user to the group',
+    );
 
     await this.groups.addMember(groupId, dto.userId);
     const updated = await this.groups.findById(groupId);

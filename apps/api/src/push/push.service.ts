@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@lets-chat/database';
 import * as webpush from 'web-push';
+import { BlocksService } from '../safety/blocks.service';
 import { PushRepository } from './push.repository';
 import { CreatePushSubscriptionDto } from './dto/create-push-subscription.dto';
 
@@ -83,6 +84,7 @@ export class PushService implements OnModuleInit {
     private readonly config: ConfigService,
     private readonly pushRepository: PushRepository,
     private readonly prisma: PrismaService,
+    private readonly blocks: BlocksService,
   ) {}
 
   onModuleInit() {
@@ -169,6 +171,12 @@ export class PushService implements OnModuleInit {
 
     if (members.length === 0) return;
 
+    const blockerIds = new Set(
+      await this.blocks.findBlockerIdsWhoBlockedUser(message.authorId),
+    );
+    const recipients = members.filter((m) => !blockerIds.has(m.user.id));
+    if (recipients.length === 0) return;
+
     const senderName = sender?.displayName ?? sender?.username ?? 'Someone';
     const title = `${senderName} in #${channel.name}`;
     const body =
@@ -190,7 +198,7 @@ export class PushService implements OnModuleInit {
     };
 
     await Promise.all(
-      members.flatMap((member) =>
+      recipients.flatMap((member) =>
         member.user.pushSubscriptions.map((subscription) =>
           this.sendNotification(subscription, payload),
         ),
@@ -220,6 +228,14 @@ export class PushService implements OnModuleInit {
 
     if (!conversation || conversation.participants.length === 0) return;
 
+    const blockerIds = new Set(
+      await this.blocks.findBlockerIdsWhoBlockedUser(message.authorId),
+    );
+    const recipients = conversation.participants.filter(
+      (p) => !blockerIds.has(p.userId),
+    );
+    if (recipients.length === 0) return;
+
     const sender = await this.prisma.user.findUnique({
       where: { id: message.authorId },
       select: { displayName: true, username: true },
@@ -244,7 +260,7 @@ export class PushService implements OnModuleInit {
     };
 
     await Promise.all(
-      conversation.participants.flatMap((participant) =>
+      recipients.flatMap((participant) =>
         participant.user.pushSubscriptions.map((subscription) =>
           this.sendNotification(subscription, payload),
         ),
@@ -289,10 +305,16 @@ export class PushService implements OnModuleInit {
 
     if (members.length === 0) return;
 
+    const blockerIds = new Set(
+      await this.blocks.findBlockerIdsWhoBlockedUser(message.authorId),
+    );
+    const recipients = members.filter((m) => !blockerIds.has(m.user.id));
+    if (recipients.length === 0) return;
+
     const senderName = sender?.displayName ?? sender?.username ?? 'Someone';
 
     await Promise.all(
-      members.flatMap((member) => {
+      recipients.flatMap((member) => {
         const locale = (member.user.interfaceLanguage as Locale) ?? 'en';
         const { title, body } = getGroupNotificationStrings(
           locale,

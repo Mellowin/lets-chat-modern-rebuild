@@ -3,6 +3,7 @@ import { AuthModule } from '../auth/auth.module';
 import { UsersModule } from '../users/users.module';
 import { WebsocketModule } from '../websocket/websocket.module';
 import { PushModule } from '../push/push.module';
+import { SafetyModule } from '../safety/safety.module';
 import { DirectConversationsService } from './direct-conversations.service';
 import { DirectConversationsRepository } from './direct-conversations.repository';
 import { DirectConversationsController } from './direct-conversations.controller';
@@ -13,6 +14,7 @@ import { DirectConversationsController } from './direct-conversations.controller
     UsersModule,
     forwardRef(() => WebsocketModule),
     PushModule,
+    SafetyModule,
   ],
   controllers: [DirectConversationsController],
   providers: [DirectConversationsService, DirectConversationsRepository],

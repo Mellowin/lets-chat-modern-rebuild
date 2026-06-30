@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-06-24 (B214 contacts & group invites complete)  
+> Last updated: 2026-06-24 (B215 user blocking, reports, and privacy safety baseline complete)  
 > Code checkpoint: `main`  
 > Docs checkpoint: `main`
 >
@@ -540,6 +540,29 @@ Use these steps to verify core functionality after deploy or before release:
   - API E2E: `apps/api/test/contacts.e2e-spec.ts` (11 tests), `apps/api/test/group-invites.e2e-spec.ts` (12 tests).
 - **Production verification:** `pnpm verify:prod:contacts` (`scripts/verify-production-contacts.mjs`).
 - **Docs:** [`docs/contacts-and-invites.md`](contacts-and-invites.md).
+- **Known limitation:** No local DB available during development; migration was created with `--create-only` and will be applied in CI/production.
+
+## B215. User Blocking, Reports, and Privacy Safety Baseline
+
+- **Goal** — give users control over who can interact with them and a way to report abuse, without building an admin dashboard or automated moderation.
+- **Scope:**
+  - Backend `SafetyModule` (`apps/api/src/safety/`) with `BlocksService`, `ReportsService`, controllers, repositories, and DTOs.
+  - Prisma models `UserBlock` and `UserReport` plus `ReportStatus` enum.
+  - REST endpoints: `GET /blocks`, `POST /blocks`, `DELETE /blocks/:blockedUserId`, `POST /reports`.
+  - Bidirectional block enforcement in direct conversations, contacts, and targeted group member adds.
+  - Existing shared groups remain intact; push notifications from a blocked sender are suppressed for the blocker.
+  - Frontend: `/blocked` management page, Profile → Safety tab, block/report actions in contacts, DM header, and group member list, plus a report modal.
+  - Localization: EN/UK/RU keys for `safety.*`, `direct.block/report`, `contacts.block/report`, `groups.block/report`.
+- **Security & privacy:**
+  - Block state is never revealed with a "you are blocked" message; the API returns generic `403`/`404` responses.
+  - Reports are write-only and non-actioning in B215; they do not auto-block, auto-delete content, or expose the reporter identity.
+- **Migration:** `20260624190000_add_blocks_and_reports`.
+- **Tests:**
+  - API unit: updated `direct-conversations`, `contacts`, `groups`, and `push` specs for the `BlocksService` dependency.
+  - API E2E: `apps/api/test/safety.e2e-spec.ts`.
+  - Web: typecheck/lint/build pass; new components covered by existing page tests where applicable.
+- **Production verification:** `node scripts/verify-production-safety.mjs`.
+- **Docs:** [`docs/safety-and-blocking.md`](safety-and-blocking.md).
 - **Known limitation:** No local DB available during development; migration was created with `--create-only` and will be applied in CI/production.
 
 ## 9. Orphaned Attachment Cleanup

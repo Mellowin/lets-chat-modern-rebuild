@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2, MessageSquare, Search, UserPlus, Users, X } from "lucide-react";
+import { Flag, Loader2, MessageSquare, Search, UserPlus, Users, X } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocale } from "@/lib/locale";
 import { localizeApiError } from "@/lib/api-errors";
@@ -21,6 +21,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/Input";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { BlockUserButton } from "@/components/BlockUserButton";
+import { ReportModal } from "@/components/ReportModal";
 
 type ContactsState =
   | { kind: "idle" }
@@ -46,6 +48,7 @@ export default function ContactsPage() {
   const [actionMessage, setActionMessage] = useState<{ kind: "success" | "error"; text: string } | null>(
     null,
   );
+  const [reportTarget, setReportTarget] = useState<{ userId: string; name: string } | null>(null);
   const searchAbortRef = useRef<AbortController | null>(null);
 
   const loadContacts = useCallback(
@@ -253,6 +256,36 @@ export default function ContactsPage() {
                       <p className="truncate text-xs text-muted-foreground">@{u.username}</p>
                     </div>
                   </div>
+                  <BlockUserButton
+                    accessToken={accessToken ?? ""}
+                    userId={u.id}
+                    userName={u.displayName || u.username}
+                    variant="ghost"
+                    size="sm"
+                    showLabel={false}
+                    onBlocked={() => {
+                      setActionMessage({ kind: "success", text: t("safety.block") });
+                      setSearchState((prev) =>
+                        prev.kind === "success"
+                          ? { kind: "success", data: prev.data.filter((item) => item.id !== u.id) }
+                          : prev,
+                      );
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    aria-label={t("contacts.report")}
+                    onClick={() =>
+                      setReportTarget({
+                        userId: u.id,
+                        name: u.displayName || u.username,
+                      })
+                    }
+                  >
+                    <Flag size={14} />
+                  </Button>
                   <Button
                     type="button"
                     size="sm"
@@ -332,6 +365,32 @@ export default function ContactsPage() {
                       <p className="text-xs text-muted-foreground">@{contact.username}</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
+                      <BlockUserButton
+                        accessToken={accessToken ?? ""}
+                        userId={contact.contactUserId}
+                        userName={contact.displayName || contact.username}
+                        variant="ghost"
+                        size="sm"
+                        showLabel={false}
+                        onBlocked={() => {
+                          setActionMessage({ kind: "success", text: t("safety.block") });
+                          void loadContacts(accessToken ?? "");
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        aria-label={t("contacts.report")}
+                        onClick={() =>
+                          setReportTarget({
+                            userId: contact.contactUserId,
+                            name: contact.displayName || contact.username,
+                          })
+                        }
+                      >
+                        <Flag size={14} />
+                      </Button>
                       <Button
                         type="button"
                         size="sm"
@@ -372,6 +431,17 @@ export default function ContactsPage() {
           )}
         </CardContent>
       </Card>
+
+      <ReportModal
+        isOpen={reportTarget !== null}
+        onClose={() => setReportTarget(null)}
+        accessToken={accessToken ?? ""}
+        reportedUserId={reportTarget?.userId ?? ""}
+        reportedUserName={reportTarget?.name ?? ""}
+        onSubmitted={() => {
+          setTimeout(() => setReportTarget(null), 1500);
+        }}
+      />
     </div>
   );
 }

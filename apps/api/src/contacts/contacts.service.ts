@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { UsersRepository } from '../users/users.repository';
 import { DirectConversationsService } from '../direct-conversations/direct-conversations.service';
+import { BlocksService } from '../safety/blocks.service';
 import { ContactsRepository, ContactWithUser } from './contacts.repository';
 import { CreateContactDto } from './dto/create-contact.dto';
 
@@ -14,6 +15,7 @@ export class ContactsService {
     private readonly contacts: ContactsRepository,
     private readonly users: UsersRepository,
     private readonly directConversations: DirectConversationsService,
+    private readonly blocks: BlocksService,
   ) {}
 
   private toContactResponse(contact: ContactWithUser) {
@@ -64,6 +66,12 @@ export class ContactsService {
       throw new BadRequestException('Cannot add yourself as a contact');
     }
 
+    await this.blocks.requireNoBlockInEitherDirection(
+      currentUserId,
+      targetUser.id,
+      'Cannot add this user to contacts',
+    );
+
     const contact = await this.contacts.upsertContact({
       ownerUserId: currentUserId,
       contactUserId: targetUser.id,
@@ -75,7 +83,14 @@ export class ContactsService {
 
   async list(currentUserId: string) {
     const contacts = await this.contacts.listActiveByOwner(currentUserId);
-    return contacts.map((c) => this.toContactResponse(c));
+    const blockedIds = new Set(
+      (await this.blocks.listBlockedUsers(currentUserId)).map(
+        (b) => b.blockedUserId,
+      ),
+    );
+    return contacts
+      .filter((c) => !blockedIds.has(c.contactUserId))
+      .map((c) => this.toContactResponse(c));
   }
 
   async remove(contactUserId: string, currentUserId: string) {

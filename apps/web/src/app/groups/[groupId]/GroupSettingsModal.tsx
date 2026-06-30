@@ -14,9 +14,12 @@ import {
   Copy,
   Check,
   Trash2,
+  Flag,
 } from "lucide-react";
 import { useLocale } from "@/lib/locale";
 import { localizeApiError } from "@/lib/api-errors";
+import { BlockUserButton } from "@/components/BlockUserButton";
+import { ReportModal } from "@/components/ReportModal";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -71,6 +74,7 @@ export default function GroupSettingsModal({
 
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<{ kind: "success" | "error"; text: string } | null>(null);
+  const [reportTarget, setReportTarget] = useState<{ userId: string; name: string } | null>(null);
 
   type InvitesState =
     | { kind: "idle" }
@@ -535,6 +539,29 @@ export default function GroupSettingsModal({
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
+                  {member.id !== currentUserId && (
+                    <>
+                      <BlockUserButton
+                        accessToken={accessToken}
+                        userId={member.id}
+                        userName={getMemberName(member)}
+                        variant="ghost"
+                        size="sm"
+                        showLabel={false}
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        aria-label={t("groups.report")}
+                        onClick={() =>
+                          setReportTarget({ userId: member.id, name: getMemberName(member) })
+                        }
+                      >
+                        <Flag size={14} />
+                      </Button>
+                    </>
+                  )}
                   <Badge variant={member.role === "OWNER" ? "warning" : "muted"}>
                     {member.role === "OWNER" ? t("groups.owner") : t("groups.member")}
                   </Badge>
@@ -592,6 +619,18 @@ export default function GroupSettingsModal({
           )}
         </div>
       </div>
+
+      <ReportModal
+        isOpen={reportTarget !== null}
+        onClose={() => setReportTarget(null)}
+        accessToken={accessToken}
+        reportedUserId={reportTarget?.userId ?? ""}
+        reportedUserName={reportTarget?.name ?? ""}
+        groupId={group.id}
+        onSubmitted={() => {
+          setTimeout(() => setReportTarget(null), 1500);
+        }}
+      />
     </div>
   );
 }

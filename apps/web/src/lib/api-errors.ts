@@ -32,6 +32,10 @@ const MESSAGE_MAP: Record<string, TranslationKey> = {
   "too many requests": "errors.tooManyRequests",
   "invite not found": "errors.inviteExpiredOrInvalid",
   "invite expired": "errors.inviteExpiredOrInvalid",
+  "cannot start a conversation with this user": "safety.actionBlocked",
+  "cannot send messages to this user": "safety.actionBlocked",
+  "cannot add this user to contacts": "safety.actionBlocked",
+  "cannot add this user to the group": "safety.actionBlocked",
 };
 
 function normalizeErrorMessage(message: string): string {

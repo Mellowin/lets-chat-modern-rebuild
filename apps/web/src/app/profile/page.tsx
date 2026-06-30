@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   Bell,
   ChevronLeft,
+  ShieldAlert,
   Eye,
   EyeOff,
   Globe,
@@ -55,7 +56,7 @@ const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 const LOCALE_OPTIONS: Locale[] = ["en", "uk", "ru"];
 
-type TabKey = "account" | "security" | "sessions" | "language" | "notifications" | "app";
+type TabKey = "account" | "security" | "sessions" | "language" | "notifications" | "app" | "safety";
 
 function Alert({
   variant,
@@ -380,6 +381,11 @@ export default function ProfilePage() {
       key: "app",
       label: t("profile.appInstall"),
       icon: <Smartphone size={16} />,
+    },
+    {
+      key: "safety",
+      label: t("safety.title"),
+      icon: <ShieldAlert size={16} />,
     },
   ];
 
@@ -997,6 +1003,20 @@ export default function ProfilePage() {
       {activeTab === "notifications" && <PushNotificationsSection />}
 
       {activeTab === "app" && <PwaInstallSection />}
+
+      {activeTab === "safety" && (
+        <Card data-testid="safety-section">
+          <CardHeader>
+            <CardTitle>{t("safety.title")}</CardTitle>
+            <CardDescription>{t("safety.blockedUsersDescription")}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="secondary">
+              <Link href="/blocked">{t("safety.blockedUsers")}</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {activeTab === "language" && (
         <Card>

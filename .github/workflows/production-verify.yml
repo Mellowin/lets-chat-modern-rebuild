@@ -19,6 +19,10 @@ on:
         description: "Run Playwright browser sanity checks"
         type: boolean
         default: false
+      safety:
+        description: "Run safety and blocking verification (creates disposable accounts)"
+        type: boolean
+        default: false
 
 env:
   VERIFY_WEB_BASE: ${{ vars.VERIFICATION_WEB_URL || 'https://lets-chat-web.vercel.app' }}
@@ -63,3 +67,7 @@ jobs:
       - name: Playwright browser sanity
         if: ${{ inputs.browser }}
         run: pnpm verify:prod:browser
+
+      - name: Safety and blocking verification
+        if: ${{ inputs.safety }}
+        run: pnpm verify:prod:safety

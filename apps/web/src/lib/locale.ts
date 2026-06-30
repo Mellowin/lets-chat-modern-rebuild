@@ -726,7 +726,40 @@ export type TranslationKey =
   | "groupInvite.goToGroup"
   | "groupInvite.goToLogin"
   | "groupInvite.acceptFailed"
-  | "groupInvite.loadingInvite";
+  | "groupInvite.loadingInvite"
+  | "safety.title"
+  | "safety.blockedUsers"
+  | "safety.blockedUsersDescription"
+  | "safety.noBlockedUsers"
+  | "safety.block"
+  | "safety.blocking"
+  | "safety.unblock"
+  | "safety.unblocking"
+  | "safety.blockUser"
+  | "safety.report"
+  | "safety.reportUser"
+  | "safety.reportMessage"
+  | "safety.reportReason"
+  | "safety.reportDetails"
+  | "safety.reportDetailsPlaceholder"
+  | "safety.submitReport"
+  | "safety.submittingReport"
+  | "safety.reportSubmitted"
+  | "safety.reportFailed"
+  | "safety.blockFailed"
+  | "safety.unblockFailed"
+  | "safety.cannotBlockYourself"
+  | "safety.reasonOptional"
+  | "safety.reasonPlaceholder"
+  | "safety.confirmUnblock"
+  | "safety.confirmBlock"
+  | "safety.actionBlocked"
+  | "direct.block"
+  | "direct.report"
+  | "contacts.block"
+  | "contacts.report"
+  | "groups.block"
+  | "groups.report";
 
 const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string) => string)>> = {
   en: {
@@ -1439,6 +1472,39 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "groupInvite.goToLogin": "Go to login",
     "groupInvite.acceptFailed": "Could not accept invite",
     "groupInvite.loadingInvite": "Loading invite…",
+    "safety.title": "Safety",
+    "safety.blockedUsers": "Blocked users",
+    "safety.blockedUsersDescription": "Users you have blocked cannot start new direct conversations or add you as a contact.",
+    "safety.noBlockedUsers": "You haven't blocked anyone.",
+    "safety.block": "Block",
+    "safety.blocking": "Blocking…",
+    "safety.unblock": "Unblock",
+    "safety.unblocking": "Unblocking…",
+    "safety.blockUser": "Block user",
+    "safety.report": "Report",
+    "safety.reportUser": "Report user",
+    "safety.reportMessage": "Report message",
+    "safety.reportReason": "Reason",
+    "safety.reportDetails": "Details",
+    "safety.reportDetailsPlaceholder": "Describe what happened…",
+    "safety.submitReport": "Submit report",
+    "safety.submittingReport": "Submitting…",
+    "safety.reportSubmitted": "Report submitted. Thank you.",
+    "safety.reportFailed": "Failed to submit report",
+    "safety.blockFailed": "Failed to block user",
+    "safety.unblockFailed": "Failed to unblock user",
+    "safety.cannotBlockYourself": "You cannot block yourself.",
+    "safety.reasonOptional": "Reason (optional)",
+    "safety.reasonPlaceholder": "Why are you blocking this user?",
+    "safety.confirmUnblock": "Unblock {arg0}? They will be able to message you again.",
+    "safety.confirmBlock": "Block {arg0}? They will no longer be able to message you or add you as a contact.",
+    "safety.actionBlocked": "This action is not allowed because of a safety or privacy restriction.",
+    "direct.block": "Block user",
+    "direct.report": "Report user",
+    "contacts.block": "Block",
+    "contacts.report": "Report",
+    "groups.block": "Block",
+    "groups.report": "Report",
   },
   uk: {
     "header.profile": "Профіль",
@@ -2150,6 +2216,39 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "groupInvite.goToLogin": "Увійти",
     "groupInvite.acceptFailed": "Не вдалося прийняти запрошення",
     "groupInvite.loadingInvite": "Завантаження запрошення…",
+    "safety.title": "Безпека",
+    "safety.blockedUsers": "Заблоковані користувачі",
+    "safety.blockedUsersDescription": "Користувачі, яких ви заблокували, не можуть розпочинати нові особисті розмови чи додавати вас до контактів.",
+    "safety.noBlockedUsers": "Ви ще нікого не заблокували.",
+    "safety.block": "Заблокувати",
+    "safety.blocking": "Блокуємо…",
+    "safety.unblock": "Розблокувати",
+    "safety.unblocking": "Розблоковуємо…",
+    "safety.blockUser": "Заблокувати користувача",
+    "safety.report": "Поскаржитися",
+    "safety.reportUser": "Поскаржитися на користувача",
+    "safety.reportMessage": "Поскаржитися на повідомлення",
+    "safety.reportReason": "Причина",
+    "safety.reportDetails": "Деталі",
+    "safety.reportDetailsPlaceholder": "Опишіть, що сталося…",
+    "safety.submitReport": "Надіслати скаргу",
+    "safety.submittingReport": "Надсилаємо…",
+    "safety.reportSubmitted": "Скаргу надіслано. Дякуємо.",
+    "safety.reportFailed": "Не вдалося надіслати скаргу",
+    "safety.blockFailed": "Не вдалося заблокувати користувача",
+    "safety.unblockFailed": "Не вдалося розблокувати користувача",
+    "safety.cannotBlockYourself": "Ви не можете заблокувати себе.",
+    "safety.reasonOptional": "Причина (необовʼязково)",
+    "safety.reasonPlaceholder": "Чому ви блокуєте цього користувача?",
+    "safety.confirmUnblock": "Розблокувати {arg0}? Вони знову зможуть писати вам.",
+    "safety.confirmBlock": "Заблокувати {arg0}? Вони більше не зможуть писати вам або додавати вас до контактів.",
+    "safety.actionBlocked": "Ця дія заборонена через обмеження безпеки чи конфіденційності.",
+    "direct.block": "Заблокувати користувача",
+    "direct.report": "Поскаржитися на користувача",
+    "contacts.block": "Заблокувати",
+    "contacts.report": "Поскаржитися",
+    "groups.block": "Заблокувати",
+    "groups.report": "Поскаржитися",
   },
   ru: {
     "header.profile": "Профиль",
@@ -2861,6 +2960,39 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "groupInvite.goToLogin": "Войти",
     "groupInvite.acceptFailed": "Не удалось принять приглашение",
     "groupInvite.loadingInvite": "Загрузка приглашения…",
+    "safety.title": "Безопасность",
+    "safety.blockedUsers": "Заблокированные пользователи",
+    "safety.blockedUsersDescription": "Пользователи, которых вы заблокировали, не могут начинать новые личные переписки или добавлять вас в контакты.",
+    "safety.noBlockedUsers": "Вы ещё никого не заблокировали.",
+    "safety.block": "Заблокировать",
+    "safety.blocking": "Блокируем…",
+    "safety.unblock": "Разблокировать",
+    "safety.unblocking": "Разблокируем…",
+    "safety.blockUser": "Заблокировать пользователя",
+    "safety.report": "Пожаловаться",
+    "safety.reportUser": "Пожаловаться на пользователя",
+    "safety.reportMessage": "Пожаловаться на сообщение",
+    "safety.reportReason": "Причина",
+    "safety.reportDetails": "Подробности",
+    "safety.reportDetailsPlaceholder": "Опишите, что произошло…",
+    "safety.submitReport": "Отправить жалобу",
+    "safety.submittingReport": "Отправляем…",
+    "safety.reportSubmitted": "Жалоба отправлена. Спасибо.",
+    "safety.reportFailed": "Не удалось отправить жалобу",
+    "safety.blockFailed": "Не удалось заблокировать пользователя",
+    "safety.unblockFailed": "Не удалось разблокировать пользователя",
+    "safety.cannotBlockYourself": "Вы не можете заблокировать себя.",
+    "safety.reasonOptional": "Причина (необязательно)",
+    "safety.reasonPlaceholder": "Почему вы блокируете этого пользователя?",
+    "safety.confirmUnblock": "Разблокировать {arg0}? Они снова смогут писать вам.",
+    "safety.confirmBlock": "Заблокировать {arg0}? Они больше не смогут писать вам или добавлять вас в контакты.",
+    "safety.actionBlocked": "Это действие запрещено из-за ограничений безопасности или конфиденциальности.",
+    "direct.block": "Заблокировать пользователя",
+    "direct.report": "Пожаловаться на пользователя",
+    "contacts.block": "Заблокировать",
+    "contacts.report": "Пожаловаться",
+    "groups.block": "Заблокировать",
+    "groups.report": "Пожаловаться",
   },
 };
 

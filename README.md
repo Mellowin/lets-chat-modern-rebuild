@@ -56,6 +56,7 @@ Portfolio guidance:
 - **Contacts** — private one-way contact list for quick user discovery and starting DMs.
 - **Group Invite Links** — owner-generated, expiring token links that let people join groups without knowing their user IDs.
 - **Group Chats** — standalone multi-member conversations outside workspaces, with owner/member roles, invite links, unread counts, and real-time delivery.
+- **User Blocking & Reporting** — block users to stop new DMs, contact adds, and targeted group adds; report users or messages (write-only, non-actioning safety baseline).
 - **Real-time messaging** — live create/update/delete/reaction events via WebSocket rooms.
 - **Replies & Forwarding** — thread replies and message forwarding between channels.
 - **Reactions** — emoji reactions with toggle/replace behavior.
@@ -71,6 +72,7 @@ Portfolio guidance:
 - **Silent token refresh** — `authFetch` intercepts 401s, refreshes once, and retries without logout.
 - **Private-channel security** — non-members receive `404` at REST, WebSocket, and search layers.
 - **Owner-only destructive actions** — workspace/channel delete and archive restricted to OWNER.
+- **User blocking** — bidirectional block enforcement at DMs, contacts, group member adds, and push notifications; generic error responses hide block state.
 
 ### Attachments
 
@@ -106,11 +108,11 @@ Portfolio guidance:
 |---|---|---|
 | API unit tests | 868 (40 suites) | ✅ passing |
 | Web unit + page tests | 706 (33 files) | ✅ passing |
-| E2E security smoke tests | 47 (5 suites) | ✅ passing in CI (PostgreSQL service) |
+| E2E security smoke tests | 59 (6 suites) | ✅ passing in CI (PostgreSQL service) |
 
 - **CI:** GitHub Actions runs lint, typecheck, unit tests, builds, and API E2E security smoke tests (with a PostgreSQL service container) on every push.
 - **Deploy:** Render deploy hook fires only after green CI; Vercel builds the frontend in parallel.
-- **Verification:** `scripts/smoke-deploy.mjs`, `scripts/verify-production-attachments.mjs`, `scripts/verify-production-groups.mjs`, and `scripts/verify-production-contacts.mjs` run against production after deploy.
+- **Verification:** `scripts/smoke-deploy.mjs`, `scripts/verify-production-attachments.mjs`, `scripts/verify-production-groups.mjs`, `scripts/verify-production-contacts.mjs`, and `scripts/verify-production-safety.mjs` run against production after deploy.
 
 ---
 

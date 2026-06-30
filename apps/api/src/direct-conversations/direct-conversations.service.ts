@@ -8,6 +8,7 @@ import { UsersRepository } from '../users/users.repository';
 import { WebsocketEventsService } from '../websocket/websocket-events.service';
 import { PresenceService } from '../websocket/presence.service';
 import { PushService } from '../push/push.service';
+import { BlocksService } from '../safety/blocks.service';
 import { DirectConversationsRepository } from './direct-conversations.repository';
 import { CreateDirectConversationDto } from './dto/create-direct-conversation.dto';
 import { CreateDirectMessageDto } from './dto/create-direct-message.dto';
@@ -21,6 +22,7 @@ export class DirectConversationsService {
     private readonly websocketEvents: WebsocketEventsService,
     private readonly presence: PresenceService,
     private readonly pushService: PushService,
+    private readonly blocks: BlocksService,
   ) {}
 
   private makePairKey(userIdA: string, userIdB: string): string {
@@ -147,6 +149,12 @@ export class DirectConversationsService {
       );
     }
 
+    await this.blocks.requireNoBlockInEitherDirection(
+      currentUserId,
+      targetUser.id,
+      'Cannot start a conversation with this user',
+    );
+
     const key = this.makePairKey(currentUserId, targetUser.id);
     const existing = await this.directConversations.findByKey(key);
 
@@ -238,6 +246,20 @@ export class DirectConversationsService {
       throw new ForbiddenException('Access denied');
     }
 
+    const participants =
+      await this.directConversations.findParticipants(conversationId);
+    const otherParticipant = participants.find(
+      (p) => p.userId !== currentUserId,
+    );
+
+    if (otherParticipant) {
+      await this.blocks.requireNoBlockInEitherDirection(
+        currentUserId,
+        otherParticipant.userId,
+        'Cannot send messages to this user',
+      );
+    }
+
     if (dto.parentId) {
       const parent = await this.directConversations.findMessageById(
         dto.parentId,
@@ -254,13 +276,8 @@ export class DirectConversationsService {
       }
     }
 
-    const participants =
-      await this.directConversations.findParticipants(conversationId);
     const myParticipant = participants.find((p) => p.userId === currentUserId);
     const myLastReadAt = myParticipant?.lastReadAt ?? null;
-    const otherParticipant = participants.find(
-      (p) => p.userId !== currentUserId,
-    );
     const otherParticipantLastReadAt = otherParticipant?.lastReadAt ?? null;
 
     const message = await this.directConversations.createMessage({
