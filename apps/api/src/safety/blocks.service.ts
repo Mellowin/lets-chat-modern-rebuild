@@ -45,7 +45,7 @@ export class BlocksService {
     return {
       id: block.id,
       blockerId: block.blockerId,
-      blockedId: block.blockedId,
+      blockedUserId: block.blockedId,
       reason: block.reason,
       createdAt: block.createdAt,
       blocked: block.blocked,
@@ -74,6 +74,7 @@ export class BlocksService {
     const blocks = await this.blocks.findActiveByBlocker(blockerId);
     return blocks.map((block) => ({
       id: block.id,
+      blockerId: block.blockerId,
       blockedUserId: block.blockedId,
       reason: block.reason,
       createdAt: block.createdAt,
