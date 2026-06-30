@@ -24,12 +24,9 @@ export class BlocksService {
     blockedUserId: string;
     reason: string | null;
     createdAt: Date;
-    blocked: {
-      id: string;
-      username: string;
-      displayName: string | null;
-      avatarUrl: string | null;
-    };
+    username: string;
+    displayName: string | null;
+    avatarUrl: string | null;
   }> {
     if (blockerId === blockedId) {
       throw new BadRequestException('Cannot block yourself');
@@ -48,7 +45,9 @@ export class BlocksService {
       blockedUserId: block.blockedId,
       reason: block.reason,
       createdAt: block.createdAt,
-      blocked: block.blocked,
+      username: block.blocked.username,
+      displayName: block.blocked.displayName,
+      avatarUrl: block.blocked.avatarUrl,
     };
   }
 
