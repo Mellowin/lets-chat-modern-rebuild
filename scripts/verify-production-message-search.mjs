@@ -34,11 +34,28 @@ async function main() {
 
   const results = [];
 
-  const owner = await createVerifiedAccount("searchowner");
-  await sleep(1500);
-  const member = await createVerifiedAccount("searchmember");
-  await sleep(1500);
-  const stranger = await createVerifiedAccount("searchstranger");
+  async function createAccount(prefix, attempts = 5) {
+    for (let i = 0; i < attempts; i++) {
+      try {
+        return await createVerifiedAccount(prefix);
+      } catch (err) {
+        if (i < attempts - 1 && err.message.includes("429")) {
+          const delay = 30000 * (i + 1);
+          console.warn(`[auth] ${prefix} hit rate limit, retrying in ${delay}ms...`);
+          await sleep(delay);
+        } else {
+          throw err;
+        }
+      }
+    }
+    throw new Error(`Could not create ${prefix} account`);
+  }
+
+  const owner = await createAccount("searchowner");
+  await sleep(5000);
+  const member = await createAccount("searchmember");
+  await sleep(5000);
+  const stranger = await createAccount("searchstranger");
 
   // Owner creates a workspace and adds member.
   const workspaceName = `B219 Verify Workspace ${Date.now()}`;
@@ -120,13 +137,13 @@ async function main() {
   const publicMsg = await api(
     owner.accessToken,
     "POST",
-    `/channels/${publicChannel.id}/messages`,
+    `/workspaces/${workspace.id}/channels/${publicChannel.id}/messages`,
     { content: searchToken },
   );
   const privateMsg = await api(
     owner.accessToken,
     "POST",
-    `/channels/${privateChannel.id}/messages`,
+    `/workspaces/${workspace.id}/channels/${privateChannel.id}/messages`,
     { content: searchToken },
   );
   const directMsg = await api(
