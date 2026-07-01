@@ -852,16 +852,14 @@ export default function ChannelDetailPage() {
       setHasMoreMessages(result.hasMore);
       setOlderMessagesState({ kind: "idle" });
 
-      // Wait two frames so the DOM has actually reflowed before measuring the
-      // new scrollHeight; otherwise the delta is zero and the viewport jumps.
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          if (scrollEl) {
-            const heightDelta = scrollEl.scrollHeight - previousScrollHeight;
-            scrollEl.scrollTop += heightDelta;
-          }
-        });
-      });
+      // Wait for React to commit the new DOM and for any images to reflow
+      // before measuring the new scrollHeight.
+      window.setTimeout(() => {
+        if (scrollEl) {
+          const heightDelta = scrollEl.scrollHeight - previousScrollHeight;
+          scrollEl.scrollTop += heightDelta;
+        }
+      }, 60);
     } catch (err) {
       const message = localizeApiError(err, "channel.errorLoadMessagesFailed", t);
       setOlderMessagesState({ kind: "error", message });

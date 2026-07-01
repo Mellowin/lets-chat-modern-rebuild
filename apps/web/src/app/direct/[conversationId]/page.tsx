@@ -373,14 +373,12 @@ export default function DirectConversationPage() {
       setHasMoreMessages(result.hasMore);
       setOlderMessagesState({ kind: "idle" });
 
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          if (scrollEl) {
-            const heightDelta = scrollEl.scrollHeight - previousScrollHeight;
-            scrollEl.scrollTop += heightDelta;
-          }
-        });
-      });
+      window.setTimeout(() => {
+        if (scrollEl) {
+          const heightDelta = scrollEl.scrollHeight - previousScrollHeight;
+          scrollEl.scrollTop += heightDelta;
+        }
+      }, 60);
     } catch (err) {
       const message = localizeApiError(err, "direct.failedLoadMessages", t);
       setOlderMessagesState({ kind: "error", message });
