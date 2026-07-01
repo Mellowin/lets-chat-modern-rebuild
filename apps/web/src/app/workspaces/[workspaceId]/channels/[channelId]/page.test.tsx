@@ -4753,3 +4753,144 @@ describe("ChannelDetailPage — attachments", () => {
     });
   });
 });
+
+
+describe("ChannelDetailPage — scroll behavior", () => {
+  let originalScrollIntoView: unknown;
+  let scrollIntoViewMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.setItem("accessToken", "token");
+    vi.clearAllMocks();
+    socketOnMock.mockReset();
+    socketEmitMock.mockReset();
+    socketDisconnectMock.mockReset();
+    Object.keys(socketHandlers).forEach((k) => delete socketHandlers[k]);
+
+    originalScrollIntoView = Element.prototype.scrollIntoView;
+    scrollIntoViewMock = vi.fn();
+    Object.defineProperty(Element.prototype, "scrollIntoView", {
+      configurable: true,
+      writable: true,
+      value: scrollIntoViewMock,
+    });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(Element.prototype, "scrollIntoView", {
+      configurable: true,
+      writable: true,
+      value: originalScrollIntoView,
+    });
+  });
+
+  function setScrollHeight(el: HTMLElement | null, height: number) {
+    if (!el) return;
+    Object.defineProperty(el, "scrollHeight", {
+      configurable: true,
+      get: () => height,
+    });
+  }
+
+  const existingMessage = {
+    id: "m1",
+    channelId: "ch1",
+    content: "Earlier message",
+    parentId: null,
+    createdAt: "2024-01-01T00:00:00Z",
+    updatedAt: "2024-01-01T00:00:00Z",
+    editedAt: null,
+    author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+    reactions: [],
+  };
+
+  it("scrolls to bottom when channel messages initially load", async () => {
+    mockChannelAndMessages([existingMessage]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Earlier message")).toBeInTheDocument();
+    });
+
+    expect(scrollIntoViewMock).toHaveBeenCalledWith(expect.objectContaining({ block: "end" }));
+  });
+
+  it("scrolls to bottom when another user sends a message while viewer is near bottom", async () => {
+    mockChannelAndMessages([existingMessage]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Earlier message")).toBeInTheDocument();
+    });
+
+    const scrollEl = screen.getByTestId("channel-messages-scroll");
+    setScrollHeight(scrollEl as HTMLElement, 1000);
+    act(() => {
+      (scrollEl as HTMLDivElement).scrollTop = 900;
+      scrollEl.dispatchEvent(new Event("scroll", { bubbles: true }));
+    });
+
+    scrollIntoViewMock.mockClear();
+
+    act(() => {
+      socketHandlers["message:created"]({
+        id: "m2",
+        channelId: "ch1",
+        content: "New message",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+        reactions: [],
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("New message")).toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      expect(scrollIntoViewMock).toHaveBeenCalledWith(expect.objectContaining({ block: "end" }));
+    });
+  });
+
+  it("does not auto-scroll when another user sends a message while viewer scrolled up", async () => {
+    mockChannelAndMessages([existingMessage]);
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Earlier message")).toBeInTheDocument();
+    });
+
+    const scrollEl = screen.getByTestId("channel-messages-scroll");
+    setScrollHeight(scrollEl as HTMLElement, 1000);
+    act(() => {
+      (scrollEl as HTMLDivElement).scrollTop = 0;
+      scrollEl.dispatchEvent(new Event("scroll", { bubbles: true }));
+    });
+
+    scrollIntoViewMock.mockClear();
+
+    act(() => {
+      socketHandlers["message:created"]({
+        id: "m3",
+        channelId: "ch1",
+        content: "Far message",
+        parentId: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+        reactions: [],
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Far message")).toBeInTheDocument();
+    });
+
+    expect(scrollIntoViewMock).not.toHaveBeenCalled();
+  });
+});

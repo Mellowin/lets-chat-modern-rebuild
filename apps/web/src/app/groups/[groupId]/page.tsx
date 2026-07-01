@@ -20,6 +20,7 @@ import {
   type GroupMessage,
 } from "@/lib/groups-api";
 import { createSocket } from "@/lib/socket-client";
+import { useMessageListScroll } from "@/lib/use-message-list-scroll";
 import GroupSettingsModal from "./GroupSettingsModal";
 
 type MessagesState =
@@ -52,11 +53,25 @@ export default function GroupConversationPage() {
     { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string }
   >({ kind: "idle" });
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const messagesScrollRef = useRef<HTMLDivElement | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const socketRef = useRef<ReturnType<typeof createSocket> | null>(null);
   const markReadInFlightRef = useRef<Promise<unknown> | null>(null);
-  const didInitialScroll = useRef(false);
+  const {
+    scrollRef: hookScrollRef,
+    contentRef: messagesContentRef,
+    endRef: messagesEndRef,
+    scrollToBottom: scrollMessagesToBottom,
+    isNearBottom,
+  } = useMessageListScroll({
+    messagesLoaded: messages.kind === "success",
+  });
+  const messagesScrollElementRef = useRef<HTMLDivElement | null>(null);
+  const messagesScrollRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      messagesScrollElementRef.current = node;
+      hookScrollRef(node);
+    },
+    [hookScrollRef],
+  );
 
   const loadGroup = useCallback(
     async (token: string, id: string) => {
@@ -126,13 +141,6 @@ export default function GroupConversationPage() {
   }, [isAuthenticated, groupId, accessToken, t, safeMarkGroupRead]);
 
   useEffect(() => {
-    if (messages.kind === "success" && !didInitialScroll.current) {
-      didInitialScroll.current = true;
-      messagesEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
-    }
-  }, [messages.kind]);
-
-  useEffect(() => {
     if (!isAuthenticated || !groupId || !accessToken) return;
 
     const socket = createSocket(accessToken);
@@ -153,13 +161,15 @@ export default function GroupConversationPage() {
     function handleMessageCreated(msg: GroupMessage) {
       if (msg.groupId !== groupId) return;
       if (msg.author.id === user?.id) {
-        // Already appended optimistically
+        // Already appended optimistically; keep the composer view at the bottom.
+        requestAnimationFrame(() => scrollMessagesToBottom("smooth"));
         return;
       }
+      const wasNearBottom = isNearBottom();
       appendMessage(msg);
-      requestAnimationFrame(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-      });
+      if (wasNearBottom) {
+        requestAnimationFrame(() => scrollMessagesToBottom("smooth"));
+      }
       if (!accessToken) return;
       safeMarkGroupRead(accessToken, groupId);
     }
@@ -202,7 +212,7 @@ export default function GroupConversationPage() {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [isAuthenticated, groupId, accessToken, user?.id, router, loadGroup, safeMarkGroupRead]);
+  }, [isAuthenticated, groupId, accessToken, user?.id, router, loadGroup, safeMarkGroupRead, isNearBottom, scrollMessagesToBottom]);
 
   useEffect(() => {
     if (!groupId) return;
@@ -233,7 +243,7 @@ export default function GroupConversationPage() {
       setSendState({ kind: "idle" });
       appendMessage(msg);
       requestAnimationFrame(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+        scrollMessagesToBottom("smooth");
         const textarea = document.getElementById("group-message-input") as HTMLTextAreaElement | null;
         textarea?.focus();
       });
@@ -257,7 +267,7 @@ export default function GroupConversationPage() {
     if (!accessToken || !groupId || !nextCursor) return;
     setOlderMessagesState({ kind: "loading" });
 
-    const scrollEl = messagesScrollRef.current;
+    const scrollEl = messagesScrollElementRef.current;
     const previousScrollHeight = scrollEl?.scrollHeight ?? 0;
 
     try {
@@ -368,7 +378,7 @@ export default function GroupConversationPage() {
             data-testid="group-messages-scroll"
             className="chat-canvas min-h-0 flex-1 overflow-y-auto px-4 py-3"
           >
-            <div className="flex w-full max-w-3xl flex-col">
+            <div ref={messagesContentRef} className="flex w-full max-w-3xl flex-col">
               {messages.kind === "success" && hasMoreMessages && (
                 <div className="mb-2 flex justify-center">
                   <Button

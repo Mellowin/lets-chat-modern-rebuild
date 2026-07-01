@@ -29,6 +29,7 @@ import { ReportModal } from "@/components/ReportModal";
 import { MessageContent } from "@/components/MessageContent";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { useMessageListScroll } from "@/lib/use-message-list-scroll";
 import { EmptyState } from "@/components/ui/EmptyState";
 import {
   listDirectMessages,
@@ -109,10 +110,24 @@ export default function DirectConversationPage() {
   >({ kind: "idle" });
   const [typingUser, setTypingUser] = useState<{ id: string; username: string; displayName: string | null } | null>(null);
   const [presenceStatus, setPresenceStatus] = useState<"online" | "offline">("offline");
-  const messagesScrollRef = useRef<HTMLDivElement | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  const didInitialScroll = useRef(false);
   const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const {
+    scrollRef: hookScrollRef,
+    contentRef: messagesContentRef,
+    endRef: messagesEndRef,
+    scrollToBottom: scrollMessagesToBottom,
+    isNearBottom,
+  } = useMessageListScroll({
+    messagesLoaded: messages.kind === "success",
+  });
+  const messagesScrollElementRef = useRef<HTMLDivElement | null>(null);
+  const messagesScrollRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      messagesScrollElementRef.current = node;
+      hookScrollRef(node);
+    },
+    [hookScrollRef],
+  );
   const socketRef = useRef<ReturnType<typeof createSocket> | null>(null);
   const markReadInFlightRef = useRef<Promise<unknown> | null>(null);
   const messageRefs = useRef<Record<string, HTMLLIElement | null>>({});
@@ -327,18 +342,6 @@ export default function DirectConversationPage() {
     }
   }
 
-  function scrollMessagesToBottom(behavior: ScrollBehavior = "smooth") {
-    if (typeof messagesEndRef.current?.scrollIntoView === "function") {
-      messagesEndRef.current.scrollIntoView({ behavior, block: "end" });
-    }
-  }
-
-  function isNearBottom() {
-    const el = messagesScrollRef.current;
-    if (!el) return true;
-    return el.scrollHeight - el.scrollTop - el.clientHeight < 160;
-  }
-
   function appendMessage(msg: DirectMessage) {
     setMessages((prev) => {
       if (prev.kind !== "success") return prev;
@@ -351,7 +354,7 @@ export default function DirectConversationPage() {
     if (!accessToken || !conversationId || !nextCursor) return;
     setOlderMessagesState({ kind: "loading" });
 
-    const scrollEl = messagesScrollRef.current;
+    const scrollEl = messagesScrollElementRef.current;
     const previousScrollHeight = scrollEl?.scrollHeight ?? 0;
 
     try {
@@ -485,13 +488,6 @@ export default function DirectConversationPage() {
       };
     });
   }
-
-  useEffect(() => {
-    if (messages.kind === "success" && !didInitialScroll.current) {
-      didInitialScroll.current = true;
-      scrollMessagesToBottom("auto");
-    }
-  }, [messages.kind]);
 
   useEffect(() => {
     if (!isAuthenticated || !conversationId || !accessToken) return;
@@ -1023,7 +1019,7 @@ export default function DirectConversationPage() {
 
         <div className="mt-4 flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-border/80 bg-card shadow-md">
           <div ref={messagesScrollRef} data-testid="direct-messages-scroll" onScroll={() => { setMessageMenuId(null); setMessageMenuPosition(null); setReactionPickerMessageId(null); setReactionPickerPosition(null); }} className="chat-canvas min-h-0 flex-1 overflow-y-auto px-4 py-3">
-            <div className="flex w-full max-w-3xl flex-col">
+            <div ref={messagesContentRef} className="flex w-full max-w-3xl flex-col">
               {messages.kind === "success" && hasMoreMessages && (
                 <div className="mb-2 flex justify-center">
                   <Button

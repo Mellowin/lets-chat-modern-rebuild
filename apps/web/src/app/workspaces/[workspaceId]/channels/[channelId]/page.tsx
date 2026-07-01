@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -65,6 +65,7 @@ import { MessageAuthor } from "@/components/MessageAuthor";
 import { MessageContent } from "@/components/MessageContent";
 import ChannelMessageSearch from "@/components/ChannelMessageSearch";
 import ImageLightbox from "@/components/ImageLightbox";
+import { useMessageListScroll } from "@/lib/use-message-list-scroll";
 
 
 type ChannelState =
@@ -275,12 +276,12 @@ function AttachmentImagePreview({
       className="block w-fit max-w-full rounded-lg border border-border bg-muted/50 p-1 text-left hover:bg-accent/50 transition-colors"
     >
       {loading ? (
-        <div className="flex items-center gap-2 rounded-lg bg-muted/50 px-3 py-2 text-xs">
+        <div className="flex min-h-[8rem] items-center justify-center gap-2 rounded-lg bg-muted/50 px-3 py-2 text-xs">
           <Loader2 size={16} className="animate-spin text-muted-foreground" />
           <span className="text-muted-foreground">{t("channel.attachmentLoading")}</span>
         </div>
       ) : failed || !objectUrl ? (
-        <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2 text-xs">
+        <div className="flex min-h-[8rem] items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2 text-xs">
           <ImageIcon size={16} className="text-muted-foreground" />
           <span className="truncate font-medium text-foreground">{attachment.fileName}</span>
           <span className="shrink-0 text-muted-foreground">{formatFileSize(attachment.sizeBytes)}</span>
@@ -292,6 +293,8 @@ function AttachmentImagePreview({
             src={objectUrl}
             alt={attachment.fileName}
             draggable={false}
+            loading="lazy"
+            decoding="async"
             className="pointer-events-none max-h-60 rounded-lg object-cover shadow-sm"
             onError={() => setFailed(true)}
           />
@@ -367,10 +370,26 @@ export default function ChannelDetailPage() {
   const socketRef = useRef<ReturnType<typeof createSocket> | null>(null);
   const markReadInFlightRef = useRef<Promise<unknown> | null>(null);
   const typingTimeoutRef = useRef<number | null>(null);
-  const messagesScrollRef = useRef<HTMLDivElement | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  const didInitialScroll = useRef(false);
   const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const {
+    scrollRef: hookScrollRef,
+    contentRef: messagesContentRef,
+    endRef: messagesEndRef,
+    scrollToBottom: scrollMessagesToBottom,
+    isNearBottom,
+    stickToBottom,
+  } = useMessageListScroll({
+    messagesLoaded: messages.kind === "success",
+    disabled: contextMode.kind === "active",
+  });
+  const messagesScrollElementRef = useRef<HTMLDivElement | null>(null);
+  const messagesScrollRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      messagesScrollElementRef.current = node;
+      hookScrollRef(node);
+    },
+    [hookScrollRef],
+  );
   const [messageMenuId, setMessageMenuId] = useState<string | null>(null);
   const [messageMenuPosition, setMessageMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [reactionPickerMessageId, setReactionPickerMessageId] = useState<string | null>(null);
@@ -410,18 +429,6 @@ export default function ChannelDetailPage() {
       filePreviews.forEach((url) => URL.revokeObjectURL(url));
     };
   }, [filePreviews]);
-
-  function scrollMessagesToBottom(behavior: ScrollBehavior = "smooth") {
-    if (typeof messagesEndRef.current?.scrollIntoView === "function") {
-      messagesEndRef.current.scrollIntoView({ behavior, block: "end" });
-    }
-  }
-
-  function isNearBottom() {
-    const el = messagesScrollRef.current;
-    if (!el) return true;
-    return el.scrollHeight - el.scrollTop - el.clientHeight < 160;
-  }
 
   function getMenuPosition(rect: DOMRect): { top: number; left: number } {
     const menuWidth = 180;
@@ -465,13 +472,6 @@ export default function ChannelDetailPage() {
     setReactionPickerMessageId(null);
     setReactionPickerPosition(null);
   }
-
-  useEffect(() => {
-    if (messages.kind === "success" && !didInitialScroll.current) {
-      didInitialScroll.current = true;
-      scrollMessagesToBottom("auto");
-    }
-  }, [messages.kind]);
 
   const channelIdForFocus = channel.kind === "success" ? channel.data.id : null;
 
@@ -833,7 +833,7 @@ export default function ChannelDetailPage() {
     if (!accessToken || !workspaceId || !channelId || !nextCursor) return;
     setOlderMessagesState({ kind: "loading" });
 
-    const scrollEl = messagesScrollRef.current;
+    const scrollEl = messagesScrollElementRef.current;
     const previousScrollHeight = scrollEl?.scrollHeight ?? 0;
 
     try {
@@ -1304,6 +1304,8 @@ export default function ChannelDetailPage() {
 
   function exitContextMode() {
     setContextMode({ kind: "idle" });
+    stickToBottom();
+    scrollMessagesToBottom("auto");
   }
 
   function socketStatusLabel(status: typeof socketStatus) {
@@ -1744,8 +1746,8 @@ export default function ChannelDetailPage() {
           )}
         </div>
 
-        <div ref={messagesScrollRef} onScroll={() => { closeMenuAndPicker(); }} className="chat-canvas min-h-0 flex-1 overflow-y-auto px-4 py-3">
-          <div className="flex w-full max-w-3xl flex-col">
+        <div ref={messagesScrollRef} data-testid="channel-messages-scroll" onScroll={() => { closeMenuAndPicker(); }} className="chat-canvas min-h-0 flex-1 overflow-y-auto px-4 py-3">
+          <div ref={messagesContentRef} className="flex w-full max-w-3xl flex-col">
             {!isContextMode && messages.kind === "success" && hasMoreMessages && (
               <div className="mb-2 flex justify-center">
                 <Button
