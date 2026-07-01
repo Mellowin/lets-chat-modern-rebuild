@@ -312,6 +312,27 @@ export class AuthService {
     return this.toAuthUserResponse(user);
   }
 
+  async getNotificationPreferences(userId: string): Promise<{
+    pushNotificationsEnabled: boolean;
+    mentionNotificationsEnabled: boolean;
+    directMessageNotificationsEnabled: boolean;
+    groupMessageNotificationsEnabled: boolean;
+    channelMessageNotificationsEnabled: boolean;
+  }> {
+    const user = await this.users.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return {
+      pushNotificationsEnabled: user.pushNotificationsEnabled,
+      mentionNotificationsEnabled: user.mentionNotificationsEnabled,
+      directMessageNotificationsEnabled: user.directMessageNotificationsEnabled,
+      groupMessageNotificationsEnabled: user.groupMessageNotificationsEnabled,
+      channelMessageNotificationsEnabled:
+        user.channelMessageNotificationsEnabled,
+    };
+  }
+
   async updateNotificationPreferences(
     userId: string,
     preferences: Partial<{

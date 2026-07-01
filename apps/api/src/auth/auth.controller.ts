@@ -341,6 +341,20 @@ export class AuthController {
     return this.auth.updateInterfaceLanguage(user.id, dto.interfaceLanguage);
   }
 
+  @Get('me/notification-preferences')
+  @UseGuards(JwtAccessGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get current authenticated user notification preferences',
+  })
+  @ApiOkResponse({
+    description: 'Notification preferences returned successfully',
+  })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async getNotificationPreferences(@CurrentUser() user: AuthUserResponse) {
+    return this.auth.getNotificationPreferences(user.id);
+  }
+
   @Patch('me/notification-preferences')
   @UseGuards(JwtAccessGuard)
   @ApiBearerAuth()
