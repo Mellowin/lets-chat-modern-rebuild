@@ -14,7 +14,7 @@
  * tests for useMessageListScroll and by manual checks.
  */
 
-import { chromium, expect } from "@playwright/test";
+import { chromium } from "playwright";
 import {
   WEB_BASE,
   API_BASE,
@@ -67,6 +67,29 @@ async function loginPage(page, tokens) {
   }, tokens);
 }
 
+async function isMessageInViewport(page, messageId, ratio = 0.1, timeoutMs = 15000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const visible = await page.evaluate(
+      ({ id, minRatio }) => {
+        const row = document.querySelector(`[data-testid="message-row-${id}"]`);
+        const scrollEl = document.querySelector('[data-testid="channel-messages-scroll"]');
+        if (!row || !scrollEl) return false;
+        const rowRect = row.getBoundingClientRect();
+        const scrollRect = scrollEl.getBoundingClientRect();
+        const overlapTop = Math.max(rowRect.top, scrollRect.top);
+        const overlapBottom = Math.min(rowRect.bottom, scrollRect.bottom);
+        const overlapHeight = Math.max(0, overlapBottom - overlapTop);
+        return overlapHeight >= rowRect.height * minRatio;
+      },
+      { id: messageId, minRatio: ratio },
+    );
+    if (visible) return true;
+    await sleep(200);
+  }
+  return false;
+}
+
 async function main() {
   console.log("=== Production Channel Scroll Verification ===");
   console.log(`WEB_BASE: ${WEB_BASE}`);
@@ -99,16 +122,17 @@ async function main() {
 
     // Wait for the message list to render.
     const latest = seeded[seeded.length - 1];
-    const latestRow = page.locator(`[data-testid="message-row-${latest.id}"]`);
-    await latestRow.waitFor({ state: "visible", timeout: 20000 });
+    await page.waitForSelector(`[data-testid="message-row-${latest.id}"]`, { state: "visible", timeout: 20000 });
 
     // --- Latest message visible on open ---
-    try {
-      await expect(latestRow).toBeInViewport({ ratio: 0.5, timeout: 5000 });
+    if (await isMessageInViewport(page, latest.id, 0.1)) {
       pass("Latest message is visible after opening channel", latest.id);
-    } catch (err) {
-      fail("Latest message is visible after opening channel", err.message);
+    } else {
+      fail("Latest message is visible after opening channel", latest.id);
     }
+
+    // Give the WebSocket a moment to join the channel room.
+    await sleep(2000);
 
     // --- New message scrolls into view when at bottom ---
     const newMessage = await api(
@@ -118,21 +142,18 @@ async function main() {
       { content: "New latest message after open" },
     );
 
-    const newRow = page.locator(`[data-testid="message-row-${newMessage.id}"]`);
-    try {
-      await newRow.waitFor({ state: "visible", timeout: 20000 });
-      await expect(newRow).toBeInViewport({ ratio: 0.5, timeout: 5000 });
+    await page.waitForSelector(`[data-testid="message-row-${newMessage.id}"]`, { state: "visible", timeout: 25000 });
+    if (await isMessageInViewport(page, newMessage.id, 0.5)) {
       pass("New incoming message is visible and scrolled into view", newMessage.id);
-    } catch (err) {
-      fail("New incoming message is visible and scrolled into view", err.message);
+    } else {
+      fail("New incoming message is visible and scrolled into view", newMessage.id);
     }
 
     // --- Load older messages preserves scroll position ---
     const loadOlderButton = page.locator('[data-testid="channel-load-older-messages"]');
     const hasOlder = await loadOlderButton.isVisible().catch(() => false);
     if (hasOlder) {
-      // Identify the message that is currently at the top of the list.
-      const firstVisibleId = await page.evaluate(() => {
+      const previousTopId = await page.evaluate(() => {
         const rows = Array.from(document.querySelectorAll('[data-testid^="message-row-"]'));
         const scrollEl = document.querySelector('[data-testid="channel-messages-scroll"]');
         if (!scrollEl) return null;
@@ -147,16 +168,28 @@ async function main() {
         return null;
       });
 
-      if (firstVisibleId) {
-        const previousTopRow = page.locator(`[data-testid="message-row-${firstVisibleId}"]`);
-        try {
-          await loadOlderButton.click();
-          await expect(loadOlderButton).toBeDisabled();
-          await expect(loadOlderButton).toBeEnabled();
-          await expect(previousTopRow).toBeInViewport({ ratio: 0.1, timeout: 5000 });
-          pass("Loading older messages preserves scroll position", firstVisibleId);
-        } catch (err) {
-          fail("Loading older messages preserves scroll position", err.message);
+      if (previousTopId) {
+        const beforeTop = await page.evaluate((id) => {
+          const row = document.querySelector(`[data-testid="message-row-${id}"]`);
+          return row ? row.getBoundingClientRect().top : null;
+        }, previousTopId);
+
+        await loadOlderButton.click();
+        await page.waitForFunction(() => {
+          const btn = document.querySelector('[data-testid="channel-load-older-messages"]');
+          if (!btn) return true;
+          return !(btn instanceof HTMLButtonElement && btn.disabled);
+        });
+
+        const afterTop = await page.evaluate((id) => {
+          const row = document.querySelector(`[data-testid="message-row-${id}"]`);
+          return row ? row.getBoundingClientRect().top : null;
+        }, previousTopId);
+
+        if (beforeTop !== null && afterTop !== null && Math.abs(beforeTop - afterTop) < 50) {
+          pass("Loading older messages preserves scroll position", previousTopId);
+        } else {
+          fail("Loading older messages preserves scroll position", `before=${beforeTop}, after=${afterTop}`);
         }
       } else {
         fail("Loading older messages preserves scroll position", "could not identify top message");

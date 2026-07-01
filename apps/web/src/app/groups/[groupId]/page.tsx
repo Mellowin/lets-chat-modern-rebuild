@@ -287,10 +287,12 @@ export default function GroupConversationPage() {
       setOlderMessagesState({ kind: "idle" });
 
       requestAnimationFrame(() => {
-        if (scrollEl) {
-          const heightDelta = scrollEl.scrollHeight - previousScrollHeight;
-          scrollEl.scrollTop += heightDelta;
-        }
+        requestAnimationFrame(() => {
+          if (scrollEl) {
+            const heightDelta = scrollEl.scrollHeight - previousScrollHeight;
+            scrollEl.scrollTop += heightDelta;
+          }
+        });
       });
     } catch (err) {
       const message = localizeApiError(err, "groups.failedLoadMessages", t);
