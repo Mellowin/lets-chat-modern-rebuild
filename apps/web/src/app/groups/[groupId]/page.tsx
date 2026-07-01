@@ -61,6 +61,7 @@ export default function GroupConversationPage() {
     endRef: messagesEndRef,
     scrollToBottom: scrollMessagesToBottom,
     isNearBottom,
+    unstick,
   } = useMessageListScroll({
     messagesLoaded: messages.kind === "success",
   });
@@ -265,6 +266,7 @@ export default function GroupConversationPage() {
 
   async function loadOlderMessages() {
     if (!accessToken || !groupId || !nextCursor) return;
+    unstick();
     setOlderMessagesState({ kind: "loading" });
 
     const scrollEl = messagesScrollElementRef.current;

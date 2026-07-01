@@ -378,6 +378,7 @@ export default function ChannelDetailPage() {
     scrollToBottom: scrollMessagesToBottom,
     isNearBottom,
     stickToBottom,
+    unstick,
   } = useMessageListScroll({
     messagesLoaded: messages.kind === "success",
     disabled: contextMode.kind === "active",
@@ -831,6 +832,7 @@ export default function ChannelDetailPage() {
 
   async function loadOlderMessages() {
     if (!accessToken || !workspaceId || !channelId || !nextCursor) return;
+    unstick();
     setOlderMessagesState({ kind: "loading" });
 
     const scrollEl = messagesScrollElementRef.current;

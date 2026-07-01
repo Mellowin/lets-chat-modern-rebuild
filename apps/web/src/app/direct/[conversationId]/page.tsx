@@ -117,6 +117,7 @@ export default function DirectConversationPage() {
     endRef: messagesEndRef,
     scrollToBottom: scrollMessagesToBottom,
     isNearBottom,
+    unstick,
   } = useMessageListScroll({
     messagesLoaded: messages.kind === "success",
   });
@@ -352,6 +353,7 @@ export default function DirectConversationPage() {
 
   async function loadOlderMessages() {
     if (!accessToken || !conversationId || !nextCursor) return;
+    unstick();
     setOlderMessagesState({ kind: "loading" });
 
     const scrollEl = messagesScrollElementRef.current;
