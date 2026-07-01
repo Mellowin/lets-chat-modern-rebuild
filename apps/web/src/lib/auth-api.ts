@@ -447,7 +447,7 @@ export async function getNotificationPreferences(accessToken: string): Promise<N
 
 export async function updateNotificationPreferences(accessToken: string, input: NotificationPreferencesInput): Promise<NotificationPreferences> {
   const res = await authFetch(`${API_BASE}/auth/me/notification-preferences`, {
-    method: "PUT",
+    method: "PATCH",
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json",

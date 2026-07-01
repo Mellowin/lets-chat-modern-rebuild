@@ -45,7 +45,7 @@ async function main() {
   });
 
   // PUT /auth/me/notification-preferences
-  const updatedPrefs = await api(sender.accessToken, "PUT", "/auth/me/notification-preferences", {
+  const updatedPrefs = await api(sender.accessToken, "PATCH", "/auth/me/notification-preferences", {
     mentionNotificationsEnabled: false,
   });
   results.push({
@@ -57,7 +57,7 @@ async function main() {
   });
 
   // Restore mention preference for later checks.
-  await api(sender.accessToken, "PUT", "/auth/me/notification-preferences", {
+  await api(sender.accessToken, "PATCH", "/auth/me/notification-preferences", {
     mentionNotificationsEnabled: true,
   });
 
