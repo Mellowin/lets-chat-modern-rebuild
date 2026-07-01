@@ -3,15 +3,13 @@
 /**
  * Production channel scroll verifier.
  *
- * Creates a disposable workspace/channel, seeds enough messages to require
- * scrolling, opens the channel in a real browser and asserts:
- *   - the latest message is visible after initial load;
+ * Creates a disposable workspace/channel, seeds enough messages (including
+ * image attachments in the middle of history) to require scrolling, opens the
+ * channel URL directly in a real browser and asserts:
+ *   - the latest message is visible after initial load and after a hard reload;
+ *   - the sidebar/workspace/channel state is hydrated without visiting Overview;
  *   - sending a new message while at the bottom scrolls it into view;
  *   - loading older messages preserves the previous scroll position.
- *
- * Attachment upload is intentionally not included here because it is heavy and
- * flaky in automation; attachment-induced layout shift is covered by unit
- * tests for useMessageListScroll and by manual checks.
  */
 
 import { chromium } from "playwright";
@@ -24,7 +22,9 @@ import {
   finalize,
 } from "./lib/verify-helpers.mjs";
 
-const MESSAGE_COUNT = 55;
+const TEXT_MESSAGE_COUNT = 50;
+const IMAGE_MESSAGE_COUNT = 5;
+const TRAILING_TEXT_COUNT = 5;
 const MESSAGES_PER_BATCH = 10;
 const MESSAGE_BATCH_DELAY_MS = 500;
 
@@ -40,10 +40,53 @@ function fail(check, detail) {
   console.log(`  ❌ ${check}${detail ? `: ${detail}` : ""}`);
 }
 
-async function seedMessages(token, workspaceId, channelId, count) {
+const ONE_PIXEL_PNG_BASE64 =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=";
+
+async function uploadImageAttachment(token, workspaceId, channelId) {
+  const buffer = Buffer.from(ONE_PIXEL_PNG_BASE64, "base64");
+  const blob = new Blob([buffer], { type: "image/png" });
+  const formData = new FormData();
+  formData.append("file", blob, "scroll-image.png");
+
+  const res = await fetch(
+    `${API_BASE}/workspaces/${workspaceId}/channels/${channelId}/messages/attachments/upload`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    },
+  );
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Attachment upload failed: ${res.status} ${res.statusText} ${body}`);
+  }
+
+  return res.json();
+}
+
+async function createImageMessage(token, workspaceId, channelId, index) {
+  const uploaded = await uploadImageAttachment(token, workspaceId, channelId);
+  return api(token, "POST", `/workspaces/${workspaceId}/channels/${channelId}/messages`, {
+    content: `Image message ${String(index + 1).padStart(3, "0")}`,
+    attachments: [
+      {
+        storageKey: uploaded.storageKey,
+        fileName: uploaded.fileName,
+        mimeType: uploaded.mimeType,
+        sizeBytes: uploaded.sizeBytes,
+        kind: uploaded.kind,
+      },
+    ],
+  });
+}
+
+async function seedMessages(token, workspaceId, channelId) {
   const messages = [];
-  for (let i = 0; i < count; i += MESSAGES_PER_BATCH) {
-    const batchSize = Math.min(MESSAGES_PER_BATCH, count - i);
+
+  for (let i = 0; i < TEXT_MESSAGE_COUNT; i += MESSAGES_PER_BATCH) {
+    const batchSize = Math.min(MESSAGES_PER_BATCH, TEXT_MESSAGE_COUNT - i);
     const batch = await Promise.all(
       Array.from({ length: batchSize }, (_, j) =>
         api(token, "POST", `/workspaces/${workspaceId}/channels/${channelId}/messages`, {
@@ -52,10 +95,23 @@ async function seedMessages(token, workspaceId, channelId, count) {
       ),
     );
     messages.push(...batch);
-    if (i + batchSize < count) {
+    if (i + batchSize < TEXT_MESSAGE_COUNT) {
       await sleep(MESSAGE_BATCH_DELAY_MS);
     }
   }
+
+  for (let i = 0; i < IMAGE_MESSAGE_COUNT; i += 1) {
+    const msg = await createImageMessage(token, workspaceId, channelId, TEXT_MESSAGE_COUNT + i);
+    messages.push(msg);
+  }
+
+  for (let i = 0; i < TRAILING_TEXT_COUNT; i += 1) {
+    const msg = await api(token, "POST", `/workspaces/${workspaceId}/channels/${channelId}/messages`, {
+      content: `Trailing message ${String(i + 1).padStart(3, "0")}`,
+    });
+    messages.push(msg);
+  }
+
   return messages;
 }
 
@@ -90,6 +146,29 @@ async function isMessageInViewport(page, messageId, ratio = 0.1, timeoutMs = 150
   return false;
 }
 
+async function isSidebarHydrated(page, workspaceId, channelId, timeoutMs = 15000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const ok = await page.evaluate(
+      ({ workspaceId, channelId }) => {
+        const workspaceToggle = document.querySelector(`[data-testid="sidebar-workspace-toggle-${workspaceId}"]`);
+        const channelLink = document.querySelector(`[data-testid="sidebar-channel-link-${channelId}"]`);
+        const overviewLink = document.querySelector(`[data-testid="sidebar-workspace-channels-${workspaceId}"] a[href^="/workspaces/${workspaceId}"]`);
+        return !!(
+          workspaceToggle &&
+          channelLink &&
+          channelLink.getAttribute("data-active") === "true" &&
+          overviewLink
+        );
+      },
+      { workspaceId, channelId },
+    );
+    if (ok) return true;
+    await sleep(200);
+  }
+  return false;
+}
+
 async function main() {
   console.log("=== Production Channel Scroll Verification ===");
   console.log(`WEB_BASE: ${WEB_BASE}`);
@@ -107,8 +186,8 @@ async function main() {
     type: "PUBLIC",
   });
 
-  console.log(`[setup] seeding ${MESSAGE_COUNT} messages...`);
-  const seeded = await seedMessages(owner.accessToken, workspace.id, channel.id, MESSAGE_COUNT);
+  console.log(`[setup] seeding ${TEXT_MESSAGE_COUNT + IMAGE_MESSAGE_COUNT + TRAILING_TEXT_COUNT} messages...`);
+  const seeded = await seedMessages(owner.accessToken, workspace.id, channel.id);
 
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
@@ -120,15 +199,41 @@ async function main() {
       waitUntil: "networkidle",
     });
 
-    // Wait for the message list to render.
+    // Wait for the message list and image attachments to render.
     const latest = seeded[seeded.length - 1];
     await page.waitForSelector(`[data-testid="message-row-${latest.id}"]`, { state: "visible", timeout: 20000 });
+    await page.waitForSelector('[data-testid^="message-attachment-image-"]', { state: "visible", timeout: 20000 });
 
     // --- Latest message visible on open ---
     if (await isMessageInViewport(page, latest.id, 0.1)) {
       pass("Latest message is visible after opening channel", latest.id);
     } else {
       fail("Latest message is visible after opening channel", latest.id);
+    }
+
+    // --- Sidebar hydrated without visiting Overview ---
+    if (await isSidebarHydrated(page, workspace.id, channel.id)) {
+      pass("Sidebar workspace/channel list is hydrated on direct route", `${workspace.id}/${channel.id}`);
+    } else {
+      fail("Sidebar workspace/channel list is hydrated on direct route", `${workspace.id}/${channel.id}`);
+    }
+
+    // --- Hard reload still lands on the latest message ---
+    await page.goto(`${WEB_BASE}/workspaces/${workspace.id}/channels/${channel.id}`, {
+      waitUntil: "networkidle",
+    });
+    await page.waitForSelector(`[data-testid="message-row-${latest.id}"]`, { state: "visible", timeout: 20000 });
+
+    if (await isMessageInViewport(page, latest.id, 0.1)) {
+      pass("Latest message is visible after hard reload", latest.id);
+    } else {
+      fail("Latest message is visible after hard reload", latest.id);
+    }
+
+    if (await isSidebarHydrated(page, workspace.id, channel.id)) {
+      pass("Sidebar remains hydrated after hard reload", `${workspace.id}/${channel.id}`);
+    } else {
+      fail("Sidebar remains hydrated after hard reload", `${workspace.id}/${channel.id}`);
     }
 
     // Give the WebSocket a moment to join the channel room.

@@ -25,7 +25,7 @@ export interface UseMessageListScrollResult {
 }
 
 const NEAR_BOTTOM_THRESHOLD_PX = 160;
-const INITIAL_SETTLE_TIMEOUT_MS = 750;
+const INITIAL_SETTLE_TIMEOUT_MS = 1500;
 
 /**
  * Keeps a message list anchored to the latest messages while still letting the
@@ -38,6 +38,10 @@ const INITIAL_SETTLE_TIMEOUT_MS = 750;
  *    position lands at the latest messages;
  *  - tracking whether the user intentionally scrolled away from the bottom, and
  *    only auto-scrolling again when they return near the bottom.
+ *
+ * This implementation manipulates the scroll container directly instead of
+ * relying on scrollIntoView, so it works reliably inside nested flex layouts
+ * and is not affected by browser scroll restoration.
  */
 export function useMessageListScroll(
   options: UseMessageListScrollOptions,
@@ -57,8 +61,14 @@ export function useMessageListScroll(
   }, []);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
-    if (typeof endNodeRef.current?.scrollIntoView === "function") {
-      endNodeRef.current.scrollIntoView({ behavior, block: "end" });
+    const el = scrollNodeRef.current;
+    if (!el) return;
+
+    const target = el.scrollHeight;
+    if (behavior === "auto" || typeof el.scrollTo !== "function") {
+      el.scrollTop = target;
+    } else {
+      el.scrollTo({ top: target, behavior });
     }
   }, []);
 
@@ -156,6 +166,8 @@ export function useMessageListScroll(
       window.setTimeout(() => scrollToBottom("auto"), 50),
       window.setTimeout(() => scrollToBottom("auto"), 150),
       window.setTimeout(() => scrollToBottom("auto"), 400),
+      window.setTimeout(() => scrollToBottom("auto"), 800),
+      window.setTimeout(() => scrollToBottom("auto"), 1200),
       window.setTimeout(() => {
         initialScrollPendingRef.current = false;
       }, INITIAL_SETTLE_TIMEOUT_MS),

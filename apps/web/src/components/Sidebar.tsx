@@ -349,7 +349,7 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
     loadChannelsForWorkspaceRef.current = loadChannelsForWorkspace;
   }, [loadChannelsForWorkspace]);
 
-  // Initialize workspace expansion and load active workspace channels
+  // Initialize workspace expansion from localStorage / active route
   const workspacesInitialized = useRef(false);
   useEffect(() => {
     if (workspaces.kind === "success" && !workspacesInitialized.current) {
@@ -362,16 +362,13 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
         }
       });
       setExpandedWorkspaces(initial);
-      if (activeWorkspaceId && accessToken) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        loadChannelsForWorkspace(accessToken, activeWorkspaceId, false);
-      }
     }
-  }, [workspaces, activeWorkspaceId, accessToken, loadChannelsForWorkspace]);
+  }, [workspaces, activeWorkspaceId]);
 
-  // Auto-expand active workspace when it changes
+  // Hydrate the active workspace channel list on direct route entry without
+  // requiring the user to visit the Overview page first.
   useEffect(() => {
-    if (!activeWorkspaceId) return;
+    if (!accessToken || !activeWorkspaceId) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setExpandedWorkspaces((prev) => {
       if (prev.has(activeWorkspaceId)) return prev;
@@ -380,10 +377,8 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
       localStorage.setItem(`sidebar:workspace:${activeWorkspaceId}:expanded`, "true");
       return next;
     });
-    if (accessToken) {
-      loadChannelsForWorkspace(accessToken, activeWorkspaceId, false);
-    }
-  }, [activeWorkspaceId, accessToken, loadChannelsForWorkspace]);
+    loadChannelsForWorkspace(accessToken, activeWorkspaceId, true);
+  }, [accessToken, activeWorkspaceId, loadChannelsForWorkspace]);
 
   // Reload active workspace channels on channels:changed
   useEffect(() => {

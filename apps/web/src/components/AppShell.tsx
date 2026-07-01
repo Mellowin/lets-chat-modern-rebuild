@@ -37,6 +37,19 @@ export default function AppShell({ children }: AppShellProps) {
     setIsMobileMenuOpen(false);
   }, [pathname]);
 
+  // Disable browser scroll restoration on authenticated routes. The app
+  // manages its own scroll state; without this, a hard reload of a channel
+  // can land the user in the middle of message history.
+  useEffect(() => {
+    if (!showSidebar) return;
+    if (typeof window === "undefined" || !("scrollRestoration" in window.history)) return;
+    const original = window.history.scrollRestoration;
+    window.history.scrollRestoration = "manual";
+    return () => {
+      window.history.scrollRestoration = original;
+    };
+  }, [showSidebar]);
+
   return (
     <>
       <Header onMenuToggle={showSidebar ? () => setIsMobileMenuOpen(true) : undefined} />

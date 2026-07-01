@@ -39,11 +39,18 @@ function triggerResize(target: Element) {
   }
 }
 
-function setScrollHeight(el: HTMLElement | null, height: number) {
+function setScrollMetrics(
+  el: HTMLElement | null,
+  { scrollHeight = 1000, clientHeight = 300 }: { scrollHeight?: number; clientHeight?: number },
+) {
   if (!el) return;
   Object.defineProperty(el, "scrollHeight", {
     configurable: true,
-    get: () => height,
+    get: () => scrollHeight,
+  });
+  Object.defineProperty(el, "clientHeight", {
+    configurable: true,
+    get: () => clientHeight,
   });
 }
 
@@ -60,7 +67,7 @@ function TestComponent({
   });
 
   const scrollRef = (node: HTMLDivElement | null) => {
-    setScrollHeight(node, 1000);
+    setScrollMetrics(node, { scrollHeight: 1000, clientHeight: 300 });
     hookScrollRef(node);
   };
 
@@ -78,52 +85,45 @@ function TestComponent({
 }
 
 describe("useMessageListScroll", () => {
-  let scrollIntoViewMock: ReturnType<typeof vi.fn>;
-
   beforeEach(() => {
     resizeObserverCallbacks = new Map();
     vi.stubGlobal("ResizeObserver", MockResizeObserver);
-    scrollIntoViewMock = vi.fn();
-    Object.defineProperty(Element.prototype, "scrollIntoView", {
-      value: scrollIntoViewMock,
-      configurable: true,
-      writable: true,
-    });
     vi.useFakeTimers({ shouldAdvanceTime: true });
   });
 
   afterEach(() => {
-    Object.defineProperty(Element.prototype, "scrollIntoView", {
-      value: undefined,
-      configurable: true,
-      writable: true,
-    });
     vi.useRealTimers();
     resizeObserverCallbacks = new Map();
   });
 
   it("scrolls to bottom when messages first load", () => {
-    const { rerender } = render(<TestComponent messagesLoaded={false} />);
-    expect(scrollIntoViewMock).not.toHaveBeenCalled();
+    const { rerender, getByTestId } = render(<TestComponent messagesLoaded={false} />);
+    const scrollEl = getByTestId("scroll") as HTMLDivElement;
+
+    expect(scrollEl.scrollTop).toBe(0);
 
     rerender(<TestComponent messagesLoaded={true} />);
-    expect(scrollIntoViewMock).toHaveBeenCalledWith({ behavior: "auto", block: "end" });
+
+    expect(scrollEl.scrollTop).toBe(scrollEl.scrollHeight);
   });
 
   it("re-scrolls to bottom when the content wrapper resizes during the settle window", () => {
     const { rerender, getByTestId } = render(<TestComponent messagesLoaded={false} />);
     rerender(<TestComponent messagesLoaded={true} />);
 
+    const scrollEl = getByTestId("scroll") as HTMLDivElement;
+    const content = getByTestId("content");
+
     act(() => {
       vi.advanceTimersByTime(100);
     });
 
-    const callsBefore = scrollIntoViewMock.mock.calls.length;
-    const content = getByTestId("content");
+    scrollEl.scrollTop = 500;
     act(() => {
       triggerResize(content);
     });
-    expect(scrollIntoViewMock.mock.calls.length).toBeGreaterThan(callsBefore);
+
+    expect(scrollEl.scrollTop).toBe(scrollEl.scrollHeight);
   });
 
   it("stops auto-scrolling after the user intentionally scrolls away from bottom", () => {
@@ -131,7 +131,7 @@ describe("useMessageListScroll", () => {
     rerender(<TestComponent messagesLoaded={true} />);
 
     act(() => {
-      vi.advanceTimersByTime(800);
+      vi.advanceTimersByTime(1600);
     });
 
     const scrollEl = getByTestId("scroll") as HTMLDivElement;
@@ -140,12 +140,12 @@ describe("useMessageListScroll", () => {
       scrollEl.dispatchEvent(new Event("scroll", { bubbles: true }));
     });
 
-    scrollIntoViewMock.mockClear();
     const content = getByTestId("content");
     act(() => {
       triggerResize(content);
     });
-    expect(scrollIntoViewMock).not.toHaveBeenCalled();
+
+    expect(scrollEl.scrollTop).toBe(0);
   });
 
   it("resumes auto-scrolling when the user scrolls back to the bottom", () => {
@@ -153,7 +153,7 @@ describe("useMessageListScroll", () => {
     rerender(<TestComponent messagesLoaded={true} />);
 
     act(() => {
-      vi.advanceTimersByTime(800);
+      vi.advanceTimersByTime(1600);
     });
 
     const scrollEl = getByTestId("scroll") as HTMLDivElement;
@@ -162,18 +162,18 @@ describe("useMessageListScroll", () => {
       scrollEl.dispatchEvent(new Event("scroll", { bubbles: true }));
     });
 
-    scrollIntoViewMock.mockClear();
-
     act(() => {
       scrollEl.scrollTop = scrollEl.scrollHeight - scrollEl.clientHeight - 50;
       scrollEl.dispatchEvent(new Event("scroll", { bubbles: true }));
     });
 
+    scrollEl.scrollTop = 500;
     const content = getByTestId("content");
     act(() => {
       triggerResize(content);
     });
-    expect(scrollIntoViewMock).toHaveBeenCalledWith({ behavior: "auto", block: "end" });
+
+    expect(scrollEl.scrollTop).toBe(scrollEl.scrollHeight);
   });
 
   it("isNearBottom returns true when close to the bottom", () => {
@@ -194,8 +194,11 @@ describe("useMessageListScroll", () => {
   });
 
   it("does not auto-scroll when disabled", () => {
-    const { rerender } = render(<TestComponent messagesLoaded={false} disabled={true} />);
+    const { rerender, getByTestId } = render(<TestComponent messagesLoaded={false} disabled={true} />);
+    const scrollEl = getByTestId("scroll") as HTMLDivElement;
+
     rerender(<TestComponent messagesLoaded={true} disabled={true} />);
-    expect(scrollIntoViewMock).not.toHaveBeenCalled();
+
+    expect(scrollEl.scrollTop).toBe(0);
   });
 });

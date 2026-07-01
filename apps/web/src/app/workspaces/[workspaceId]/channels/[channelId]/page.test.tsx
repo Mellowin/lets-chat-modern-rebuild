@@ -432,8 +432,6 @@ describe("ChannelDetailPage — composer", () => {
   });
 
   it("scrolls to bottom after sending a message", async () => {
-    const scrollIntoViewMock = vi.fn();
-    Element.prototype.scrollIntoView = scrollIntoViewMock;
     mockChannelAndMessages([]);
     const newMsg = {
       id: "m1",
@@ -454,6 +452,9 @@ describe("ChannelDetailPage — composer", () => {
       expect(screen.getByPlaceholderText(/Type a message/i)).toBeInTheDocument();
     });
 
+    const scrollEl = screen.getByTestId("channel-messages-scroll") as HTMLDivElement;
+    Object.defineProperty(scrollEl, "scrollHeight", { configurable: true, get: () => 1000 });
+
     await userEvent.type(screen.getByPlaceholderText(/Type a message/i), "Hello");
     await userEvent.click(screen.getByRole("button", { name: /Send/i }));
 
@@ -461,8 +462,11 @@ describe("ChannelDetailPage — composer", () => {
       expect(createMessage).toHaveBeenCalled();
     });
 
-    expect(scrollIntoViewMock).toHaveBeenCalled();
-    scrollIntoViewMock.mockRestore();
+    await act(async () => {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    });
+
+    expect(scrollEl.scrollTop).toBe(scrollEl.scrollHeight);
   });
 });
 
@@ -4756,9 +4760,6 @@ describe("ChannelDetailPage — attachments", () => {
 
 
 describe("ChannelDetailPage — scroll behavior", () => {
-  let originalScrollIntoView: unknown;
-  let scrollIntoViewMock: ReturnType<typeof vi.fn>;
-
   beforeEach(() => {
     localStorage.clear();
     sessionStorage.setItem("accessToken", "token");
@@ -4767,29 +4768,25 @@ describe("ChannelDetailPage — scroll behavior", () => {
     socketEmitMock.mockReset();
     socketDisconnectMock.mockReset();
     Object.keys(socketHandlers).forEach((k) => delete socketHandlers[k]);
-
-    originalScrollIntoView = Element.prototype.scrollIntoView;
-    scrollIntoViewMock = vi.fn();
-    Object.defineProperty(Element.prototype, "scrollIntoView", {
-      configurable: true,
-      writable: true,
-      value: scrollIntoViewMock,
-    });
+    vi.useFakeTimers({ shouldAdvanceTime: true });
   });
 
   afterEach(() => {
-    Object.defineProperty(Element.prototype, "scrollIntoView", {
-      configurable: true,
-      writable: true,
-      value: originalScrollIntoView,
-    });
+    vi.useRealTimers();
   });
 
-  function setScrollHeight(el: HTMLElement | null, height: number) {
+  function setScrollMetrics(
+    el: HTMLElement | null,
+    { scrollHeight = 1000, clientHeight = 300 }: { scrollHeight?: number; clientHeight?: number },
+  ) {
     if (!el) return;
     Object.defineProperty(el, "scrollHeight", {
       configurable: true,
-      get: () => height,
+      get: () => scrollHeight,
+    });
+    Object.defineProperty(el, "clientHeight", {
+      configurable: true,
+      get: () => clientHeight,
     });
   }
 
@@ -4809,29 +4806,75 @@ describe("ChannelDetailPage — scroll behavior", () => {
     mockChannelAndMessages([existingMessage]);
     render(<ChannelDetailPage />);
 
+    // Provide realistic scroll metrics immediately so the initial settle window
+    // can scroll the list to the latest message.
+    const scrollEl = screen.getByTestId("channel-messages-scroll") as HTMLDivElement;
+    setScrollMetrics(scrollEl, { scrollHeight: 1000, clientHeight: 300 });
+
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+
     await waitFor(() => {
       expect(screen.getByText("Earlier message")).toBeInTheDocument();
     });
 
-    expect(scrollIntoViewMock).toHaveBeenCalledWith(expect.objectContaining({ block: "end" }));
+    expect(scrollEl.scrollTop).toBe(scrollEl.scrollHeight);
+  });
+
+  it("scrolls to latest message when earlier messages contain image attachments", async () => {
+    const attachment = {
+      id: "a1",
+      fileName: "image.png",
+      mimeType: "image/png",
+      sizeBytes: 128,
+      kind: "image" as const,
+    };
+    const latestMessage = {
+      ...existingMessage,
+      id: "m-latest",
+      content: "Latest message",
+    };
+    mockChannelAndMessages([
+      { ...existingMessage, attachments: [attachment] },
+      latestMessage,
+    ]);
+
+    render(<ChannelDetailPage />);
+
+    const scrollEl = screen.getByTestId("channel-messages-scroll") as HTMLDivElement;
+    setScrollMetrics(scrollEl, { scrollHeight: 1000, clientHeight: 300 });
+
+    await waitFor(() => {
+      expect(screen.getByText("Latest message")).toBeInTheDocument();
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(1600);
+    });
+
+    expect(scrollEl.scrollTop).toBe(scrollEl.scrollHeight);
   });
 
   it("scrolls to bottom when another user sends a message while viewer is near bottom", async () => {
     mockChannelAndMessages([existingMessage]);
     render(<ChannelDetailPage />);
 
+    const scrollEl = screen.getByTestId("channel-messages-scroll") as HTMLDivElement;
+    setScrollMetrics(scrollEl, { scrollHeight: 1000, clientHeight: 300 });
+
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+
     await waitFor(() => {
       expect(screen.getByText("Earlier message")).toBeInTheDocument();
     });
 
-    const scrollEl = screen.getByTestId("channel-messages-scroll");
-    setScrollHeight(scrollEl as HTMLElement, 1000);
     act(() => {
-      (scrollEl as HTMLDivElement).scrollTop = 900;
+      scrollEl.scrollTop = 900;
       scrollEl.dispatchEvent(new Event("scroll", { bubbles: true }));
     });
-
-    scrollIntoViewMock.mockClear();
 
     act(() => {
       socketHandlers["message:created"]({
@@ -4851,27 +4894,28 @@ describe("ChannelDetailPage — scroll behavior", () => {
       expect(screen.getByText("New message")).toBeInTheDocument();
     });
 
-    await waitFor(() => {
-      expect(scrollIntoViewMock).toHaveBeenCalledWith(expect.objectContaining({ block: "end" }));
-    });
+    expect(scrollEl.scrollTop).toBe(scrollEl.scrollHeight);
   });
 
   it("does not auto-scroll when another user sends a message while viewer scrolled up", async () => {
     mockChannelAndMessages([existingMessage]);
     render(<ChannelDetailPage />);
 
+    const scrollEl = screen.getByTestId("channel-messages-scroll") as HTMLDivElement;
+    setScrollMetrics(scrollEl, { scrollHeight: 1000, clientHeight: 300 });
+
+    act(() => {
+      vi.advanceTimersByTime(1600);
+    });
+
     await waitFor(() => {
       expect(screen.getByText("Earlier message")).toBeInTheDocument();
     });
 
-    const scrollEl = screen.getByTestId("channel-messages-scroll");
-    setScrollHeight(scrollEl as HTMLElement, 1000);
     act(() => {
-      (scrollEl as HTMLDivElement).scrollTop = 0;
+      scrollEl.scrollTop = 0;
       scrollEl.dispatchEvent(new Event("scroll", { bubbles: true }));
     });
-
-    scrollIntoViewMock.mockClear();
 
     act(() => {
       socketHandlers["message:created"]({
@@ -4891,6 +4935,6 @@ describe("ChannelDetailPage — scroll behavior", () => {
       expect(screen.getByText("Far message")).toBeInTheDocument();
     });
 
-    expect(scrollIntoViewMock).not.toHaveBeenCalled();
+    expect(scrollEl.scrollTop).toBe(0);
   });
 });

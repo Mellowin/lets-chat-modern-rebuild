@@ -251,8 +251,6 @@ describe("DirectConversationPage — composer", () => {
   });
 
   it("scrolls to bottom after sending a message", async () => {
-    const scrollIntoViewMock = vi.fn();
-    Element.prototype.scrollIntoView = scrollIntoViewMock;
     mockMessages([]);
     const newMsg = {
       id: "dm1",
@@ -276,6 +274,9 @@ describe("DirectConversationPage — composer", () => {
       expect(screen.getByPlaceholderText(/Type a message/i)).toBeInTheDocument();
     });
 
+    const scrollEl = screen.getByTestId("direct-messages-scroll") as HTMLDivElement;
+    Object.defineProperty(scrollEl, "scrollHeight", { configurable: true, get: () => 1000 });
+
     await userEvent.type(screen.getByPlaceholderText(/Type a message/i), "Hello");
     await userEvent.click(screen.getByRole("button", { name: /Send/i }));
 
@@ -283,8 +284,11 @@ describe("DirectConversationPage — composer", () => {
       expect(sendDirectMessage).toHaveBeenCalled();
     });
 
-    expect(scrollIntoViewMock).toHaveBeenCalled();
-    scrollIntoViewMock.mockRestore();
+    await act(async () => {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    });
+
+    expect(scrollEl.scrollTop).toBe(scrollEl.scrollHeight);
   });
 });
 
