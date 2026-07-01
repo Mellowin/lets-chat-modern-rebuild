@@ -5,7 +5,6 @@ import { Loader2, Settings2 } from "lucide-react";
 
 import { useAuth } from "@/lib/auth-context";
 import { useLocale } from "@/lib/locale";
-import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Switch } from "@/components/ui/Switch";
 import {
@@ -19,20 +18,25 @@ export function NotificationPreferencesSection() {
   const { accessToken } = useAuth();
   const { t } = useLocale();
   const [preferences, setPreferences] = useState<NotificationPreferences | null>(null);
-  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState<keyof NotificationPreferences | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (!accessToken) return;
-    setLoading(true);
-    setError("");
-    getNotificationPreferences(accessToken)
-      .then(setPreferences)
-      .catch((err) => {
-        setError(err instanceof Error ? err.message : String(err));
-      })
-      .finally(() => setLoading(false));
+    let cancelled = false;
+    async function load() {
+      setError("");
+      try {
+        const prefs = await getNotificationPreferences(accessToken);
+        if (!cancelled) setPreferences(prefs);
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, [accessToken]);
 
   const handleToggle = async (key: keyof NotificationPreferences) => {
@@ -78,6 +82,8 @@ export function NotificationPreferencesSection() {
       description: t("profile.channelMessageNotificationsToggleDescription"),
     },
   ];
+
+  const loading = preferences === null && !error;
 
   return (
     <Card>
