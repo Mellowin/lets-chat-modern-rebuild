@@ -854,14 +854,38 @@ export default function ChannelDetailPage() {
       setHasMoreMessages(result.hasMore);
       setOlderMessagesState({ kind: "idle" });
 
-      // Wait for React to commit the new DOM and for any images to reflow
-      // before measuring the new scrollHeight.
-      window.setTimeout(() => {
-        if (scrollEl) {
-          const heightDelta = scrollEl.scrollHeight - previousScrollHeight;
-          scrollEl.scrollTop += heightDelta;
-        }
-      }, 200);
+      // Preserve the scroll position once the newly prepended content has
+      // finished reflowing. We wait until scrollHeight stops changing so that
+      // React commits and any images load before we apply the adjustment.
+      if (scrollEl) {
+        let lastHeight = scrollEl.scrollHeight;
+        let stableCount = 0;
+        let changed = false;
+        const start = Date.now();
+        const check = () => {
+          if (!scrollEl) return;
+          const currentHeight = scrollEl.scrollHeight;
+          if (currentHeight !== lastHeight) {
+            changed = true;
+            stableCount = 0;
+            lastHeight = currentHeight;
+          } else if (changed) {
+            stableCount += 1;
+            if (stableCount >= 3) {
+              const heightDelta = currentHeight - previousScrollHeight;
+              scrollEl.scrollTop += heightDelta;
+              return;
+            }
+          }
+          if (Date.now() - start > 1500) {
+            const heightDelta = currentHeight - previousScrollHeight;
+            scrollEl.scrollTop += heightDelta;
+            return;
+          }
+          requestAnimationFrame(check);
+        };
+        requestAnimationFrame(check);
+      }
     } catch (err) {
       const message = localizeApiError(err, "channel.errorLoadMessagesFailed", t);
       setOlderMessagesState({ kind: "error", message });

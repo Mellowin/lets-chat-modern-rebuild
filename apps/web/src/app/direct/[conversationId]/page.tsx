@@ -375,12 +375,35 @@ export default function DirectConversationPage() {
       setHasMoreMessages(result.hasMore);
       setOlderMessagesState({ kind: "idle" });
 
-      window.setTimeout(() => {
-        if (scrollEl) {
-          const heightDelta = scrollEl.scrollHeight - previousScrollHeight;
-          scrollEl.scrollTop += heightDelta;
-        }
-      }, 200);
+      if (scrollEl) {
+        let lastHeight = scrollEl.scrollHeight;
+        let stableCount = 0;
+        let changed = false;
+        const start = Date.now();
+        const check = () => {
+          if (!scrollEl) return;
+          const currentHeight = scrollEl.scrollHeight;
+          if (currentHeight !== lastHeight) {
+            changed = true;
+            stableCount = 0;
+            lastHeight = currentHeight;
+          } else if (changed) {
+            stableCount += 1;
+            if (stableCount >= 3) {
+              const heightDelta = currentHeight - previousScrollHeight;
+              scrollEl.scrollTop += heightDelta;
+              return;
+            }
+          }
+          if (Date.now() - start > 1500) {
+            const heightDelta = currentHeight - previousScrollHeight;
+            scrollEl.scrollTop += heightDelta;
+            return;
+          }
+          requestAnimationFrame(check);
+        };
+        requestAnimationFrame(check);
+      }
     } catch (err) {
       const message = localizeApiError(err, "direct.failedLoadMessages", t);
       setOlderMessagesState({ kind: "error", message });
