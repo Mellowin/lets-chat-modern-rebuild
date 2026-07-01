@@ -23,11 +23,12 @@ export function NotificationPreferencesSection() {
 
   useEffect(() => {
     if (!accessToken) return;
+    const token = accessToken;
     let cancelled = false;
     async function load() {
       setError("");
       try {
-        const prefs = await getNotificationPreferences(accessToken);
+        const prefs = await getNotificationPreferences(token);
         if (!cancelled) setPreferences(prefs);
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : String(err));
