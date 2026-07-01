@@ -12,6 +12,7 @@ interface CreateMessageInput {
   groupId: string;
   authorId: string;
   content: string;
+  mentions?: { userId: string; username: string }[];
 }
 
 export type GroupWithMembersAndLastMessage = NonNullable<
@@ -216,6 +217,17 @@ export class GroupsRepository {
     });
   }
 
+  async findMentionableUserIds(groupId: string): Promise<string[]> {
+    const members = await this.prisma.groupMember.findMany({
+      where: {
+        groupId,
+        leftAt: null,
+      },
+      select: { userId: true },
+    });
+    return members.map((m) => m.userId);
+  }
+
   async addMember(groupId: string, userId: string) {
     return this.prisma.groupMember.upsert({
       where: {
@@ -325,6 +337,7 @@ export class GroupsRepository {
         groupId: data.groupId,
         authorId: data.authorId,
         content: data.content,
+        mentions: data.mentions as never,
       },
       include: {
         author: {

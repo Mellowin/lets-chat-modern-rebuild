@@ -14,6 +14,7 @@ interface CreateMessageInput {
     size: number;
     createdById: string;
   }>;
+  mentions?: { userId: string; username: string }[];
 }
 
 @Injectable()
@@ -28,6 +29,7 @@ export class MessagesRepository {
           authorId: data.authorId,
           content: data.content,
           parentId: data.parentId,
+          mentions: data.mentions as never,
         },
       });
 

@@ -57,6 +57,11 @@ export class JwtAccessGuard implements CanActivate {
     avatarUpdatedAt: Date | null;
     interfaceLanguage: string;
     createdAt: Date;
+    pushNotificationsEnabled?: boolean;
+    mentionNotificationsEnabled?: boolean;
+    directMessageNotificationsEnabled?: boolean;
+    groupMessageNotificationsEnabled?: boolean;
+    channelMessageNotificationsEnabled?: boolean;
   }): AuthUserResponse {
     return {
       id: user.id,
@@ -67,6 +72,14 @@ export class JwtAccessGuard implements CanActivate {
       avatarUpdatedAt: user.avatarUpdatedAt,
       interfaceLanguage: user.interfaceLanguage as 'en' | 'uk' | 'ru',
       createdAt: user.createdAt,
+      pushNotificationsEnabled: user.pushNotificationsEnabled ?? true,
+      mentionNotificationsEnabled: user.mentionNotificationsEnabled ?? true,
+      directMessageNotificationsEnabled:
+        user.directMessageNotificationsEnabled ?? true,
+      groupMessageNotificationsEnabled:
+        user.groupMessageNotificationsEnabled ?? true,
+      channelMessageNotificationsEnabled:
+        user.channelMessageNotificationsEnabled ?? true,
     };
   }
 }

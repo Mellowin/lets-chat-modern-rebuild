@@ -46,6 +46,7 @@ import { ConfirmEmailChangeDto } from './dto/confirm-email-change.dto';
 import { UpdateDisplayNameDto } from './dto/update-display-name.dto';
 import { UpdateAvatarDto } from './dto/update-avatar.dto';
 import { UpdateInterfaceLanguageDto } from './dto/update-interface-language.dto';
+import { UpdateNotificationPreferencesDto } from './dto/update-notification-preferences.dto';
 
 import { JwtAccessGuard } from './guards/jwt-access.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -338,6 +339,24 @@ export class AuthController {
     @Body() dto: UpdateInterfaceLanguageDto,
   ): Promise<AuthUserResponse> {
     return this.auth.updateInterfaceLanguage(user.id, dto.interfaceLanguage);
+  }
+
+  @Patch('me/notification-preferences')
+  @UseGuards(JwtAccessGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Update current authenticated user notification preferences',
+  })
+  @ApiOkResponse({
+    description: 'Notification preferences updated successfully',
+  })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async updateNotificationPreferences(
+    @CurrentUser() user: AuthUserResponse,
+    @Body() dto: UpdateNotificationPreferencesDto,
+  ): Promise<AuthUserResponse> {
+    return this.auth.updateNotificationPreferences(user.id, dto);
   }
 
   private assertAvatarCooldown(avatarUpdatedAt: Date | null): void {

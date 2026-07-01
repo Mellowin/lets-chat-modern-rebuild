@@ -162,17 +162,28 @@ describe('PushService', () => {
         id: 'user-a',
         displayName: 'Alice',
         username: 'alice',
+        interfaceLanguage: 'en',
       });
       prisma.channelMember.findMany.mockResolvedValue([
         {
           userId: 'user-b',
           user: {
+            pushNotificationsEnabled: true,
+            mentionNotificationsEnabled: true,
+            directMessageNotificationsEnabled: true,
+            groupMessageNotificationsEnabled: true,
+            channelMessageNotificationsEnabled: true,
             pushSubscriptions: [mockSubscription],
           },
         },
         {
           userId: 'user-c',
           user: {
+            pushNotificationsEnabled: true,
+            mentionNotificationsEnabled: true,
+            directMessageNotificationsEnabled: true,
+            groupMessageNotificationsEnabled: true,
+            channelMessageNotificationsEnabled: true,
             pushSubscriptions: [
               {
                 ...mockSubscription,
@@ -236,11 +247,19 @@ describe('PushService', () => {
         id: 'user-a',
         displayName: 'Alice',
         username: 'alice',
+        interfaceLanguage: 'en',
       });
       prisma.channelMember.findMany.mockResolvedValue([
         {
           userId: 'user-b',
-          user: { pushSubscriptions: [mockSubscription] },
+          user: {
+            pushNotificationsEnabled: true,
+            mentionNotificationsEnabled: true,
+            directMessageNotificationsEnabled: true,
+            groupMessageNotificationsEnabled: true,
+            channelMessageNotificationsEnabled: true,
+            pushSubscriptions: [mockSubscription],
+          },
         },
       ]);
 
@@ -278,11 +297,25 @@ describe('PushService', () => {
         participants: [
           {
             userId: 'user-a',
-            user: { pushSubscriptions: [] },
+            user: {
+              pushNotificationsEnabled: true,
+              mentionNotificationsEnabled: true,
+              directMessageNotificationsEnabled: true,
+              groupMessageNotificationsEnabled: true,
+              channelMessageNotificationsEnabled: true,
+              pushSubscriptions: [],
+            },
           },
           {
             userId: 'user-b',
-            user: { pushSubscriptions: [mockSubscription] },
+            user: {
+              pushNotificationsEnabled: true,
+              mentionNotificationsEnabled: true,
+              directMessageNotificationsEnabled: true,
+              groupMessageNotificationsEnabled: true,
+              channelMessageNotificationsEnabled: true,
+              pushSubscriptions: [mockSubscription],
+            },
           },
         ],
       });
@@ -290,6 +323,7 @@ describe('PushService', () => {
         id: 'user-a',
         displayName: 'Alice',
         username: 'alice',
+        interfaceLanguage: 'en',
       });
 
       await service.notifyDirectMessage('conv-1', {
@@ -346,6 +380,7 @@ describe('PushService', () => {
         id: 'user-a',
         displayName: 'Alice',
         username: 'alice',
+        interfaceLanguage: 'en',
       });
       prisma.groupMember.findMany.mockResolvedValue([
         {
@@ -353,6 +388,11 @@ describe('PushService', () => {
           user: {
             id: 'user-b',
             interfaceLanguage: 'en',
+            pushNotificationsEnabled: true,
+            mentionNotificationsEnabled: true,
+            directMessageNotificationsEnabled: true,
+            groupMessageNotificationsEnabled: true,
+            channelMessageNotificationsEnabled: true,
             pushSubscriptions: [makeGroupSubscription('user-b', 'sub-b')],
           },
         },
@@ -361,6 +401,11 @@ describe('PushService', () => {
           user: {
             id: 'user-c',
             interfaceLanguage: 'en',
+            pushNotificationsEnabled: true,
+            mentionNotificationsEnabled: true,
+            directMessageNotificationsEnabled: true,
+            groupMessageNotificationsEnabled: true,
+            channelMessageNotificationsEnabled: true,
             pushSubscriptions: [makeGroupSubscription('user-c', 'sub-c')],
           },
         },
@@ -384,6 +429,7 @@ describe('PushService', () => {
         id: 'user-a',
         displayName: 'Alice',
         username: 'alice',
+        interfaceLanguage: 'en',
       });
       prisma.groupMember.findMany.mockResolvedValue([
         {
@@ -391,6 +437,11 @@ describe('PushService', () => {
           user: {
             id: 'user-b',
             interfaceLanguage: 'en',
+            pushNotificationsEnabled: true,
+            mentionNotificationsEnabled: true,
+            directMessageNotificationsEnabled: true,
+            groupMessageNotificationsEnabled: true,
+            channelMessageNotificationsEnabled: true,
             pushSubscriptions: [makeGroupSubscription('user-b', 'sub-b')],
           },
         },
@@ -429,6 +480,7 @@ describe('PushService', () => {
         id: 'user-a',
         displayName: 'Alice',
         username: 'alice',
+        interfaceLanguage: 'en',
       });
       prisma.groupMember.findMany.mockResolvedValue([
         {
@@ -436,6 +488,11 @@ describe('PushService', () => {
           user: {
             id: 'user-b',
             interfaceLanguage: 'uk',
+            pushNotificationsEnabled: true,
+            mentionNotificationsEnabled: true,
+            directMessageNotificationsEnabled: true,
+            groupMessageNotificationsEnabled: true,
+            channelMessageNotificationsEnabled: true,
             pushSubscriptions: [makeGroupSubscription('user-b', 'sub-b')],
           },
         },
@@ -474,6 +531,7 @@ describe('PushService', () => {
         id: 'user-a',
         displayName: 'Alice',
         username: 'alice',
+        interfaceLanguage: 'en',
       });
       prisma.groupMember.findMany.mockResolvedValue([]);
 
@@ -495,6 +553,7 @@ describe('PushService', () => {
         id: 'user-a',
         displayName: 'Alice',
         username: 'alice',
+        interfaceLanguage: 'en',
       });
       prisma.groupMember.findMany.mockResolvedValue([]);
 
@@ -537,6 +596,7 @@ describe('PushService', () => {
         id: 'user-a',
         displayName: 'Alice',
         username: 'alice',
+        interfaceLanguage: 'en',
       });
       prisma.groupMember.findMany.mockResolvedValue([
         {
@@ -544,6 +604,11 @@ describe('PushService', () => {
           user: {
             id: 'user-b',
             interfaceLanguage: 'en',
+            pushNotificationsEnabled: true,
+            mentionNotificationsEnabled: true,
+            directMessageNotificationsEnabled: true,
+            groupMessageNotificationsEnabled: true,
+            channelMessageNotificationsEnabled: true,
             pushSubscriptions: [makeGroupSubscription('user-b', 'sub-b')],
           },
         },

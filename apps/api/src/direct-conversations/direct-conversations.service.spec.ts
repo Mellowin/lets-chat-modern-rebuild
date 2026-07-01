@@ -15,6 +15,7 @@ import { WebsocketEventsService } from '../websocket/websocket-events.service';
 import { PresenceService } from '../websocket/presence.service';
 import { PushService } from '../push/push.service';
 import { BlocksService } from '../safety/blocks.service';
+import { MentionsService } from '../common/mentions.service';
 
 const userId = '11111111-1111-1111-1111-111111111111';
 const otherUserId = '22222222-2222-2222-2222-222222222222';
@@ -75,6 +76,7 @@ function makeMessage(
     updatedAt: new Date(),
     editedAt: null,
     deletedAt: null,
+    mentions: [],
     author: {
       id: userId,
       username: 'alice',
@@ -119,6 +121,7 @@ describe('DirectConversationsService', () => {
             deleteDirectReaction: jest.fn(),
             deleteDirectReactionsForUser: jest.fn(),
             getDirectMessageReactions: jest.fn(),
+            findMentionableUserIds: jest.fn().mockResolvedValue([]),
           },
         },
         {
@@ -159,6 +162,12 @@ describe('DirectConversationsService', () => {
             requireNoBlockInEitherDirection: jest
               .fn()
               .mockResolvedValue(undefined),
+          },
+        },
+        {
+          provide: MentionsService,
+          useValue: {
+            resolveMentions: jest.fn().mockResolvedValue([]),
           },
         },
       ],
@@ -919,6 +928,7 @@ describe('DirectConversationsService', () => {
         updatedAt: new Date(),
         editedAt: null,
         deletedAt: null,
+        mentions: [],
       });
       repository.findParticipants.mockResolvedValue([
         { userId, lastReadAt: null },
@@ -937,6 +947,7 @@ describe('DirectConversationsService', () => {
             updatedAt: new Date(),
             editedAt: null,
             deletedAt: null,
+            mentions: [],
             author: {
               id: otherUserId,
               username: 'bob',
@@ -979,6 +990,7 @@ describe('DirectConversationsService', () => {
         updatedAt: new Date(),
         editedAt: null,
         deletedAt: null,
+        mentions: [],
       });
 
       await expect(
@@ -1013,6 +1025,7 @@ describe('DirectConversationsService', () => {
         updatedAt: new Date(),
         editedAt: null,
         deletedAt: null,
+        mentions: [],
       });
 
       await expect(
@@ -1047,6 +1060,7 @@ describe('DirectConversationsService', () => {
         updatedAt: new Date(),
         editedAt: null,
         deletedAt: new Date(),
+        mentions: [],
       });
 
       await expect(
@@ -1480,6 +1494,7 @@ describe('DirectConversationsService', () => {
         updatedAt: new Date(),
         editedAt: null,
         deletedAt: null,
+        mentions: [],
       });
       repository.findDirectReaction.mockResolvedValue(null);
       repository.createDirectReaction.mockResolvedValue({
@@ -1504,6 +1519,11 @@ describe('DirectConversationsService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         deletedAt: null,
+        pushNotificationsEnabled: true,
+        mentionNotificationsEnabled: true,
+        directMessageNotificationsEnabled: true,
+        groupMessageNotificationsEnabled: true,
+        channelMessageNotificationsEnabled: true,
         emailVerifiedAt: null,
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
@@ -1550,6 +1570,7 @@ describe('DirectConversationsService', () => {
         updatedAt: new Date(),
         editedAt: null,
         deletedAt: new Date(),
+        mentions: [],
       });
 
       await expect(
@@ -1576,6 +1597,7 @@ describe('DirectConversationsService', () => {
         updatedAt: new Date(),
         editedAt: null,
         deletedAt: null,
+        mentions: [],
       });
       repository.findDirectReaction.mockResolvedValue(null);
       const raceError = new Error('Unique constraint failed') as Error & {
@@ -1614,6 +1636,7 @@ describe('DirectConversationsService', () => {
         updatedAt: new Date(),
         editedAt: null,
         deletedAt: null,
+        mentions: [],
       });
       repository.findDirectReaction.mockResolvedValue({
         id: 'r1',
@@ -1642,6 +1665,11 @@ describe('DirectConversationsService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         deletedAt: null,
+        pushNotificationsEnabled: true,
+        mentionNotificationsEnabled: true,
+        directMessageNotificationsEnabled: true,
+        groupMessageNotificationsEnabled: true,
+        channelMessageNotificationsEnabled: true,
         emailVerifiedAt: null,
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
@@ -1685,6 +1713,7 @@ describe('DirectConversationsService', () => {
         updatedAt: new Date(),
         editedAt: null,
         deletedAt: null,
+        mentions: [],
       });
       repository.findDirectReaction.mockResolvedValue(null);
       repository.deleteDirectReactionsForUser.mockResolvedValue({ count: 1 });
@@ -1710,6 +1739,11 @@ describe('DirectConversationsService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         deletedAt: null,
+        pushNotificationsEnabled: true,
+        mentionNotificationsEnabled: true,
+        directMessageNotificationsEnabled: true,
+        groupMessageNotificationsEnabled: true,
+        channelMessageNotificationsEnabled: true,
         emailVerifiedAt: null,
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
@@ -1760,6 +1794,7 @@ describe('DirectConversationsService', () => {
         updatedAt: new Date(),
         editedAt: null,
         deletedAt: null,
+        mentions: [],
       });
       repository.findDirectReaction.mockResolvedValue(null);
       repository.deleteDirectReactionsForUser.mockResolvedValue({ count: 1 });
@@ -1786,6 +1821,11 @@ describe('DirectConversationsService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         deletedAt: null,
+        pushNotificationsEnabled: true,
+        mentionNotificationsEnabled: true,
+        directMessageNotificationsEnabled: true,
+        groupMessageNotificationsEnabled: true,
+        channelMessageNotificationsEnabled: true,
         emailVerifiedAt: null,
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
@@ -1835,6 +1875,7 @@ describe('DirectConversationsService', () => {
         updatedAt: new Date(),
         editedAt: null,
         deletedAt: null,
+        mentions: [],
       });
       repository.findDirectReaction.mockResolvedValue(null);
       repository.deleteDirectReactionsForUser.mockResolvedValue({ count: 1 });
@@ -1860,6 +1901,11 @@ describe('DirectConversationsService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         deletedAt: null,
+        pushNotificationsEnabled: true,
+        mentionNotificationsEnabled: true,
+        directMessageNotificationsEnabled: true,
+        groupMessageNotificationsEnabled: true,
+        channelMessageNotificationsEnabled: true,
         emailVerifiedAt: null,
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
@@ -1905,6 +1951,7 @@ describe('DirectConversationsService', () => {
         updatedAt: new Date(),
         editedAt: null,
         deletedAt: null,
+        mentions: [],
       });
       repository.findDirectReaction.mockResolvedValue({
         id: 'r1',
@@ -1933,6 +1980,11 @@ describe('DirectConversationsService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         deletedAt: null,
+        pushNotificationsEnabled: true,
+        mentionNotificationsEnabled: true,
+        directMessageNotificationsEnabled: true,
+        groupMessageNotificationsEnabled: true,
+        channelMessageNotificationsEnabled: true,
         emailVerifiedAt: null,
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
@@ -1984,6 +2036,7 @@ describe('DirectConversationsService', () => {
         updatedAt: new Date(),
         editedAt: null,
         deletedAt: null,
+        mentions: [],
       });
       repository.findDirectReaction.mockResolvedValue(null);
       repository.deleteDirectReactionsForUser.mockResolvedValue({ count: 1 });
@@ -2009,6 +2062,11 @@ describe('DirectConversationsService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         deletedAt: null,
+        pushNotificationsEnabled: true,
+        mentionNotificationsEnabled: true,
+        directMessageNotificationsEnabled: true,
+        groupMessageNotificationsEnabled: true,
+        channelMessageNotificationsEnabled: true,
         emailVerifiedAt: null,
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
@@ -2066,6 +2124,7 @@ describe('DirectConversationsService', () => {
         updatedAt: new Date(),
         editedAt: null,
         deletedAt: null,
+        mentions: [],
       });
 
       await expect(
@@ -2093,6 +2152,7 @@ describe('DirectConversationsService', () => {
         updatedAt: new Date(),
         editedAt: null,
         deletedAt: null,
+        mentions: [],
       });
       repository.findDirectReaction.mockResolvedValue({
         id: 'r1',
@@ -2121,6 +2181,11 @@ describe('DirectConversationsService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         deletedAt: null,
+        pushNotificationsEnabled: true,
+        mentionNotificationsEnabled: true,
+        directMessageNotificationsEnabled: true,
+        groupMessageNotificationsEnabled: true,
+        channelMessageNotificationsEnabled: true,
         emailVerifiedAt: null,
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
@@ -2157,6 +2222,7 @@ describe('DirectConversationsService', () => {
         updatedAt: new Date(),
         editedAt: null,
         deletedAt: new Date(),
+        mentions: [],
       });
 
       await expect(
@@ -2183,6 +2249,7 @@ describe('DirectConversationsService', () => {
         updatedAt: new Date(),
         editedAt: null,
         deletedAt: null,
+        mentions: [],
       });
       repository.findDirectReaction.mockResolvedValue(null);
       repository.getDirectMessageReactions.mockResolvedValue([]);
@@ -2198,6 +2265,11 @@ describe('DirectConversationsService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         deletedAt: null,
+        pushNotificationsEnabled: true,
+        mentionNotificationsEnabled: true,
+        directMessageNotificationsEnabled: true,
+        groupMessageNotificationsEnabled: true,
+        channelMessageNotificationsEnabled: true,
         emailVerifiedAt: null,
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
@@ -2245,6 +2317,7 @@ describe('DirectConversationsService', () => {
         updatedAt: new Date(),
         editedAt: null,
         deletedAt: new Date(),
+        mentions: [],
       });
 
       const result = await service.deleteMessage(

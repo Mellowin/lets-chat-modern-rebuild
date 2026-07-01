@@ -19,6 +19,11 @@ describe('ChannelsController', () => {
     avatarUpdatedAt: null,
     interfaceLanguage: 'en',
     createdAt: new Date(),
+    pushNotificationsEnabled: true,
+    mentionNotificationsEnabled: true,
+    directMessageNotificationsEnabled: true,
+    groupMessageNotificationsEnabled: true,
+    channelMessageNotificationsEnabled: true,
   };
 
   beforeEach(async () => {

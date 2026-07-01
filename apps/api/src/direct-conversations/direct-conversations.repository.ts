@@ -12,6 +12,7 @@ interface CreateMessageInput {
   authorId: string;
   content: string;
   parentId?: string;
+  mentions?: { userId: string; username: string }[];
 }
 
 export type DirectConversationWithParticipants = NonNullable<
@@ -178,6 +179,18 @@ export class DirectConversationsRepository {
     });
   }
 
+  async findMentionableUserIds(
+    conversationId: string,
+    senderId: string,
+  ): Promise<string[]> {
+    const participants =
+      await this.prisma.directConversationParticipant.findMany({
+        where: { conversationId, userId: { not: senderId } },
+        select: { userId: true },
+      });
+    return participants.map((p) => p.userId);
+  }
+
   async updateParticipantLastRead(conversationId: string, userId: string) {
     return this.prisma.directConversationParticipant.update({
       where: {
@@ -212,6 +225,7 @@ export class DirectConversationsRepository {
         authorId: data.authorId,
         content: data.content,
         parentId: data.parentId,
+        mentions: data.mentions as never,
       },
       include: {
         author: {

@@ -18,6 +18,7 @@ import { UserSearchController } from './user-search.controller';
 import { StorageModule } from '../storage/storage.module';
 import { WebsocketModule } from '../websocket/websocket.module';
 import { PushModule } from '../push/push.module';
+import { MentionsService } from '../common/mentions.service';
 import { AttachmentsService } from './attachments.service';
 import { AttachmentsRepository } from './attachments.repository';
 import { AttachmentsController } from './attachments.controller';
@@ -50,6 +51,7 @@ import { AttachmentsController } from './attachments.controller';
     MessagesSearchService,
     AttachmentsService,
     AttachmentsRepository,
+    MentionsService,
   ],
   exports: [
     MessagesService,

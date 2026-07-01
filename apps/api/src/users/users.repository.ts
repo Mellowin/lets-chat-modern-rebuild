@@ -108,6 +108,37 @@ export class UsersRepository {
     });
   }
 
+  async findByUsernames(usernames: string[]) {
+    if (usernames.length === 0) return [];
+    const normalized = Array.from(
+      new Set(usernames.map((u) => this.normalizeUsername(u))),
+    );
+    return this.prisma.user.findMany({
+      where: {
+        username: {
+          in: normalized,
+          mode: 'insensitive',
+        },
+      },
+    });
+  }
+
+  async updateNotificationPreferences(
+    userId: string,
+    preferences: Partial<{
+      pushNotificationsEnabled: boolean;
+      mentionNotificationsEnabled: boolean;
+      directMessageNotificationsEnabled: boolean;
+      groupMessageNotificationsEnabled: boolean;
+      channelMessageNotificationsEnabled: boolean;
+    }>,
+  ) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: preferences,
+    });
+  }
+
   async findByEmailVerificationTokenHash(tokenHash: string) {
     return this.prisma.user.findFirst({
       where: { emailVerificationTokenHash: tokenHash },

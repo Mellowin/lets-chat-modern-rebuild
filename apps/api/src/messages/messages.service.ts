@@ -10,6 +10,7 @@ import { ChannelsRepository } from '../channels/channels.repository';
 import { MessagesRepository } from './messages.repository';
 import { WebsocketEventsService } from '../websocket/websocket-events.service';
 import { PushService } from '../push/push.service';
+import { MentionsService } from '../common/mentions.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
 import { ListMessagesQueryDto } from './dto/list-messages-query.dto';
@@ -56,6 +57,7 @@ export class MessagesService {
     private readonly channels: ChannelsRepository,
     private readonly websocketEvents: WebsocketEventsService,
     private readonly pushService: PushService,
+    private readonly mentions: MentionsService,
   ) {}
 
   private toMessageResponse(
@@ -81,6 +83,7 @@ export class MessagesService {
         size: number;
         createdAt: Date;
       }>;
+      mentions?: unknown;
     },
     userId: string,
   ) {
@@ -113,7 +116,23 @@ export class MessagesService {
       author: message.author,
       reactions,
       attachments,
+      mentions: this.normalizeMentions(message.mentions),
     };
+  }
+
+  private normalizeMentions(
+    value: unknown,
+  ): Array<{ userId: string; username: string }> | undefined {
+    if (!Array.isArray(value)) return undefined;
+    return value.filter(
+      (item): item is { userId: string; username: string } =>
+        typeof item === 'object' &&
+        item !== null &&
+        'userId' in item &&
+        'username' in item &&
+        typeof (item as { userId: unknown }).userId === 'string' &&
+        typeof (item as { username: unknown }).username === 'string',
+    );
   }
 
   private async validateChannelAccess(
@@ -185,6 +204,14 @@ export class MessagesService {
       assertAttachmentBatchAllowed(batchResult);
     }
 
+    const mentionableUserIds = new Set(
+      await this.channels.findMentionableUserIds(channelId),
+    );
+    const mentions = await this.mentions.resolveMentions(
+      dto.content ?? '',
+      mentionableUserIds,
+    );
+
     const message = await this.messages.createMessage({
       channelId,
       authorId: userId,
@@ -197,6 +224,7 @@ export class MessagesService {
         size: a.sizeBytes,
         createdById: userId,
       })),
+      mentions,
     });
 
     const response = this.toMessageResponse(message, userId);
@@ -211,6 +239,19 @@ export class MessagesService {
       .catch(() => {
         // Push notifications are best-effort and must not break messaging.
       });
+
+    if (mentions.length > 0) {
+      this.pushService
+        .notifyChannelMention(channelId, {
+          id: message.id,
+          content: message.content,
+          authorId: message.authorId,
+          mentions,
+        })
+        .catch(() => {
+          // Mention notifications are best-effort.
+        });
+    }
 
     return response;
   }

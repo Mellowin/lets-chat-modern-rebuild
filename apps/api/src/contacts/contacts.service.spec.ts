@@ -11,7 +11,7 @@ const otherUserId = '22222222-2222-2222-2222-222222222222';
 
 function makeUser(
   overrides: Partial<Awaited<ReturnType<UsersRepository['findById']>>> = {},
-) {
+): Awaited<ReturnType<UsersRepository['findById']>> {
   return {
     id: otherUserId,
     username: 'bob',
@@ -35,6 +35,11 @@ function makeUser(
     emailChangeTokenHash: null,
     emailChangeExpiresAt: null,
     emailChangeSentAt: null,
+    pushNotificationsEnabled: true,
+    mentionNotificationsEnabled: true,
+    directMessageNotificationsEnabled: true,
+    groupMessageNotificationsEnabled: true,
+    channelMessageNotificationsEnabled: true,
     ...overrides,
   };
 }

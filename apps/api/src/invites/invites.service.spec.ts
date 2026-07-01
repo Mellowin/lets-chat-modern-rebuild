@@ -136,6 +136,11 @@ describe('InvitesService', () => {
       emailChangeTokenHash: null,
       emailChangeExpiresAt: null,
       emailChangeSentAt: null,
+      pushNotificationsEnabled: true,
+      mentionNotificationsEnabled: true,
+      directMessageNotificationsEnabled: true,
+      groupMessageNotificationsEnabled: true,
+      channelMessageNotificationsEnabled: true,
       ...overrides,
     };
   }

@@ -12,6 +12,7 @@ import { UsersRepository } from '../users/users.repository';
 import { WebsocketEventsService } from '../websocket/websocket-events.service';
 import { PushService } from '../push/push.service';
 import { BlocksService } from '../safety/blocks.service';
+import { MentionsService } from '../common/mentions.service';
 import { GroupsRepository } from './groups.repository';
 import { CreateGroupDto } from './dto/create-group.dto';
 import { UpdateGroupDto } from './dto/update-group.dto';
@@ -27,7 +28,23 @@ export class GroupsService {
     private readonly websocketEvents: WebsocketEventsService,
     private readonly pushService: PushService,
     private readonly blocks: BlocksService,
+    private readonly mentions: MentionsService,
   ) {}
+
+  private normalizeMentions(
+    value: unknown,
+  ): Array<{ userId: string; username: string }> | undefined {
+    if (!Array.isArray(value)) return undefined;
+    return value.filter(
+      (item): item is { userId: string; username: string } =>
+        typeof item === 'object' &&
+        item !== null &&
+        'userId' in item &&
+        'username' in item &&
+        typeof (item as { userId: unknown }).userId === 'string' &&
+        typeof (item as { username: unknown }).username === 'string',
+    );
+  }
 
   private async toGroupResponse(
     group: Awaited<ReturnType<GroupsRepository['findById']>>,
@@ -302,6 +319,7 @@ export class GroupsService {
       createdAt: m.createdAt,
       updatedAt: m.updatedAt,
       author: m.author,
+      mentions: this.normalizeMentions(m.mentions),
     }));
 
     return {
@@ -323,10 +341,19 @@ export class GroupsService {
       throw new BadRequestException('Replies are not supported in groups');
     }
 
+    const mentionableUserIds = new Set(
+      await this.groups.findMentionableUserIds(groupId),
+    );
+    const mentions = await this.mentions.resolveMentions(
+      dto.content,
+      mentionableUserIds,
+    );
+
     const message = await this.groups.createMessage({
       groupId,
       authorId: currentUserId,
       content: dto.content,
+      mentions,
     });
 
     await this.groups.touchUpdatedAt(groupId);
@@ -338,6 +365,7 @@ export class GroupsService {
       createdAt: message.createdAt,
       updatedAt: message.updatedAt,
       author: message.author,
+      mentions: this.normalizeMentions(message.mentions),
     };
 
     this.websocketEvents.broadcastGroupMessageCreated(groupId, response);
@@ -363,6 +391,19 @@ export class GroupsService {
       .catch(() => {
         // Push notifications are best-effort and must not break messaging.
       });
+
+    if (mentions.length > 0) {
+      this.pushService
+        .notifyGroupMention(groupId, {
+          id: message.id,
+          content: message.content,
+          authorId: message.authorId,
+          mentions,
+        })
+        .catch(() => {
+          // Mention notifications are best-effort.
+        });
+    }
 
     return response;
   }

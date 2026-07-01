@@ -38,6 +38,11 @@ export interface AuthUserResponse {
   avatarUrl: string | null;
   avatarUpdatedAt: Date | null;
   interfaceLanguage: 'en' | 'uk' | 'ru';
+  pushNotificationsEnabled: boolean;
+  mentionNotificationsEnabled: boolean;
+  directMessageNotificationsEnabled: boolean;
+  groupMessageNotificationsEnabled: boolean;
+  channelMessageNotificationsEnabled: boolean;
   createdAt: Date;
 }
 
@@ -307,6 +312,23 @@ export class AuthService {
     return this.toAuthUserResponse(user);
   }
 
+  async updateNotificationPreferences(
+    userId: string,
+    preferences: Partial<{
+      pushNotificationsEnabled: boolean;
+      mentionNotificationsEnabled: boolean;
+      directMessageNotificationsEnabled: boolean;
+      groupMessageNotificationsEnabled: boolean;
+      channelMessageNotificationsEnabled: boolean;
+    }>,
+  ): Promise<AuthUserResponse> {
+    const user = await this.users.updateNotificationPreferences(
+      userId,
+      preferences,
+    );
+    return this.toAuthUserResponse(user);
+  }
+
   async forgotPassword(email: string): Promise<{ message: string }> {
     const genericMessage = 'If the email exists, a reset link has been sent.';
 
@@ -535,6 +557,15 @@ export class AuthService {
         | 'en'
         | 'uk'
         | 'ru',
+      pushNotificationsEnabled: (user as User).pushNotificationsEnabled ?? true,
+      mentionNotificationsEnabled:
+        (user as User).mentionNotificationsEnabled ?? true,
+      directMessageNotificationsEnabled:
+        (user as User).directMessageNotificationsEnabled ?? true,
+      groupMessageNotificationsEnabled:
+        (user as User).groupMessageNotificationsEnabled ?? true,
+      channelMessageNotificationsEnabled:
+        (user as User).channelMessageNotificationsEnabled ?? true,
       createdAt: user.createdAt,
     };
   }

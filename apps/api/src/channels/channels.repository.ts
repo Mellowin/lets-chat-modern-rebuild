@@ -191,6 +191,31 @@ export class ChannelsRepository {
     return member?.role ?? null;
   }
 
+  async findMentionableUserIds(channelId: string): Promise<string[]> {
+    const channel = await this.prisma.channel.findUnique({
+      where: { id: channelId },
+      select: { workspaceId: true, type: true },
+    });
+    if (!channel) return [];
+
+    if (channel.type === 'PRIVATE') {
+      const members = await this.prisma.channelMember.findMany({
+        where: { channelId, deletedAt: null },
+        select: { userId: true },
+      });
+      return members.map((m) => m.userId);
+    }
+
+    const members = await this.prisma.workspaceMember.findMany({
+      where: {
+        workspaceId: channel.workspaceId,
+        deletedAt: null,
+      },
+      select: { userId: true },
+    });
+    return members.map((m) => m.userId);
+  }
+
   async updateChannel(
     channelId: string,
     data: { name?: string; description?: string },

@@ -109,6 +109,11 @@ describe('AuthService', () => {
       emailChangeTokenHash: null,
       emailChangeExpiresAt: null,
       emailChangeSentAt: null,
+      pushNotificationsEnabled: true,
+      mentionNotificationsEnabled: true,
+      directMessageNotificationsEnabled: true,
+      groupMessageNotificationsEnabled: true,
+      channelMessageNotificationsEnabled: true,
     };
 
     usersRepository.updateDisplayName.mockResolvedValue(user);
@@ -146,6 +151,11 @@ describe('AuthService', () => {
       emailChangeTokenHash: null,
       emailChangeExpiresAt: null,
       emailChangeSentAt: null,
+      pushNotificationsEnabled: true,
+      mentionNotificationsEnabled: true,
+      directMessageNotificationsEnabled: true,
+      groupMessageNotificationsEnabled: true,
+      channelMessageNotificationsEnabled: true,
     };
 
     const servicePrivate = service as unknown as {
@@ -182,6 +192,11 @@ describe('AuthService', () => {
       emailChangeTokenHash: null,
       emailChangeExpiresAt: null,
       emailChangeSentAt: null,
+      pushNotificationsEnabled: true,
+      mentionNotificationsEnabled: true,
+      directMessageNotificationsEnabled: true,
+      groupMessageNotificationsEnabled: true,
+      channelMessageNotificationsEnabled: true,
     };
 
     const servicePrivate = service as unknown as {
@@ -218,6 +233,11 @@ describe('AuthService', () => {
       emailChangeTokenHash: null,
       emailChangeExpiresAt: null,
       emailChangeSentAt: null,
+      pushNotificationsEnabled: true,
+      mentionNotificationsEnabled: true,
+      directMessageNotificationsEnabled: true,
+      groupMessageNotificationsEnabled: true,
+      channelMessageNotificationsEnabled: true,
     };
 
     usersRepository.updateInterfaceLanguage.mockResolvedValue(user);
@@ -255,6 +275,11 @@ describe('AuthService', () => {
       emailChangeTokenHash: null,
       emailChangeExpiresAt: null,
       emailChangeSentAt: null,
+      pushNotificationsEnabled: true,
+      mentionNotificationsEnabled: true,
+      directMessageNotificationsEnabled: true,
+      groupMessageNotificationsEnabled: true,
+      channelMessageNotificationsEnabled: true,
     };
 
     usersRepository.updateAvatar.mockResolvedValue(user);
@@ -296,6 +321,11 @@ describe('AuthService', () => {
       emailChangeTokenHash: null,
       emailChangeExpiresAt: null,
       emailChangeSentAt: null,
+      pushNotificationsEnabled: true,
+      mentionNotificationsEnabled: true,
+      directMessageNotificationsEnabled: true,
+      groupMessageNotificationsEnabled: true,
+      channelMessageNotificationsEnabled: true,
     };
 
     usersRepository.updateAvatar.mockResolvedValue(user);
@@ -340,6 +370,11 @@ describe('AuthService — email verification', () => {
     emailChangeTokenHash: null,
     emailChangeExpiresAt: null,
     emailChangeSentAt: null,
+    pushNotificationsEnabled: true,
+    mentionNotificationsEnabled: true,
+    directMessageNotificationsEnabled: true,
+    groupMessageNotificationsEnabled: true,
+    channelMessageNotificationsEnabled: true,
     ...overrides,
   });
 
@@ -754,6 +789,11 @@ describe('AuthService — password reset', () => {
     emailChangeTokenHash: null,
     emailChangeExpiresAt: null,
     emailChangeSentAt: null,
+    pushNotificationsEnabled: true,
+    mentionNotificationsEnabled: true,
+    directMessageNotificationsEnabled: true,
+    groupMessageNotificationsEnabled: true,
+    channelMessageNotificationsEnabled: true,
     ...overrides,
   });
 
@@ -1190,6 +1230,11 @@ describe('AuthService — change password', () => {
     emailChangeTokenHash: null,
     emailChangeExpiresAt: null,
     emailChangeSentAt: null,
+    pushNotificationsEnabled: true,
+    mentionNotificationsEnabled: true,
+    directMessageNotificationsEnabled: true,
+    groupMessageNotificationsEnabled: true,
+    channelMessageNotificationsEnabled: true,
     ...overrides,
   });
 

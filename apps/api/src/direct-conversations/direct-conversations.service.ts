@@ -13,6 +13,7 @@ import { WebsocketEventsService } from '../websocket/websocket-events.service';
 import { PresenceService } from '../websocket/presence.service';
 import { PushService } from '../push/push.service';
 import { BlocksService } from '../safety/blocks.service';
+import { MentionsService } from '../common/mentions.service';
 import { DirectConversationsRepository } from './direct-conversations.repository';
 import { CreateDirectConversationDto } from './dto/create-direct-conversation.dto';
 import { CreateDirectMessageDto } from './dto/create-direct-message.dto';
@@ -28,6 +29,7 @@ export class DirectConversationsService {
     private readonly presence: PresenceService,
     private readonly pushService: PushService,
     private readonly blocks: BlocksService,
+    private readonly mentions: MentionsService,
   ) {}
 
   private makePairKey(userIdA: string, userIdB: string): string {
@@ -122,7 +124,23 @@ export class DirectConversationsService {
         message.authorId === currentUserId
           ? false
           : myLastReadAt === null || message.createdAt > myLastReadAt,
+      mentions: this.normalizeMentions(message.mentions),
     };
+  }
+
+  private normalizeMentions(
+    value: unknown,
+  ): Array<{ userId: string; username: string }> | undefined {
+    if (!Array.isArray(value)) return undefined;
+    return value.filter(
+      (item): item is { userId: string; username: string } =>
+        typeof item === 'object' &&
+        item !== null &&
+        'userId' in item &&
+        'username' in item &&
+        typeof (item as { userId: unknown }).userId === 'string' &&
+        typeof (item as { username: unknown }).username === 'string',
+    );
   }
 
   async create(dto: CreateDirectConversationDto, currentUserId: string) {
@@ -309,11 +327,23 @@ export class DirectConversationsService {
     const myLastReadAt = myParticipant?.lastReadAt ?? null;
     const otherParticipantLastReadAt = otherParticipant?.lastReadAt ?? null;
 
+    const mentionableUserIds = new Set(
+      await this.directConversations.findMentionableUserIds(
+        conversationId,
+        currentUserId,
+      ),
+    );
+    const mentions = await this.mentions.resolveMentions(
+      dto.content,
+      mentionableUserIds,
+    );
+
     const message = await this.directConversations.createMessage({
       conversationId,
       authorId: currentUserId,
       content: dto.content,
       parentId: dto.parentId,
+      mentions,
     });
 
     await this.directConversations.touchConversationUpdatedAt(conversationId);
@@ -344,6 +374,19 @@ export class DirectConversationsService {
       .catch(() => {
         // Push notifications are best-effort and must not break messaging.
       });
+
+    if (mentions.length > 0) {
+      this.pushService
+        .notifyDirectMention(conversationId, {
+          id: message.id,
+          content: message.content,
+          authorId: message.authorId,
+          mentions,
+        })
+        .catch(() => {
+          // Mention notifications are best-effort.
+        });
+    }
 
     return response;
   }

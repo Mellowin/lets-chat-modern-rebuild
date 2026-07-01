@@ -14,6 +14,7 @@ import { UsersRepository } from '../users/users.repository';
 import { WebsocketEventsService } from '../websocket/websocket-events.service';
 import { PushService } from '../push/push.service';
 import { BlocksService } from '../safety/blocks.service';
+import { MentionsService } from '../common/mentions.service';
 
 const userId = '11111111-1111-1111-1111-111111111111';
 const otherUserId = '22222222-2222-2222-2222-222222222222';
@@ -47,8 +48,8 @@ function makeMember(
 
 function makeUser(
   overrides: Partial<Awaited<ReturnType<UsersRepository['findById']>>> = {},
-) {
-  const base: Awaited<ReturnType<UsersRepository['findById']>> = {
+): Awaited<ReturnType<UsersRepository['findById']>> {
+  return {
     id: otherUserId,
     username: 'bob',
     email: 'bob@example.com',
@@ -71,8 +72,13 @@ function makeUser(
     emailChangeTokenHash: null,
     emailChangeExpiresAt: null,
     emailChangeSentAt: null,
+    pushNotificationsEnabled: true,
+    mentionNotificationsEnabled: true,
+    directMessageNotificationsEnabled: true,
+    groupMessageNotificationsEnabled: true,
+    channelMessageNotificationsEnabled: true,
+    ...overrides,
   };
-  return { ...base, ...overrides };
 }
 
 function makeGroup(
@@ -114,6 +120,7 @@ function makeMessage(
     content: 'Hello everyone!',
     createdAt: new Date(),
     updatedAt: new Date(),
+    mentions: [],
     author: {
       id: userId,
       username: 'alice',
@@ -156,6 +163,7 @@ describe('GroupsService', () => {
             countUnreadMessages: jest.fn(),
             createMessage: jest.fn(),
             listMessages: jest.fn(),
+            findMentionableUserIds: jest.fn().mockResolvedValue([]),
             touchUpdatedAt: jest.fn(),
           },
         },
@@ -190,6 +198,12 @@ describe('GroupsService', () => {
               .fn()
               .mockResolvedValue(undefined),
             isBlockedBy: jest.fn().mockResolvedValue(false),
+          },
+        },
+        {
+          provide: MentionsService,
+          useValue: {
+            resolveMentions: jest.fn().mockResolvedValue([]),
           },
         },
       ],
@@ -542,6 +556,7 @@ describe('GroupsService', () => {
         groupId,
         authorId: userId,
         content: 'Hello everyone!',
+        mentions: [],
       });
       expect(groupsRepository.touchUpdatedAt).toHaveBeenCalledWith(groupId);
       expect(websocketEvents.broadcastGroupMessageCreated).toHaveBeenCalledWith(

@@ -70,6 +70,13 @@ model User {
   passwordResetExpiresAt DateTime?
   passwordResetSentAt    DateTime?
 
+  // Notification preferences
+  pushNotificationsEnabled          Boolean @default(true)
+  mentionNotificationsEnabled       Boolean @default(true)
+  directMessageNotificationsEnabled Boolean @default(true)
+  groupMessageNotificationsEnabled  Boolean @default(true)
+  channelMessageNotificationsEnabled Boolean @default(true)
+
   // Email change
   pendingEmail         String?
   emailChangeTokenHash String?
@@ -226,6 +233,7 @@ model Message {
   attachments  Attachment[]
   edits        MessageEdit[]
   readReceipts ReadReceipt[]
+  mentions     Json?
   // Note: GIN index on searchVector is added via raw migration (see database-schema.md §7.2)
 
   @@index([channelId, createdAt, id])
@@ -475,6 +483,7 @@ model DirectMessage {
   parent       DirectMessage?          @relation("DirectMessageReplies", fields: [parentId], references: [id])
   replies      DirectMessage[]         @relation("DirectMessageReplies")
   reactions    DirectMessageReaction[]
+  mentions     Json?
 
   @@index([conversationId, createdAt, id])
   @@index([authorId])
@@ -617,6 +626,7 @@ model GroupMessage {
 
   group  GroupConversation @relation(fields: [groupId], references: [id], onDelete: Cascade)
   author User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  mentions Json?
 
   @@index([groupId, createdAt, id])
   @@index([authorId])

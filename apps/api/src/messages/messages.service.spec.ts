@@ -15,6 +15,7 @@ import { WorkspacesRepository } from '../workspaces/workspaces.repository';
 import { ChannelsRepository } from '../channels/channels.repository';
 import { WebsocketEventsService } from '../websocket/websocket-events.service';
 import { PushService } from '../push/push.service';
+import { MentionsService } from '../common/mentions.service';
 type CreatedMessage = Awaited<ReturnType<MessagesRepository['createMessage']>>;
 type ListedMessage = Awaited<
   ReturnType<MessagesRepository['listForChannel']>
@@ -71,6 +72,7 @@ describe('MessagesService', () => {
           useValue: {
             findActiveById: jest.fn(),
             findChannelMemberRole: jest.fn(),
+            findMentionableUserIds: jest.fn().mockResolvedValue([]),
           },
         },
         {
@@ -85,6 +87,12 @@ describe('MessagesService', () => {
           provide: PushService,
           useValue: {
             notifyChannelMessage: jest.fn().mockResolvedValue(undefined),
+          },
+        },
+        {
+          provide: MentionsService,
+          useValue: {
+            resolveMentions: jest.fn().mockResolvedValue([]),
           },
         },
       ],

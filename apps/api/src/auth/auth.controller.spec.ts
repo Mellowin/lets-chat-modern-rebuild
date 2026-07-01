@@ -19,6 +19,11 @@ describe('AuthController', () => {
     avatarUrl: null,
     avatarUpdatedAt: null,
     interfaceLanguage: 'en',
+    pushNotificationsEnabled: true,
+    mentionNotificationsEnabled: true,
+    directMessageNotificationsEnabled: true,
+    groupMessageNotificationsEnabled: true,
+    channelMessageNotificationsEnabled: true,
     createdAt: new Date(),
   };
 
@@ -43,6 +48,7 @@ describe('AuthController', () => {
             updateMe: jest.fn(),
             updateAvatar: jest.fn(),
             updateInterfaceLanguage: jest.fn(),
+            updateNotificationPreferences: jest.fn(),
             listSessions: jest.fn(),
             revokeAllSessions: jest.fn(),
             revokeOtherSessions: jest.fn(),
