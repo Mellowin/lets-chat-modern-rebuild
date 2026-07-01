@@ -683,4 +683,10 @@ model PushSubscription {
 //     ALTER TABLE "Message" ADD COLUMN "searchVector" tsvector
 //       GENERATED ALWAYS AS (to_tsvector('simple', content)) STORED;
 //     CREATE INDEX idx_message_search ON "Message" USING GIN ("searchVector");
-//     Note: searchVector is NOT in the Prisma model; added only via raw migration.
+//     ALTER TABLE "DirectMessage" ADD COLUMN "searchVector" tsvector
+//       GENERATED ALWAYS AS (to_tsvector('simple', content)) STORED;
+//     CREATE INDEX idx_direct_message_search ON "DirectMessage" USING GIN ("searchVector");
+//     ALTER TABLE "GroupMessage" ADD COLUMN "searchVector" tsvector
+//       GENERATED ALWAYS AS (to_tsvector('simple', content)) STORED;
+//     CREATE INDEX idx_group_message_search ON "GroupMessage" USING GIN ("searchVector");
+//     Note: searchVector columns are NOT in the Prisma model; added only via raw migrations.

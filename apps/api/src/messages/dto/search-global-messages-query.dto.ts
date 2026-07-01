@@ -8,8 +8,11 @@ import {
   IsInt,
   Min,
   Max,
+  IsIn,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
+
+export type SearchScope = 'all' | 'channel' | 'direct' | 'group';
 
 export class SearchGlobalMessagesQueryDto {
   @ApiPropertyOptional({ example: 'ку' })
@@ -39,4 +42,44 @@ export class SearchGlobalMessagesQueryDto {
   @IsOptional()
   @IsUUID()
   cursor?: string;
+
+  @ApiPropertyOptional({
+    example: 'all',
+    description: 'Search scope: all, channel, direct, group',
+  })
+  @IsOptional()
+  @IsIn(['all', 'channel', 'direct', 'group'])
+  scope?: SearchScope;
+
+  @ApiPropertyOptional({
+    example: '55555555-5555-5555-5555-555555555555',
+    description: 'Filter to a workspace (only valid with channel scope or all)',
+  })
+  @IsOptional()
+  @IsUUID()
+  workspaceId?: string;
+
+  @ApiPropertyOptional({
+    example: '55555555-5555-5555-5555-555555555555',
+    description: 'Filter to a channel',
+  })
+  @IsOptional()
+  @IsUUID()
+  channelId?: string;
+
+  @ApiPropertyOptional({
+    example: '55555555-5555-5555-5555-555555555555',
+    description: 'Filter to a direct conversation',
+  })
+  @IsOptional()
+  @IsUUID()
+  conversationId?: string;
+
+  @ApiPropertyOptional({
+    example: '55555555-5555-5555-5555-555555555555',
+    description: 'Filter to a group',
+  })
+  @IsOptional()
+  @IsUUID()
+  groupId?: string;
 }

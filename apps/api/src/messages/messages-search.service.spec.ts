@@ -7,7 +7,10 @@ import { WorkspacesRepository } from '../workspaces/workspaces.repository';
 describe('MessagesSearchService', () => {
   let service: MessagesSearchService;
   let prisma: jest.Mocked<
-    Pick<PrismaService, '$queryRaw' | 'message' | 'directMessage'>
+    Pick<
+      PrismaService,
+      '$queryRaw' | 'message' | 'directMessage' | 'groupMessage'
+    >
   >;
 
   const userId = '11111111-1111-1111-1111-111111111111';
@@ -19,6 +22,9 @@ describe('MessagesSearchService', () => {
       directMessage: {
         findUnique: jest.fn(),
       } as unknown as typeof prisma.directMessage,
+      groupMessage: {
+        findUnique: jest.fn(),
+      } as unknown as typeof prisma.groupMessage,
     };
 
     const moduleRef = await Test.createTestingModule({
@@ -57,6 +63,7 @@ describe('MessagesSearchService', () => {
     return {
       id: 'msg-1',
       content: 'куку',
+      contentSnippet: 'куку',
       createdAt: new Date('2024-01-02T00:00:00Z'),
       author: {
         id: 'u1',
@@ -82,6 +89,7 @@ describe('MessagesSearchService', () => {
     return {
       id: 'dm-1',
       content: 'привет',
+      contentSnippet: 'привет',
       createdAt: new Date('2024-01-01T00:00:00Z'),
       author: {
         id: 'u2',
@@ -99,6 +107,28 @@ describe('MessagesSearchService', () => {
           displayName: 'Bob',
           avatarUrl: null,
         },
+      },
+      ...overrides,
+    };
+  }
+
+  function makeGroupResult(overrides?: Partial<NonNullable<unknown>>) {
+    return {
+      id: 'gm-1',
+      content: 'група',
+      contentSnippet: 'група',
+      createdAt: new Date('2024-01-03T00:00:00Z'),
+      author: {
+        id: 'u3',
+        username: 'carol',
+        displayName: 'Carol',
+        avatarUrl: null,
+      },
+      sourceType: 'GROUP',
+      source: {
+        type: 'GROUP',
+        groupId: 'group-1',
+        groupName: 'Project A',
       },
       ...overrides,
     };
@@ -134,12 +164,13 @@ describe('MessagesSearchService', () => {
     expect(result.nextCursor).toBe('msg-2');
   });
 
-  it('resolves cursor createdAt from Message table', async () => {
+  it('resolves cursor from Message table', async () => {
     const cursorDate = new Date('2024-01-01T12:00:00Z');
     (prisma.message.findUnique as jest.Mock).mockResolvedValue({
       createdAt: cursorDate,
     });
     (prisma.directMessage.findUnique as jest.Mock).mockResolvedValue(null);
+    (prisma.groupMessage.findUnique as jest.Mock).mockResolvedValue(null);
     (prisma.$queryRaw as jest.Mock).mockResolvedValue([makeChannelResult()]);
 
     await service.searchGlobal(userId, {
@@ -153,12 +184,13 @@ describe('MessagesSearchService', () => {
     });
   });
 
-  it('resolves cursor createdAt from DirectMessage table', async () => {
+  it('resolves cursor from DirectMessage table', async () => {
     const cursorDate = new Date('2024-01-01T12:00:00Z');
     (prisma.message.findUnique as jest.Mock).mockResolvedValue(null);
     (prisma.directMessage.findUnique as jest.Mock).mockResolvedValue({
       createdAt: cursorDate,
     });
+    (prisma.groupMessage.findUnique as jest.Mock).mockResolvedValue(null);
     (prisma.$queryRaw as jest.Mock).mockResolvedValue([makeDirectResult()]);
 
     await service.searchGlobal(userId, {
@@ -168,6 +200,26 @@ describe('MessagesSearchService', () => {
 
     expect(prisma.directMessage.findUnique).toHaveBeenCalledWith({
       where: { id: 'dm-cursor' },
+      select: { createdAt: true },
+    });
+  });
+
+  it('resolves cursor from GroupMessage table', async () => {
+    const cursorDate = new Date('2024-01-01T12:00:00Z');
+    (prisma.message.findUnique as jest.Mock).mockResolvedValue(null);
+    (prisma.directMessage.findUnique as jest.Mock).mockResolvedValue(null);
+    (prisma.groupMessage.findUnique as jest.Mock).mockResolvedValue({
+      createdAt: cursorDate,
+    });
+    (prisma.$queryRaw as jest.Mock).mockResolvedValue([makeGroupResult()]);
+
+    await service.searchGlobal(userId, {
+      q: 'к',
+      cursor: 'gm-cursor',
+    });
+
+    expect(prisma.groupMessage.findUnique).toHaveBeenCalledWith({
+      where: { id: 'gm-cursor' },
       select: { createdAt: true },
     });
   });
@@ -254,6 +306,7 @@ describe('MessagesSearchService', () => {
   it('ignores invalid cursor and returns first page', async () => {
     (prisma.message.findUnique as jest.Mock).mockResolvedValue(null);
     (prisma.directMessage.findUnique as jest.Mock).mockResolvedValue(null);
+    (prisma.groupMessage.findUnique as jest.Mock).mockResolvedValue(null);
     (prisma.$queryRaw as jest.Mock).mockResolvedValue([makeChannelResult()]);
 
     const result = await service.searchGlobal(userId, {
@@ -319,5 +372,68 @@ describe('MessagesSearchService', () => {
     expect(sqlText).toContain('accessible_channels');
     expect(sqlText).toContain('"ChannelMember"');
     expect(sqlText).toContain('channel_type');
+  });
+
+  it('includes group message results in global search', async () => {
+    (prisma.$queryRaw as jest.Mock).mockResolvedValue([
+      makeGroupResult(),
+      makeChannelResult(),
+      makeDirectResult(),
+    ]);
+
+    const result = await service.searchGlobal(userId, { q: 'г' });
+
+    expect(result.items).toHaveLength(3);
+    expect(result.items[0].source.type).toBe('GROUP');
+    expect(result.items[1].source.type).toBe('CHANNEL');
+    expect(result.items[2].source.type).toBe('DIRECT');
+  });
+
+  it('maps group source correctly', async () => {
+    (prisma.$queryRaw as jest.Mock).mockResolvedValue([makeGroupResult()]);
+
+    const result = await service.searchGlobal(userId, { q: 'г' });
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].source.type).toBe('GROUP');
+    if (result.items[0].source.type === 'GROUP') {
+      expect(result.items[0].source.groupId).toBe('group-1');
+      expect(result.items[0].source.groupName).toBe('Project A');
+    }
+  });
+
+  it('limits channel scope to accessible_groups CTE', async () => {
+    (prisma.$queryRaw as jest.Mock).mockImplementation(() => []);
+
+    await service.searchGlobal(userId, { q: 'г', scope: 'group' });
+
+    const calls = (prisma.$queryRaw as jest.Mock).mock.calls as unknown[][];
+    const queryArg = calls[0][0];
+    const sqlText =
+      typeof queryArg === 'string'
+        ? queryArg
+        : ((queryArg as { sql?: string }).sql ?? String(queryArg));
+    expect(sqlText).toContain('accessible_groups');
+    expect(sqlText).toContain('"GroupMessage"');
+  });
+
+  it('applies workspaceId filter to channel scope', async () => {
+    (prisma.$queryRaw as jest.Mock).mockImplementation(() => []);
+
+    await service.searchGlobal(userId, {
+      q: 'г',
+      scope: 'channel',
+      workspaceId: 'ws-filter',
+    });
+
+    const calls = (prisma.$queryRaw as jest.Mock).mock.calls as unknown[][];
+    const queryArg = calls[0][0];
+    const sqlText =
+      typeof queryArg === 'string'
+        ? queryArg
+        : ((queryArg as { sql?: string }).sql ?? String(queryArg));
+    expect(sqlText).toContain('accessible_channels');
+    expect(sqlText).toContain('FROM "Message"');
+    expect(sqlText).toContain('AND FALSE');
   });
 });

@@ -655,11 +655,21 @@ export interface GlobalSearchDirectSource {
   } | null;
 }
 
-export type GlobalSearchSource = GlobalSearchChannelSource | GlobalSearchDirectSource;
+export interface GlobalSearchGroupSource {
+  type: "GROUP";
+  groupId: string;
+  groupName: string;
+}
+
+export type GlobalSearchSource =
+  | GlobalSearchChannelSource
+  | GlobalSearchDirectSource
+  | GlobalSearchGroupSource;
 
 export interface GlobalSearchResult {
   id: string;
   content: string;
+  contentSnippet: string;
   createdAt: string;
   author: {
     id: string;
@@ -712,17 +722,32 @@ export async function searchWorkspaceMessages(
   return res.json() as Promise<WorkspaceSearchResult[]>;
 }
 
+export interface SearchGlobalMessagesOptions {
+  limit?: number;
+  cursor?: string;
+  scope?: "all" | "channel" | "direct" | "group";
+  workspaceId?: string;
+  channelId?: string;
+  conversationId?: string;
+  groupId?: string;
+}
+
 export async function searchGlobalMessages(
   accessToken: string,
   q: string,
-  options?: { limit?: number; cursor?: string },
+  options?: SearchGlobalMessagesOptions,
 ): Promise<GlobalSearchResponse> {
   const params = new URLSearchParams();
   params.set("q", q.trim());
   if (options?.limit) params.set("limit", String(options.limit));
   if (options?.cursor) params.set("cursor", options.cursor);
+  if (options?.scope) params.set("scope", options.scope);
+  if (options?.workspaceId) params.set("workspaceId", options.workspaceId);
+  if (options?.channelId) params.set("channelId", options.channelId);
+  if (options?.conversationId) params.set("conversationId", options.conversationId);
+  if (options?.groupId) params.set("groupId", options.groupId);
 
-  const res = await authFetch(`${API_BASE}/me/search/messages?${params.toString()}`, {
+  const res = await authFetch(`${API_BASE}/search/messages?${params.toString()}`, {
     method: "GET",
     headers: {
       Accept: "application/json",

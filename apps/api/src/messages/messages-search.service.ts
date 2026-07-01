@@ -8,6 +8,7 @@ import { SearchGlobalMessagesQueryDto } from './dto/search-global-messages-query
 export interface SearchResult {
   id: string;
   content: string;
+  contentSnippet: string;
   createdAt: Date;
   author: {
     id: string;
@@ -45,13 +46,21 @@ export interface GlobalSearchDirectSource {
   otherParticipant: GlobalSearchAuthor | null;
 }
 
+export interface GlobalSearchGroupSource {
+  type: 'GROUP';
+  groupId: string;
+  groupName: string;
+}
+
 export type GlobalSearchSource =
   | GlobalSearchChannelSource
-  | GlobalSearchDirectSource;
+  | GlobalSearchDirectSource
+  | GlobalSearchGroupSource;
 
 export interface GlobalSearchResult {
   id: string;
   content: string;
+  contentSnippet: string;
   createdAt: Date;
   author: GlobalSearchAuthor;
   source: GlobalSearchSource;
@@ -92,6 +101,7 @@ export class MessagesSearchService {
       SELECT
         m.id,
         m.content,
+        LEFT(m.content, 300) AS "contentSnippet",
         m."createdAt",
         jsonb_build_object(
           'id', u.id,
@@ -136,17 +146,59 @@ export class MessagesSearchService {
     query: SearchGlobalMessagesQueryDto,
   ): Promise<GlobalSearchResponse> {
     const limit = Math.min(query.limit ?? 20, 50);
-    const pattern = `%${query.q}%`;
-    const cursorCreatedAt = query.cursor
-      ? await this.resolveCursorCreatedAt(query.cursor)
-      : null;
+    const scope = query.scope ?? 'all';
+    const includeChannel = scope === 'all' || scope === 'channel';
+    const includeDirect = scope === 'all' || scope === 'direct';
+    const includeGroup = scope === 'all' || scope === 'group';
 
-    const cursorClause = cursorCreatedAt
-      ? Prisma.sql`AND m."createdAt" < ${cursorCreatedAt}::timestamptz`
+    const workspaceId = query.workspaceId ?? null;
+    const channelId = query.channelId ?? null;
+    const conversationId = query.conversationId ?? null;
+    const groupId = query.groupId ?? null;
+
+    const cursor = query.cursor ? await this.resolveCursor(query.cursor) : null;
+    const tsQuery = Prisma.sql`plainto_tsquery('simple', ${query.q})`;
+
+    const cursorClause = cursor
+      ? Prisma.sql`
+          AND (
+            m."createdAt" < ${cursor.createdAt}::timestamptz
+            OR (
+              m."createdAt" = ${cursor.createdAt}::timestamptz
+              AND m.id < ${cursor.id}::uuid
+            )
+          )`
       : Prisma.sql``;
-    const dmCursorClause = cursorCreatedAt
-      ? Prisma.sql`AND dm."createdAt" < ${cursorCreatedAt}::timestamptz`
+    const dmCursorClause = cursor
+      ? Prisma.sql`
+          AND (
+            dm."createdAt" < ${cursor.createdAt}::timestamptz
+            OR (
+              dm."createdAt" = ${cursor.createdAt}::timestamptz
+              AND dm.id < ${cursor.id}::uuid
+            )
+          )`
       : Prisma.sql``;
+    const gmCursorClause = cursor
+      ? Prisma.sql`
+          AND (
+            gm."createdAt" < ${cursor.createdAt}::timestamptz
+            OR (
+              gm."createdAt" = ${cursor.createdAt}::timestamptz
+              AND gm.id < ${cursor.id}::uuid
+            )
+          )`
+      : Prisma.sql``;
+
+    const channelScopeClause = includeChannel
+      ? Prisma.sql``
+      : Prisma.sql`AND FALSE`;
+    const directScopeClause = includeDirect
+      ? Prisma.sql``
+      : Prisma.sql`AND FALSE`;
+    const groupScopeClause = includeGroup
+      ? Prisma.sql``
+      : Prisma.sql`AND FALSE`;
 
     const rows = await this.prisma.$queryRaw<GlobalSearchResult[]>(Prisma.sql`
       WITH accessible_channels AS (
@@ -176,6 +228,8 @@ export class MessagesSearchService {
                 AND cm."deletedAt" IS NULL
             )
           )
+          AND (${workspaceId}::uuid IS NULL OR w.id = ${workspaceId}::uuid)
+          AND (${channelId}::uuid IS NULL OR c.id = ${channelId}::uuid)
       ),
       accessible_conversations AS (
         SELECT dc.id AS conversation_id
@@ -183,10 +237,27 @@ export class MessagesSearchService {
         JOIN "DirectConversationParticipant" dcp
           ON dcp."conversationId" = dc.id
           AND dcp."userId" = ${userId}::uuid
+        WHERE (${conversationId}::uuid IS NULL OR dc.id = ${conversationId}::uuid)
+      ),
+      accessible_groups AS (
+        SELECT g.id AS group_id, g.name AS group_name
+        FROM "GroupConversation" g
+        JOIN "GroupMember" gm
+          ON gm."groupId" = g.id
+          AND gm."userId" = ${userId}::uuid
+          AND gm."leftAt" IS NULL
+        WHERE g."archivedAt" IS NULL
+          AND (${groupId}::uuid IS NULL OR g.id = ${groupId}::uuid)
+      ),
+      blocked_users AS (
+        SELECT "blockedId" AS id FROM "UserBlock" WHERE "blockerId" = ${userId}::uuid AND "deletedAt" IS NULL
+        UNION
+        SELECT "blockerId" AS id FROM "UserBlock" WHERE "blockedId" = ${userId}::uuid AND "deletedAt" IS NULL
       )
       SELECT
         m.id,
         m.content,
+        LEFT(m.content, 300) AS "contentSnippet",
         m."createdAt",
         jsonb_build_object(
           'id', u.id,
@@ -208,12 +279,14 @@ export class MessagesSearchService {
       JOIN "User" u ON u.id = m."authorId"
       JOIN accessible_channels ac ON ac.channel_id = m."channelId"
       WHERE m."deletedAt" IS NULL
-        AND m.content ILIKE ${pattern}
+        AND m."searchVector" @@ ${tsQuery}
+        ${channelScopeClause}
         ${cursorClause}
       UNION ALL
       SELECT
         dm.id,
         dm.content,
+        LEFT(dm.content, 300) AS "contentSnippet",
         dm."createdAt",
         jsonb_build_object(
           'id', u.id,
@@ -243,9 +316,42 @@ export class MessagesSearchService {
       JOIN "User" u ON u.id = dm."authorId"
       JOIN accessible_conversations aconv ON aconv.conversation_id = dm."conversationId"
       WHERE dm."deletedAt" IS NULL
-        AND dm.content ILIKE ${pattern}
+        AND dm."searchVector" @@ ${tsQuery}
+        ${directScopeClause}
         ${dmCursorClause}
-      ORDER BY "createdAt" DESC
+        AND u.id NOT IN (SELECT id FROM blocked_users)
+        AND NOT EXISTS (
+          SELECT 1 FROM "DirectConversationParticipant" dcp3
+          WHERE dcp3."conversationId" = dm."conversationId"
+            AND dcp3."userId" != ${userId}::uuid
+            AND dcp3."userId" IN (SELECT id FROM blocked_users)
+        )
+      UNION ALL
+      SELECT
+        gm.id,
+        gm.content,
+        LEFT(gm.content, 300) AS "contentSnippet",
+        gm."createdAt",
+        jsonb_build_object(
+          'id', u.id,
+          'username', u.username,
+          'displayName', u."displayName",
+          'avatarUrl', u."avatarUrl"
+        ) AS author,
+        'GROUP'::text AS "sourceType",
+        jsonb_build_object(
+          'type', 'GROUP',
+          'groupId', ag.group_id,
+          'groupName', ag.group_name
+        ) AS source
+      FROM "GroupMessage" gm
+      JOIN "User" u ON u.id = gm."authorId"
+      JOIN accessible_groups ag ON ag.group_id = gm."groupId"
+      WHERE gm."searchVector" @@ ${tsQuery}
+        ${groupScopeClause}
+        ${gmCursorClause}
+        AND u.id NOT IN (SELECT id FROM blocked_users)
+      ORDER BY "createdAt" DESC, id DESC
       LIMIT ${limit + 1}
     `);
 
@@ -256,8 +362,10 @@ export class MessagesSearchService {
     return { items, nextCursor };
   }
 
-  private async resolveCursorCreatedAt(cursorId: string): Promise<Date | null> {
-    const [message, directMessage] = await Promise.all([
+  private async resolveCursor(
+    cursorId: string,
+  ): Promise<{ createdAt: Date; id: string } | null> {
+    const [message, directMessage, groupMessage] = await Promise.all([
       this.prisma.message.findUnique({
         where: { id: cursorId },
         select: { createdAt: true },
@@ -266,8 +374,13 @@ export class MessagesSearchService {
         where: { id: cursorId },
         select: { createdAt: true },
       }),
+      this.prisma.groupMessage.findUnique({
+        where: { id: cursorId },
+        select: { createdAt: true },
+      }),
     ]);
 
-    return message?.createdAt ?? directMessage?.createdAt ?? null;
+    const found = message ?? directMessage ?? groupMessage;
+    return found ? { createdAt: found.createdAt, id: cursorId } : null;
   }
 }

@@ -36,6 +36,11 @@ export type TranslationKey =
   | "globalSearch.privateChannelLabel"
   | "globalSearch.directLabel"
   | "globalSearch.directConversation"
+  | "globalSearch.groupLabel"
+  | "globalSearch.scopeAll"
+  | "globalSearch.scopeChannel"
+  | "globalSearch.scopeDirect"
+  | "globalSearch.scopeGroup"
   | "profile.title"
   | "profile.back"
   | "profile.accountInfo"
@@ -801,6 +806,11 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "globalSearch.privateChannelLabel": "Private channel",
     "globalSearch.directLabel": "DM",
     "globalSearch.directConversation": "Direct conversation",
+    "globalSearch.groupLabel": "Group",
+    "globalSearch.scopeAll": "All",
+    "globalSearch.scopeChannel": "Channels",
+    "globalSearch.scopeDirect": "Direct",
+    "globalSearch.scopeGroup": "Groups",
     "profile.title": "Profile",
     "profile.back": "← Back to dashboard",
     "profile.accountInfo": "Account information",
@@ -1565,6 +1575,11 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "globalSearch.privateChannelLabel": "Приватний канал",
     "globalSearch.directLabel": "Особисте",
     "globalSearch.directConversation": "Особисте листування",
+    "globalSearch.groupLabel": "Група",
+    "globalSearch.scopeAll": "Усі",
+    "globalSearch.scopeChannel": "Канали",
+    "globalSearch.scopeDirect": "Особисті",
+    "globalSearch.scopeGroup": "Групи",
     "profile.title": "Профіль",
     "profile.back": "← Назад до панелі",
     "profile.accountInfo": "Інформація акаунта",
@@ -2329,6 +2344,11 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "globalSearch.privateChannelLabel": "Приватный канал",
     "globalSearch.directLabel": "ЛС",
     "globalSearch.directConversation": "Личная переписка",
+    "globalSearch.groupLabel": "Группа",
+    "globalSearch.scopeAll": "Все",
+    "globalSearch.scopeChannel": "Каналы",
+    "globalSearch.scopeDirect": "Личные",
+    "globalSearch.scopeGroup": "Группы",
     "profile.title": "Профиль",
     "profile.back": "← Назад к панели",
     "profile.accountInfo": "Информация аккаунта",

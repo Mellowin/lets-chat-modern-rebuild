@@ -10,11 +10,15 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Select } from "@/components/ui/Select";
 import {
   searchGlobalMessages,
   type GlobalSearchResponse,
   type GlobalSearchResult,
+  type SearchGlobalMessagesOptions,
 } from "@/lib/messages-api";
+
+type SearchScope = "all" | "channel" | "direct" | "group";
 
 function highlightText(text: string, query: string): React.ReactNode[] {
   if (!query.trim()) return [text];
@@ -50,6 +54,7 @@ export default function GlobalMessageSearch() {
   const { accessToken, isAuthenticated } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [scope, setScope] = useState<SearchScope>("all");
   const [results, setResults] = useState<GlobalSearchResult[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "error" | "success">("idle");
@@ -71,10 +76,15 @@ export default function GlobalMessageSearch() {
       }
       setErrorMessage(null);
       try {
+        const options: SearchGlobalMessagesOptions = {
+          limit: 20,
+          cursor,
+          scope,
+        };
         const data: GlobalSearchResponse = await searchGlobalMessages(
           accessToken,
           q,
-          cursor ? { cursor, limit: 20 } : { limit: 20 },
+          options,
         );
         if (cursor) {
           setResults((prev) => {
@@ -95,7 +105,7 @@ export default function GlobalMessageSearch() {
         setLoadingMore(false);
       }
     },
-    [accessToken, t],
+    [accessToken, scope, t],
   );
 
   function handleSubmit(e: React.FormEvent) {
@@ -123,6 +133,7 @@ export default function GlobalMessageSearch() {
 
   function handleClear() {
     setQuery("");
+    setScope("all");
     setResults([]);
     setNextCursor(null);
     setStatus("idle");
@@ -134,8 +145,10 @@ export default function GlobalMessageSearch() {
       router.push(
         `/workspaces/${result.source.workspaceId}/channels/${result.source.channelId}?message=${result.id}`,
       );
-    } else {
+    } else if (result.source.type === "DIRECT") {
       router.push(`/direct/${result.source.conversationId}?message=${result.id}`);
+    } else {
+      router.push(`/groups/${result.source.groupId}?message=${result.id}`);
     }
     handleClose();
   }
@@ -148,13 +161,19 @@ export default function GlobalMessageSearch() {
     if (result.source.type === "CHANNEL") {
       return `${result.source.workspaceName} / ${result.source.channelName}`;
     }
-    const other = result.source.otherParticipant;
-    return other?.displayName || other?.username || t("globalSearch.directConversation");
+    if (result.source.type === "DIRECT") {
+      const other = result.source.otherParticipant;
+      return other?.displayName || other?.username || t("globalSearch.directConversation");
+    }
+    return result.source.groupName;
   }
 
-  function getSourceBadge(result: GlobalSearchResult): { label: string; variant: "success" | "warning" | "info" } {
+  function getSourceBadge(result: GlobalSearchResult): { label: string; variant: "success" | "warning" | "info" | "default" } {
     if (result.source.type === "DIRECT") {
       return { label: t("globalSearch.directLabel"), variant: "info" };
+    }
+    if (result.source.type === "GROUP") {
+      return { label: t("globalSearch.groupLabel"), variant: "default" };
     }
     if (result.source.channelType === "PRIVATE") {
       return { label: t("globalSearch.privateChannelLabel"), variant: "warning" };
@@ -249,6 +268,18 @@ export default function GlobalMessageSearch() {
                     </button>
                   )}
                 </div>
+                <Select
+                  value={scope}
+                  onChange={(e) => setScope(e.target.value as SearchScope)}
+                  aria-label={t("globalSearch.title")}
+                  data-testid="global-search-scope"
+                  className="w-full sm:w-32"
+                >
+                  <option value="all">{t("globalSearch.scopeAll")}</option>
+                  <option value="channel">{t("globalSearch.scopeChannel")}</option>
+                  <option value="direct">{t("globalSearch.scopeDirect")}</option>
+                  <option value="group">{t("globalSearch.scopeGroup")}</option>
+                </Select>
                 <Button
                   type="submit"
                   disabled={status === "loading" || !query.trim()}

@@ -41,6 +41,7 @@ function makeChannelResult(
   return {
     id,
     content,
+    contentSnippet: content,
     createdAt: "2024-01-02T00:00:00Z",
     author: { id: "u1", username: "alice", displayName: "Alice", avatarUrl: null },
     source: {
@@ -59,12 +60,28 @@ function makeDirectResult(id: string, content: string) {
   return {
     id,
     content,
+    contentSnippet: content,
     createdAt: "2024-01-01T00:00:00Z",
     author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
     source: {
       type: "DIRECT" as const,
       conversationId: "conv-1",
       otherParticipant: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+    },
+  };
+}
+
+function makeGroupResult(id: string, content: string) {
+  return {
+    id,
+    content,
+    contentSnippet: content,
+    createdAt: "2024-01-03T00:00:00Z",
+    author: { id: "u3", username: "carol", displayName: "Carol", avatarUrl: null },
+    source: {
+      type: "GROUP" as const,
+      groupId: "group-1",
+      groupName: "Project A",
     },
   };
 }
@@ -273,6 +290,65 @@ describe("GlobalMessageSearch", () => {
     expect(searchGlobalMessages).toHaveBeenLastCalledWith("token", "hello", {
       cursor: "cursor-1",
       limit: 20,
+      scope: "all",
+    });
+  });
+
+  it("renders group badge and label for group message results", async () => {
+    vi.mocked(searchGlobalMessages).mockResolvedValueOnce({
+      items: [makeGroupResult("gm-1", "hello group")],
+      nextCursor: null,
+    });
+
+    render(<GlobalMessageSearch />);
+    await userEvent.click(screen.getByTestId("global-search-open-button"));
+    await userEvent.type(screen.getByTestId("global-search-input"), "hello");
+    await userEvent.click(screen.getByTestId("global-search-submit"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("global-search-result-gm-1")).toBeInTheDocument();
+    });
+    expect(screen.getByText("Group")).toBeInTheDocument();
+    expect(screen.getByText("Project A")).toBeInTheDocument();
+  });
+
+  it("navigates to group on group result click", async () => {
+    vi.mocked(searchGlobalMessages).mockResolvedValueOnce({
+      items: [makeGroupResult("gm-1", "hello group")],
+      nextCursor: null,
+    });
+
+    render(<GlobalMessageSearch />);
+    await userEvent.click(screen.getByTestId("global-search-open-button"));
+    await userEvent.type(screen.getByTestId("global-search-input"), "hello");
+    await userEvent.click(screen.getByTestId("global-search-submit"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("global-search-result-gm-1")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByTestId("global-search-result-gm-1"));
+
+    expect(mockPush).toHaveBeenCalledWith("/groups/group-1?message=gm-1");
+  });
+
+  it("sends selected scope to search API", async () => {
+    vi.mocked(searchGlobalMessages).mockResolvedValueOnce({
+      items: [makeGroupResult("gm-1", "hello group")],
+      nextCursor: null,
+    });
+
+    render(<GlobalMessageSearch />);
+    await userEvent.click(screen.getByTestId("global-search-open-button"));
+    await userEvent.selectOptions(screen.getByTestId("global-search-scope"), "group");
+    await userEvent.type(screen.getByTestId("global-search-input"), "hello");
+    await userEvent.click(screen.getByTestId("global-search-submit"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("global-search-result-gm-1")).toBeInTheDocument();
+    });
+    expect(searchGlobalMessages).toHaveBeenLastCalledWith("token", "hello", {
+      limit: 20,
+      scope: "group",
     });
   });
 });
