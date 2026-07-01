@@ -80,7 +80,7 @@ For channel mentions, `PushService.notifyChannelMention` additionally checks:
 ## Verification
 
 ```bash
-node scripts/verify-production-mentions.mjs
+pnpm verify:prod:mentions
 ```
 
 The script creates two disposable accounts, exercises the preference endpoints,
