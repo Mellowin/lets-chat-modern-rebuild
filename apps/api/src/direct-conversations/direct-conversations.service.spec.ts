@@ -16,6 +16,7 @@ import { PresenceService } from '../websocket/presence.service';
 import { PushService } from '../push/push.service';
 import { BlocksService } from '../safety/blocks.service';
 import { MentionsService } from '../common/mentions.service';
+import { UserRole } from '@lets-chat/database';
 
 const userId = '11111111-1111-1111-1111-111111111111';
 const otherUserId = '22222222-2222-2222-2222-222222222222';
@@ -1524,6 +1525,7 @@ describe('DirectConversationsService', () => {
         directMessageNotificationsEnabled: true,
         groupMessageNotificationsEnabled: true,
         channelMessageNotificationsEnabled: true,
+        role: UserRole.USER,
         emailVerifiedAt: null,
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
@@ -1670,6 +1672,7 @@ describe('DirectConversationsService', () => {
         directMessageNotificationsEnabled: true,
         groupMessageNotificationsEnabled: true,
         channelMessageNotificationsEnabled: true,
+        role: UserRole.USER,
         emailVerifiedAt: null,
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
@@ -1744,6 +1747,7 @@ describe('DirectConversationsService', () => {
         directMessageNotificationsEnabled: true,
         groupMessageNotificationsEnabled: true,
         channelMessageNotificationsEnabled: true,
+        role: UserRole.USER,
         emailVerifiedAt: null,
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
@@ -1826,6 +1830,7 @@ describe('DirectConversationsService', () => {
         directMessageNotificationsEnabled: true,
         groupMessageNotificationsEnabled: true,
         channelMessageNotificationsEnabled: true,
+        role: UserRole.USER,
         emailVerifiedAt: null,
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
@@ -1906,6 +1911,7 @@ describe('DirectConversationsService', () => {
         directMessageNotificationsEnabled: true,
         groupMessageNotificationsEnabled: true,
         channelMessageNotificationsEnabled: true,
+        role: UserRole.USER,
         emailVerifiedAt: null,
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
@@ -1985,6 +1991,7 @@ describe('DirectConversationsService', () => {
         directMessageNotificationsEnabled: true,
         groupMessageNotificationsEnabled: true,
         channelMessageNotificationsEnabled: true,
+        role: UserRole.USER,
         emailVerifiedAt: null,
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
@@ -2067,6 +2074,7 @@ describe('DirectConversationsService', () => {
         directMessageNotificationsEnabled: true,
         groupMessageNotificationsEnabled: true,
         channelMessageNotificationsEnabled: true,
+        role: UserRole.USER,
         emailVerifiedAt: null,
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
@@ -2186,6 +2194,7 @@ describe('DirectConversationsService', () => {
         directMessageNotificationsEnabled: true,
         groupMessageNotificationsEnabled: true,
         channelMessageNotificationsEnabled: true,
+        role: UserRole.USER,
         emailVerifiedAt: null,
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
@@ -2270,6 +2279,7 @@ describe('DirectConversationsService', () => {
         directMessageNotificationsEnabled: true,
         groupMessageNotificationsEnabled: true,
         channelMessageNotificationsEnabled: true,
+        role: UserRole.USER,
         emailVerifiedAt: null,
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,

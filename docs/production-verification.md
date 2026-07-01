@@ -20,6 +20,7 @@ All scripts are located in `scripts/` and are exposed as root package scripts.
 | **Contacts & group invites** | `pnpm verify:prod:contacts` | Contacts lifecycle/privacy and group invite link create/revoke/accept. | Three disposable accounts, one group | Group is archived at the end |
 | **Message pagination** | `pnpm verify:prod:pagination` | Channel and group message lists return `{ items, nextCursor, hasMore }`; cursors walk through older pages without overlap. | One disposable account, one workspace, one channel, one group | Channel and group are archived at the end |
 | **Mentions & notifications** | `node scripts/verify-production-mentions.mjs` | Notification preference endpoints, mention resolution in DMs and groups, and non-resolvable mention filtering. | Two disposable accounts, one direct conversation, one group | None |
+| **Admin reports** | `pnpm verify:prod:admin-reports` | Regular users cannot access admin report endpoints; optional positive admin list/filter/detail/update checks. | Two disposable accounts, one report | None |
 | **All** | `pnpm verify:prod:all` | Runs public → auth → permissions → browser → attachments → contacts → pwa sequentially. | Same as above | Same as above |
 
 ---
@@ -35,6 +36,7 @@ All scripts default to the production URLs. Override only when needed.
 | `VERIFY_MAIL_BASE` | `https://api.mail.tm` | auth, permissions, browser |
 | `VERIFY_PASSWORD` | random per run | auth, permissions, browser |
 | `VERIFY_PERMISSIONS_ENABLE_DESTRUCTIVE` | unset | permissions (must be `1` to run delete tests) |
+| `VERIFY_ADMIN_ACCESS_TOKEN` | unset | admin reports (optional, enables positive admin checks) |
 
 **Do not commit `VERIFY_PASSWORD` or any token.** Scripts never print tokens, passwords, or DB URLs to the console.
 
@@ -67,6 +69,12 @@ VERIFY_PERMISSIONS_ENABLE_DESTRUCTIVE=1 pnpm verify:prod:permissions
 
 # Browser sanity — requires Playwright
 pnpm verify:prod:browser
+
+# Admin reports — negative checks only by default
+pnpm verify:prod:admin-reports
+
+# Admin reports — with positive admin checks
+VERIFY_ADMIN_ACCESS_TOKEN=<token> pnpm verify:prod:admin-reports
 
 # Full pack (respects the destructive flag)
 VERIFY_PERMISSIONS_ENABLE_DESTRUCTIVE=1 pnpm verify:prod:all
@@ -174,6 +182,37 @@ Having a runnable verification pack means the project can demonstrate:
 - permission boundary checks for destructive owner actions;
 - cross-browser/mobile sanity checks;
 - clear safety boundaries between read-only and destructive verification.
+
+## Admin Reports Verification
+
+The dedicated verifier is `scripts/verify-production-admin-reports.mjs`.
+
+```bash
+pnpm verify:prod:admin-reports
+```
+
+**What it checks:**
+
+- A regular user can create a report through the public `/reports` endpoint.
+- The reporter receives `403` when trying to list admin reports.
+- The report target receives `403` when trying to list admin reports.
+- A regular user receives `403` when trying to update an admin report.
+- If `VERIFY_ADMIN_ACCESS_TOKEN` is set:
+  - Admin can list reports.
+  - Admin can filter reports by status.
+  - Admin can view report detail.
+  - Admin can update report status and add a note.
+  - Admin detail response does not leak sensitive fields (`passwordHash`, `token`, `avatarUrl`, etc.).
+
+**Environment variables:**
+
+| Variable | Default | Description |
+|---|---|---|
+| `VERIFY_API_BASE` | `https://lets-chat-api-v2.onrender.com/api/v1` | API endpoint to verify against |
+| `VERIFY_PASSWORD` | random per run | Password for disposable accounts |
+| `VERIFY_ADMIN_ACCESS_TOKEN` | unset | Optional admin bearer token for positive checks |
+
+The script does not print tokens, passwords, or DB credentials.
 
 ## Mentions & Notification Preferences Verification
 

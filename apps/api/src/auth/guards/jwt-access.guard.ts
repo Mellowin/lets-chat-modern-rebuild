@@ -56,6 +56,7 @@ export class JwtAccessGuard implements CanActivate {
     avatarUrl: string | null;
     avatarUpdatedAt: Date | null;
     interfaceLanguage: string;
+    role: string;
     createdAt: Date;
     pushNotificationsEnabled?: boolean;
     mentionNotificationsEnabled?: boolean;
@@ -71,6 +72,7 @@ export class JwtAccessGuard implements CanActivate {
       avatarUrl: user.avatarUrl,
       avatarUpdatedAt: user.avatarUpdatedAt,
       interfaceLanguage: user.interfaceLanguage as 'en' | 'uk' | 'ru',
+      role: (user.role as 'USER' | 'MODERATOR' | 'ADMIN') ?? 'USER',
       createdAt: user.createdAt,
       pushNotificationsEnabled: user.pushNotificationsEnabled ?? true,
       mentionNotificationsEnabled: user.mentionNotificationsEnabled ?? true,

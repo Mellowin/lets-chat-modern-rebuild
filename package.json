@@ -30,6 +30,7 @@
     "verify:prod:pagination": "node scripts/verify-production-pagination.mjs",
     "verify:prod:mentions": "node scripts/verify-production-mentions.mjs",
     "verify:prod:channel-scroll": "node scripts/verify-production-channel-scroll.mjs",
+    "verify:prod:admin-reports": "node scripts/verify-production-admin-reports.mjs",
     "verify:prod:mobile-shell": "node scripts/verify-mobile-shell.mjs",
     "verify:prod:all": "pnpm verify:prod:public && pnpm verify:prod:auth && pnpm verify:prod:permissions && pnpm verify:prod:browser && pnpm verify:prod:attachments && pnpm verify:prod:contacts && pnpm verify:prod:pwa"
   },

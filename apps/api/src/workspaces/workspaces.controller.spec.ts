@@ -24,6 +24,7 @@ describe('WorkspacesController', () => {
     directMessageNotificationsEnabled: true,
     groupMessageNotificationsEnabled: true,
     channelMessageNotificationsEnabled: true,
+    role: 'USER',
   };
 
   beforeEach(async () => {

@@ -14,6 +14,7 @@ export interface AuthUser {
   avatarUrl: string | null;
   avatarUpdatedAt: string | null;
   interfaceLanguage: "en" | "uk" | "ru";
+  role: "USER" | "MODERATOR" | "ADMIN";
   createdAt: string;
   pushNotificationsEnabled: boolean;
   mentionNotificationsEnabled: boolean;

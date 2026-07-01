@@ -5,6 +5,7 @@ import { ContactsRepository } from './contacts.repository';
 import { UsersRepository } from '../users/users.repository';
 import { DirectConversationsService } from '../direct-conversations/direct-conversations.service';
 import { BlocksService } from '../safety/blocks.service';
+import { UserRole } from '@lets-chat/database';
 
 const userId = '11111111-1111-1111-1111-111111111111';
 const otherUserId = '22222222-2222-2222-2222-222222222222';
@@ -40,6 +41,7 @@ function makeUser(
     directMessageNotificationsEnabled: true,
     groupMessageNotificationsEnabled: true,
     channelMessageNotificationsEnabled: true,
+    role: UserRole.USER,
     ...overrides,
   };
 }

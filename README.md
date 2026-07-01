@@ -56,7 +56,8 @@ Portfolio guidance:
 - **Contacts** — private one-way contact list for quick user discovery and starting DMs.
 - **Group Invite Links** — owner-generated, expiring token links that let people join groups without knowing their user IDs.
 - **Group Chats** — standalone multi-member conversations outside workspaces, with owner/member roles, invite links, unread counts, and real-time delivery.
-- **User Blocking & Reporting** — block users to stop new DMs, contact adds, and targeted group adds; report users or messages (write-only, non-actioning safety baseline).
+- **User Blocking & Reporting** — block users to stop new DMs, contact adds, and targeted group adds; report users or messages.
+- **Admin Moderation Dashboard** — `/admin/reports` page for `ADMIN`/`MODERATOR` users to review reports, update status, and add internal notes.
 - **Real-time messaging** — live create/update/delete/reaction events via WebSocket rooms.
 - **Replies & Forwarding** — thread replies and message forwarding between channels.
 - **Reactions** — emoji reactions with toggle/replace behavior.
@@ -73,6 +74,7 @@ Portfolio guidance:
 - **Private-channel security** — non-members receive `404` at REST, WebSocket, and search layers.
 - **Owner-only destructive actions** — workspace/channel delete and archive restricted to OWNER.
 - **User blocking** — bidirectional block enforcement at DMs, contacts, group member adds, and push notifications; generic error responses hide block state.
+- **Admin moderation** — role-based `ADMIN`/`MODERATOR` access; report review endpoints return only safe summaries and reject regular users with `403`.
 
 ### Attachments
 
@@ -106,13 +108,13 @@ Portfolio guidance:
 
 | Suite | Count | Status |
 |---|---|---|
-| API unit tests | 868 (40 suites) | ✅ passing |
-| Web unit + page tests | 706 (33 files) | ✅ passing |
+| API unit tests | 884 (42 suites) | ✅ passing |
+| Web unit + page tests | 730 (37 files) | ✅ passing |
 | E2E security smoke tests | 59 (6 suites) | ✅ passing in CI (PostgreSQL service) |
 
 - **CI:** GitHub Actions runs lint, typecheck, unit tests, builds, and API E2E security smoke tests (with a PostgreSQL service container) on every push.
 - **Deploy:** Render deploy hook fires only after green CI; Vercel builds the frontend in parallel.
-- **Verification:** `scripts/smoke-deploy.mjs`, `scripts/verify-production-attachments.mjs`, `scripts/verify-production-groups.mjs`, `scripts/verify-production-contacts.mjs`, and `scripts/verify-production-safety.mjs` run against production after deploy.
+- **Verification:** `scripts/smoke-deploy.mjs`, `scripts/verify-production-attachments.mjs`, `scripts/verify-production-groups.mjs`, `scripts/verify-production-contacts.mjs`, `scripts/verify-production-safety.mjs`, and `scripts/verify-production-admin-reports.mjs` run against production after deploy.
 
 ---
 
@@ -269,7 +271,7 @@ push main → GitHub Actions (lint/typecheck/test/build)
                 ↓
       Vercel production deploy
                 ↓
-      smoke-deploy.mjs + verify-production-attachments.mjs + verify-production-groups.mjs + verify-production-contacts.mjs
+      smoke-deploy.mjs + verify-production-attachments.mjs + verify-production-groups.mjs + verify-production-contacts.mjs + verify-production-admin-reports.mjs
 ```
 
 No secrets, credentials, or DB URLs are committed to the repository.

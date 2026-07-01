@@ -606,3 +606,34 @@ node apps/api/scripts/cleanup-orphaned-attachments.mjs --delete
 - Requires explicit `--delete` flag for destructive operations.
 - Age threshold prevents deletion of recently uploaded files that may still be in a user's composer.
 - DB comparison ensures valid attachments are never deleted.
+
+## 18. B218 — Admin Moderation Dashboard for Reports
+
+- **Goal** — close the safety/reporting product loop by giving admins and moderators a way to review user reports, update report status, and add internal notes.
+- **Admin access model** — `UserRole` enum (`USER`, `MODERATOR`, `ADMIN`) added to the `User` table with default `USER`. `AdminGuard` allows only `ADMIN`/`MODERATOR`. No hardcoded credentials or secrets.
+- **Schema changes:**
+  - `User.role UserRole @default(USER)`
+  - `UserReport.adminNote String?`
+  - `UserReport.reviewedAt DateTime?`
+  - `UserReport.reviewedBy String? @db.Uuid`
+  - Migration `20260701205000_add_user_role_and_report_moderation_fields`
+- **Backend endpoints** (`/api/v1/admin/reports`):
+  - `GET /admin/reports` — cursor pagination, optional `status` filter.
+  - `GET /admin/reports/:id` — safe report detail.
+  - `PATCH /admin/reports/:id` — update `status` and/or `adminNote`; auto-sets `reviewedAt`/`reviewedBy`.
+- **Safe output only** — report metadata, safe user summaries (`id`, `username`, `displayName`, `avatarUrl`), and optional target IDs. No tokens, passwords, file URLs, or raw auth data.
+- **Frontend** — new protected `/admin/reports` page with list, filter, detail panel, status buttons, and admin note input. Sidebar shows a "Moderation" link only for admins/moderators.
+- **Report statuses:** `OPEN`, `REVIEWED`, `DISMISSED`, `ACTION_TAKEN`.
+- **Tests added/updated:**
+  - API: `admin-reports.controller.spec.ts`; auth and controller spec mocks updated for the new `role` field.
+  - Web: `apps/web/src/app/admin/reports/page.test.tsx` — list, filter, detail, status/note update, loading/empty/error, non-admin state.
+  - E2E: `apps/api/test/safety.e2e-spec.ts` includes admin report security checks.
+- **Production verifier** — `scripts/verify-production-admin-reports.mjs`:
+  - Creates disposable users and a report.
+  - Confirms regular users receive `403` on admin endpoints.
+  - Optional positive admin checks when `VERIFY_ADMIN_ACCESS_TOKEN` is provided.
+  - Run: `pnpm verify:prod:admin-reports`
+- **Docs updated** — `README.md`, `docs/b218-admin-moderation.md`, `docs/production-verification.md`.
+- **Limitations / future work:**
+  - Admin user suspension is out of scope; can be added as a future moderation action.
+  - Positive production checks require an existing admin token; no production admin bootstrap endpoint.

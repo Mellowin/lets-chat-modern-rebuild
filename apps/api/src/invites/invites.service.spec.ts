@@ -15,6 +15,7 @@ import { WorkspacesRepository } from '../workspaces/workspaces.repository';
 import { UsersRepository } from '../users/users.repository';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction, AuditEntityType } from '../audit/audit.constants';
+import { UserRole } from '@lets-chat/database';
 
 describe('InvitesService', () => {
   let service: InvitesService;
@@ -141,6 +142,7 @@ describe('InvitesService', () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
+      role: UserRole.USER,
       ...overrides,
     };
   }

@@ -38,6 +38,7 @@ export interface AuthUserResponse {
   avatarUrl: string | null;
   avatarUpdatedAt: Date | null;
   interfaceLanguage: 'en' | 'uk' | 'ru';
+  role: 'USER' | 'MODERATOR' | 'ADMIN';
   pushNotificationsEnabled: boolean;
   mentionNotificationsEnabled: boolean;
   directMessageNotificationsEnabled: boolean;
@@ -587,6 +588,7 @@ export class AuthService {
         (user as User).groupMessageNotificationsEnabled ?? true,
       channelMessageNotificationsEnabled:
         (user as User).channelMessageNotificationsEnabled ?? true,
+      role: (user as User).role ?? 'USER',
       createdAt: user.createdAt,
     };
   }

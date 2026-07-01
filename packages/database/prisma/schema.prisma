@@ -38,6 +38,12 @@ enum NotificationType {
   SYSTEM
 }
 
+enum UserRole {
+  USER
+  MODERATOR
+  ADMIN
+}
+
 enum StorageBackend {
   LOCAL
   S3
@@ -55,6 +61,7 @@ model User {
   avatarUrl         String?
   avatarUpdatedAt   DateTime?
   interfaceLanguage String    @default("en")
+  role              UserRole  @default(USER)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   deletedAt         DateTime?
@@ -115,6 +122,7 @@ model User {
   blocksReceived                 UserBlock[]                   @relation("Blocked")
   reportsMade                    UserReport[]                  @relation("ReportReporter")
   reportsReceived                UserReport[]                  @relation("ReportedUser")
+  reportsReviewed                UserReport[]                  @relation("ReportReviewer")
 
   @@index([email])
   @@index([username])
@@ -605,15 +613,20 @@ model UserReport {
   reason               String
   details              String?
   status               String   @default("OPEN")
+  adminNote            String?
+  reviewedAt           DateTime?
+  reviewedBy           String?  @db.Uuid
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
   reporter     User @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
   reportedUser User @relation("ReportedUser", fields: [reportedUserId], references: [id], onDelete: Cascade)
+  reviewedByUser User? @relation("ReportReviewer", fields: [reviewedBy], references: [id], onDelete: SetNull)
 
   @@index([reporterId])
   @@index([reportedUserId])
   @@index([status])
+  @@index([reviewedBy])
 }
 
 model GroupMessage {

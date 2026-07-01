@@ -40,7 +40,7 @@ vi.mock("@/lib/auth-api", () => ({
 
 function mockAuth(userOverrides?: Partial<ReturnType<typeof useAuth>>) {
   vi.mocked(useAuth).mockReturnValue({
-    user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z",
+    user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", role: "USER", createdAt: "2024-01-01T00:00:00Z",
       pushNotificationsEnabled: true,
       mentionNotificationsEnabled: true,
       directMessageNotificationsEnabled: true,
@@ -120,7 +120,7 @@ describe("ProfilePage — authenticated", () => {
 
   it("shows account section by default", async () => {
     mockAuth({
-      user: { id: "u1", email: "a@b.com", username: "alice", displayName: "Alice", avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z",
+      user: { id: "u1", email: "a@b.com", username: "alice", displayName: "Alice", avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", role: "USER", createdAt: "2024-01-01T00:00:00Z",
       pushNotificationsEnabled: true,
       mentionNotificationsEnabled: true,
       directMessageNotificationsEnabled: true,
@@ -140,7 +140,7 @@ describe("ProfilePage — authenticated", () => {
 
   it("shows dash when displayName is null", async () => {
     mockAuth({
-      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z",
+      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", role: "USER", createdAt: "2024-01-01T00:00:00Z",
       pushNotificationsEnabled: true,
       mentionNotificationsEnabled: true,
       directMessageNotificationsEnabled: true,
@@ -159,7 +159,7 @@ describe("ProfilePage — authenticated", () => {
 
   it("shows avatar fallback when avatarUrl is null", async () => {
     mockAuth({
-      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z",
+      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", role: "USER", createdAt: "2024-01-01T00:00:00Z",
       pushNotificationsEnabled: true,
       mentionNotificationsEnabled: true,
       directMessageNotificationsEnabled: true,
@@ -179,7 +179,7 @@ describe("ProfilePage — authenticated", () => {
 
   it("shows existing avatar when avatarUrl exists", async () => {
     mockAuth({
-      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: "/uploads/avatars/u1/test.png", avatarUpdatedAt: "2024-01-01T00:00:00Z", interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z",
+      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: "/uploads/avatars/u1/test.png", avatarUpdatedAt: "2024-01-01T00:00:00Z", interfaceLanguage: "en", role: "USER", createdAt: "2024-01-01T00:00:00Z",
       pushNotificationsEnabled: true,
       mentionNotificationsEnabled: true,
       directMessageNotificationsEnabled: true,
@@ -241,7 +241,7 @@ describe("ProfilePage — authenticated", () => {
       displayName: null,
       avatarUrl: "/uploads/avatars/u1/test.png",
       avatarUpdatedAt: "2024-01-01T00:00:00Z",
-      interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z",
+      interfaceLanguage: "en", role: "USER", createdAt: "2024-01-01T00:00:00Z",
       pushNotificationsEnabled: true,
       mentionNotificationsEnabled: true,
       directMessageNotificationsEnabled: true,
@@ -278,7 +278,7 @@ describe("ProfilePage — authenticated", () => {
       displayName: "Alice",
       avatarUrl: null,
       avatarUpdatedAt: null,
-      interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z",
+      interfaceLanguage: "en", role: "USER", createdAt: "2024-01-01T00:00:00Z",
       pushNotificationsEnabled: true,
       mentionNotificationsEnabled: true,
       directMessageNotificationsEnabled: true,
@@ -415,6 +415,7 @@ describe("ProfilePage — authenticated", () => {
         avatarUrl: null,
         avatarUpdatedAt: null,
         interfaceLanguage: "uk",
+        role: "USER",
         createdAt: "2024-01-01T00:00:00Z",
       pushNotificationsEnabled: true,
       mentionNotificationsEnabled: true,
@@ -452,6 +453,7 @@ describe("ProfilePage — authenticated", () => {
         avatarUrl: null,
         avatarUpdatedAt: null,
         interfaceLanguage: "ru",
+        role: "USER",
         createdAt: "2024-01-01T00:00:00Z",
       pushNotificationsEnabled: true,
       mentionNotificationsEnabled: true,
@@ -504,6 +506,7 @@ describe("ProfilePage — authenticated", () => {
         avatarUrl: null,
         avatarUpdatedAt: null,
         interfaceLanguage: "uk",
+        role: "USER",
         createdAt: "2024-01-01T00:00:00Z",
       pushNotificationsEnabled: true,
       mentionNotificationsEnabled: true,
@@ -601,7 +604,7 @@ describe("ProfilePage — authenticated", () => {
   describe("email change", () => {
     it("renders email change section with current email", async () => {
       mockAuth({
-        user: { id: "u1", email: "old@example.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z",
+        user: { id: "u1", email: "old@example.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", role: "USER", createdAt: "2024-01-01T00:00:00Z",
       pushNotificationsEnabled: true,
       mentionNotificationsEnabled: true,
       directMessageNotificationsEnabled: true,

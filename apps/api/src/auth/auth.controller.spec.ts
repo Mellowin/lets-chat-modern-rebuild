@@ -24,6 +24,7 @@ describe('AuthController', () => {
     directMessageNotificationsEnabled: true,
     groupMessageNotificationsEnabled: true,
     channelMessageNotificationsEnabled: true,
+    role: 'USER',
     createdAt: new Date(),
   };
 

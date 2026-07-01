@@ -32,7 +32,7 @@ beforeEach(() => {
 
 describe("Header — global unread", () => {
   it("does not show global unread badge when total is 0", () => {
-    mockAuth({ isAuthenticated: true, user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z",
+    mockAuth({ isAuthenticated: true, user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", role: "USER", createdAt: "2024-01-01T00:00:00Z",
       pushNotificationsEnabled: true,
       mentionNotificationsEnabled: true,
       directMessageNotificationsEnabled: true,
@@ -43,7 +43,7 @@ describe("Header — global unread", () => {
   });
 
   it("shows global unread badge when total > 0", () => {
-    mockAuth({ isAuthenticated: true, user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z",
+    mockAuth({ isAuthenticated: true, user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", role: "USER", createdAt: "2024-01-01T00:00:00Z",
       pushNotificationsEnabled: true,
       mentionNotificationsEnabled: true,
       directMessageNotificationsEnabled: true,
@@ -57,7 +57,7 @@ describe("Header — global unread", () => {
   });
 
   it("shows 99+ for large unread counts", () => {
-    mockAuth({ isAuthenticated: true, user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z",
+    mockAuth({ isAuthenticated: true, user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", role: "USER", createdAt: "2024-01-01T00:00:00Z",
       pushNotificationsEnabled: true,
       mentionNotificationsEnabled: true,
       directMessageNotificationsEnabled: true,
@@ -71,7 +71,7 @@ describe("Header — global unread", () => {
   });
 
   it("hides badge when unread returns to 0", () => {
-    mockAuth({ isAuthenticated: true, user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z",
+    mockAuth({ isAuthenticated: true, user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", role: "USER", createdAt: "2024-01-01T00:00:00Z",
       pushNotificationsEnabled: true,
       mentionNotificationsEnabled: true,
       directMessageNotificationsEnabled: true,
@@ -101,6 +101,7 @@ describe("Header — global search", () => {
         avatarUrl: null,
         avatarUpdatedAt: null,
         interfaceLanguage: "en",
+        role: "USER",
         createdAt: "2024-01-01T00:00:00Z",
       pushNotificationsEnabled: true,
       mentionNotificationsEnabled: true,

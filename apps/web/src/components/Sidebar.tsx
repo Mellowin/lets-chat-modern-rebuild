@@ -13,6 +13,7 @@ import {
   ArrowDown,
   Loader2,
   Lock,
+  Shield,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { getWorkspaces, type Workspace } from "@/lib/workspaces-api";
@@ -629,6 +630,32 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
     </div>
   );
 
+  const isAdmin = user?.role === "ADMIN" || user?.role === "MODERATOR";
+
+  const adminSection = isAdmin ? (
+    <div data-testid="sidebar-admin-section">
+      <div className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-sidebar-muted">
+        <Shield size={14} />
+        <span>Admin</span>
+      </div>
+      <div className="mt-1">
+        <Link
+          href="/admin/reports"
+          data-testid="sidebar-admin-reports-link"
+          data-active={pathname?.startsWith("/admin/reports") ? "true" : undefined}
+          className={`${baseItem} gap-1.5 ${
+            pathname?.startsWith("/admin/reports")
+              ? activeItem
+              : `text-sidebar-foreground/90 ${hoverItem}`
+          }`}
+        >
+          <Shield size={14} />
+          <span>Moderation</span>
+        </Link>
+      </div>
+    </div>
+  ) : null;
+
   const groupsSection = (
     <div data-testid="sidebar-groups-section">
       {groupsSectionHeader}
@@ -868,6 +895,7 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
             {unreadBadge(totalUnread)}
           </div>
         )}
+        {adminSection}
         {sectionOrder === "direct-first" ? (
           <>
             {directSection}

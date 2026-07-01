@@ -15,6 +15,7 @@ import { WebsocketEventsService } from '../websocket/websocket-events.service';
 import { PushService } from '../push/push.service';
 import { BlocksService } from '../safety/blocks.service';
 import { MentionsService } from '../common/mentions.service';
+import { UserRole } from '@lets-chat/database';
 
 const userId = '11111111-1111-1111-1111-111111111111';
 const otherUserId = '22222222-2222-2222-2222-222222222222';
@@ -77,6 +78,7 @@ function makeUser(
     directMessageNotificationsEnabled: true,
     groupMessageNotificationsEnabled: true,
     channelMessageNotificationsEnabled: true,
+    role: UserRole.USER,
     ...overrides,
   };
 }

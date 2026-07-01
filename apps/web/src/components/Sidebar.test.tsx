@@ -53,7 +53,7 @@ vi.mock("@/lib/socket-client", () => ({
 
 function mockAuth(userOverrides?: Partial<ReturnType<typeof useAuth>>) {
   vi.mocked(useAuth).mockReturnValue({
-    user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en" as const, createdAt: "2024-01-01T00:00:00Z" },
+    user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en" as const, role: "USER" as const, createdAt: "2024-01-01T00:00:00Z" },
     accessToken: "token",
     refreshToken: "rt",
     isLoading: false,
@@ -120,6 +120,31 @@ beforeEach(() => {
 });
 
 describe("Sidebar — structure", () => {
+  it("shows Moderation link for admin users", async () => {
+    mockAuth({ user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", role: "ADMIN", createdAt: "2024-01-01T00:00:00Z", pushNotificationsEnabled: true, mentionNotificationsEnabled: true, directMessageNotificationsEnabled: true, groupMessageNotificationsEnabled: true, channelMessageNotificationsEnabled: true } });
+    vi.mocked(getWorkspaces).mockResolvedValue([]);
+    vi.mocked(listDirectConversations).mockResolvedValue([]);
+    vi.mocked(listGroups).mockResolvedValue([]);
+
+    render(<Sidebar />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-admin-reports-link")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("sidebar-admin-reports-link")).toHaveAttribute("href", "/admin/reports");
+  });
+
+  it("does not show Moderation link for regular users", async () => {
+    setupDefaultMocks();
+    render(<Sidebar />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("sidebar-direct-section")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByTestId("sidebar-admin-reports-link")).not.toBeInTheDocument();
+  });
+
   it("renders Direct section above Workspaces", async () => {
     setupDefaultMocks();
     render(<Sidebar />);

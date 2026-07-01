@@ -122,7 +122,7 @@ describe("LoginPage", () => {
 
   it("calls login and redirects on success", async () => {
     const mockResult = {
-      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en" as const, createdAt: "2024-01-01T00:00:00Z",
+      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en" as const, role: "USER" as const, createdAt: "2024-01-01T00:00:00Z",
       pushNotificationsEnabled: true,
       mentionNotificationsEnabled: true,
       directMessageNotificationsEnabled: true,
@@ -217,7 +217,7 @@ describe("LoginPage", () => {
 
     await act(async () => {
       resolveLogin!({
-        user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en" as const, createdAt: "2024-01-01T00:00:00Z",
+        user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en" as const, role: "USER" as const, createdAt: "2024-01-01T00:00:00Z",
       pushNotificationsEnabled: true,
       mentionNotificationsEnabled: true,
       directMessageNotificationsEnabled: true,
@@ -255,7 +255,7 @@ describe("LoginPage", () => {
     vi.mocked(login)
       .mockRejectedValueOnce(new ApiTimeoutError())
       .mockResolvedValueOnce({
-        user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en" as const, createdAt: "2024-01-01T00:00:00Z",
+        user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en" as const, role: "USER" as const, createdAt: "2024-01-01T00:00:00Z",
       pushNotificationsEnabled: true,
       mentionNotificationsEnabled: true,
       directMessageNotificationsEnabled: true,

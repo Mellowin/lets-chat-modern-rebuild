@@ -27,6 +27,40 @@ export interface ReportInput {
   groupId?: string;
 }
 
+export interface AdminReportUserSummary {
+  id: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+}
+
+export type ReportStatus = "OPEN" | "REVIEWED" | "DISMISSED" | "ACTION_TAKEN";
+
+export interface AdminReport {
+  id: string;
+  reporterId: string;
+  reportedUserId: string;
+  messageId: string | null;
+  directConversationId: string | null;
+  groupId: string | null;
+  reason: string;
+  details: string | null;
+  status: ReportStatus;
+  adminNote: string | null;
+  reviewedAt: string | null;
+  reviewedBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+  reporter: AdminReportUserSummary;
+  reportedUser: AdminReportUserSummary;
+  reviewedByUser: AdminReportUserSummary | null;
+}
+
+export interface AdminReportList {
+  items: AdminReport[];
+  nextCursor: string | null;
+}
+
 async function parseErrorMessage(
   res: Response,
   fallback: string,
@@ -129,4 +163,74 @@ export async function submitReport(
   }
 
   return res.json() as Promise<{ success: boolean }>;
+}
+
+export async function listAdminReports(
+  accessToken: string,
+  params: { status?: ReportStatus; cursor?: string; limit?: number } = {},
+): Promise<AdminReportList> {
+  const search = new URLSearchParams();
+  if (params.status) search.set("status", params.status);
+  if (params.cursor) search.set("cursor", params.cursor);
+  if (params.limit) search.set("limit", String(params.limit));
+  const query = search.toString();
+  const res = await authFetch(`${API_BASE}/admin/reports${query ? `?${query}` : ""}`, {
+    method: "GET",
+    headers: authHeaders(accessToken),
+  });
+
+  if (!res.ok) {
+    throw new Error(
+      await parseErrorMessage(res, `Failed to load reports: ${res.status} ${res.statusText}`),
+    );
+  }
+
+  return res.json() as Promise<AdminReportList>;
+}
+
+export async function getAdminReport(
+  accessToken: string,
+  reportId: string,
+): Promise<AdminReport> {
+  const res = await authFetch(
+    `${API_BASE}/admin/reports/${encodeURIComponent(reportId)}`,
+    {
+      method: "GET",
+      headers: authHeaders(accessToken),
+    },
+  );
+
+  if (!res.ok) {
+    throw new Error(
+      await parseErrorMessage(res, `Failed to load report: ${res.status} ${res.statusText}`),
+    );
+  }
+
+  return res.json() as Promise<AdminReport>;
+}
+
+export async function updateAdminReport(
+  accessToken: string,
+  reportId: string,
+  input: { status?: ReportStatus; adminNote?: string },
+): Promise<AdminReport> {
+  const res = await authFetch(
+    `${API_BASE}/admin/reports/${encodeURIComponent(reportId)}`,
+    {
+      method: "PATCH",
+      headers: {
+        ...authHeaders(accessToken),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
+    },
+  );
+
+  if (!res.ok) {
+    throw new Error(
+      await parseErrorMessage(res, `Failed to update report: ${res.status} ${res.statusText}`),
+    );
+  }
+
+  return res.json() as Promise<AdminReport>;
 }
