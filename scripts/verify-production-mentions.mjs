@@ -158,14 +158,17 @@ async function main() {
     detail: `mentions=${JSON.stringify(groupInvalidMessage.mentions)}`,
   });
 
-  // Mention of sender themselves should not resolve.
+  // Self-mentions resolve like any other accessible member; push filtering
+  // prevents the author from being notified.
   const selfMentionText = `Note to @${sender.user.username}`;
   const selfMentionMessage = await api(sender.accessToken, "POST", `/groups/${group.id}/messages`, {
     content: selfMentionText,
   });
   results.push({
-    check: "Self-mention in group is not resolved",
-    ok: Array.isArray(selfMentionMessage.mentions) && selfMentionMessage.mentions.length === 0,
+    check: "Self-mention in group resolves because the author is a member",
+    ok:
+      Array.isArray(selfMentionMessage.mentions) &&
+      selfMentionMessage.mentions.some((m) => m.userId === sender.user.id),
     detail: `mentions=${JSON.stringify(selfMentionMessage.mentions)}`,
   });
 
