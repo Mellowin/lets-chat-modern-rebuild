@@ -19,12 +19,12 @@ export class PushController {
 
   @Get('vapid-public-key')
   getVapidPublicKey() {
-    const publicKey = this.pushService.getVapidPublicKey();
-    if (!publicKey) {
+    if (!this.pushService.isVapidConfigured()) {
       throw new ServiceUnavailableException(
-        'Push notifications are not configured.',
+        'Push notifications are not configured on the server.',
       );
     }
+    const publicKey = this.pushService.getVapidPublicKey();
     return { publicKey };
   }
 

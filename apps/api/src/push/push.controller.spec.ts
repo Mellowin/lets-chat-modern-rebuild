@@ -33,6 +33,7 @@ describe('PushController', () => {
   let app: INestApplication;
   let pushService: {
     getVapidPublicKey: jest.Mock;
+    isVapidConfigured: jest.Mock;
     saveSubscription: jest.Mock;
     listSubscriptions: jest.Mock;
     removeSubscription: jest.Mock;
@@ -42,6 +43,7 @@ describe('PushController', () => {
   beforeEach(async () => {
     pushService = {
       getVapidPublicKey: jest.fn(),
+      isVapidConfigured: jest.fn().mockReturnValue(true),
       saveSubscription: jest.fn().mockResolvedValue(undefined),
       listSubscriptions: jest.fn().mockResolvedValue([]),
       removeSubscription: jest.fn().mockResolvedValue(undefined),
@@ -74,6 +76,7 @@ describe('PushController', () => {
 
   describe('GET /push/vapid-public-key', () => {
     it('returns the configured public key', async () => {
+      pushService.isVapidConfigured.mockReturnValue(true);
       pushService.getVapidPublicKey.mockReturnValue('public-key-123');
 
       const response = await request(app.getHttpServer() as Server)
@@ -84,7 +87,7 @@ describe('PushController', () => {
     });
 
     it('returns 503 when push is not configured', async () => {
-      pushService.getVapidPublicKey.mockReturnValue(null);
+      pushService.isVapidConfigured.mockReturnValue(false);
 
       await request(app.getHttpServer() as Server)
         .get('/push/vapid-public-key')
