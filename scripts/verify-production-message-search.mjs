@@ -51,13 +51,21 @@ async function main() {
     detail: `id=${workspace.id}`,
   });
 
-  await api(owner.accessToken, "POST", `/workspaces/${workspace.id}/members`, {
-    identifier: member.user.email,
-    role: "MEMBER",
+  const workspaceInvite = await api(
+    owner.accessToken,
+    "POST",
+    `/workspaces/${workspace.id}/invites`,
+    {
+      email: member.email,
+      role: "MEMBER",
+    },
+  );
+  await api(member.accessToken, "POST", "/invites/accept", {
+    token: workspaceInvite.token,
   });
   results.push({
-    check: "Owner can add member to workspace",
-    ok: true,
+    check: "Member can join workspace via invite",
+    ok: workspaceInvite.token && workspaceInvite.role === "MEMBER",
   });
 
   // Create public and private channels.

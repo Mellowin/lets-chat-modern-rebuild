@@ -146,7 +146,18 @@ export class MessagesSearchService {
     query: SearchGlobalMessagesQueryDto,
   ): Promise<GlobalSearchResponse> {
     const limit = Math.min(query.limit ?? 20, 50);
-    const scope = query.scope ?? 'all';
+    // Context filters implicitly narrow the search scope so results are not
+    // polluted by unrelated conversation types.
+    const hasChannelFilter = !!query.channelId || !!query.workspaceId;
+    const hasDirectFilter = !!query.conversationId;
+    const hasGroupFilter = !!query.groupId;
+    const scope = hasGroupFilter
+      ? 'group'
+      : hasDirectFilter
+        ? 'direct'
+        : hasChannelFilter
+          ? 'channel'
+          : (query.scope ?? 'all');
     const includeChannel = scope === 'all' || scope === 'channel';
     const includeDirect = scope === 'all' || scope === 'direct';
     const includeGroup = scope === 'all' || scope === 'group';
