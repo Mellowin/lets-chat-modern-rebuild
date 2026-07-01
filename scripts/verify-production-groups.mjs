@@ -114,9 +114,10 @@ async function main() {
 
   // Owner can list messages.
   const messages = await api(owner.accessToken, "GET", `/groups/${group.id}/messages`);
+  const messageItems = Array.isArray(messages) ? messages : messages.items;
   results.push({
     check: "Owner can list group messages",
-    ok: Array.isArray(messages) && messages.some((m) => m.id === message.id),
+    ok: Array.isArray(messageItems) && messageItems.some((m) => m.id === message.id),
   });
 
   // Stranger cannot send or list messages.

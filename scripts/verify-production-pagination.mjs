@@ -3,10 +3,11 @@
 /**
  * Production message-list pagination verification.
  *
- * Creates a disposable account, a workspace, a public channel, and a group,
- * posts several messages, and verifies that channel and group message-list
- * endpoints return the new paginated shape `{ items, nextCursor, hasMore }`
- * and that cursors correctly walk through older pages.
+ * Creates disposable accounts, a workspace with a public channel, a group,
+ * and a direct conversation; posts messages; and verifies that channel,
+ * group, and direct-conversation message-list endpoints return the new
+ * paginated shape `{ items, nextCursor, hasMore }` and that cursors walk
+ * through older pages without overlap.
  *
  * Optional env vars:
  *   VERIFY_API_BASE — override API endpoint
@@ -54,10 +55,13 @@ async function verifyChannelPagination(owner, workspace, results) {
     detail: `channelId=${channel.id}`,
   });
 
-  await sendMessages(owner.accessToken, (i) =>
-    api(owner.accessToken, "POST", `/workspaces/${workspace.id}/channels/${channel.id}/messages`, {
-      content: `channel-msg-${i}`,
-    }),
+  await sendMessages(
+    owner.accessToken,
+    (i) =>
+      api(owner.accessToken, "POST", `/workspaces/${workspace.id}/channels/${channel.id}/messages`, {
+        content: `channel-msg-${i}`,
+      }),
+    5,
   );
 
   const first = await api(
@@ -94,10 +98,10 @@ async function verifyChannelPagination(owner, workspace, results) {
   });
 }
 
-async function verifyGroupPagination(owner, results) {
+async function verifyGroupPagination(owner, memberUserId, results) {
   const group = await api(owner.accessToken, "POST", "/groups", {
     name: `B216 Pagination Group ${Date.now()}`,
-    memberIds: [],
+    memberIds: [memberUserId],
   });
   results.push({
     check: "Owner can create a group for pagination testing",
@@ -105,10 +109,13 @@ async function verifyGroupPagination(owner, results) {
     detail: `groupId=${group.id}`,
   });
 
-  await sendMessages(owner.accessToken, (i) =>
-    api(owner.accessToken, "POST", `/groups/${group.id}/messages`, {
-      content: `group-msg-${i}`,
-    }),
+  await sendMessages(
+    owner.accessToken,
+    (i) =>
+      api(owner.accessToken, "POST", `/groups/${group.id}/messages`, {
+        content: `group-msg-${i}`,
+      }),
+    5,
   );
 
   const first = await api(owner.accessToken, "GET", `/groups/${group.id}/messages?limit=3`);
@@ -141,6 +148,53 @@ async function verifyGroupPagination(owner, results) {
   });
 }
 
+async function verifyDirectPagination(owner, member, results) {
+  const conversation = await api(owner.accessToken, "POST", "/direct-conversations", {
+    userId: member.user.id,
+  });
+  results.push({
+    check: "Owner can create a direct conversation for pagination testing",
+    ok: conversation.id && conversation.otherParticipant?.id === member.user.id,
+    detail: `conversationId=${conversation.id}`,
+  });
+
+  await sendMessages(
+    owner.accessToken,
+    (i) =>
+      api(owner.accessToken, "POST", `/direct-conversations/${conversation.id}/messages`, {
+        content: `direct-msg-${i}`,
+      }),
+    5,
+  );
+
+  const first = await api(
+    owner.accessToken,
+    "GET",
+    `/direct-conversations/${conversation.id}/messages?limit=3`,
+  );
+  results.push({
+    check: "Direct conversation message list returns paginated shape",
+    ok: isPaginatedShape(first),
+    detail: `items=${first?.items?.length}, hasMore=${first?.hasMore}`,
+  });
+  results.push({
+    check: "Direct conversation first page returns requested limit and signals more pages",
+    ok: first.items.length === 3 && first.hasMore === true && typeof first.nextCursor === "string",
+    detail: `items=${first.items.length}, hasMore=${first.hasMore}`,
+  });
+
+  const second = await api(
+    owner.accessToken,
+    "GET",
+    `/direct-conversations/${conversation.id}/messages?limit=3&cursor=${encodeURIComponent(first.nextCursor)}`,
+  );
+  results.push({
+    check: "Direct conversation cursor page returns remaining messages without overlap",
+    ok: second.items.length === 2 && second.hasMore === false && assertNoOverlappingIds(first, second),
+    detail: `items=${second.items.length}, hasMore=${second.hasMore}`,
+  });
+}
+
 async function main() {
   console.log("=== Production Message Pagination Verification ===\n");
   console.log(`API_BASE: ${API_BASE}\n`);
@@ -148,6 +202,8 @@ async function main() {
   const results = [];
 
   const owner = await createVerifiedAccount("pageowner");
+  await sleep(30000);
+  const member = await createVerifiedAccount("pagemember");
 
   const workspace = await api(owner.accessToken, "POST", "/workspaces", {
     name: `B216 Pagination ${Date.now()}`,
@@ -160,7 +216,8 @@ async function main() {
   });
 
   await verifyChannelPagination(owner, workspace, results);
-  await verifyGroupPagination(owner, results);
+  await verifyGroupPagination(owner, member.user.id, results);
+  await verifyDirectPagination(owner, member, results);
 
   finalize(results);
 }
