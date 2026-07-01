@@ -19,6 +19,7 @@ All scripts are located in `scripts/` and are exposed as root package scripts.
 | **Group chats** | `node scripts/verify-production-groups.mjs` | Group CRUD, membership, messaging, read state, and access control. | Two disposable accounts, one group | Group is archived at the end |
 | **Contacts & group invites** | `pnpm verify:prod:contacts` | Contacts lifecycle/privacy and group invite link create/revoke/accept. | Three disposable accounts, one group | Group is archived at the end |
 | **Message pagination** | `pnpm verify:prod:pagination` | Channel and group message lists return `{ items, nextCursor, hasMore }`; cursors walk through older pages without overlap. | One disposable account, one workspace, one channel, one group | Channel and group are archived at the end |
+| **Mentions & notifications** | `node scripts/verify-production-mentions.mjs` | Notification preference endpoints, mention resolution in DMs and groups, and non-resolvable mention filtering. | Two disposable accounts, one direct conversation, one group | None |
 | **All** | `pnpm verify:prod:all` | Runs public → auth → permissions → browser → attachments → contacts → pwa sequentially. | Same as above | Same as above |
 
 ---
@@ -173,3 +174,21 @@ Having a runnable verification pack means the project can demonstrate:
 - permission boundary checks for destructive owner actions;
 - cross-browser/mobile sanity checks;
 - clear safety boundaries between read-only and destructive verification.
+
+## Mentions & Notification Preferences Verification
+
+The standalone mentions verifier is `scripts/verify-production-mentions.mjs`.
+
+```bash
+node scripts/verify-production-mentions.mjs
+```
+
+**What it checks:**
+
+- `GET /auth/me/notification-preferences` returns all five preference booleans.
+- `PATCH /auth/me/notification-preferences` updates a single field.
+- Mentions in direct messages resolve for the other participant.
+- Mentions of non-participants in a direct conversation do not resolve.
+- Mentions in groups resolve for members.
+- Mentions of non-members in a group do not resolve.
+- Self-mentions resolve (the author is a member), while push filtering prevents the author from being notified.
