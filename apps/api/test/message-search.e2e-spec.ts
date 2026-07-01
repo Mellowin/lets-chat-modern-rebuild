@@ -341,9 +341,11 @@ describe('MessageSearch E2E', () => {
   });
 
   it('excludes direct messages from blocked users', async () => {
-    await prisma.userBlock.create({
-      data: { blockerId: userB.id, blockedId: userA.id },
-    });
+    await request(app.getHttpServer())
+      .post('/blocks')
+      .set('Authorization', `Bearer ${tokenB}`)
+      .send({ userId: userA.id })
+      .expect(201);
 
     const res = await request(app.getHttpServer())
       .get(`/search/messages?q=${encodeURIComponent(sharedQuery)}&scope=direct`)
@@ -352,15 +354,18 @@ describe('MessageSearch E2E', () => {
 
     expect((res.body as SearchResponseBody).items).toEqual([]);
 
-    await prisma.userBlock.deleteMany({
-      where: { blockerId: userB.id, blockedId: userA.id },
-    });
+    await request(app.getHttpServer())
+      .delete(`/blocks/${userA.id}`)
+      .set('Authorization', `Bearer ${tokenB}`)
+      .expect(200);
   });
 
   it('excludes group messages from blocked users', async () => {
-    await prisma.userBlock.create({
-      data: { blockerId: userB.id, blockedId: userA.id },
-    });
+    await request(app.getHttpServer())
+      .post('/blocks')
+      .set('Authorization', `Bearer ${tokenB}`)
+      .send({ userId: userA.id })
+      .expect(201);
 
     const res = await request(app.getHttpServer())
       .get(`/search/messages?q=${encodeURIComponent(sharedQuery)}&scope=group`)
@@ -369,8 +374,9 @@ describe('MessageSearch E2E', () => {
 
     expect((res.body as SearchResponseBody).items).toEqual([]);
 
-    await prisma.userBlock.deleteMany({
-      where: { blockerId: userB.id, blockedId: userA.id },
-    });
+    await request(app.getHttpServer())
+      .delete(`/blocks/${userA.id}`)
+      .set('Authorization', `Bearer ${tokenB}`)
+      .expect(200);
   });
 });

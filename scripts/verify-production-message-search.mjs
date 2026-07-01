@@ -267,7 +267,7 @@ async function main() {
   });
 
   // Block boundary: member blocks owner, then member no longer sees direct or group messages from owner.
-  await api(member.accessToken, "POST", "/safety/block", {
+  await api(member.accessToken, "POST", "/blocks", {
     userId: owner.user.id,
   });
 
