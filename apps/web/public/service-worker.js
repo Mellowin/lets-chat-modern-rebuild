@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const APP_SHELL_CACHE = `lets-chat-shell-${CACHE_VERSION}`;
 const STATIC_CACHE = `lets-chat-static-${CACHE_VERSION}`;
 const OFFLINE_PAGE = '/offline.html';
@@ -15,6 +15,8 @@ const SHELL_URLS = [
   '/direct',
   '/profile',
   '/project-status',
+  '/admin',
+  '/admin/reports',
   '/offline.html',
 ];
 
@@ -27,6 +29,18 @@ const STATIC_ASSET_URLS = [
   '/icons/icon-maskable-512x512.png',
   '/manifest.webmanifest',
 ];
+
+/**
+ * @param {Response} response
+ */
+function isCacheableResponse(response) {
+  return (
+    response &&
+    response.status === 200 &&
+    response.type === 'basic' &&
+    !response.bodyUsed
+  );
+}
 
 /**
  * @param {PushEvent} event
@@ -121,17 +135,30 @@ function handleFetch(event) {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const cache = caches.open(APP_SHELL_CACHE);
-          cache.then((c) =>
-            c.put(request, response.clone()).catch(() => {}),
-          );
+          if (isCacheableResponse(response)) {
+            const responseClone = response.clone();
+            caches
+              .open(APP_SHELL_CACHE)
+              .then((cache) =>
+                cache.put(request, responseClone).catch(() => {}),
+              )
+              .catch(() => {});
+          }
           return response;
         })
         .catch(() =>
           caches
             .match(request)
-            .then((cached) => cached || caches.match(OFFLINE_PAGE))
-            .then((cached) => cached || new Response('Offline', { status: 503 })),
+            .then(
+              (cached) =>
+                (cached && cached.clone()) ||
+                caches.match(OFFLINE_PAGE),
+            )
+            .then(
+              (cached) =>
+                (cached && cached.clone()) ||
+                new Response('Offline', { status: 503 }),
+            ),
         ),
     );
     return;
@@ -148,14 +175,18 @@ function handleFetch(event) {
     event.respondWith(
       caches.match(request).then((cached) => {
         if (cached) {
-          return cached;
+          return cached.clone();
         }
         return fetch(request).then((response) => {
-          if (!response || response.status !== 200 || response.type !== 'basic') {
-            return response;
+          if (isCacheableResponse(response)) {
+            const responseClone = response.clone();
+            caches
+              .open(STATIC_CACHE)
+              .then((cache) =>
+                cache.put(request, responseClone).catch(() => {}),
+              )
+              .catch(() => {});
           }
-          const cache = caches.open(STATIC_CACHE);
-          cache.then((c) => c.put(request, response.clone()).catch(() => {}));
           return response;
         });
       }),
@@ -166,15 +197,24 @@ function handleFetch(event) {
   // Other same-origin GET requests: network first with cache fallback.
   if (url.origin === self.location.origin) {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (response && response.status === 200 && response.type === 'basic') {
-            const cache = caches.open(APP_SHELL_CACHE);
-            cache.then((c) => c.put(request, response.clone()).catch(() => {}));
-          }
-          return response;
-        })
-        .catch(() => caches.match(request).then((cached) => cached || fetch(request))),
+      caches.match(request).then((cached) => {
+        const network = fetch(request)
+          .then((response) => {
+            if (isCacheableResponse(response)) {
+              const responseClone = response.clone();
+              caches
+                .open(APP_SHELL_CACHE)
+                .then((cache) =>
+                  cache.put(request, responseClone).catch(() => {}),
+                )
+                .catch(() => {});
+            }
+            return response;
+          })
+          .catch(() => cached);
+
+        return cached ? cached.clone() : network;
+      }),
     );
   }
 }
@@ -183,9 +223,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
       .open(APP_SHELL_CACHE)
-      .then((cache) =>
-        cache.addAll(SHELL_URLS).catch(() => {}),
-      )
+      .then((cache) => cache.addAll(SHELL_URLS).catch(() => {}))
       .then(() =>
         caches
           .open(STATIC_CACHE)
