@@ -293,7 +293,7 @@ export default function GroupConversationPage() {
           const heightDelta = scrollEl.scrollHeight - previousScrollHeight;
           scrollEl.scrollTop += heightDelta;
         }
-      }, 60);
+      }, 200);
     } catch (err) {
       const message = localizeApiError(err, "groups.failedLoadMessages", t);
       setOlderMessagesState({ kind: "error", message });

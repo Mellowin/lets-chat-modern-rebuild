@@ -861,7 +861,7 @@ export default function ChannelDetailPage() {
           const heightDelta = scrollEl.scrollHeight - previousScrollHeight;
           scrollEl.scrollTop += heightDelta;
         }
-      }, 60);
+      }, 200);
     } catch (err) {
       const message = localizeApiError(err, "channel.errorLoadMessagesFailed", t);
       setOlderMessagesState({ kind: "error", message });

@@ -180,6 +180,7 @@ async function main() {
           if (!btn) return true;
           return !(btn instanceof HTMLButtonElement && btn.disabled);
         });
+        await sleep(500);
 
         const afterTop = await page.evaluate((id) => {
           const row = document.querySelector(`[data-testid="message-row-${id}"]`);
