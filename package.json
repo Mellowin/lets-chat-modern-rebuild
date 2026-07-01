@@ -27,6 +27,7 @@
     "verify:prod:pwa": "node scripts/verify-production-pwa.mjs",
     "verify:prod:safety": "node scripts/verify-production-safety.mjs",
     "verify:prod:pagination": "node scripts/verify-production-pagination.mjs",
+    "verify:prod:mentions": "node scripts/verify-production-mentions.mjs",
     "verify:prod:mobile-shell": "node scripts/verify-mobile-shell.mjs",
     "verify:prod:all": "pnpm verify:prod:public && pnpm verify:prod:auth && pnpm verify:prod:permissions && pnpm verify:prod:browser && pnpm verify:prod:attachments && pnpm verify:prod:contacts && pnpm verify:prod:pwa"
   },
