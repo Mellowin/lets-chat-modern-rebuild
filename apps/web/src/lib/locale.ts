@@ -93,6 +93,19 @@ export type TranslationKey =
   | "profile.disablingNotifications"
   | "profile.notificationsEnabled"
   | "profile.notificationsDisabled"
+  | "profile.notificationPreferences"
+  | "profile.notificationPreferencesDescription"
+  | "profile.pushNotificationsToggle"
+  | "profile.pushNotificationsToggleDescription"
+  | "profile.mentionNotificationsToggle"
+  | "profile.mentionNotificationsToggleDescription"
+  | "profile.directMessageNotificationsToggle"
+  | "profile.directMessageNotificationsToggleDescription"
+  | "profile.groupMessageNotificationsToggle"
+  | "profile.groupMessageNotificationsToggleDescription"
+  | "profile.channelMessageNotificationsToggle"
+  | "profile.channelMessageNotificationsToggleDescription"
+  | "profile.loadingNotificationPreferences"
   | "dashboard.welcome"
   | "dashboard.signedInAs"
   | "dashboard.profileSettings"
@@ -1307,6 +1320,19 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.disablingNotifications": "Disabling…",
     "profile.notificationsEnabled": "Push notifications enabled.",
     "profile.notificationsDisabled": "Push notifications disabled.",
+    "profile.notificationPreferences": "Notification preferences",
+    "profile.notificationPreferencesDescription": "Choose which events send you push notifications.",
+    "profile.pushNotificationsToggle": "Push notifications",
+    "profile.pushNotificationsToggleDescription": "Allow any push notifications on this device.",
+    "profile.mentionNotificationsToggle": "Mentions",
+    "profile.mentionNotificationsToggleDescription": "Notify when someone mentions you with @username.",
+    "profile.directMessageNotificationsToggle": "Direct messages",
+    "profile.directMessageNotificationsToggleDescription": "Notify about new direct messages.",
+    "profile.groupMessageNotificationsToggle": "Group messages",
+    "profile.groupMessageNotificationsToggleDescription": "Notify about new messages in groups.",
+    "profile.channelMessageNotificationsToggle": "Channel messages",
+    "profile.channelMessageNotificationsToggleDescription": "Notify about new messages in channels.",
+    "profile.loadingNotificationPreferences": "Loading preferences…",
     "api.timeoutError": "The server is taking too long to respond. It may be waking up. Please try again in a moment.",
     "api.coldStartHint": "Free Render instances may take up to a minute to wake up.",
     "channel.searchMessages": "Search messages",
@@ -2058,6 +2084,19 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.disablingNotifications": "Вимикаємо…",
     "profile.notificationsEnabled": "Push-сповіщення увімкнено.",
     "profile.notificationsDisabled": "Push-сповіщення вимкнено.",
+    "profile.notificationPreferences": "Налаштування сповіщень",
+    "profile.notificationPreferencesDescription": "Оберіть події, про які надсилати push-сповіщення.",
+    "profile.pushNotificationsToggle": "Push-сповіщення",
+    "profile.pushNotificationsToggleDescription": "Дозволити будь-які push-сповіщення на цьому пристрої.",
+    "profile.mentionNotificationsToggle": "Згадування",
+    "profile.mentionNotificationsToggleDescription": "Сповіщати, коли хтось згадує вас через @username.",
+    "profile.directMessageNotificationsToggle": "Особисті повідомлення",
+    "profile.directMessageNotificationsToggleDescription": "Сповіщати про нові особисті повідомлення.",
+    "profile.groupMessageNotificationsToggle": "Повідомлення в групах",
+    "profile.groupMessageNotificationsToggleDescription": "Сповіщати про нові повідомлення в групах.",
+    "profile.channelMessageNotificationsToggle": "Повідомлення в каналах",
+    "profile.channelMessageNotificationsToggleDescription": "Сповіщати про нові повідомлення в каналах.",
+    "profile.loadingNotificationPreferences": "Завантаження налаштувань…",
     "api.timeoutError": "Сервер відповідає занадто довго. Можливо, він прокидається. Спробуйте ще раз за мить.",
     "api.coldStartHint": "Безкоштовні інстанси Render можуть прокидатися до хвилини.",
     "channel.searchMessages": "Шукати повідомлення",
@@ -2809,6 +2848,19 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.disablingNotifications": "Выключаем…",
     "profile.notificationsEnabled": "Push-уведомления включены.",
     "profile.notificationsDisabled": "Push-уведомления выключены.",
+    "profile.notificationPreferences": "Настройки уведомлений",
+    "profile.notificationPreferencesDescription": "Выберите события, о которых отправлять push-уведомления.",
+    "profile.pushNotificationsToggle": "Push-уведомления",
+    "profile.pushNotificationsToggleDescription": "Разрешить любые push-уведомления на этом устройстве.",
+    "profile.mentionNotificationsToggle": "Упоминания",
+    "profile.mentionNotificationsToggleDescription": "Уведомлять, когда кто-то упоминает вас через @username.",
+    "profile.directMessageNotificationsToggle": "Личные сообщения",
+    "profile.directMessageNotificationsToggleDescription": "Уведомлять о новых личных сообщениях.",
+    "profile.groupMessageNotificationsToggle": "Сообщения в группах",
+    "profile.groupMessageNotificationsToggleDescription": "Уведомлять о новых сообщениях в группах.",
+    "profile.channelMessageNotificationsToggle": "Сообщения в каналах",
+    "profile.channelMessageNotificationsToggleDescription": "Уведомлять о новых сообщениях в каналах.",
+    "profile.loadingNotificationPreferences": "Загрузка настроек…",
     "api.timeoutError": "Сервер слишком долго отвечает. Возможно, он просыпается. Попробуйте ещё раз через минуту.",
     "api.coldStartHint": "Бесплатные инстансы Render могут просыпаться до минуты.",
     "channel.searchMessages": "Искать сообщения",

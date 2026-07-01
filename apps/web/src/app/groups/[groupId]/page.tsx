@@ -10,6 +10,7 @@ import { localizeApiError } from "@/lib/api-errors";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { MessageContent } from "@/components/MessageContent";
 import {
   getGroup,
   listGroupMessages,
@@ -446,7 +447,7 @@ export default function GroupConversationPage() {
                             data-testid={`group-message-content-${msg.id}`}
                             className="whitespace-pre-wrap text-sm text-foreground"
                           >
-                            {msg.content}
+                            <MessageContent content={msg.content} mentions={msg.mentions} />
                           </p>
                         </div>
                       </li>

@@ -41,6 +41,11 @@ export interface GroupMessageAuthor {
   avatarUrl: string | null;
 }
 
+export interface GroupMessageMention {
+  userId: string;
+  username: string;
+}
+
 export interface GroupMessage {
   id: string;
   groupId: string;
@@ -48,6 +53,7 @@ export interface GroupMessage {
   createdAt: string;
   updatedAt: string;
   author: GroupMessageAuthor;
+  mentions?: GroupMessageMention[];
 }
 
 export interface PaginatedGroupMessages {

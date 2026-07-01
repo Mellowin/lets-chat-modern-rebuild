@@ -43,6 +43,7 @@ import {
 import { Input } from "@/components/ui/Input";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { PushNotificationsSection } from "./PushNotificationsSection";
+import { NotificationPreferencesSection } from "./NotificationPreferencesSection";
 import { PwaInstallSection } from "./PwaInstallSection";
 
 type FormState =
@@ -1000,7 +1001,12 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {activeTab === "notifications" && <PushNotificationsSection />}
+      {activeTab === "notifications" && (
+        <div className="space-y-6">
+          <PushNotificationsSection />
+          <NotificationPreferencesSection />
+        </div>
+      )}
 
       {activeTab === "app" && <PwaInstallSection />}
 

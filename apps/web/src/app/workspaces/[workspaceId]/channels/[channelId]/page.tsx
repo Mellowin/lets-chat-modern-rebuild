@@ -62,6 +62,7 @@ import {
   isAllowedAttachmentExtension,
 } from "@lets-chat/shared";
 import { MessageAuthor } from "@/components/MessageAuthor";
+import { MessageContent } from "@/components/MessageContent";
 import ChannelMessageSearch from "@/components/ChannelMessageSearch";
 import ImageLightbox from "@/components/ImageLightbox";
 
@@ -1931,7 +1932,7 @@ export default function ChannelDetailPage() {
                           ) : (
                             msg.content.trim().length > 0 && (
                               <p className={`whitespace-pre-wrap break-words text-sm leading-6 ${isOwnMessage ? "text-white" : "text-foreground"}`}>
-                                {msg.content}
+                                <MessageContent content={msg.content} mentions={msg.mentions} />
                               </p>
                             )
                           )}

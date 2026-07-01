@@ -26,6 +26,7 @@ import { localizeApiError } from "@/lib/api-errors";
 import { Avatar } from "@/components/ui/Avatar";
 import { BlockUserButton } from "@/components/BlockUserButton";
 import { ReportModal } from "@/components/ReportModal";
+import { MessageContent } from "@/components/MessageContent";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -1203,7 +1204,7 @@ export default function DirectConversationPage() {
                                 </div>
                               )}
                               <p className={`whitespace-pre-wrap break-words text-sm leading-6 ${isOwnMessage ? "text-white" : "text-foreground"}`}>
-                                {msg.content}
+                                <MessageContent content={msg.content} mentions={msg.mentions} />
                               </p>
                               {msg.reactions && msg.reactions.length > 0 && (
                                 <div data-testid={`direct-reactions-${msg.id}`} className="mt-1.5 flex flex-wrap gap-1">

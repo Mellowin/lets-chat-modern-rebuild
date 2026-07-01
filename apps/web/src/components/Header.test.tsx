@@ -32,13 +32,23 @@ beforeEach(() => {
 
 describe("Header — global unread", () => {
   it("does not show global unread badge when total is 0", () => {
-    mockAuth({ isAuthenticated: true, user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z" } });
+    mockAuth({ isAuthenticated: true, user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z",
+      pushNotificationsEnabled: true,
+      mentionNotificationsEnabled: true,
+      directMessageNotificationsEnabled: true,
+      groupMessageNotificationsEnabled: true,
+      channelMessageNotificationsEnabled: true, } });
     render(<Header />);
     expect(screen.queryByTestId("header-global-unread")).not.toBeInTheDocument();
   });
 
   it("shows global unread badge when total > 0", () => {
-    mockAuth({ isAuthenticated: true, user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z" } });
+    mockAuth({ isAuthenticated: true, user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z",
+      pushNotificationsEnabled: true,
+      mentionNotificationsEnabled: true,
+      directMessageNotificationsEnabled: true,
+      groupMessageNotificationsEnabled: true,
+      channelMessageNotificationsEnabled: true, } });
     render(<Header />);
     act(() => {
       window.dispatchEvent(new CustomEvent("global-unread:changed", { detail: { total: 5 } }));
@@ -47,7 +57,12 @@ describe("Header — global unread", () => {
   });
 
   it("shows 99+ for large unread counts", () => {
-    mockAuth({ isAuthenticated: true, user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z" } });
+    mockAuth({ isAuthenticated: true, user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z",
+      pushNotificationsEnabled: true,
+      mentionNotificationsEnabled: true,
+      directMessageNotificationsEnabled: true,
+      groupMessageNotificationsEnabled: true,
+      channelMessageNotificationsEnabled: true, } });
     render(<Header />);
     act(() => {
       window.dispatchEvent(new CustomEvent("global-unread:changed", { detail: { total: 150 } }));
@@ -56,7 +71,12 @@ describe("Header — global unread", () => {
   });
 
   it("hides badge when unread returns to 0", () => {
-    mockAuth({ isAuthenticated: true, user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z" } });
+    mockAuth({ isAuthenticated: true, user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z",
+      pushNotificationsEnabled: true,
+      mentionNotificationsEnabled: true,
+      directMessageNotificationsEnabled: true,
+      groupMessageNotificationsEnabled: true,
+      channelMessageNotificationsEnabled: true, } });
     render(<Header />);
     act(() => {
       window.dispatchEvent(new CustomEvent("global-unread:changed", { detail: { total: 5 } }));
@@ -82,6 +102,11 @@ describe("Header — global search", () => {
         avatarUpdatedAt: null,
         interfaceLanguage: "en",
         createdAt: "2024-01-01T00:00:00Z",
+      pushNotificationsEnabled: true,
+      mentionNotificationsEnabled: true,
+      directMessageNotificationsEnabled: true,
+      groupMessageNotificationsEnabled: true,
+      channelMessageNotificationsEnabled: true,
       },
     });
     render(<Header />);

@@ -52,6 +52,11 @@ export interface DirectMessageReactionSummary {
   reactedByMe: boolean;
 }
 
+export interface DirectMessageMention {
+  userId: string;
+  username: string;
+}
+
 export interface DirectMessage {
   id: string;
   conversationId: string;
@@ -65,6 +70,7 @@ export interface DirectMessage {
   reactions: DirectMessageReactionSummary[];
   readByOtherParticipant: boolean;
   isUnreadForMe: boolean;
+  mentions?: DirectMessageMention[];
 }
 
 export interface PaginatedDirectMessages {

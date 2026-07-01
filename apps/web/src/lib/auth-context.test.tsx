@@ -48,7 +48,12 @@ function TestConsumer() {
         data-testid="login-btn"
         onClick={() =>
           loginSuccess({
-            user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z" },
+            user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z",
+      pushNotificationsEnabled: true,
+      mentionNotificationsEnabled: true,
+      directMessageNotificationsEnabled: true,
+      groupMessageNotificationsEnabled: true,
+      channelMessageNotificationsEnabled: true, },
             accessToken: "at",
             refreshToken: "rt",
           })
@@ -59,7 +64,12 @@ function TestConsumer() {
       <button
         data-testid="setuser-btn"
         onClick={() =>
-          setUser({ id: "u1", email: "a@b.com", username: "alice", displayName: "Alice", avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z" })
+          setUser({ id: "u1", email: "a@b.com", username: "alice", displayName: "Alice", avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z",
+      pushNotificationsEnabled: true,
+      mentionNotificationsEnabled: true,
+      directMessageNotificationsEnabled: true,
+      groupMessageNotificationsEnabled: true,
+      channelMessageNotificationsEnabled: true, })
         }
       >
         SetUser
@@ -111,6 +121,11 @@ describe("AuthProvider", () => {
       avatarUpdatedAt: null,
       interfaceLanguage: "en",
       createdAt: "2024-01-01T00:00:00Z",
+      pushNotificationsEnabled: true,
+      mentionNotificationsEnabled: true,
+      directMessageNotificationsEnabled: true,
+      groupMessageNotificationsEnabled: true,
+      channelMessageNotificationsEnabled: true,
     });
 
     render(
@@ -153,7 +168,12 @@ describe("AuthProvider", () => {
     sessionStorage.setItem("accessToken", expiredAccessToken);
     sessionStorage.setItem("refreshToken", "refresh-token");
     vi.mocked(performSilentRefresh).mockResolvedValueOnce({
-      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z" },
+      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z",
+      pushNotificationsEnabled: true,
+      mentionNotificationsEnabled: true,
+      directMessageNotificationsEnabled: true,
+      groupMessageNotificationsEnabled: true,
+      channelMessageNotificationsEnabled: true, },
       accessToken: validAccessToken,
       refreshToken: "new-refresh-token",
     });
@@ -166,6 +186,11 @@ describe("AuthProvider", () => {
       avatarUpdatedAt: null,
       interfaceLanguage: "en",
       createdAt: "2024-01-01T00:00:00Z",
+      pushNotificationsEnabled: true,
+      mentionNotificationsEnabled: true,
+      directMessageNotificationsEnabled: true,
+      groupMessageNotificationsEnabled: true,
+      channelMessageNotificationsEnabled: true,
     });
 
     render(
@@ -210,7 +235,12 @@ describe("AuthProvider", () => {
     sessionStorage.setItem("refreshToken", "refresh-token");
     vi.mocked(getMe).mockRejectedValueOnce(new Error("Unauthorized"));
     vi.mocked(performSilentRefresh).mockResolvedValueOnce({
-      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z" },
+      user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", createdAt: "2024-01-01T00:00:00Z",
+      pushNotificationsEnabled: true,
+      mentionNotificationsEnabled: true,
+      directMessageNotificationsEnabled: true,
+      groupMessageNotificationsEnabled: true,
+      channelMessageNotificationsEnabled: true, },
       accessToken: "refreshed-access-token",
       refreshToken: "new-refresh-token",
     });
@@ -223,6 +253,11 @@ describe("AuthProvider", () => {
       avatarUpdatedAt: null,
       interfaceLanguage: "en",
       createdAt: "2024-01-01T00:00:00Z",
+      pushNotificationsEnabled: true,
+      mentionNotificationsEnabled: true,
+      directMessageNotificationsEnabled: true,
+      groupMessageNotificationsEnabled: true,
+      channelMessageNotificationsEnabled: true,
     });
 
     render(
@@ -272,6 +307,11 @@ describe("AuthProvider", () => {
       avatarUpdatedAt: null,
       interfaceLanguage: "en",
       createdAt: "2024-01-01T00:00:00Z",
+      pushNotificationsEnabled: true,
+      mentionNotificationsEnabled: true,
+      directMessageNotificationsEnabled: true,
+      groupMessageNotificationsEnabled: true,
+      channelMessageNotificationsEnabled: true,
     });
     vi.mocked(apiLogout).mockResolvedValueOnce({ success: true });
 
@@ -309,6 +349,11 @@ describe("AuthProvider", () => {
       avatarUpdatedAt: null,
       interfaceLanguage: "en",
       createdAt: "2024-01-01T00:00:00Z",
+      pushNotificationsEnabled: true,
+      mentionNotificationsEnabled: true,
+      directMessageNotificationsEnabled: true,
+      groupMessageNotificationsEnabled: true,
+      channelMessageNotificationsEnabled: true,
     });
     vi.mocked(apiLogout).mockRejectedValueOnce(new Error("Network error"));
 
@@ -345,6 +390,11 @@ describe("AuthProvider", () => {
       avatarUpdatedAt: null,
       interfaceLanguage: "en",
       createdAt: "2024-01-01T00:00:00Z",
+      pushNotificationsEnabled: true,
+      mentionNotificationsEnabled: true,
+      directMessageNotificationsEnabled: true,
+      groupMessageNotificationsEnabled: true,
+      channelMessageNotificationsEnabled: true,
     });
 
     render(
@@ -376,6 +426,11 @@ describe("AuthProvider", () => {
       avatarUpdatedAt: null,
       interfaceLanguage: "uk",
       createdAt: "2024-01-01T00:00:00Z",
+      pushNotificationsEnabled: true,
+      mentionNotificationsEnabled: true,
+      directMessageNotificationsEnabled: true,
+      groupMessageNotificationsEnabled: true,
+      channelMessageNotificationsEnabled: true,
     });
 
     function LocaleConsumer() {
@@ -422,7 +477,12 @@ describe("AuthProvider", () => {
             data-testid="login-btn-ru"
             onClick={() =>
               loginSuccess({
-                user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "ru", createdAt: "2024-01-01T00:00:00Z" },
+                user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "ru", createdAt: "2024-01-01T00:00:00Z",
+      pushNotificationsEnabled: true,
+      mentionNotificationsEnabled: true,
+      directMessageNotificationsEnabled: true,
+      groupMessageNotificationsEnabled: true,
+      channelMessageNotificationsEnabled: true, },
                 accessToken: "at",
                 refreshToken: "rt",
               })

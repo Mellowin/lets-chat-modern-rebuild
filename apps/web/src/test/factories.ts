@@ -14,6 +14,11 @@ export function createAuthUser(overrides?: Partial<AuthUser>): AuthUser {
     avatarUpdatedAt: null,
     interfaceLanguage: "en",
     createdAt: "2024-01-01T00:00:00Z",
+    pushNotificationsEnabled: true,
+    mentionNotificationsEnabled: true,
+    directMessageNotificationsEnabled: true,
+    groupMessageNotificationsEnabled: true,
+    channelMessageNotificationsEnabled: true,
     ...overrides,
   };
 }

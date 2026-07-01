@@ -25,6 +25,11 @@ export interface Attachment {
   createdAt: string;
 }
 
+export interface MessageMention {
+  userId: string;
+  username: string;
+}
+
 export interface Message {
   id: string;
   channelId: string;
@@ -36,6 +41,7 @@ export interface Message {
   author: MessageAuthor;
   reactions: ReactionSummary[];
   attachments?: Attachment[];
+  mentions?: MessageMention[];
 }
 
 export interface CreateMessageAttachmentInput {

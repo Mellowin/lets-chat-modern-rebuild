@@ -15,7 +15,22 @@ export interface AuthUser {
   avatarUpdatedAt: string | null;
   interfaceLanguage: "en" | "uk" | "ru";
   createdAt: string;
+  pushNotificationsEnabled: boolean;
+  mentionNotificationsEnabled: boolean;
+  directMessageNotificationsEnabled: boolean;
+  groupMessageNotificationsEnabled: boolean;
+  channelMessageNotificationsEnabled: boolean;
 }
+
+export interface NotificationPreferences {
+  pushNotificationsEnabled: boolean;
+  mentionNotificationsEnabled: boolean;
+  directMessageNotificationsEnabled: boolean;
+  groupMessageNotificationsEnabled: boolean;
+  channelMessageNotificationsEnabled: boolean;
+}
+
+export type NotificationPreferencesInput = Partial<NotificationPreferences>;
 
 export interface AuthResult {
   user: AuthUser;
@@ -412,4 +427,38 @@ export async function updateInterfaceLanguage(accessToken: string, interfaceLang
   }
 
   return res.json() as Promise<AuthUser>;
+}
+
+export async function getNotificationPreferences(accessToken: string): Promise<NotificationPreferences> {
+  const res = await authFetch(`${API_BASE}/auth/me/notification-preferences`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to load notification preferences: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<NotificationPreferences>;
+}
+
+export async function updateNotificationPreferences(accessToken: string, input: NotificationPreferencesInput): Promise<NotificationPreferences> {
+  const res = await authFetch(`${API_BASE}/auth/me/notification-preferences`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to update notification preferences: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<NotificationPreferences>;
 }
