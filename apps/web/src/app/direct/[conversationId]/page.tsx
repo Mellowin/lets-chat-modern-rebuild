@@ -110,6 +110,7 @@ export default function DirectConversationPage() {
   >({ kind: "idle" });
   const [typingUser, setTypingUser] = useState<{ id: string; username: string; displayName: string | null } | null>(null);
   const [presenceStatus, setPresenceStatus] = useState<"online" | "offline">("offline");
+  const [scrollPaused, setScrollPaused] = useState(false);
   const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const {
     scrollRef: hookScrollRef,
@@ -120,6 +121,7 @@ export default function DirectConversationPage() {
     unstick,
   } = useMessageListScroll({
     messagesLoaded: messages.kind === "success",
+    disabled: scrollPaused,
   });
   const messagesScrollElementRef = useRef<HTMLDivElement | null>(null);
   const messagesScrollRef = useCallback(
@@ -354,6 +356,7 @@ export default function DirectConversationPage() {
   async function loadOlderMessages() {
     if (!accessToken || !conversationId || !nextCursor) return;
     unstick();
+    setScrollPaused(true);
     setOlderMessagesState({ kind: "loading" });
 
     const scrollEl = messagesScrollElementRef.current;
@@ -380,8 +383,14 @@ export default function DirectConversationPage() {
         let stableCount = 0;
         let changed = false;
         const start = Date.now();
+        const finish = () => {
+          setScrollPaused(false);
+        };
         const check = () => {
-          if (!scrollEl) return;
+          if (!scrollEl) {
+            finish();
+            return;
+          }
           const currentHeight = scrollEl.scrollHeight;
           if (currentHeight !== lastHeight) {
             changed = true;
@@ -392,19 +401,24 @@ export default function DirectConversationPage() {
             if (stableCount >= 3) {
               const heightDelta = currentHeight - previousScrollHeight;
               scrollEl.scrollTop += heightDelta;
+              finish();
               return;
             }
           }
           if (Date.now() - start > 1500) {
             const heightDelta = currentHeight - previousScrollHeight;
             scrollEl.scrollTop += heightDelta;
+            finish();
             return;
           }
           requestAnimationFrame(check);
         };
         requestAnimationFrame(check);
+      } else {
+        setScrollPaused(false);
       }
     } catch (err) {
+      setScrollPaused(false);
       const message = localizeApiError(err, "direct.failedLoadMessages", t);
       setOlderMessagesState({ kind: "error", message });
     }

@@ -364,6 +364,7 @@ export default function ChannelDetailPage() {
   >({ kind: "idle" });
   const [typingUsers, setTypingUsers] = useState<Record<string, { username: string; timeout: number }>>({});
   const [isMembersOpen, setIsMembersOpen] = useState(false);
+  const [scrollPaused, setScrollPaused] = useState(false);
   const [memberSearch, setMemberSearch] = useState("");
   const [replyTargetId, setReplyTargetId] = useState<string | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
@@ -381,7 +382,7 @@ export default function ChannelDetailPage() {
     unstick,
   } = useMessageListScroll({
     messagesLoaded: messages.kind === "success",
-    disabled: contextMode.kind === "active",
+    disabled: contextMode.kind === "active" || scrollPaused,
   });
   const messagesScrollElementRef = useRef<HTMLDivElement | null>(null);
   const messagesScrollRef = useCallback(
@@ -833,6 +834,7 @@ export default function ChannelDetailPage() {
   async function loadOlderMessages() {
     if (!accessToken || !workspaceId || !channelId || !nextCursor) return;
     unstick();
+    setScrollPaused(true);
     setOlderMessagesState({ kind: "loading" });
 
     const scrollEl = messagesScrollElementRef.current;
@@ -862,8 +864,14 @@ export default function ChannelDetailPage() {
         let stableCount = 0;
         let changed = false;
         const start = Date.now();
+        const finish = () => {
+          setScrollPaused(false);
+        };
         const check = () => {
-          if (!scrollEl) return;
+          if (!scrollEl) {
+            finish();
+            return;
+          }
           const currentHeight = scrollEl.scrollHeight;
           if (currentHeight !== lastHeight) {
             changed = true;
@@ -874,19 +882,24 @@ export default function ChannelDetailPage() {
             if (stableCount >= 3) {
               const heightDelta = currentHeight - previousScrollHeight;
               scrollEl.scrollTop += heightDelta;
+              finish();
               return;
             }
           }
           if (Date.now() - start > 1500) {
             const heightDelta = currentHeight - previousScrollHeight;
             scrollEl.scrollTop += heightDelta;
+            finish();
             return;
           }
           requestAnimationFrame(check);
         };
         requestAnimationFrame(check);
+      } else {
+        setScrollPaused(false);
       }
     } catch (err) {
+      setScrollPaused(false);
       const message = localizeApiError(err, "channel.errorLoadMessagesFailed", t);
       setOlderMessagesState({ kind: "error", message });
     }

@@ -53,6 +53,7 @@ export default function GroupConversationPage() {
     { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string }
   >({ kind: "idle" });
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [scrollPaused, setScrollPaused] = useState(false);
   const socketRef = useRef<ReturnType<typeof createSocket> | null>(null);
   const markReadInFlightRef = useRef<Promise<unknown> | null>(null);
   const {
@@ -64,6 +65,7 @@ export default function GroupConversationPage() {
     unstick,
   } = useMessageListScroll({
     messagesLoaded: messages.kind === "success",
+    disabled: scrollPaused,
   });
   const messagesScrollElementRef = useRef<HTMLDivElement | null>(null);
   const messagesScrollRef = useCallback(
@@ -267,6 +269,7 @@ export default function GroupConversationPage() {
   async function loadOlderMessages() {
     if (!accessToken || !groupId || !nextCursor) return;
     unstick();
+    setScrollPaused(true);
     setOlderMessagesState({ kind: "loading" });
 
     const scrollEl = messagesScrollElementRef.current;
@@ -293,8 +296,14 @@ export default function GroupConversationPage() {
         let stableCount = 0;
         let changed = false;
         const start = Date.now();
+        const finish = () => {
+          setScrollPaused(false);
+        };
         const check = () => {
-          if (!scrollEl) return;
+          if (!scrollEl) {
+            finish();
+            return;
+          }
           const currentHeight = scrollEl.scrollHeight;
           if (currentHeight !== lastHeight) {
             changed = true;
@@ -305,19 +314,24 @@ export default function GroupConversationPage() {
             if (stableCount >= 3) {
               const heightDelta = currentHeight - previousScrollHeight;
               scrollEl.scrollTop += heightDelta;
+              finish();
               return;
             }
           }
           if (Date.now() - start > 1500) {
             const heightDelta = currentHeight - previousScrollHeight;
             scrollEl.scrollTop += heightDelta;
+            finish();
             return;
           }
           requestAnimationFrame(check);
         };
         requestAnimationFrame(check);
+      } else {
+        setScrollPaused(false);
       }
     } catch (err) {
+      setScrollPaused(false);
       const message = localizeApiError(err, "groups.failedLoadMessages", t);
       setOlderMessagesState({ kind: "error", message });
     }
