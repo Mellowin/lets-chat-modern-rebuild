@@ -111,6 +111,9 @@ describe('DirectConversationsService', () => {
             findParticipants: jest.fn(),
             createMessage: jest.fn(),
             findMessageById: jest.fn(),
+            findMessageByIdWithRelations: jest.fn(),
+            findContextBefore: jest.fn(),
+            findContextAfter: jest.fn(),
             listMessagesForConversation: jest.fn(),
             touchConversationUpdatedAt: jest.fn(),
             updateParticipantLastRead: jest.fn(),
@@ -735,6 +738,71 @@ describe('DirectConversationsService', () => {
 
       const result = (await service.listMessages(conversationId, userId)).items;
       expect(result[0].isUnreadForMe).toBe(true);
+    });
+  });
+
+  describe('getMessageContext', () => {
+    it('throws ForbiddenException when user is not a participant', async () => {
+      repository.findParticipant.mockResolvedValue(null);
+
+      await expect(
+        service.getMessageContext(conversationId, messageId, userId, {}),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('returns context for a participant', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: null },
+      ]);
+      repository.findMessageByIdWithRelations.mockResolvedValue(
+        makeMessage({ id: 'target-msg', content: 'target' }),
+      );
+      repository.findContextBefore.mockResolvedValue([
+        makeMessage({ id: 'before-msg', content: 'before' }),
+      ]);
+      repository.findContextAfter.mockResolvedValue([
+        makeMessage({ id: 'after-msg', content: 'after' }),
+      ]);
+
+      const result = await service.getMessageContext(
+        conversationId,
+        'target-msg',
+        userId,
+        { before: 10, after: 10 },
+      );
+
+      expect(result.target.content).toBe('target');
+      expect(result.before).toHaveLength(1);
+      expect(result.before[0].content).toBe('before');
+      expect(result.after).toHaveLength(1);
+      expect(result.after[0].content).toBe('after');
+      expect(result.hasMoreBefore).toBe(false);
+      expect(result.hasMoreAfter).toBe(false);
+    });
+
+    it('throws NotFoundException when message belongs to another conversation', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageByIdWithRelations.mockResolvedValue(
+        makeMessage({ conversationId: 'other-conversation-id' }),
+      );
+
+      await expect(
+        service.getMessageContext(conversationId, messageId, userId, {}),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 

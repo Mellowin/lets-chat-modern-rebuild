@@ -40,11 +40,13 @@ import {
   removeDirectMessageReaction,
   updateDirectMessage,
   deleteDirectMessage,
+  getDirectMessageContext,
   type DirectMessage,
   type SendDirectMessageInput,
   type UpdateDirectMessageInput,
   type DirectConversation,
   type DirectMessageReactionSummary,
+  type DirectMessageContextResult,
 } from "@/lib/direct-conversations-api";
 import { createSocket } from "@/lib/socket-client";
 
@@ -72,6 +74,10 @@ export default function DirectConversationPage() {
   const searchParams = useSearchParams();
   const handledQueryMessageIdRef = useRef<string | null>(null);
   const [messages, setMessages] = useState<MessagesState>({ kind: "idle" });
+  const [contextMode, setContextMode] = useState<
+    | { kind: "idle" }
+    | { kind: "active"; messages: DirectMessage[]; targetId: string }
+  >({ kind: "idle" });
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [olderMessagesState, setOlderMessagesState] = useState<
@@ -121,7 +127,7 @@ export default function DirectConversationPage() {
     unstick,
   } = useMessageListScroll({
     messagesLoaded: messages.kind === "success",
-    disabled: scrollPaused,
+    disabled: contextMode.kind === "active" || scrollPaused,
   });
   const messagesScrollElementRef = useRef<HTMLDivElement | null>(null);
   const messagesScrollRef = useCallback(
@@ -144,15 +150,25 @@ export default function DirectConversationPage() {
     if (
       targetMessageId &&
       messages.kind === "success" &&
+      contextMode.kind === "idle" &&
       handledQueryMessageIdRef.current !== targetMessageId
     ) {
       handledQueryMessageIdRef.current = targetMessageId;
       const loaded = messages.data.find((m) => m.id === targetMessageId);
       if (loaded) {
         scrollToMessage(targetMessageId);
+      } else {
+        getDirectMessageContext(accessToken, conversationId, targetMessageId)
+          .then((result) => {
+            handleLoadContext({ ...result, targetId: targetMessageId });
+          })
+          .catch(() => {
+            // ignore: message may not exist or be inaccessible
+          });
       }
     }
-  }, [isAuthenticated, conversationId, accessToken, searchParams, messages]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, conversationId, accessToken, searchParams, messages, contextMode.kind]);
 
   function safeMarkDirectConversationRead(token: string, convId: string) {
     if (markReadInFlightRef.current) return;
@@ -867,6 +883,31 @@ export default function DirectConversationPage() {
     }, 1800);
   }
 
+  function handleLoadContext(result: DirectMessageContextResult & { targetId: string }) {
+    const combined = [...result.before, result.target, ...result.after];
+    setContextMode({ kind: "active", messages: combined, targetId: result.targetId });
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        scrollToMessage(result.targetId);
+      });
+    });
+  }
+
+  function exitContextMode() {
+    setContextMode({ kind: "idle" });
+    const scrollEl = messagesScrollElementRef.current;
+    if (scrollEl) {
+      scrollEl.scrollTop = scrollEl.scrollHeight;
+    }
+  }
+
+  const isContextMode = contextMode.kind === "active";
+  const displayMessages = isContextMode
+    ? contextMode.messages
+    : messages.kind === "success"
+      ? messages.data
+      : [];
+
   async function submitMessage() {
     if (editingMessage) {
       await handleEditSubmit();
@@ -1059,7 +1100,21 @@ export default function DirectConversationPage() {
         <div className="mt-4 flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-border/80 bg-card shadow-md">
           <div ref={messagesScrollRef} data-testid="direct-messages-scroll" onScroll={() => { setMessageMenuId(null); setMessageMenuPosition(null); setReactionPickerMessageId(null); setReactionPickerPosition(null); }} className="chat-canvas min-h-0 flex-1 overflow-y-auto px-4 py-3">
             <div ref={messagesContentRef} className="flex w-full max-w-3xl flex-col">
-              {messages.kind === "success" && hasMoreMessages && (
+              {isContextMode && (
+                <div className="mb-2 flex justify-center">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={exitContextMode}
+                    data-testid="direct-back-to-latest"
+                  >
+                    <ArrowLeft size={14} className="mr-1.5" />
+                    {t("channel.backToLatestMessages")}
+                  </Button>
+                </div>
+              )}
+              {messages.kind === "success" && hasMoreMessages && !isContextMode && (
                 <div className="mb-2 flex justify-center">
                   <Button
                     type="button"
@@ -1104,11 +1159,11 @@ export default function DirectConversationPage() {
                 </div>
               )}
 
-              {messages.kind === "success" && messages.data.length > 0 && (
+              {messages.kind === "success" && displayMessages.length > 0 && (
                 <ul className="mt-4 space-y-3">
                   {(() => {
-                    const firstUnreadIndex = messages.data.findIndex((m) => m.isUnreadForMe && m.author.id !== user?.id);
-                    return messages.data.map((msg, index) => {
+                    const firstUnreadIndex = displayMessages.findIndex((m) => m.isUnreadForMe && m.author.id !== user?.id);
+                    return displayMessages.map((msg, index) => {
                       const isOwnMessage = user?.id === msg.author.id;
                       const showSeparator = index === firstUnreadIndex;
                       return [
@@ -1208,7 +1263,7 @@ export default function DirectConversationPage() {
                                 <div className="mb-1.5" data-testid={`direct-quote-preview-${msg.id}`}>
                                   {(() => {
                                     const parent = messages.kind === "success"
-                                      ? messages.data.find((m) => m.id === msg.parentId)
+                                      ? displayMessages.find((m) => m.id === msg.parentId)
                                       : undefined;
                                     if (parent) {
                                       return (
@@ -1401,7 +1456,7 @@ export default function DirectConversationPage() {
           {(() => {
             const activeMenuMessage =
               messages.kind === "success"
-                ? messages.data.find((m) => m.id === messageMenuId) ?? null
+                ? displayMessages.find((m) => m.id === messageMenuId) ?? null
                 : null;
             if (!activeMenuMessage) return null;
             return (
@@ -1498,7 +1553,7 @@ export default function DirectConversationPage() {
               onClick={() => {
                 const msg =
                   messages.kind === "success"
-                    ? messages.data.find((m) => m.id === reactionPickerMessageId)
+                    ? displayMessages.find((m) => m.id === reactionPickerMessageId)
                     : undefined;
                 if (msg) {
                   handleReactionClick(msg, emoji);

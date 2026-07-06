@@ -62,6 +62,14 @@ export interface PaginatedGroupMessages {
   hasMore: boolean;
 }
 
+export interface GroupMessageContextResult {
+  target: GroupMessage;
+  before: GroupMessage[];
+  after: GroupMessage[];
+  hasMoreBefore: boolean;
+  hasMoreAfter: boolean;
+}
+
 export interface CreateGroupInput {
   name: string;
   memberIds: string[];
@@ -254,6 +262,31 @@ export async function listGroupMessages(
   }
 
   return res.json() as Promise<PaginatedGroupMessages>;
+}
+
+export async function getGroupMessageContext(
+  accessToken: string,
+  groupId: string,
+  messageId: string,
+  options?: { before?: number; after?: number },
+): Promise<GroupMessageContextResult> {
+  const params = new URLSearchParams();
+  if (options?.before !== undefined) params.set("before", String(options.before));
+  if (options?.after !== undefined) params.set("after", String(options.after));
+  const query = params.toString();
+  const res = await authFetch(
+    `${API_BASE}/groups/${encodeURIComponent(groupId)}/messages/${encodeURIComponent(messageId)}/context${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: authHeaders(accessToken),
+    },
+  );
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to load message context: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<GroupMessageContextResult>;
 }
 
 export async function sendGroupMessage(

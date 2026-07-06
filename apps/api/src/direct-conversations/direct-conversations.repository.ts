@@ -258,6 +258,110 @@ export class DirectConversationsRepository {
     });
   }
 
+  async findMessageByIdWithRelations(id: string) {
+    return this.prisma.directMessage.findUnique({
+      where: { id, deletedAt: null },
+      include: {
+        author: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+        parent: {
+          include: {
+            author: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  async findContextBefore(
+    conversationId: string,
+    targetCreatedAt: Date,
+    limit: number,
+  ) {
+    return this.prisma.directMessage.findMany({
+      where: {
+        conversationId,
+        deletedAt: null,
+        createdAt: { lt: targetCreatedAt },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit + 1,
+      include: {
+        author: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+        parent: {
+          include: {
+            author: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  async findContextAfter(
+    conversationId: string,
+    targetCreatedAt: Date,
+    limit: number,
+  ) {
+    return this.prisma.directMessage.findMany({
+      where: {
+        conversationId,
+        deletedAt: null,
+        createdAt: { gt: targetCreatedAt },
+      },
+      orderBy: { createdAt: 'asc' },
+      take: limit + 1,
+      include: {
+        author: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+        parent: {
+          include: {
+            author: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
   async listMessagesForConversation(
     conversationId: string,
     limit: number,

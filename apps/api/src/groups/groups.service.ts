@@ -19,6 +19,7 @@ import { UpdateGroupDto } from './dto/update-group.dto';
 import { AddGroupMemberDto } from './dto/add-group-member.dto';
 import { CreateGroupMessageDto } from './dto/create-group-message.dto';
 import { ListGroupMessagesQueryDto } from './dto/list-group-messages-query.dto';
+import { GroupMessageContextQueryDto } from './dto/message-context-query.dto';
 
 @Injectable()
 export class GroupsService {
@@ -291,6 +292,71 @@ export class GroupsService {
       userId: currentUserId,
     });
     return { success: true };
+  }
+
+  async getMessageContext(
+    groupId: string,
+    messageId: string,
+    currentUserId: string,
+    query: GroupMessageContextQueryDto,
+  ) {
+    await this.requireGroupAccessible(groupId, currentUserId);
+
+    const target = await this.groups.findMessageByIdWithRelations(messageId);
+    if (!target || target.groupId !== groupId) {
+      throw new NotFoundException('Message not found');
+    }
+
+    const beforeLimit = Math.min(query.before ?? 20, 50);
+    const afterLimit = Math.min(query.after ?? 20, 50);
+
+    const [beforeRaw, afterRaw] = await Promise.all([
+      this.groups.findContextBefore(groupId, target.createdAt, beforeLimit),
+      this.groups.findContextAfter(groupId, target.createdAt, afterLimit),
+    ]);
+
+    const hasMoreBefore = beforeRaw.length > beforeLimit;
+    const hasMoreAfter = afterRaw.length > afterLimit;
+
+    const before = (hasMoreBefore ? beforeRaw.slice(0, beforeLimit) : beforeRaw)
+      .reverse()
+      .map((m) => ({
+        id: m.id,
+        groupId: m.groupId,
+        content: m.content,
+        createdAt: m.createdAt,
+        updatedAt: m.updatedAt,
+        author: m.author,
+        mentions: this.normalizeMentions(m.mentions),
+      }));
+
+    const after = (hasMoreAfter ? afterRaw.slice(0, afterLimit) : afterRaw).map(
+      (m) => ({
+        id: m.id,
+        groupId: m.groupId,
+        content: m.content,
+        createdAt: m.createdAt,
+        updatedAt: m.updatedAt,
+        author: m.author,
+        mentions: this.normalizeMentions(m.mentions),
+      }),
+    );
+
+    return {
+      target: {
+        id: target.id,
+        groupId: target.groupId,
+        content: target.content,
+        createdAt: target.createdAt,
+        updatedAt: target.updatedAt,
+        author: target.author,
+        mentions: this.normalizeMentions(target.mentions),
+      },
+      before,
+      after,
+      hasMoreBefore,
+      hasMoreAfter,
+    };
   }
 
   async listMessages(

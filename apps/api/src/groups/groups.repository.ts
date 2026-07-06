@@ -352,6 +352,72 @@ export class GroupsRepository {
     });
   }
 
+  async findMessageByIdWithRelations(id: string) {
+    return this.prisma.groupMessage.findUnique({
+      where: { id },
+      include: {
+        author: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    });
+  }
+
+  async findContextBefore(
+    groupId: string,
+    targetCreatedAt: Date,
+    limit: number,
+  ) {
+    return this.prisma.groupMessage.findMany({
+      where: {
+        groupId,
+        createdAt: { lt: targetCreatedAt },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit + 1,
+      include: {
+        author: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    });
+  }
+
+  async findContextAfter(
+    groupId: string,
+    targetCreatedAt: Date,
+    limit: number,
+  ) {
+    return this.prisma.groupMessage.findMany({
+      where: {
+        groupId,
+        createdAt: { gt: targetCreatedAt },
+      },
+      orderBy: { createdAt: 'asc' },
+      take: limit + 1,
+      include: {
+        author: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    });
+  }
+
   async listMessages(
     groupId: string,
     limit: number,

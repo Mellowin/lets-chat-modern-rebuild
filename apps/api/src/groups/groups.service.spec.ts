@@ -167,6 +167,9 @@ describe('GroupsService', () => {
             listMessages: jest.fn(),
             findMentionableUserIds: jest.fn().mockResolvedValue([]),
             touchUpdatedAt: jest.fn(),
+            findMessageByIdWithRelations: jest.fn(),
+            findContextBefore: jest.fn(),
+            findContextAfter: jest.fn(),
           },
         },
         {
@@ -537,6 +540,55 @@ describe('GroupsService', () => {
       await expect(
         service.listMessages(groupId, userId, { cursor: 'not-a-cursor' }),
       ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  describe('getMessageContext', () => {
+    it('returns context for a member', async () => {
+      groupsRepository.findById.mockResolvedValue(makeGroup());
+      groupsRepository.findMessageByIdWithRelations.mockResolvedValue(
+        makeMessage({ id: 'target-msg', content: 'target' }),
+      );
+      groupsRepository.findContextBefore.mockResolvedValue([
+        makeMessage({ id: 'before-msg', content: 'before' }),
+      ]);
+      groupsRepository.findContextAfter.mockResolvedValue([
+        makeMessage({ id: 'after-msg', content: 'after' }),
+      ]);
+
+      const result = await service.getMessageContext(
+        groupId,
+        'target-msg',
+        userId,
+        { before: 10, after: 10 },
+      );
+
+      expect(result.target.content).toBe('target');
+      expect(result.before).toHaveLength(1);
+      expect(result.before[0].content).toBe('before');
+      expect(result.after).toHaveLength(1);
+      expect(result.after[0].content).toBe('after');
+      expect(result.hasMoreBefore).toBe(false);
+      expect(result.hasMoreAfter).toBe(false);
+    });
+
+    it('throws NotFoundException for a non-member', async () => {
+      groupsRepository.findById.mockResolvedValue(makeGroup());
+
+      await expect(
+        service.getMessageContext(groupId, messageId, thirdUserId, {}),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('throws NotFoundException when message belongs to another group', async () => {
+      groupsRepository.findById.mockResolvedValue(makeGroup());
+      groupsRepository.findMessageByIdWithRelations.mockResolvedValue(
+        makeMessage({ groupId: 'other-group-id' }),
+      );
+
+      await expect(
+        service.getMessageContext(groupId, messageId, userId, {}),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Loader2, MessageSquare, Send, Settings, Users } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocale } from "@/lib/locale";
@@ -16,8 +16,10 @@ import {
   listGroupMessages,
   sendGroupMessage,
   markGroupRead,
+  getGroupMessageContext,
   type GroupSummary,
   type GroupMessage,
+  type GroupMessageContextResult,
 } from "@/lib/groups-api";
 import { createSocket } from "@/lib/socket-client";
 import { useMessageListScroll } from "@/lib/use-message-list-scroll";
@@ -41,7 +43,14 @@ export default function GroupConversationPage() {
   const { isLoading: authLoading, isAuthenticated, user, accessToken } = useAuth();
   const { t } = useLocale();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const handledQueryMessageIdRef = useRef<string | null>(null);
   const [messages, setMessages] = useState<MessagesState>({ kind: "idle" });
+  const [contextMode, setContextMode] = useState<
+    | { kind: "idle" }
+    | { kind: "active"; messages: GroupMessage[]; targetId: string }
+  >({ kind: "idle" });
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [olderMessagesState, setOlderMessagesState] = useState<
@@ -65,7 +74,7 @@ export default function GroupConversationPage() {
     unstick,
   } = useMessageListScroll({
     messagesLoaded: messages.kind === "success",
-    disabled: scrollPaused,
+    disabled: contextMode.kind === "active" || scrollPaused,
   });
   const messagesScrollElementRef = useRef<HTMLDivElement | null>(null);
   const messagesScrollRef = useCallback(
@@ -218,6 +227,32 @@ export default function GroupConversationPage() {
   }, [isAuthenticated, groupId, accessToken, user?.id, router, loadGroup, safeMarkGroupRead, isNearBottom, scrollMessagesToBottom]);
 
   useEffect(() => {
+    if (!isAuthenticated || !groupId || !accessToken) return;
+    const targetMessageId = searchParams?.get("message");
+    if (
+      targetMessageId &&
+      messages.kind === "success" &&
+      contextMode.kind === "idle" &&
+      handledQueryMessageIdRef.current !== targetMessageId
+    ) {
+      handledQueryMessageIdRef.current = targetMessageId;
+      const loaded = messages.data.find((m) => m.id === targetMessageId);
+      if (loaded) {
+        scrollToMessage(targetMessageId);
+      } else {
+        getGroupMessageContext(accessToken, groupId, targetMessageId)
+          .then((result) => {
+            handleLoadContext({ ...result, targetId: targetMessageId });
+          })
+          .catch(() => {
+            // ignore: message may not exist or be inaccessible
+          });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, groupId, accessToken, searchParams, messages, contextMode.kind]);
+
+  useEffect(() => {
     if (!groupId) return;
     const frame = window.requestAnimationFrame(() => {
       const textarea = document.getElementById("group-message-input") as HTMLTextAreaElement | null;
@@ -349,6 +384,42 @@ export default function GroupConversationPage() {
     }
   }
 
+  function scrollToMessage(messageId: string): boolean {
+    const el = document.getElementById(`message-${messageId}`);
+    if (!el) return false;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlightedMessageId(messageId);
+    window.setTimeout(() => {
+      setHighlightedMessageId((current) => (current === messageId ? null : current));
+    }, 1800);
+    return true;
+  }
+
+  function handleLoadContext(result: GroupMessageContextResult & { targetId: string }) {
+    const combined = [...result.before, result.target, ...result.after];
+    setContextMode({ kind: "active", messages: combined, targetId: result.targetId });
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        scrollToMessage(result.targetId);
+      });
+    });
+  }
+
+  function exitContextMode() {
+    setContextMode({ kind: "idle" });
+    const scrollEl = messagesScrollElementRef.current;
+    if (scrollEl) {
+      scrollEl.scrollTop = scrollEl.scrollHeight;
+    }
+  }
+
+  const isContextMode = contextMode.kind === "active";
+  const displayMessages = isContextMode
+    ? contextMode.messages
+    : messages.kind === "success"
+      ? messages.data
+      : [];
+
   if (authLoading) {
     return (
       <div className="flex flex-1 items-center justify-center p-4 sm:p-6">
@@ -418,7 +489,21 @@ export default function GroupConversationPage() {
             className="chat-canvas min-h-0 flex-1 overflow-y-auto px-4 py-3"
           >
             <div ref={messagesContentRef} className="flex w-full max-w-3xl flex-col">
-              {messages.kind === "success" && hasMoreMessages && (
+              {isContextMode && (
+                <div className="mb-2 flex justify-center">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={exitContextMode}
+                    data-testid="group-back-to-latest"
+                  >
+                    <ArrowLeft size={14} className="mr-1.5" />
+                    {t("channel.backToLatestMessages")}
+                  </Button>
+                </div>
+              )}
+              {messages.kind === "success" && hasMoreMessages && !isContextMode && (
                 <div className="mb-2 flex justify-center">
                   <Button
                     type="button"
@@ -460,15 +545,20 @@ export default function GroupConversationPage() {
                 </div>
               )}
 
-              {messages.kind === "success" && messages.data.length > 0 && (
+              {messages.kind === "success" && displayMessages.length > 0 && (
                 <ul className="mt-4 space-y-3">
-                  {messages.data.map((msg) => {
+                  {displayMessages.map((msg) => {
                     const isOwnMessage = user?.id === msg.author.id;
                     return (
                       <li
                         key={msg.id}
+                        id={`message-${msg.id}`}
                         data-testid={`group-message-row-${msg.id}`}
-                        className="flex items-start gap-3"
+                        className={`flex items-start gap-3 rounded-xl transition-colors ${
+                          highlightedMessageId === msg.id
+                            ? "bg-primary/10 ring-2 ring-primary/30"
+                            : ""
+                        }`}
                       >
                         <div data-testid={`group-message-avatar-${msg.id}`} className="sticky bottom-3 self-end">
                           <Avatar

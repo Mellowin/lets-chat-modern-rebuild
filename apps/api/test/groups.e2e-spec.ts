@@ -178,6 +178,80 @@ describe('Groups E2E Security', () => {
     });
   });
 
+  describe('group message context', () => {
+    it('returns target with before and after for a member', async () => {
+      await prisma.groupMessage.deleteMany({ where: { groupId: group.id } });
+      const messages = await prisma.groupMessage.createManyAndReturn({
+        data: [
+          {
+            groupId: group.id,
+            authorId: userB.id,
+            content: 'ctx-1-oldest',
+            createdAt: new Date('2026-07-01T10:00:00.000Z'),
+          },
+          {
+            groupId: group.id,
+            authorId: userB.id,
+            content: 'ctx-2',
+            createdAt: new Date('2026-07-01T10:01:00.000Z'),
+          },
+          {
+            groupId: group.id,
+            authorId: userB.id,
+            content: 'ctx-3-target',
+            createdAt: new Date('2026-07-01T10:02:00.000Z'),
+          },
+          {
+            groupId: group.id,
+            authorId: userB.id,
+            content: 'ctx-4',
+            createdAt: new Date('2026-07-01T10:03:00.000Z'),
+          },
+          {
+            groupId: group.id,
+            authorId: userB.id,
+            content: 'ctx-5-newest',
+            createdAt: new Date('2026-07-01T10:04:00.000Z'),
+          },
+        ],
+      });
+      const target = messages.find((m) => m.content === 'ctx-3-target');
+      expect(target).toBeDefined();
+
+      const res = await request(app.getHttpServer())
+        .get(`/groups/${group.id}/messages/${target!.id}/context?before=1&after=1`)
+        .set('Authorization', `Bearer ${tokenB}`)
+        .expect(200);
+
+      const body = res.body as {
+        target: { id: string; content: string };
+        before: Array<{ content: string }>;
+        after: Array<{ content: string }>;
+        hasMoreBefore: boolean;
+        hasMoreAfter: boolean;
+      };
+      expect(body.target.content).toBe('ctx-3-target');
+      expect(body.before.map((m) => m.content)).toEqual(['ctx-2']);
+      expect(body.after.map((m) => m.content)).toEqual(['ctx-4']);
+      expect(body.hasMoreBefore).toBe(true);
+      expect(body.hasMoreAfter).toBe(true);
+    });
+
+    it('non-member cannot access message context', async () => {
+      const msg = await prisma.groupMessage.create({
+        data: {
+          groupId: group.id,
+          authorId: userB.id,
+          content: 'secret',
+        },
+      });
+      await request(app.getHttpServer())
+        .get(`/groups/${group.id}/messages/${msg.id}/context`)
+        .set('Authorization', `Bearer ${tokenC}`)
+        .expect(404);
+    });
+  });
+
   describe('group message cursor pagination', () => {
     it('returns pages ordered from newest to oldest and stable cursors', async () => {
       await prisma.groupMessage.deleteMany({ where: { groupId: group.id } });

@@ -27,6 +27,7 @@ import { CreateDirectMessageDto } from './dto/create-direct-message.dto';
 import { CreateDirectReactionDto } from './dto/create-direct-reaction.dto';
 import { UpdateDirectMessageDto } from './dto/update-direct-message.dto';
 import { ListDirectMessagesQueryDto } from './dto/list-direct-messages-query.dto';
+import { DirectMessageContextQueryDto } from './dto/message-context-query.dto';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUserResponse } from '../auth/auth.service';
@@ -75,6 +76,27 @@ export class DirectConversationsController {
   ) {
     return this.directConversations.listMessages(
       conversationId,
+      user.id,
+      query,
+    );
+  }
+
+  @Get(':conversationId/messages/:messageId/context')
+  @ApiOperation({ summary: 'Get direct message context' })
+  @ApiOkResponse({ description: 'Message context' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiForbiddenResponse({ description: 'Access denied' })
+  @ApiNotFoundResponse({ description: 'Message or conversation not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async getMessageContext(
+    @Param('conversationId', ParseUUIDPipe) conversationId: string,
+    @Param('messageId', ParseUUIDPipe) messageId: string,
+    @Query() query: DirectMessageContextQueryDto,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.directConversations.getMessageContext(
+      conversationId,
+      messageId,
       user.id,
       query,
     );

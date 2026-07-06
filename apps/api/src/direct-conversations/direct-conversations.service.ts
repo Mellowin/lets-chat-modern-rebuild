@@ -19,6 +19,7 @@ import { CreateDirectConversationDto } from './dto/create-direct-conversation.dt
 import { CreateDirectMessageDto } from './dto/create-direct-message.dto';
 import { CreateDirectReactionDto } from './dto/create-direct-reaction.dto';
 import { ListDirectMessagesQueryDto } from './dto/list-direct-messages-query.dto';
+import { DirectMessageContextQueryDto } from './dto/message-context-query.dto';
 
 @Injectable()
 export class DirectConversationsService {
@@ -277,6 +278,100 @@ export class DirectConversationsService {
       nextCursor:
         hasMore && page.length > 0 ? encodeMessageCursor(page[0]) : null,
       hasMore,
+    };
+  }
+
+  async getMessageContext(
+    conversationId: string,
+    messageId: string,
+    currentUserId: string,
+    query: DirectMessageContextQueryDto,
+  ) {
+    const participant = await this.directConversations.findParticipant(
+      conversationId,
+      currentUserId,
+    );
+    if (!participant) {
+      throw new ForbiddenException('Access denied');
+    }
+
+    const target =
+      await this.directConversations.findMessageByIdWithRelations(messageId);
+    if (!target || target.conversationId !== conversationId) {
+      throw new NotFoundException('Message not found');
+    }
+
+    const participants =
+      await this.directConversations.findParticipants(conversationId);
+    const myParticipant = participants.find((p) => p.userId === currentUserId);
+    const myLastReadAt = myParticipant?.lastReadAt ?? null;
+    const otherParticipant = participants.find(
+      (p) => p.userId !== currentUserId,
+    );
+    const otherParticipantLastReadAt = otherParticipant?.lastReadAt ?? null;
+
+    const beforeLimit = Math.min(query.before ?? 20, 50);
+    const afterLimit = Math.min(query.after ?? 20, 50);
+
+    const [beforeRaw, afterRaw] = await Promise.all([
+      this.directConversations.findContextBefore(
+        conversationId,
+        target.createdAt,
+        beforeLimit,
+      ),
+      this.directConversations.findContextAfter(
+        conversationId,
+        target.createdAt,
+        afterLimit,
+      ),
+    ]);
+
+    const hasMoreBefore = beforeRaw.length > beforeLimit;
+    const hasMoreAfter = afterRaw.length > afterLimit;
+
+    const contextMessages = [
+      ...(hasMoreBefore ? beforeRaw.slice(0, beforeLimit) : beforeRaw),
+      target,
+      ...(hasMoreAfter ? afterRaw.slice(0, afterLimit) : afterRaw),
+    ];
+    const reactionsMap = new Map<
+      string,
+      Array<{ emoji: string; count: number; reactedByMe: boolean }>
+    >();
+    for (const message of contextMessages) {
+      const reactions =
+        await this.directConversations.getDirectMessageReactions(
+          message.id,
+          currentUserId,
+        );
+      reactionsMap.set(message.id, reactions);
+    }
+
+    const toResponse = (
+      m: (typeof contextMessages)[number],
+    ): ReturnType<DirectConversationsService['toMessageResponse']> =>
+      this.toMessageResponse(
+        m,
+        currentUserId,
+        myLastReadAt,
+        otherParticipantLastReadAt,
+        reactionsMap.get(m.id) ?? [],
+      );
+
+    const before = (hasMoreBefore ? beforeRaw.slice(0, beforeLimit) : beforeRaw)
+      .reverse()
+      .map(toResponse);
+
+    const after = (hasMoreAfter ? afterRaw.slice(0, afterLimit) : afterRaw).map(
+      toResponse,
+    );
+
+    return {
+      target: toResponse(target),
+      before,
+      after,
+      hasMoreBefore,
+      hasMoreAfter,
     };
   }
 

@@ -27,6 +27,7 @@ import { UpdateGroupDto } from './dto/update-group.dto';
 import { AddGroupMemberDto } from './dto/add-group-member.dto';
 import { CreateGroupMessageDto } from './dto/create-group-message.dto';
 import { ListGroupMessagesQueryDto } from './dto/list-group-messages-query.dto';
+import { GroupMessageContextQueryDto } from './dto/message-context-query.dto';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUserResponse } from '../auth/auth.service';
@@ -138,6 +139,21 @@ export class GroupsController {
     @CurrentUser() user: AuthUserResponse,
   ) {
     return this.groups.leave(groupId, user.id);
+  }
+
+  @Get(':groupId/messages/:messageId/context')
+  @ApiOperation({ summary: 'Get group message context' })
+  @ApiOkResponse({ description: 'Message context' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiNotFoundResponse({ description: 'Group or message not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async getMessageContext(
+    @Param('groupId', ParseUUIDPipe) groupId: string,
+    @Param('messageId', ParseUUIDPipe) messageId: string,
+    @Query() query: GroupMessageContextQueryDto,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.groups.getMessageContext(groupId, messageId, user.id, query);
   }
 
   @Get(':groupId/messages')

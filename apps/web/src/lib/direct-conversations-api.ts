@@ -79,6 +79,14 @@ export interface PaginatedDirectMessages {
   hasMore: boolean;
 }
 
+export interface DirectMessageContextResult {
+  target: DirectMessage;
+  before: DirectMessage[];
+  after: DirectMessage[];
+  hasMoreBefore: boolean;
+  hasMoreAfter: boolean;
+}
+
 export interface SendDirectMessageInput {
   content: string;
   parentId?: string;
@@ -162,6 +170,34 @@ export async function listDirectMessages(
   }
 
   return res.json() as Promise<PaginatedDirectMessages>;
+}
+
+export async function getDirectMessageContext(
+  accessToken: string,
+  conversationId: string,
+  messageId: string,
+  options?: { before?: number; after?: number },
+): Promise<DirectMessageContextResult> {
+  const params = new URLSearchParams();
+  if (options?.before !== undefined) params.set("before", String(options.before));
+  if (options?.after !== undefined) params.set("after", String(options.after));
+  const query = params.toString();
+  const res = await authFetch(
+    `${API_BASE}/direct-conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}/context${query ? `?${query}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to load message context: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<DirectMessageContextResult>;
 }
 
 export async function sendDirectMessage(
