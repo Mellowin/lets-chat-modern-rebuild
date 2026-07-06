@@ -5,6 +5,7 @@ import { join } from 'path';
 import { PrismaService } from '@lets-chat/database';
 import { PushService } from '../push/push.service';
 import { WebsocketRedisAdapterService } from '../websocket/websocket-redis-adapter.service';
+import { PresenceService } from '../websocket/presence.service';
 
 export type CheckStatus = 'ok' | 'not_configured' | 'degraded' | 'error';
 
@@ -25,6 +26,7 @@ export interface DiagnosticsHealthResponse {
     database: DiagnosticsCheck;
     redis: DiagnosticsCheck;
     websocket: DiagnosticsCheck;
+    presence: DiagnosticsCheck;
     push: DiagnosticsCheck;
     attachments: DiagnosticsCheck;
     mail: DiagnosticsCheck;
@@ -56,6 +58,7 @@ export class AdminDiagnosticsService {
     private readonly prisma: PrismaService,
     private readonly push: PushService,
     private readonly websocketAdapter: WebsocketRedisAdapterService,
+    private readonly presence: PresenceService,
   ) {}
 
   async getHealth(requestId?: string): Promise<DiagnosticsHealthResponse> {
@@ -106,6 +109,7 @@ export class AdminDiagnosticsService {
     const database = await this.checkDatabase();
     const redis = this.checkRedis();
     const websocket = this.checkWebsocket();
+    const presence = this.checkPresence();
     const push = this.checkPush();
     const attachments = this.checkAttachments();
     const mail = this.checkMail();
@@ -115,6 +119,7 @@ export class AdminDiagnosticsService {
       database,
       redis,
       websocket,
+      presence,
       push,
       attachments,
       mail,
@@ -147,6 +152,14 @@ export class AdminDiagnosticsService {
     return {
       status: diagnostics.status,
       detail: `adapter:${diagnostics.adapter}`,
+    };
+  }
+
+  private checkPresence(): DiagnosticsCheck {
+    const diagnostics = this.presence.getDiagnostics();
+    return {
+      status: diagnostics.status,
+      detail: `store:${diagnostics.mode}`,
     };
   }
 

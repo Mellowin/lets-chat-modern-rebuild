@@ -167,7 +167,7 @@ export class WebsocketGateway
         displayName: user.displayName,
       };
 
-      this.presence.trackSocket(user.id, socketId);
+      await this.presence.trackSocket(user.id, socketId);
 
       await socket.join(`user:${user.id}`);
 
@@ -215,13 +215,15 @@ export class WebsocketGateway
     const userId = this.getSocketUser(socket)?.id;
     const rooms = this.presence.getSocketRooms(socketId);
 
-    this.presence.clearSocket(socketId);
+    this.presence.clearSocketRooms(socketId);
 
     if (userId) {
-      this.presence.untrackSocket(userId, socketId);
+      await this.presence.untrackSocket(userId, socketId);
 
       for (const room of rooms) {
-        if (!this.presence.hasOtherSocketInRoom(userId, socketId, room)) {
+        if (
+          !(await this.presence.hasOtherSocketInRoom(userId, socketId, room))
+        ) {
           const user = {
             id: userId,
             username: this.getSocketUser(socket)?.username,
@@ -246,7 +248,7 @@ export class WebsocketGateway
         }
       }
 
-      if (!this.presence.isUserTracked(userId)) {
+      if (!(await this.presence.isUserTracked(userId))) {
         this.presence.clearUserRooms(userId);
         try {
           const conversations =
@@ -362,7 +364,7 @@ export class WebsocketGateway
 
     this.presence.removeSocketRoom(socket.id, room);
 
-    if (!this.presence.hasOtherSocketInRoom(userId, socket.id, room)) {
+    if (!(await this.presence.hasOtherSocketInRoom(userId, socket.id, room))) {
       socket.to(room).emit('presence:offline', {
         user: { id: userId, username: this.getSocketUser(socket)?.username },
         status: 'offline',
@@ -469,7 +471,7 @@ export class WebsocketGateway
       displayName: this.getSocketUser(socket)?.displayName,
     };
 
-    if (!this.presence.hasOtherSocketInRoom(userId, socket.id, room)) {
+    if (!(await this.presence.hasOtherSocketInRoom(userId, socket.id, room))) {
       socket.to(room).emit('presence:offline', {
         user,
         status: 'offline',
@@ -599,7 +601,7 @@ export class WebsocketGateway
 
     this.presence.removeSocketRoom(socket.id, room);
 
-    if (!this.presence.hasOtherSocketInRoom(userId, socket.id, room)) {
+    if (!(await this.presence.hasOtherSocketInRoom(userId, socket.id, room))) {
       socket.to(room).emit('presence:offline', {
         user: { id: userId, username: this.getSocketUser(socket)?.username },
         status: 'offline',
@@ -766,7 +768,9 @@ export class WebsocketGateway
           channelId,
         });
         this.presence.removeSocketRoom(socket.id, room);
-        if (!this.presence.hasOtherSocketInRoom(userId, socket.id, room)) {
+        if (
+          !(await this.presence.hasOtherSocketInRoom(userId, socket.id, room))
+        ) {
           socket.to(room).emit('presence:offline', {
             user: {
               id: userId,

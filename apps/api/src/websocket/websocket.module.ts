@@ -8,6 +8,7 @@ import { WebsocketGateway } from './websocket.gateway';
 import { WebsocketEventsService } from './websocket-events.service';
 import { PresenceService } from './presence.service';
 import { WebsocketRedisAdapterService } from './websocket-redis-adapter.service';
+import { presenceStoreProvider } from './presence-store.provider';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { WebsocketRedisAdapterService } from './websocket-redis-adapter.service'
     WebsocketGateway,
     WebsocketEventsService,
     PresenceService,
+    presenceStoreProvider,
     WebsocketRedisAdapterService,
   ],
   exports: [

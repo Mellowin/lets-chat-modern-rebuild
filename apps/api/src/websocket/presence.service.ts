@@ -1,34 +1,43 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
+import type {
+  PresenceStore,
+  PresenceStoreDiagnostics,
+} from './presence-store.interface';
+import { PRESENCE_STORE } from './presence-store.provider';
 
 @Injectable()
 export class PresenceService {
-  private readonly userSockets = new Map<string, Set<string>>();
   private readonly socketRooms = new Map<string, Set<string>>();
   private readonly userRooms = new Map<string, Set<string>>();
 
-  trackSocket(userId: string, socketId: string): void {
-    if (!this.userSockets.has(userId)) {
-      this.userSockets.set(userId, new Set());
-    }
-    this.userSockets.get(userId)!.add(socketId);
+  constructor(@Inject(PRESENCE_STORE) private readonly store: PresenceStore) {}
+
+  async trackSocket(userId: string, socketId: string): Promise<void> {
+    await this.store.markSocketConnected(userId, socketId);
   }
 
-  untrackSocket(userId: string, socketId: string): void {
-    const sockets = this.userSockets.get(userId);
-    if (sockets) {
-      sockets.delete(socketId);
-      if (sockets.size === 0) {
-        this.userSockets.delete(userId);
-      }
-    }
+  async untrackSocket(userId: string, socketId: string): Promise<void> {
+    await this.store.markSocketDisconnected(userId, socketId);
   }
 
-  isUserTracked(userId: string): boolean {
-    return this.userSockets.has(userId);
+  async isUserTracked(userId: string): Promise<boolean> {
+    return this.store.isUserOnline(userId);
   }
 
-  getUserSocketIds(userId: string): Set<string> | undefined {
-    return this.userSockets.get(userId);
+  async getUserSocketIds(userId: string): Promise<string[]> {
+    return this.store.getUserSocketIds(userId);
+  }
+
+  async getOnlineUserIds(userIds: string[]): Promise<string[]> {
+    return this.store.getOnlineUserIds(userIds);
+  }
+
+  async clearPresence(socketId: string): Promise<void> {
+    await this.store.clearSocket(socketId);
+  }
+
+  getDiagnostics(): PresenceStoreDiagnostics {
+    return this.store.getDiagnostics();
   }
 
   addSocketRoom(socketId: string, room: string): void {
@@ -56,7 +65,7 @@ export class PresenceService {
     return this.socketRooms.get(socketId)?.has(room) ?? false;
   }
 
-  clearSocket(socketId: string): void {
+  clearSocketRooms(socketId: string): void {
     this.socketRooms.delete(socketId);
   }
 
@@ -79,13 +88,13 @@ export class PresenceService {
     this.userRooms.delete(userId);
   }
 
-  hasOtherSocketInRoom(
+  async hasOtherSocketInRoom(
     userId: string,
     excludeSocketId: string,
     room: string,
-  ): boolean {
-    const userSocketIds = this.userSockets.get(userId) ?? new Set();
-    for (const otherSocketId of userSocketIds) {
+  ): Promise<boolean> {
+    const socketIds = await this.getUserSocketIds(userId);
+    for (const otherSocketId of socketIds) {
       if (
         otherSocketId !== excludeSocketId &&
         this.socketRooms.get(otherSocketId)?.has(room)

@@ -10,6 +10,8 @@ import { DirectConversationsRepository } from '../direct-conversations/direct-co
 import { GroupsRepository } from '../groups/groups.repository';
 import { PresenceService } from './presence.service';
 import { WebsocketRedisAdapterService } from './websocket-redis-adapter.service';
+import { PRESENCE_STORE } from './presence-store.provider';
+import { MemoryPresenceStore } from './memory-presence.store';
 
 function createMockSocket(overrides: Partial<Socket> = {}): Socket {
   const emitMock = jest.fn();
@@ -41,6 +43,16 @@ function createMockServer(): Server {
   return {
     to: jest.fn().mockReturnValue({ emit: emitMock }),
   } as unknown as Server;
+}
+
+async function trackUserSockets(
+  presence: PresenceService,
+  userId: string,
+  socketIds: string[],
+): Promise<void> {
+  for (const socketId of socketIds) {
+    await presence.trackSocket(userId, socketId);
+  }
 }
 
 describe('WebsocketGateway', () => {
@@ -93,6 +105,10 @@ describe('WebsocketGateway', () => {
           },
         },
         PresenceService,
+        {
+          provide: PRESENCE_STORE,
+          useValue: new MemoryPresenceStore(),
+        },
         {
           provide: WebsocketRedisAdapterService,
           useValue: {
@@ -638,7 +654,7 @@ describe('WebsocketGateway', () => {
 
       await gateway.handleConnection(socket);
 
-      expect(gateway['presence']['userSockets'].get(userId)).toContain(
+      expect(await gateway['presence'].getUserSocketIds(userId)).toContain(
         'socket-a',
       );
     });
@@ -650,7 +666,7 @@ describe('WebsocketGateway', () => {
 
       await gateway.handleConnection(socket);
 
-      expect(gateway['presence']['userSockets'].has(userId)).toBe(false);
+      expect(await gateway['presence'].isUserTracked(userId)).toBe(false);
     });
 
     it('should emit presence:online on channel join', async () => {
@@ -683,10 +699,10 @@ describe('WebsocketGateway', () => {
         data: { user: { id: userId, username: 'testuser' } },
       });
       socket.rooms.add(`channel:${channelId}`);
-      gateway['presence']['userSockets'].set(
-        userId,
-        new Set(['socket-d1', 'socket-d2']),
-      );
+      await trackUserSockets(gateway['presence'], userId, [
+        'socket-d1',
+        'socket-d2',
+      ]);
       gateway['presence']['socketRooms'].set(
         'socket-d1',
         new Set([`channel:${channelId}`]),
@@ -725,10 +741,10 @@ describe('WebsocketGateway', () => {
       });
       socket1.rooms.add(`channel:${channelId}`);
       socket2.rooms.add(`channel:${channelId}`);
-      gateway['presence']['userSockets'].set(
-        userId,
-        new Set(['socket-e1', 'socket-e2']),
-      );
+      await trackUserSockets(gateway['presence'], userId, [
+        'socket-e1',
+        'socket-e2',
+      ]);
       gateway['presence']['socketRooms'].set(
         'socket-e1',
         new Set([`channel:${channelId}`]),
@@ -773,7 +789,7 @@ describe('WebsocketGateway', () => {
         id: 'socket-f',
         data: { user: { id: userId, username: 'testuser' } },
       });
-      gateway['presence']['userSockets'].set(userId, new Set(['socket-f']));
+      await trackUserSockets(gateway['presence'], userId, ['socket-f']);
       gateway['presence']['socketRooms'].set(
         'socket-f',
         new Set([`channel:${channelId}`]),
@@ -785,7 +801,7 @@ describe('WebsocketGateway', () => {
 
       await gateway.handleDisconnect(socket);
 
-      expect(gateway['presence']['userSockets'].has(userId)).toBe(false);
+      expect(await gateway['presence'].isUserTracked(userId)).toBe(false);
       expect(gateway.server.to).toHaveBeenCalledWith(`channel:${channelId}`);
       expect(
         gateway.server.to(`channel:${channelId}`).emit,
@@ -807,18 +823,18 @@ describe('WebsocketGateway', () => {
       const room1 = `channel:${channelId}`;
       const room2 = `channel:44444444-4444-4444-4444-444444444444`;
 
-      gateway['presence']['userSockets'].set(
-        userId,
-        new Set(['socket-g1', 'socket-g2']),
-      );
+      await trackUserSockets(gateway['presence'], userId, [
+        'socket-g1',
+        'socket-g2',
+      ]);
       gateway['presence']['socketRooms'].set('socket-g1', new Set([room1]));
       gateway['presence']['socketRooms'].set('socket-g2', new Set([room2]));
       gateway['presence']['userRooms'].set(userId, new Set([room1, room2]));
 
       await gateway.handleDisconnect(socket1);
 
-      expect(gateway['presence']['userSockets'].has(userId)).toBe(true);
-      expect(gateway['presence']['userSockets'].get(userId)).toContain(
+      expect(await gateway['presence'].isUserTracked(userId)).toBe(true);
+      expect(await gateway['presence'].getUserSocketIds(userId)).toContain(
         'socket-g2',
       );
       expect(gateway.server.to).toHaveBeenCalledWith(room1);
@@ -838,7 +854,7 @@ describe('WebsocketGateway', () => {
 
       await gateway.handleDisconnect(socket2);
 
-      expect(gateway['presence']['userSockets'].has(userId)).toBe(false);
+      expect(await gateway['presence'].isUserTracked(userId)).toBe(false);
       expect(gateway.server.to).toHaveBeenCalledWith(room2);
       expect(gateway.server.to(room2).emit).toHaveBeenCalledWith(
         'presence:offline',
@@ -861,17 +877,17 @@ describe('WebsocketGateway', () => {
       });
       const room = `channel:${channelId}`;
 
-      gateway['presence']['userSockets'].set(
-        userId,
-        new Set(['socket-h1', 'socket-h2']),
-      );
+      await trackUserSockets(gateway['presence'], userId, [
+        'socket-h1',
+        'socket-h2',
+      ]);
       gateway['presence']['socketRooms'].set('socket-h1', new Set([room]));
       gateway['presence']['socketRooms'].set('socket-h2', new Set([room]));
       gateway['presence']['userRooms'].set(userId, new Set([room]));
 
       await gateway.handleDisconnect(socket1);
 
-      expect(gateway['presence']['userSockets'].has(userId)).toBe(true);
+      expect(await gateway['presence'].isUserTracked(userId)).toBe(true);
       expect(gateway.server.to).not.toHaveBeenCalled();
       expect(gateway['presence']['userRooms'].get(userId)?.has(room)).toBe(
         true,
@@ -879,7 +895,7 @@ describe('WebsocketGateway', () => {
 
       await gateway.handleDisconnect(socket2);
 
-      expect(gateway['presence']['userSockets'].has(userId)).toBe(false);
+      expect(await gateway['presence'].isUserTracked(userId)).toBe(false);
       expect(gateway.server.to).toHaveBeenCalledWith(room);
       expect(gateway.server.to(room).emit).toHaveBeenCalledWith(
         'presence:offline',
@@ -966,10 +982,7 @@ describe('WebsocketGateway', () => {
           id: 'socket-last',
           data: { user: { id: userId, username: 'testuser' } },
         });
-        gateway['presence']['userSockets'].set(
-          userId,
-          new Set(['socket-last']),
-        );
+        await trackUserSockets(gateway['presence'], userId, ['socket-last']);
         gateway['presence']['socketRooms'].set('socket-last', new Set());
         gateway['presence']['userRooms'].set(userId, new Set());
 
@@ -997,10 +1010,10 @@ describe('WebsocketGateway', () => {
           id: 'socket-mt1',
           data: { user: { id: userId, username: 'testuser' } },
         });
-        gateway['presence']['userSockets'].set(
-          userId,
-          new Set(['socket-mt1', 'socket-mt2']),
-        );
+        await trackUserSockets(gateway['presence'], userId, [
+          'socket-mt1',
+          'socket-mt2',
+        ]);
         gateway['presence']['socketRooms'].set('socket-mt1', new Set());
         gateway['presence']['socketRooms'].set('socket-mt2', new Set());
         gateway['presence']['userRooms'].set(userId, new Set());
@@ -1189,10 +1202,10 @@ describe('WebsocketGateway', () => {
         },
       });
       socket.rooms.add(`direct-conversation:${conversationId}`);
-      gateway['presence']['userSockets'].set(
-        userId,
-        new Set(['socket-d1', 'socket-d2']),
-      );
+      await trackUserSockets(gateway['presence'], userId, [
+        'socket-d1',
+        'socket-d2',
+      ]);
       gateway['presence']['socketRooms'].set(
         'socket-d1',
         new Set([`direct-conversation:${conversationId}`]),
@@ -1227,10 +1240,10 @@ describe('WebsocketGateway', () => {
       });
       socket1.rooms.add(`direct-conversation:${conversationId}`);
       socket2.rooms.add(`direct-conversation:${conversationId}`);
-      gateway['presence']['userSockets'].set(
-        userId,
-        new Set(['socket-e1', 'socket-e2']),
-      );
+      await trackUserSockets(gateway['presence'], userId, [
+        'socket-e1',
+        'socket-e2',
+      ]);
       gateway['presence']['socketRooms'].set(
         'socket-e1',
         new Set([`direct-conversation:${conversationId}`]),
@@ -1256,7 +1269,7 @@ describe('WebsocketGateway', () => {
           user: { id: userId, username: 'testuser', displayName: 'Test User' },
         },
       });
-      gateway['presence']['userSockets'].set(userId, new Set(['socket-f']));
+      await trackUserSockets(gateway['presence'], userId, ['socket-f']);
       gateway['presence']['socketRooms'].set(
         'socket-f',
         new Set([`direct-conversation:${conversationId}`]),
@@ -1268,7 +1281,7 @@ describe('WebsocketGateway', () => {
 
       await gateway.handleDisconnect(socket);
 
-      expect(gateway['presence']['userSockets'].has(userId)).toBe(false);
+      expect(await gateway['presence'].isUserTracked(userId)).toBe(false);
       expect(gateway.server.to).toHaveBeenCalledWith(
         `direct-conversation:${conversationId}`,
       );

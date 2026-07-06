@@ -35,6 +35,7 @@
     "verify:prod:message-search": "node scripts/verify-production-message-search.mjs",
     "verify:prod:message-jump": "node scripts/verify-production-message-jump.mjs",
     "verify:prod:realtime": "node scripts/verify-production-realtime.mjs",
+    "verify:prod:presence": "node scripts/verify-production-presence.mjs",
     "verify:prod:mobile-shell": "node scripts/verify-mobile-shell.mjs",
     "verify:prod:all": "pnpm verify:prod:public && pnpm verify:prod:auth && pnpm verify:prod:permissions && pnpm verify:prod:browser && pnpm verify:prod:attachments && pnpm verify:prod:contacts && pnpm verify:prod:pwa && pnpm verify:prod:message-search"
   },

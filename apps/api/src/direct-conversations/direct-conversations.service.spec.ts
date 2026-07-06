@@ -431,7 +431,7 @@ describe('DirectConversationsService', () => {
     it('includes isOnline true when other user is tracked', async () => {
       repository.listForUser.mockResolvedValue([makeConversation()]);
       repository.countUnreadMessages.mockResolvedValue(0);
-      presence.isUserTracked.mockReturnValue(true);
+      presence.isUserTracked.mockResolvedValue(true);
 
       const result = await service.list(userId);
       expect(result[0].isOnline).toBe(true);
@@ -440,7 +440,7 @@ describe('DirectConversationsService', () => {
     it('includes isOnline false when other user is not tracked', async () => {
       repository.listForUser.mockResolvedValue([makeConversation()]);
       repository.countUnreadMessages.mockResolvedValue(0);
-      presence.isUserTracked.mockReturnValue(false);
+      presence.isUserTracked.mockResolvedValue(false);
 
       const result = await service.list(userId);
       expect(result[0].isOnline).toBe(false);

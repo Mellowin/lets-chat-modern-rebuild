@@ -16,6 +16,7 @@ export const envValidationSchema = Joi.object({
 
   REDIS_URL: Joi.string().uri().optional(),
   WEBSOCKET_REDIS_URL: Joi.string().uri().optional(),
+  PRESENCE_REDIS_URL: Joi.string().uri().optional(),
 
   NODE_ENV: Joi.string()
     .valid('development', 'production', 'test')

@@ -83,7 +83,7 @@ export class DirectConversationsService {
       unreadCount,
       hasUnread: unreadCount > 0,
       isOnline: otherParticipant
-        ? this.presence.isUserTracked(otherParticipant.id)
+        ? await this.presence.isUserTracked(otherParticipant.id)
         : false,
     };
   }

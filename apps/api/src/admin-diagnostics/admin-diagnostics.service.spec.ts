@@ -4,6 +4,7 @@ import { AdminDiagnosticsService } from './admin-diagnostics.service';
 import { PrismaService } from '@lets-chat/database';
 import { PushService } from '../push/push.service';
 import { WebsocketRedisAdapterService } from '../websocket/websocket-redis-adapter.service';
+import { PresenceService } from '../websocket/presence.service';
 
 describe('AdminDiagnosticsService', () => {
   let service: AdminDiagnosticsService;
@@ -11,6 +12,7 @@ describe('AdminDiagnosticsService', () => {
   let config: jest.Mocked<ConfigService>;
   let push: jest.Mocked<Pick<PushService, 'isVapidConfigured'>>;
   let websocketAdapter: jest.Mocked<WebsocketRedisAdapterService>;
+  let presence: jest.Mocked<PresenceService>;
 
   beforeEach(async () => {
     prisma = {
@@ -30,6 +32,12 @@ describe('AdminDiagnosticsService', () => {
         status: 'not_configured',
       }),
     } as unknown as jest.Mocked<WebsocketRedisAdapterService>;
+    presence = {
+      getDiagnostics: jest.fn().mockReturnValue({
+        mode: 'memory',
+        status: 'not_configured',
+      }),
+    } as unknown as jest.Mocked<PresenceService>;
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -38,6 +46,7 @@ describe('AdminDiagnosticsService', () => {
         { provide: ConfigService, useValue: config },
         { provide: PushService, useValue: push },
         { provide: WebsocketRedisAdapterService, useValue: websocketAdapter },
+        { provide: PresenceService, useValue: presence },
       ],
     }).compile();
 
@@ -62,6 +71,7 @@ describe('AdminDiagnosticsService', () => {
     expect(result.checks.database.status).toBe('ok');
     expect(result.checks.api.status).toBe('ok');
     expect(result.checks.websocket.status).toBe('not_configured');
+    expect(result.checks.presence.status).toBe('not_configured');
     expect(result.requestId).toBe('req-1');
     expect(result.environment).toBe('test');
     expect(typeof result.timestamp).toBe('string');
@@ -79,6 +89,20 @@ describe('AdminDiagnosticsService', () => {
     expect(result.status).toBe('degraded');
     expect(result.checks.database.status).toBe('error');
     expect(result.checks.database.detail).toBe('connection lost');
+  });
+
+  it('health returns presence status from store', async () => {
+    presence.getDiagnostics.mockReturnValue({
+      mode: 'redis',
+      status: 'ok',
+    });
+    (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ '?column?': 1 }]);
+    givenConfig({ NODE_ENV: 'test' });
+
+    const result = await service.getHealth();
+
+    expect(result.checks.presence.status).toBe('ok');
+    expect(result.checks.presence.detail).toBe('store:redis');
   });
 
   it('health returns websocket status from adapter', async () => {
@@ -105,6 +129,8 @@ describe('AdminDiagnosticsService', () => {
       MAIL_PROVIDER: 'resend',
       RESEND_API_KEY: 're_xxx',
       REDIS_URL: 'redis://localhost',
+      WEBSOCKET_REDIS_URL: 'redis://ws-secret',
+      PRESENCE_REDIS_URL: 'redis://presence-secret',
       RATE_LIMIT_ENABLED: 'true',
     });
     push.isVapidConfigured.mockReturnValue(true);
@@ -143,6 +169,8 @@ describe('AdminDiagnosticsService', () => {
       NODE_ENV: 'production',
       DATABASE_URL: 'postgresql://secret',
       REDIS_URL: 'redis://secret',
+      WEBSOCKET_REDIS_URL: 'redis://ws-secret',
+      PRESENCE_REDIS_URL: 'redis://presence-secret',
       JWT_ACCESS_SECRET: 'super-secret',
       RESEND_API_KEY: 're_secret',
       VAPID_PRIVATE_KEY: 'private-key',
@@ -154,6 +182,8 @@ describe('AdminDiagnosticsService', () => {
 
     expect(json).not.toContain('database_url');
     expect(json).not.toContain('redis_url');
+    expect(json).not.toContain('websocket_redis_url');
+    expect(json).not.toContain('presence_redis_url');
     expect(json).not.toContain('jwt_secret');
     expect(json).not.toContain('resend');
     expect(json).not.toContain('vapid_private');
@@ -162,5 +192,7 @@ describe('AdminDiagnosticsService', () => {
     expect(json).not.toContain('super-secret');
     expect(json).not.toContain('private-key');
     expect(json).not.toContain('s3-secret');
+    expect(json).not.toContain('ws-secret');
+    expect(json).not.toContain('presence-secret');
   });
 });
