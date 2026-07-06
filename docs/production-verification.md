@@ -49,6 +49,7 @@ All scripts default to the production URLs. Override only when needed.
 
 ## Safety notes
 
+- **Mail delivery:** production uses Resend by default. If Resend returns a quota/outage error, the API can fall back to SMTP when `MAIL_FALLBACK_PROVIDER=smtp` and the `SMTP_*` variables are configured. `MAIL_PROVIDER=console` is local-dev only and must not be enabled on Render.
 - **Public smoke** is safe to run at any time and can run on every push if desired.
 - **Auth flow** creates a single disposable Mail.tm account. The account remains in the production database but has no workspaces, channels, or memberships. It cannot self-delete.
 - **Permissions** only performs destructive actions (channel delete, workspace delete) when `VERIFY_PERMISSIONS_ENABLE_DESTRUCTIVE=1` is set. The seeded workspace is deleted at the end.

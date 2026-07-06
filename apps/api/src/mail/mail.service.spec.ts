@@ -6,6 +6,9 @@ import {
   MailProviderException,
   MAIL_PROVIDER_ERROR_CODES,
 } from './mail-provider.exception';
+import * as nodemailer from 'nodemailer';
+
+jest.mock('nodemailer');
 
 describe('MailService', () => {
   let service: MailService;
@@ -552,5 +555,335 @@ describe('MailService — previewTemplate', () => {
     expect(() => service.previewTemplate('unknown')).toThrow(
       BadRequestException,
     );
+  });
+});
+
+describe('MailService — SMTP fallback', () => {
+  let service: MailService;
+  let configService: jest.Mocked<ConfigService>;
+  let sendMailMock: jest.Mock<
+    Promise<Record<string, string>>,
+    [Record<string, string>]
+  >;
+
+  function givenFallbackConfig(
+    overrides: Record<string, unknown> = {},
+  ): Record<string, unknown> {
+    const base: Record<string, unknown> = {
+      MAIL_PROVIDER: 'resend',
+      MAIL_FALLBACK_PROVIDER: 'smtp',
+      RESEND_API_KEY: 're_123',
+      MAIL_FROM: 'noreply@example.com',
+      SMTP_HOST: 'smtp.example.com',
+      SMTP_PORT: 587,
+      SMTP_SECURE: 'false',
+      SMTP_USER: 'smtp-user',
+      SMTP_PASS: 'smtp-pass',
+      SMTP_FROM: 'fallback@example.com',
+    };
+    const values = { ...base, ...overrides };
+    configService.get.mockImplementation((key: string, fallback?: unknown) => {
+      return key in values ? values[key] : fallback;
+    });
+    return values;
+  }
+
+  beforeEach(async () => {
+    sendMailMock = jest.fn<
+      Promise<Record<string, string>>,
+      [Record<string, string>]
+    >();
+    jest.clearAllMocks();
+    (nodemailer.createTransport as jest.Mock).mockReturnValue({
+      sendMail: sendMailMock,
+    });
+
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        MailService,
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn(),
+            getOrThrow: jest.fn(),
+          },
+        },
+      ],
+    }).compile();
+
+    service = moduleRef.get(MailService);
+    configService = moduleRef.get(ConfigService);
+
+    configService.getOrThrow.mockImplementation((key: string) => {
+      if (key === 'APP_WEB_URL') return 'http://localhost:3000';
+      throw new Error(`Missing ${key}`);
+    });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('does not invoke SMTP fallback when Resend succeeds', async () => {
+    givenFallbackConfig();
+    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+    } as Response);
+
+    await service.sendVerificationEmail({
+      to: 'user@example.com',
+      token: 'abc',
+    });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(nodemailer.createTransport).not.toHaveBeenCalled();
+    expect(sendMailMock).not.toHaveBeenCalled();
+  });
+
+  it('delivers via SMTP fallback when Resend returns 429 quota exceeded', async () => {
+    givenFallbackConfig();
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: false,
+      status: 429,
+      text: () =>
+        Promise.resolve(
+          JSON.stringify({
+            name: 'daily_quota_exceeded',
+            message: 'You have reached your daily email sending quota.',
+          }),
+        ),
+    } as Response);
+    sendMailMock.mockResolvedValue({ messageId: 'msg-1' });
+
+    await service.sendVerificationEmail({
+      to: 'user@example.com',
+      token: 'abc',
+    });
+
+    expect(nodemailer.createTransport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        host: 'smtp.example.com',
+        port: 587,
+        secure: false,
+        auth: { user: 'smtp-user', pass: 'smtp-pass' },
+      }),
+    );
+    expect(sendMailMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        from: 'fallback@example.com',
+        to: 'user@example.com',
+        subject: 'Verify your email address for Lets Chat',
+      }),
+    );
+
+    const sent = sendMailMock.mock.calls[0][0];
+    expect(sent.text).toContain('http://localhost:3000/verify-email?token=abc');
+    expect(sent.html).toContain('http://localhost:3000/verify-email?token=abc');
+  });
+
+  it('falls back to SMTP when Resend returns a 5xx server error', async () => {
+    givenFallbackConfig();
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: false,
+      status: 503,
+      text: () => Promise.resolve('service unavailable'),
+    } as Response);
+    sendMailMock.mockResolvedValue({});
+
+    await service.sendVerificationEmail({
+      to: 'user@example.com',
+      token: 'abc',
+    });
+
+    expect(sendMailMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to SMTP when Resend network request fails', async () => {
+    givenFallbackConfig();
+    jest.spyOn(global, 'fetch').mockRejectedValue(new Error('network failure'));
+    sendMailMock.mockResolvedValue({});
+
+    await service.sendVerificationEmail({
+      to: 'user@example.com',
+      token: 'abc',
+    });
+
+    expect(sendMailMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not fall back to SMTP for non-retryable client errors', async () => {
+    givenFallbackConfig();
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: false,
+      status: 422,
+      text: () => Promise.resolve('invalid email'),
+    } as Response);
+    sendMailMock.mockResolvedValue({});
+
+    await expect(
+      service.sendVerificationEmail({ to: 'user@example.com', token: 'abc' }),
+    ).rejects.toMatchObject({
+      response: { error: MAIL_PROVIDER_ERROR_CODES.UNAVAILABLE },
+    });
+
+    expect(sendMailMock).not.toHaveBeenCalled();
+  });
+
+  it('throws MailProviderUnavailableException when both primary and fallback fail', async () => {
+    givenFallbackConfig();
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: false,
+      status: 429,
+      text: () =>
+        Promise.resolve(
+          JSON.stringify({ name: 'daily_quota_exceeded', message: 'quota' }),
+        ),
+    } as Response);
+    sendMailMock.mockRejectedValue(new Error('SMTP auth failed'));
+
+    await expect(
+      service.sendVerificationEmail({ to: 'user@example.com', token: 'abc' }),
+    ).rejects.toMatchObject({
+      response: { error: MAIL_PROVIDER_ERROR_CODES.UNAVAILABLE },
+    });
+  });
+
+  it('does not fall back when MAIL_FALLBACK_PROVIDER is not configured', async () => {
+    givenFallbackConfig({ MAIL_FALLBACK_PROVIDER: undefined });
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: false,
+      status: 429,
+      text: () =>
+        Promise.resolve(
+          JSON.stringify({ name: 'daily_quota_exceeded', message: 'quota' }),
+        ),
+    } as Response);
+
+    await expect(
+      service.sendVerificationEmail({ to: 'user@example.com', token: 'abc' }),
+    ).rejects.toMatchObject({
+      response: { error: MAIL_PROVIDER_ERROR_CODES.QUOTA_EXCEEDED },
+    });
+
+    expect(sendMailMock).not.toHaveBeenCalled();
+  });
+
+  it('sends via SMTP when MAIL_PROVIDER is smtp', async () => {
+    givenFallbackConfig({
+      MAIL_PROVIDER: 'smtp',
+      MAIL_FALLBACK_PROVIDER: undefined,
+    });
+    sendMailMock.mockResolvedValue({});
+
+    await service.sendVerificationEmail({
+      to: 'user@example.com',
+      token: 'abc',
+    });
+
+    expect(nodemailer.createTransport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        host: 'smtp.example.com',
+        auth: { user: 'smtp-user', pass: 'smtp-pass' },
+      }),
+    );
+    expect(sendMailMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses secure transport when SMTP_SECURE is true', async () => {
+    givenFallbackConfig({ SMTP_SECURE: 'true', SMTP_PORT: 465 });
+    jest.spyOn(global, 'fetch').mockRejectedValue(new Error('network'));
+    sendMailMock.mockResolvedValue({});
+
+    await service.sendVerificationEmail({
+      to: 'user@example.com',
+      token: 'abc',
+    });
+
+    expect(nodemailer.createTransport).toHaveBeenCalledWith(
+      expect.objectContaining({ secure: true }),
+    );
+  });
+
+  it('uses secure transport when SMTP_SECURE is the boolean true', async () => {
+    givenFallbackConfig({ SMTP_SECURE: true, SMTP_PORT: 587 });
+    jest.spyOn(global, 'fetch').mockRejectedValue(new Error('network'));
+    sendMailMock.mockResolvedValue({});
+
+    await service.sendVerificationEmail({
+      to: 'user@example.com',
+      token: 'abc',
+    });
+
+    expect(nodemailer.createTransport).toHaveBeenCalledWith(
+      expect.objectContaining({ secure: true, port: 587 }),
+    );
+  });
+
+  it('falls back to SMTP for password reset emails', async () => {
+    givenFallbackConfig();
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: false,
+      status: 503,
+      text: () => Promise.resolve('boom'),
+    } as Response);
+    sendMailMock.mockResolvedValue({});
+
+    await service.sendPasswordResetEmail({
+      to: 'user@example.com',
+      token: 'reset-token',
+    });
+
+    expect(sendMailMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subject: 'Reset your Lets Chat password',
+      }),
+    );
+
+    const sent = sendMailMock.mock.calls[0][0];
+    expect(sent.text).toContain(
+      'http://localhost:3000/reset-password?token=reset-token',
+    );
+  });
+
+  it('does not expose SMTP password or tokens in logs or thrown errors', async () => {
+    givenFallbackConfig();
+    const warnSpy = jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => {});
+    const logSpy = jest
+      .spyOn(Logger.prototype, 'log')
+      .mockImplementation(() => {});
+
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: false,
+      status: 429,
+      text: () =>
+        Promise.resolve(
+          JSON.stringify({ name: 'daily_quota_exceeded', message: 'quota' }),
+        ),
+    } as Response);
+    sendMailMock.mockRejectedValue(new Error('SMTP auth failed'));
+
+    let thrown: MailProviderException | undefined;
+    try {
+      await service.sendVerificationEmail({
+        to: 'user@example.com',
+        token: 'secret-token-123',
+      });
+    } catch (err) {
+      thrown = err as MailProviderException;
+    }
+
+    const allLogs = [...warnSpy.mock.calls, ...logSpy.mock.calls]
+      .map((call) => JSON.stringify(call))
+      .join('\n');
+    expect(allLogs).not.toContain('smtp-pass');
+    expect(allLogs).not.toContain('secret-token-123');
+
+    expect(thrown).toBeInstanceOf(MailProviderException);
+    const responseText = JSON.stringify(thrown!.getResponse());
+    expect(responseText).not.toContain('smtp-pass');
+    expect(responseText).not.toContain('secret-token-123');
   });
 });

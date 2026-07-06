@@ -181,7 +181,14 @@ export class AdminDiagnosticsService {
     if (!this.isEmailConfigured()) {
       return { status: 'not_configured' };
     }
-    return { status: 'ok' };
+    const provider = this.config.get<string>('MAIL_PROVIDER', 'console');
+    const fallback = this.config.get<string>('MAIL_FALLBACK_PROVIDER');
+    const fallbackConfigured = fallback === 'smtp' && this.isSmtpConfigured();
+    const fallbackDetail = fallbackConfigured ? 'smtp' : 'not_configured';
+    return {
+      status: 'ok',
+      detail: `provider:${provider},fallback:${fallbackDetail}`,
+    };
   }
 
   private isPushConfigured(): boolean {
@@ -205,7 +212,19 @@ export class AdminDiagnosticsService {
     if (provider === 'resend') {
       return this.hasConfig('RESEND_API_KEY');
     }
-    return this.hasConfig('MAIL_PROVIDER');
+    if (provider === 'smtp') {
+      return this.isSmtpConfigured();
+    }
+    return false;
+  }
+
+  private isSmtpConfigured(): boolean {
+    return (
+      this.hasConfig('SMTP_HOST') &&
+      this.hasConfig('SMTP_USER') &&
+      this.hasConfig('SMTP_PASS') &&
+      this.hasConfig('SMTP_FROM')
+    );
   }
 
   private isRedisConfigured(): boolean {

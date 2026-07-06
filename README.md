@@ -284,7 +284,7 @@ No secrets, credentials, or DB URLs are committed to the repository.
 ## ⚠️ Known Limitations
 
 - Render free tier cold start can take ~1 minute after idle.
-- Real email delivery depends on a verified Resend sender domain; otherwise auth emails fall back to console/dev mode.
+- Real email delivery uses Resend by default. If Resend quota or outage occurs, configure `MAIL_FALLBACK_PROVIDER=smtp` plus `SMTP_*` env vars to keep auth emails flowing. `MAIL_PROVIDER=console` is local-dev only and must not be used in production.
 
 - Presence is in-memory; a Redis Socket.io adapter is available via `WEBSOCKET_REDIS_URL` for horizontal scaling, but continuous adapter health is not yet monitored.
 - Push notifications require valid VAPID keys in the API environment; without them the app works normally but push opt-in will report that notifications are not configured.

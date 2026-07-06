@@ -36,4 +36,20 @@ export const envValidationSchema = Joi.object({
   VAPID_PUBLIC_KEY: Joi.string().optional(),
   VAPID_PRIVATE_KEY: Joi.string().optional(),
   VAPID_SUBJECT: Joi.string().uri().optional(),
+
+  MAIL_PROVIDER: Joi.string()
+    .valid('console', 'resend', 'smtp')
+    .default('console'),
+  MAIL_FROM: Joi.string().optional(),
+  RESEND_API_KEY: Joi.string().optional(),
+  APP_WEB_URL: Joi.string().uri().optional(),
+
+  MAIL_FALLBACK_PROVIDER: Joi.string().valid('smtp').optional(),
+
+  SMTP_HOST: Joi.string().optional(),
+  SMTP_PORT: Joi.number().port().default(587),
+  SMTP_SECURE: Joi.boolean().default(false),
+  SMTP_USER: Joi.string().optional(),
+  SMTP_PASS: Joi.string().optional(),
+  SMTP_FROM: Joi.string().optional(),
 });

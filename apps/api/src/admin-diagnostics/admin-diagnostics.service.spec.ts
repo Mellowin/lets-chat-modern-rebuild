@@ -163,6 +163,67 @@ describe('AdminDiagnosticsService', () => {
     expect(result.rateLimit).toBe(false);
   });
 
+  it('config summary reports true when SMTP primary provider is fully configured', () => {
+    givenConfig({
+      MAIL_PROVIDER: 'smtp',
+      SMTP_HOST: 'smtp.example.com',
+      SMTP_USER: 'user',
+      SMTP_PASS: 'pass',
+      SMTP_FROM: 'noreply@example.com',
+    });
+
+    const result = service.getConfig();
+
+    expect(result.email).toBe(true);
+  });
+
+  it('config summary reports false when SMTP primary provider is missing required fields', () => {
+    givenConfig({
+      MAIL_PROVIDER: 'smtp',
+      SMTP_HOST: 'smtp.example.com',
+      SMTP_USER: 'user',
+    });
+
+    const result = service.getConfig();
+
+    expect(result.email).toBe(false);
+  });
+
+  it('mail check reports configured SMTP fallback without exposing secrets', async () => {
+    (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ '?column?': 1 }]);
+    givenConfig({
+      MAIL_PROVIDER: 'resend',
+      RESEND_API_KEY: 're_xxx',
+      MAIL_FALLBACK_PROVIDER: 'smtp',
+      SMTP_HOST: 'smtp.example.com',
+      SMTP_USER: 'user',
+      SMTP_PASS: 'secret-pass',
+      SMTP_FROM: 'fallback@example.com',
+    });
+
+    const result = await service.getChecks();
+
+    expect(result.checks.mail.status).toBe('ok');
+    expect(result.checks.mail.detail).toBe('provider:resend,fallback:smtp');
+    const json = JSON.stringify(result).toLowerCase();
+    expect(json).not.toContain('secret-pass');
+  });
+
+  it('mail check reports fallback as not_configured when SMTP fallback is missing', async () => {
+    (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ '?column?': 1 }]);
+    givenConfig({
+      MAIL_PROVIDER: 'resend',
+      RESEND_API_KEY: 're_xxx',
+    });
+
+    const result = await service.getChecks();
+
+    expect(result.checks.mail.status).toBe('ok');
+    expect(result.checks.mail.detail).toBe(
+      'provider:resend,fallback:not_configured',
+    );
+  });
+
   it('health response does not include sensitive env keys or secrets', async () => {
     (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ '?column?': 1 }]);
     givenConfig({
