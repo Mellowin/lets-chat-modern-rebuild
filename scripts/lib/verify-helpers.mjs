@@ -9,7 +9,8 @@ export const WEB_BASE =
   process.env.VERIFY_WEB_BASE || process.env.WEB_BASE || "https://lets-chat-web.vercel.app";
 export const API_BASE =
   process.env.VERIFY_API_BASE || process.env.API_BASE || "https://lets-chat-api-v2.onrender.com/api/v1";
-export const MAIL_BASE = process.env.VERIFY_MAIL_BASE || process.env.MAIL_BASE || "https://api.mail.tm";
+export const MAIL_BASE =
+  process.env.VERIFY_MAIL_BASE || process.env.MAIL_BASE || "https://api.catchmail.io/api/v1";
 
 export function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -54,45 +55,38 @@ export async function retry(label, fn, attempts = 5, delayMs = 2000) {
 }
 
 export async function getMailDomain() {
-  const domains = await fetchJson(`${MAIL_BASE}/domains`);
-  if (!Array.isArray(domains) || !domains[0]?.domain) {
-    throw new Error("No Mail.tm domains available");
-  }
-  return domains[0].domain;
+  // Catchmail.io uses a single public inbox domain; no domain discovery needed.
+  return "catchmail.io";
 }
 
 export async function createMailbox(domain) {
   const local = `verify${Date.now()}${Math.floor(Math.random() * 1000)}`;
   const address = `${local}@${domain}`;
   const password = generatePassword();
-  await fetchJson(`${MAIL_BASE}/accounts`, {
-    method: "POST",
-    body: JSON.stringify({ address, password }),
-  });
+  // Catchmail.io mailboxes are created implicitly on first received message;
+  // no account registration call is required before polling.
   return { address, password };
 }
 
 export async function getMailToken(address, password) {
-  const data = await fetchJson(`${MAIL_BASE}/token`, {
-    method: "POST",
-    body: JSON.stringify({ address, password }),
-  });
-  return data.token;
+  // Catchmail.io does not require authentication tokens for public mailboxes.
+  // Return the address so the rest of the polling pipeline can use it directly.
+  return address;
 }
 
 export async function listMessages(token) {
-  const data = await fetchJson(`${MAIL_BASE}/messages`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  // Mail.tm API may return either a plain array or a Hydra collection object.
-  return Array.isArray(data) ? data : data?.['hydra:member'] ?? [];
+  // token is the mailbox address for Catchmail.io.
+  const data = await fetchJson(
+    `${MAIL_BASE}/mailbox?address=${encodeURIComponent(token)}`,
+  );
+  return Array.isArray(data?.messages) ? data.messages : [];
 }
 
 export async function getMessageSource(token, messageId) {
-  const data = await fetchJson(`${MAIL_BASE}/messages/${messageId}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  return data.text || data.html || "";
+  const data = await fetchJson(
+    `${MAIL_BASE}/message/${messageId}?mailbox=${encodeURIComponent(token)}`,
+  );
+  return data?.body?.text || data?.body?.html || "";
 }
 
 export async function pollForMessage(token, predicate, timeoutMs = 120000, intervalMs = 3000) {

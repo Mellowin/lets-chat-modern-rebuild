@@ -195,6 +195,24 @@ async function main() {
     detail: `id=${group.id}`,
   });
 
+  // Public channels require explicit membership even for workspace members,
+  // so invite the member before they can join the Socket.io room.
+  const channelInvite = await api(
+    owner.accessToken,
+    "POST",
+    `/workspaces/${workspace.id}/channels/${channel.id}/invites`,
+    { email: member.email, role: "MEMBER" },
+  );
+  await api(
+    member.accessToken,
+    "POST",
+    `/channel-invites/${channelInvite.id}/accept`,
+  );
+  results.push({
+    check: "Member can join channel via invite",
+    ok: channelInvite.token && channelInvite.role === "MEMBER",
+  });
+
   // Connect both WebSocket clients.
   const ownerSocket = await connectSocket(owner.accessToken);
   const memberSocket = await connectSocket(member.accessToken);
