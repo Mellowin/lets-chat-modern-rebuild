@@ -138,12 +138,11 @@ async function main() {
     ok: memberSocket.connected,
   });
 
-  // Join the direct room from both sides.
-  await joinDirect(ownerSocket, directConversation.id);
+  // Join the direct room from both sides. Member joins first so they are in
+  // the room when owner joins and emits presence:online.
   await joinDirect(memberSocket, directConversation.id);
-
-  // Member should observe owner coming online.
   const onlinePromise = waitForEvent(memberSocket, "presence:online", 5000);
+  await joinDirect(ownerSocket, directConversation.id);
   let receivedOnline;
   try {
     receivedOnline = await onlinePromise;
