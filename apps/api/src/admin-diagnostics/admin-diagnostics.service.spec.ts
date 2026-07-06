@@ -3,12 +3,14 @@ import { ConfigService } from '@nestjs/config';
 import { AdminDiagnosticsService } from './admin-diagnostics.service';
 import { PrismaService } from '@lets-chat/database';
 import { PushService } from '../push/push.service';
+import { WebsocketRedisAdapterService } from '../websocket/websocket-redis-adapter.service';
 
 describe('AdminDiagnosticsService', () => {
   let service: AdminDiagnosticsService;
   let prisma: jest.Mocked<Pick<PrismaService, '$queryRaw'>>;
   let config: jest.Mocked<ConfigService>;
   let push: jest.Mocked<Pick<PushService, 'isVapidConfigured'>>;
+  let websocketAdapter: jest.Mocked<WebsocketRedisAdapterService>;
 
   beforeEach(async () => {
     prisma = {
@@ -21,6 +23,13 @@ describe('AdminDiagnosticsService', () => {
     push = {
       isVapidConfigured: jest.fn().mockReturnValue(false),
     };
+    websocketAdapter = {
+      getDiagnostics: jest.fn().mockReturnValue({
+        enabled: true,
+        adapter: 'memory',
+        status: 'not_configured',
+      }),
+    } as unknown as jest.Mocked<WebsocketRedisAdapterService>;
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -28,6 +37,7 @@ describe('AdminDiagnosticsService', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: ConfigService, useValue: config },
         { provide: PushService, useValue: push },
+        { provide: WebsocketRedisAdapterService, useValue: websocketAdapter },
       ],
     }).compile();
 
@@ -51,6 +61,7 @@ describe('AdminDiagnosticsService', () => {
     expect(result.status).toBe('ok');
     expect(result.checks.database.status).toBe('ok');
     expect(result.checks.api.status).toBe('ok');
+    expect(result.checks.websocket.status).toBe('not_configured');
     expect(result.requestId).toBe('req-1');
     expect(result.environment).toBe('test');
     expect(typeof result.timestamp).toBe('string');
@@ -68,6 +79,21 @@ describe('AdminDiagnosticsService', () => {
     expect(result.status).toBe('degraded');
     expect(result.checks.database.status).toBe('error');
     expect(result.checks.database.detail).toBe('connection lost');
+  });
+
+  it('health returns websocket status from adapter', async () => {
+    websocketAdapter.getDiagnostics.mockReturnValue({
+      enabled: true,
+      adapter: 'redis',
+      status: 'ok',
+    });
+    (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ '?column?': 1 }]);
+    givenConfig({ NODE_ENV: 'test' });
+
+    const result = await service.getHealth();
+
+    expect(result.checks.websocket.status).toBe('ok');
+    expect(result.checks.websocket.detail).toBe('adapter:redis');
   });
 
   it('config summary returns only safe booleans and capabilities', () => {

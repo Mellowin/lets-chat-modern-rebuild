@@ -39,7 +39,7 @@ Portfolio guidance:
 |---|---|
 | **Frontend** | Next.js 16 (App Router), React 19, TypeScript 5, Tailwind CSS 4 |
 | **Backend** | NestJS 11, TypeScript, Prisma ORM, PostgreSQL 15 |
-| **Real-Time** | Socket.io 4, in-memory presence |
+| **Real-Time** | Socket.io 4, optional Redis adapter (`WEBSOCKET_REDIS_URL`), in-memory presence |
 | **Storage** | S3-compatible object storage (uploads and downloads through authenticated API proxy) |
 | **Testing** | Jest (API), Vitest + Testing Library (Web), Supertest (E2E) |
 | **CI/CD** | GitHub Actions → Render Deploy Hook; Vercel auto-deploy |
@@ -283,7 +283,7 @@ No secrets, credentials, or DB URLs are committed to the repository.
 - Render free tier cold start can take ~1 minute after idle.
 - Real email delivery depends on a verified Resend sender domain; otherwise auth emails fall back to console/dev mode.
 
-- Presence is in-memory; a Redis Socket.io adapter would be needed for horizontal scaling.
+- Presence is in-memory; a Redis Socket.io adapter is available via `WEBSOCKET_REDIS_URL` for horizontal scaling, but continuous adapter health is not yet monitored.
 - Push notifications require valid VAPID keys in the API environment; without them the app works normally but push opt-in will report that notifications are not configured.
 
 ---

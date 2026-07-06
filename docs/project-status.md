@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-06-24 (B215 user blocking, reports, and privacy safety baseline complete)  
+> Last updated: 2026-07-06 (B222 optional Socket.io Redis adapter and realtime scalability hardening complete)  
 > Code checkpoint: `main`  
 > Docs checkpoint: `main`
 >
@@ -71,6 +71,7 @@ See [`docs/deployment-vercel.md`](deployment-vercel.md) for full deployment guid
   - `message:updated` — edited content updates instantly
   - `message:deleted` — message removed instantly
   - `message:reaction_changed` — reaction updates instantly
+  - **Optional Redis adapter** (`WEBSOCKET_REDIS_URL`) for multi-instance Socket.io deployments; defaults to in-memory adapter when not configured
 - **Channel unread counters** (B175 + B176):
   - Unread count / badge computed server-side from `ChannelReadState` and non-own messages
   - Badges update in real time when messages arrive in other channels of the active workspace
@@ -637,3 +638,33 @@ node apps/api/scripts/cleanup-orphaned-attachments.mjs --delete
 - **Limitations / future work:**
   - Admin user suspension is out of scope; can be added as a future moderation action.
   - Positive production checks require an existing admin token; no production admin bootstrap endpoint.
+
+## B222. WebSocket Redis Adapter and Realtime Scalability Hardening
+
+- **Goal** — make the Socket.io realtime layer multi-instance ready while keeping the current single-instance Render deployment fully functional.
+- **Scope:**
+  - New `WebsocketRedisAdapterService` with optional `WEBSOCKET_REDIS_URL` support.
+  - Uses `@socket.io/redis-adapter` + `ioredis` for pub/sub when configured.
+  - Falls back to the default in-memory adapter when `WEBSOCKET_REDIS_URL` is missing or Redis setup fails.
+  - Safe lifecycle: connection errors are logged without URL/password/username; Redis clients closed on shutdown.
+  - `WebsocketGateway.afterInit` attaches the adapter to the Socket.io server.
+  - Admin diagnostics (`/admin/diagnostics/health` and `/checks`) include a safe `websocket` check:
+    - `enabled: true`
+    - `adapter`: `"memory" | "redis"`
+    - `status`: `"ok" | "not_configured" | "degraded" | "error"`
+  - Unit tests for adapter creation, attachment, fallback, and secret redaction.
+  - Updated diagnostics service/module/controller tests.
+- **Environment:** `WEBSOCKET_REDIS_URL` (optional, separate from `REDIS_URL`).
+- **Tests added/updated:**
+  - API: `websocket-redis-adapter.service.spec.ts`; `websocket.gateway.spec.ts` and `admin-diagnostics.service.spec.ts` updated.
+- **Production verifier** — `scripts/verify-production-realtime.mjs`:
+  - Connects two authenticated WebSocket clients.
+  - Verifies channel, direct, and group message event delivery.
+  - Verifies channel typing event delivery.
+  - Checks admin diagnostics access controls and that no Redis URL/secrets leak.
+  - Run: `pnpm verify:prod:realtime`
+- **Docs updated** — `README.md`, `docs/b222-websocket-redis-adapter.md`, `docs/production-verification.md`.
+- **Limitations / future work:**
+  - Diagnostics status reflects adapter creation/attachment, not continuous Redis connection health.
+  - Presence tracking remains in-memory; full horizontal scaling would need shared presence state.
+  - Production verifier cannot validate cross-instance Redis broadcast without a second API instance.

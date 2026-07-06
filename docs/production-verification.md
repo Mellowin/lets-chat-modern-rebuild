@@ -21,6 +21,7 @@ All scripts are located in `scripts/` and are exposed as root package scripts.
 | **Message pagination** | `pnpm verify:prod:pagination` | Channel and group message lists return `{ items, nextCursor, hasMore }`; cursors walk through older pages without overlap. | One disposable account, one workspace, one channel, one group | Channel and group are archived at the end |
 | **Message search** | `pnpm verify:prod:message-search` | Global, scoped, and legacy search across channels, direct conversations, and groups, plus permission/block boundaries. | Three disposable accounts, one workspace, two channels, one group, one direct conversation | Group archived at the end |
 | **Message jump** | `pnpm verify:prod:message-jump` | Message context endpoints for channel, direct, and group messages, including permission boundaries and wrong-conversation 404s. | Three disposable accounts, one workspace, one channel, one group, one direct conversation | Group archived at the end |
+| **Realtime** | `pnpm verify:prod:realtime` | WebSocket delivery for channel, direct, and group messages plus typing events; diagnostics leak checks. | Two disposable accounts, one workspace, one channel, one group, one direct conversation | Group archived at the end |
 | **Mentions & notifications** | `node scripts/verify-production-mentions.mjs` | Notification preference endpoints, mention resolution in DMs and groups, and non-resolvable mention filtering. | Two disposable accounts, one direct conversation, one group | None |
 | **Admin reports** | `pnpm verify:prod:admin-reports` | Regular users cannot access admin report endpoints; optional positive admin list/filter/detail/update checks. | Two disposable accounts, one report | None |
 | **All** | `pnpm verify:prod:all` | Runs public → auth → permissions → browser → attachments → contacts → pwa sequentially. | Same as above | Same as above |
@@ -38,7 +39,8 @@ All scripts default to the production URLs. Override only when needed.
 | `VERIFY_MAIL_BASE` | `https://api.mail.tm` | auth, permissions, browser |
 | `VERIFY_PASSWORD` | random per run | auth, permissions, browser |
 | `VERIFY_PERMISSIONS_ENABLE_DESTRUCTIVE` | unset | permissions (must be `1` to run delete tests) |
-| `VERIFY_ADMIN_ACCESS_TOKEN` | unset | admin reports (optional, enables positive admin checks) |
+| `VERIFY_ADMIN_ACCESS_TOKEN` | unset | admin reports / realtime (optional, enables positive admin diagnostics checks) |
+| `WS_URL` / `VERIFY_WS_URL` | `wss://lets-chat-api-v2.onrender.com` | realtime |
 
 **Do not commit `VERIFY_PASSWORD` or any token.** Scripts never print tokens, passwords, or DB URLs to the console.
 

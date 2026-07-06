@@ -7,6 +7,7 @@ import { GroupsModule } from '../groups/groups.module';
 import { WebsocketGateway } from './websocket.gateway';
 import { WebsocketEventsService } from './websocket-events.service';
 import { PresenceService } from './presence.service';
+import { WebsocketRedisAdapterService } from './websocket-redis-adapter.service';
 
 @Module({
   imports: [
@@ -16,7 +17,16 @@ import { PresenceService } from './presence.service';
     forwardRef(() => DirectConversationsModule),
     forwardRef(() => GroupsModule),
   ],
-  providers: [WebsocketGateway, WebsocketEventsService, PresenceService],
-  exports: [WebsocketEventsService, PresenceService],
+  providers: [
+    WebsocketGateway,
+    WebsocketEventsService,
+    PresenceService,
+    WebsocketRedisAdapterService,
+  ],
+  exports: [
+    WebsocketEventsService,
+    PresenceService,
+    WebsocketRedisAdapterService,
+  ],
 })
 export class WebsocketModule {}

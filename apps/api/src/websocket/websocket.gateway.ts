@@ -14,6 +14,7 @@ import { ChannelsService } from '../channels/channels.service';
 import { DirectConversationsRepository } from '../direct-conversations/direct-conversations.repository';
 import { GroupsRepository } from '../groups/groups.repository';
 import { PresenceService } from './presence.service';
+import { WebsocketRedisAdapterService } from './websocket-redis-adapter.service';
 
 const websocketCorsOrigin = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map((origin) => origin.trim())
@@ -57,6 +58,10 @@ export class WebsocketGateway
 
   private readonly logger = new Logger(WebsocketGateway.name);
 
+  afterInit(server: Server) {
+    this.redisAdapter.attachTo(server);
+  }
+
   constructor(
     private readonly tokenService: TokenService,
     private readonly usersRepository: UsersRepository,
@@ -64,6 +69,7 @@ export class WebsocketGateway
     private readonly directConversations: DirectConversationsRepository,
     private readonly groups: GroupsRepository,
     private readonly presence: PresenceService,
+    private readonly redisAdapter: WebsocketRedisAdapterService,
   ) {}
 
   private async broadcastPresenceToOtherParticipant(

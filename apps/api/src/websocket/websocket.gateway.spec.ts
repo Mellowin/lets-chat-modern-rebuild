@@ -9,6 +9,7 @@ import { ChannelsService } from '../channels/channels.service';
 import { DirectConversationsRepository } from '../direct-conversations/direct-conversations.repository';
 import { GroupsRepository } from '../groups/groups.repository';
 import { PresenceService } from './presence.service';
+import { WebsocketRedisAdapterService } from './websocket-redis-adapter.service';
 
 function createMockSocket(overrides: Partial<Socket> = {}): Socket {
   const emitMock = jest.fn();
@@ -92,6 +93,17 @@ describe('WebsocketGateway', () => {
           },
         },
         PresenceService,
+        {
+          provide: WebsocketRedisAdapterService,
+          useValue: {
+            attachTo: jest.fn(),
+            getDiagnostics: jest.fn().mockReturnValue({
+              enabled: true,
+              adapter: 'memory',
+              status: 'not_configured',
+            }),
+          },
+        },
       ],
     }).compile();
 
@@ -102,6 +114,7 @@ describe('WebsocketGateway', () => {
     directConversations = moduleRef.get(DirectConversationsRepository);
 
     gateway.server = createMockServer();
+    gateway.afterInit(gateway.server);
   });
 
   afterEach(() => {
