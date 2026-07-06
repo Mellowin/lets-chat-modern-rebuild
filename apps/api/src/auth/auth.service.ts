@@ -217,14 +217,6 @@ export class AuthService {
     } catch {
       // ignore errors for already revoked or missing tokens
     }
-
-    await this.audit?.record({
-      action: AuditAction.LOGOUT,
-      entityType: AuditEntityType.SESSION,
-      entityId: tokenHash.slice(0, 36),
-      severity: AuditSeverity.INFO,
-    });
-
     return { success: true };
   }
 
