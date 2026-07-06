@@ -108,9 +108,10 @@ Portfolio guidance:
 
 | Suite | Count | Status |
 |---|---|---|
-| API unit tests | 884 (42 suites) | ✅ passing |
-| Web unit + page tests | 730 (37 files) | ✅ passing |
-| E2E security smoke tests | 59 (6 suites) | ✅ passing in CI (PostgreSQL service) |
+| API unit tests | 912 (46 suites) | ✅ passing |
+| Web unit tests | 739 (38 files) | ✅ passing |
+| Web pages tests | 268 (2 files) | ✅ passing |
+| E2E security smoke tests | 81 (8 suites) | ✅ passing in CI (PostgreSQL service) |
 
 - **CI:** GitHub Actions runs lint, typecheck, unit tests, builds, and API E2E security smoke tests (with a PostgreSQL service container) on every push.
 - **Deploy:** Render deploy hook fires only after green CI; Vercel builds the frontend in parallel.

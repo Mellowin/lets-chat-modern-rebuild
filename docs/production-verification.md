@@ -36,7 +36,7 @@ All scripts default to the production URLs. Override only when needed.
 |---|---|---|
 | `WEB_URL` / `VERIFY_WEB_BASE` | `https://lets-chat-web.vercel.app` | public smoke, browser |
 | `API_URL` / `VERIFY_API_BASE` | `https://lets-chat-api-v2.onrender.com/api/v1` | all scripts |
-| `VERIFY_MAIL_BASE` | `https://api.mail.tm` | auth, permissions, browser |
+| `VERIFY_MAIL_BASE` | `https://api.catchmail.io/api/v1` | auth, permissions, browser (fallback to Mail.tm if set) |
 | `VERIFY_PASSWORD` | random per run | auth, permissions, browser |
 | `VERIFY_PERMISSIONS_ENABLE_DESTRUCTIVE` | unset | permissions (must be `1` to run delete tests) |
 | `VERIFY_ADMIN_ACCESS_TOKEN` | unset | admin reports / realtime (optional, enables positive admin diagnostics checks) |
@@ -103,7 +103,7 @@ The main `CI` workflow also runs the API E2E security smoke tests (`apps/api/tes
 
 ## Known limitations
 
-- Mail.tm has rate limits. Running the full pack repeatedly from the same IP in a short window may hit `429 Too Many Requests`. Wait a few seconds between runs if this happens.
+- The default disposable-email provider is catchmail.io (1 request/second). Running the full pack repeatedly from the same IP in a short window may hit rate limits. Wait a few seconds between runs if this happens. You can override the provider via `VERIFY_MAIL_BASE`.
 - Disposable accounts cannot be deleted through the API. They accumulate over time but remain harmless (no workspaces/channels/memberships).
 - Browser checks rely on production `data-testid` attributes. If the UI changes, the selectors may need updating.
 - PWA checks assume the production build has exposed `/manifest.webmanifest`, `/service-worker.js`, and `/offline.html`.
