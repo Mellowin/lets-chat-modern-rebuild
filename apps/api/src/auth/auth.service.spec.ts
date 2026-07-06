@@ -10,6 +10,7 @@ import { Prisma } from '@lets-chat/database';
 import { AuthService, AuthUserResponse } from './auth.service';
 
 import { UsersRepository } from '../users/users.repository';
+import { MailProviderException } from '../mail/mail-provider.exception';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
 import { RefreshTokensRepository } from './refresh-tokens.repository';
@@ -397,6 +398,7 @@ describe('AuthService — email verification', () => {
             findByEmail: jest.fn(),
             findByUsername: jest.fn(),
             createUser: jest.fn(),
+            deleteUser: jest.fn(),
             updateDisplayName: jest.fn(),
             updateAvatar: jest.fn(),
             updateInterfaceLanguage: jest.fn(),
@@ -550,6 +552,58 @@ describe('AuthService — email verification', () => {
           password: 'password123',
         }),
       ).rejects.toThrow(ConflictException);
+    });
+
+    it('deletes the newly created user when email delivery fails', async () => {
+      usersRepository.findByEmail.mockResolvedValue(null);
+      usersRepository.findByUsername.mockResolvedValue(null);
+      passwordService.hashPassword.mockResolvedValue('hashed');
+      usersRepository.createUser.mockResolvedValue(makeUser());
+      usersRepository.updateEmailVerificationToken.mockResolvedValue(
+        makeUser(),
+      );
+      usersRepository.deleteUser.mockResolvedValue(makeUser());
+      mailService.sendVerificationEmail.mockRejectedValue(
+        new MailProviderException(503, 'MAIL_PROVIDER_QUOTA_EXCEEDED'),
+      );
+
+      await expect(
+        service.register({
+          email: 'new@test.com',
+          username: 'newuser',
+          password: 'password123',
+        }),
+      ).rejects.toThrow(MailProviderException);
+
+      expect(usersRepository.deleteUser).toHaveBeenCalledWith('user-id');
+    });
+
+    it('does not return raw provider error details to the caller', async () => {
+      usersRepository.findByEmail.mockResolvedValue(null);
+      usersRepository.findByUsername.mockResolvedValue(null);
+      passwordService.hashPassword.mockResolvedValue('hashed');
+      usersRepository.createUser.mockResolvedValue(makeUser());
+      usersRepository.updateEmailVerificationToken.mockResolvedValue(
+        makeUser(),
+      );
+      usersRepository.deleteUser.mockResolvedValue(makeUser());
+      mailService.sendVerificationEmail.mockRejectedValue(
+        new MailProviderException(503, 'MAIL_PROVIDER_QUOTA_EXCEEDED'),
+      );
+
+      await expect(
+        service.register({
+          email: 'new@test.com',
+          username: 'newuser',
+          password: 'password123',
+        }),
+      ).rejects.toMatchObject({
+        response: {
+          error: 'MAIL_PROVIDER_QUOTA_EXCEEDED',
+          message:
+            'Email delivery is temporarily unavailable. Please try again later.',
+        },
+      });
     });
   });
 
@@ -915,6 +969,23 @@ describe('AuthService — password reset', () => {
 
       expect(result.message).toBe(genericMessage);
       expect(mailService.sendPasswordResetEmail).not.toHaveBeenCalled();
+    });
+
+    it('clears the reset token when email delivery fails for an existing user', async () => {
+      usersRepository.findByEmail.mockResolvedValue(makeUser());
+      usersRepository.updatePasswordResetToken.mockResolvedValue(makeUser());
+      usersRepository.clearPasswordResetToken.mockResolvedValue(makeUser());
+      mailService.sendPasswordResetEmail.mockRejectedValue(
+        new MailProviderException(503, 'MAIL_PROVIDER_QUOTA_EXCEEDED'),
+      );
+
+      await expect(service.forgotPassword('u@test.com')).rejects.toThrow(
+        MailProviderException,
+      );
+
+      expect(usersRepository.clearPasswordResetToken).toHaveBeenCalledWith(
+        'user-id',
+      );
     });
   });
 

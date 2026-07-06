@@ -56,6 +56,12 @@ export class UsersRepository {
     });
   }
 
+  async deleteUser(userId: string) {
+    return this.prisma.user.delete({
+      where: { id: userId },
+    });
+  }
+
   async search(query: string, excludeUserId: string) {
     const trimmed = query.trim();
     const lower = trimmed.toLowerCase();

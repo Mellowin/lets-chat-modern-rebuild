@@ -1,5 +1,9 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import {
+  createMailProviderQuotaExceededException,
+  createMailProviderUnavailableException,
+} from './mail-provider.exception';
 
 export interface SendVerificationEmailInput {
   to: string;
@@ -27,6 +31,45 @@ export class MailService {
   private readonly logger = new Logger(MailService.name);
 
   constructor(private readonly config: ConfigService) {}
+
+  private async handleResendError(
+    response: Response,
+    context: string,
+  ): Promise<never> {
+    let bodyText = 'unknown error';
+    let bodyJson: Record<string, unknown> | undefined;
+
+    try {
+      bodyText = await response.text();
+      bodyJson = JSON.parse(bodyText) as Record<string, unknown>;
+    } catch {
+      // Keep bodyText as the raw text if JSON parsing fails.
+    }
+
+    const isQuotaExceeded =
+      response.status === 429 ||
+      bodyJson?.name === 'daily_quota_exceeded' ||
+      (typeof bodyJson?.message === 'string' &&
+        bodyJson.message.toLowerCase().includes('quota'));
+
+    this.logger.error(
+      {
+        context,
+        providerStatus: response.status,
+        providerErrorName: bodyJson?.name,
+        reason: isQuotaExceeded
+          ? 'mail_provider_quota_exceeded'
+          : 'mail_provider_error',
+      },
+      'Resend API request failed',
+    );
+
+    if (isQuotaExceeded) {
+      throw createMailProviderQuotaExceededException();
+    }
+
+    throw createMailProviderUnavailableException();
+  }
 
   async sendVerificationEmail(
     input: SendVerificationEmailInput,
@@ -211,8 +254,7 @@ export class MailService {
     });
 
     if (!response.ok) {
-      const body = await response.text().catch(() => 'unknown error');
-      throw new Error(`Resend API error: ${response.status} ${body}`);
+      await this.handleResendError(response, 'sendVerificationEmail');
     }
   }
 
@@ -257,8 +299,7 @@ export class MailService {
     });
 
     if (!response.ok) {
-      const body = await response.text().catch(() => 'unknown error');
-      throw new Error(`Resend API error: ${response.status} ${body}`);
+      await this.handleResendError(response, 'sendPasswordResetEmail');
     }
   }
 
@@ -305,8 +346,10 @@ export class MailService {
     });
 
     if (!response.ok) {
-      const body = await response.text().catch(() => 'unknown error');
-      throw new Error(`Resend API error: ${response.status} ${body}`);
+      await this.handleResendError(
+        response,
+        'sendEmailChangeConfirmationEmail',
+      );
     }
   }
 }

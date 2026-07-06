@@ -118,10 +118,38 @@ export function generatePassword() {
 }
 
 export async function registerAccount(email, username, password) {
-  return fetchJson(`${API_BASE}/auth/register`, {
+  const res = await fetch(`${API_BASE}/auth/register`, {
     method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({ email, username, password }),
   });
+
+  const text = await res.text();
+  let body = null;
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch {
+    body = text;
+  }
+
+  if (!res.ok) {
+    if (
+      res.status === 503 &&
+      body?.code === "MAIL_PROVIDER_QUOTA_EXCEEDED"
+    ) {
+      throw new Error("mail provider quota exhausted");
+    }
+
+    const summary = typeof body === "string" ? body : JSON.stringify(body);
+    throw new Error(
+      `HTTP ${res.status} ${res.statusText} for ${API_BASE}/auth/register: ${summary}`,
+    );
+  }
+
+  return body;
 }
 
 export async function verifyEmail(token) {

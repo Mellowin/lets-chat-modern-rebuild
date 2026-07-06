@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Injectable,
   Inject,
+  Logger,
   NotFoundException,
   Optional,
   UnauthorizedException,
@@ -79,6 +80,8 @@ export interface SessionResponse {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly users: UsersRepository,
     private readonly password: PasswordService,
@@ -132,10 +135,26 @@ export class AuthService {
       new Date(),
     );
 
-    await this.mail.sendVerificationEmail({
-      to: user.email,
-      token: rawToken,
-    });
+    try {
+      await this.mail.sendVerificationEmail({
+        to: user.email,
+        token: rawToken,
+      });
+    } catch (error) {
+      await this.users.deleteUser(user.id).catch((cleanupError) => {
+        this.logger.error(
+          {
+            userId: user.id,
+            cleanupError:
+              cleanupError instanceof Error
+                ? cleanupError.message
+                : String(cleanupError),
+          },
+          'Failed to clean up unverified user after email delivery failure',
+        );
+      });
+      throw error;
+    }
 
     return { requiresEmailVerification: true, email: user.email };
   }
@@ -398,10 +417,28 @@ export class AuthService {
       new Date(),
     );
 
-    await this.mail.sendPasswordResetEmail({
-      to: user.email,
-      token: rawToken,
-    });
+    try {
+      await this.mail.sendPasswordResetEmail({
+        to: user.email,
+        token: rawToken,
+      });
+    } catch (error) {
+      await this.users
+        .clearPasswordResetToken(user.id)
+        .catch((cleanupError) => {
+          this.logger.error(
+            {
+              userId: user.id,
+              cleanupError:
+                cleanupError instanceof Error
+                  ? cleanupError.message
+                  : String(cleanupError),
+            },
+            'Failed to clear password reset token after email delivery failure',
+          );
+        });
+      throw error;
+    }
 
     return { message: genericMessage };
   }

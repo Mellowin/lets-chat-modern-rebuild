@@ -2,6 +2,10 @@ import { Test } from '@nestjs/testing';
 import { BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MailService } from './mail.service';
+import {
+  MailProviderException,
+  MAIL_PROVIDER_ERROR_CODES,
+} from './mail-provider.exception';
 
 describe('MailService', () => {
   let service: MailService;
@@ -164,7 +168,7 @@ describe('MailService', () => {
       expect(body.html).toContain('Verify Email Address');
     });
 
-    it('throws when Resend API returns non-2xx', async () => {
+    it('throws safe MailProviderException when Resend API returns non-2xx', async () => {
       configService.get.mockImplementation((key: string) => {
         if (key === 'MAIL_PROVIDER') return 'resend';
         if (key === 'RESEND_API_KEY') return 're_123';
@@ -181,7 +185,96 @@ describe('MailService', () => {
 
       await expect(
         service.sendVerificationEmail({ to: 'user@example.com', token: 'abc' }),
-      ).rejects.toThrow('Resend API error: 422 invalid email');
+      ).rejects.toThrow(MailProviderException);
+
+      await expect(
+        service.sendVerificationEmail({ to: 'user@example.com', token: 'abc' }),
+      ).rejects.toMatchObject({
+        status: 503,
+        response: {
+          error: MAIL_PROVIDER_ERROR_CODES.UNAVAILABLE,
+          message:
+            'Email delivery is temporarily unavailable. Please try again later.',
+        },
+      });
+    });
+
+    it('throws quota exceeded exception when Resend returns 429 daily_quota_exceeded', async () => {
+      configService.get.mockImplementation((key: string) => {
+        if (key === 'MAIL_PROVIDER') return 'resend';
+        if (key === 'RESEND_API_KEY') return 're_123';
+        if (key === 'MAIL_FROM') return 'noreply@example.com';
+        return undefined;
+      });
+      configService.getOrThrow.mockReturnValue('http://localhost:3000');
+
+      jest.spyOn(global, 'fetch').mockResolvedValue({
+        ok: false,
+        status: 429,
+        text: () =>
+          Promise.resolve(
+            JSON.stringify({
+              statusCode: 429,
+              message: 'You have reached your daily email sending quota.',
+              name: 'daily_quota_exceeded',
+            }),
+          ),
+      } as Response);
+
+      await expect(
+        service.sendVerificationEmail({ to: 'user@example.com', token: 'abc' }),
+      ).rejects.toThrow(MailProviderException);
+
+      await expect(
+        service.sendVerificationEmail({ to: 'user@example.com', token: 'abc' }),
+      ).rejects.toMatchObject({
+        status: 503,
+        response: {
+          error: MAIL_PROVIDER_ERROR_CODES.QUOTA_EXCEEDED,
+          message:
+            'Email delivery is temporarily unavailable. Please try again later.',
+        },
+      });
+    });
+
+    it('does not expose Resend API key or raw response to the client on error', async () => {
+      configService.get.mockImplementation((key: string) => {
+        if (key === 'MAIL_PROVIDER') return 'resend';
+        if (key === 'RESEND_API_KEY') return 're_secret_key';
+        if (key === 'MAIL_FROM') return 'noreply@example.com';
+        return undefined;
+      });
+      configService.getOrThrow.mockReturnValue('http://localhost:3000');
+
+      jest.spyOn(global, 'fetch').mockResolvedValue({
+        ok: false,
+        status: 429,
+        text: () =>
+          Promise.resolve(
+            JSON.stringify({
+              statusCode: 429,
+              message: 'You have reached your daily email sending quota.',
+              name: 'daily_quota_exceeded',
+            }),
+          ),
+      } as Response);
+
+      let thrown: MailProviderException | undefined;
+      try {
+        await service.sendVerificationEmail({
+          to: 'user@example.com',
+          token: 'abc',
+        });
+      } catch (err) {
+        thrown = err as MailProviderException;
+      }
+
+      expect(thrown).toBeInstanceOf(MailProviderException);
+      const response = thrown!.getResponse() as Record<string, unknown>;
+      const responseText = JSON.stringify(response);
+      expect(responseText).not.toContain('re_secret_key');
+      expect(responseText).not.toContain('daily_quota_exceeded');
+      expect(responseText).not.toContain('token');
     });
   });
 });
