@@ -219,7 +219,9 @@ describe('Groups E2E Security', () => {
       expect(target).toBeDefined();
 
       const res = await request(app.getHttpServer())
-        .get(`/groups/${group.id}/messages/${target!.id}/context?before=1&after=1`)
+        .get(
+          `/groups/${group.id}/messages/${target!.id}/context?before=1&after=1`,
+        )
         .set('Authorization', `Bearer ${tokenB}`)
         .expect(200);
 

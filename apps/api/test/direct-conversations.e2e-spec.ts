@@ -25,7 +25,6 @@ describe('DirectConversations E2E', () => {
   let userB: { id: string; email: string; username: string };
   let userC: { id: string; email: string; username: string };
   let tokenA: string;
-  let tokenB: string;
   let tokenC: string;
   let conversation: DirectConversationResponse;
 
@@ -59,11 +58,6 @@ describe('DirectConversations E2E', () => {
       sub: userA.id,
       email: userA.email,
       jti: 'jti-a',
-    });
-    tokenB = await tokenService.signAccessToken({
-      sub: userB.id,
-      email: userB.email,
-      jti: 'jti-b',
     });
     tokenC = await tokenService.signAccessToken({
       sub: userC.id,
