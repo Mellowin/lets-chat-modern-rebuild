@@ -114,7 +114,8 @@ async function main() {
 
   const jumpToken = `B221-jump-token-${Date.now()}`;
 
-  // Send a batch of messages so the target is not in the latest page.
+  // Send messages before and after the target so it is not in the latest page
+  // and the context endpoint can return both sides.
   const olderChannelMessages = [];
   for (let i = 0; i < 55; i++) {
     const msg = await api(
@@ -132,6 +133,17 @@ async function main() {
     `/workspaces/${workspace.id}/channels/${channel.id}/messages`,
     { content: jumpToken },
   );
+
+  const newerChannelMessages = [];
+  for (let i = 0; i < 5; i++) {
+    const msg = await api(
+      owner.accessToken,
+      "POST",
+      `/workspaces/${workspace.id}/channels/${channel.id}/messages`,
+      { content: `B221 channel after ${i}` },
+    );
+    newerChannelMessages.push(msg);
+  }
 
   const olderDirectMessages = [];
   for (let i = 0; i < 55; i++) {
@@ -151,6 +163,17 @@ async function main() {
     { content: jumpToken },
   );
 
+  const newerDirectMessages = [];
+  for (let i = 0; i < 5; i++) {
+    const msg = await api(
+      owner.accessToken,
+      "POST",
+      `/direct-conversations/${directConversation.id}/messages`,
+      { content: `B221 direct after ${i}` },
+    );
+    newerDirectMessages.push(msg);
+  }
+
   const olderGroupMessages = [];
   for (let i = 0; i < 55; i++) {
     const msg = await api(
@@ -168,6 +191,17 @@ async function main() {
     `/groups/${group.id}/messages`,
     { content: jumpToken },
   );
+
+  const newerGroupMessages = [];
+  for (let i = 0; i < 5; i++) {
+    const msg = await api(
+      owner.accessToken,
+      "POST",
+      `/groups/${group.id}/messages`,
+      { content: `B221 group after ${i}` },
+    );
+    newerGroupMessages.push(msg);
+  }
 
   results.push({
     check: "Owner can send channel target message",
