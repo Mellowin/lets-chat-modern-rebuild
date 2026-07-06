@@ -1,6 +1,6 @@
 # Project Status
 
-> Last updated: 2026-07-06 (B222 optional Socket.io Redis adapter and realtime scalability hardening complete)  
+> Last updated: 2026-07-06 (B224 admin audit log dashboard and security event trail complete)  
 > Code checkpoint: `main`  
 > Docs checkpoint: `main`
 >
@@ -668,3 +668,28 @@ node apps/api/scripts/cleanup-orphaned-attachments.mjs --delete
   - Diagnostics status reflects adapter creation/attachment, not continuous Redis connection health.
   - Presence tracking remains in-memory; full horizontal scaling would need shared presence state.
   - Production verifier cannot validate cross-instance Redis broadcast without a second API instance.
+
+## B224. Admin Audit Log Dashboard and Security Event Trail
+
+- **Goal** — give admins/moderators a searchable audit log dashboard and automatically record security-relevant events across the platform.
+- **Scope:**
+  - Extended `AuditLog` model with `targetUserId`, `groupId`, `severity`, `requestId` and new indexes.
+  - Metadata sanitizer redacts tokens, secrets, passwords, DB/Redis URLs, and credentials before persistence.
+  - Admin API: `GET /admin/audit` with filtering and cursor pagination, `GET /admin/audit/:id` detail.
+  - Frontend `/admin/audit` dashboard with filters, severity badges, actor/target summaries, and load-more pagination.
+  - Instrumented audit events for auth, user blocks, reports, channels, groups, attachments, and admin views.
+  - `AuditModule` is `@Global()`; `AuditService` is injected optionally in instrumented services to keep tests simple.
+- **Environment:** none (uses existing `DATABASE_URL`).
+- **Tests added/updated:**
+  - API: `audit.service.spec.ts` updated for new fields; existing service specs remain green with optional audit dependency.
+  - Web: new `apps/web/src/app/admin/audit/page.tsx`.
+- **Production verifier** — `scripts/verify-production-audit.mjs`:
+  - Creates disposable users, blocks/unblocks, and creates a report to generate events.
+  - Verifies regular users cannot access `/admin/audit`.
+  - Optional positive admin checks with `VERIFY_ADMIN_ACCESS_TOKEN`.
+  - Run: `pnpm verify:prod:audit`
+- **Docs updated** — `README.md`, `docs/b224-admin-audit-log.md`, `docs/production-verification.md`.
+- **Limitations / future work:**
+  - IP address and user agent are not captured yet; fields exist on the model.
+  - Admin view events record `actorId: null`; capturing the acting admin user would require passing the user into each controller method.
+  - No audit log export or retention policy yet.

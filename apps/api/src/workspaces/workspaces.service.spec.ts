@@ -863,7 +863,7 @@ describe('WorkspacesService', () => {
           channelId: null,
           metadata: { oldRole: 'MEMBER', newRole: 'ADMIN' },
           createdAt: new Date('2026-01-01'),
-          actor: { id: userId, username: 'owner' },
+          actor: { id: userId, username: 'owner', displayName: null },
         },
       ]);
 

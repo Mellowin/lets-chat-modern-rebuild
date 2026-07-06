@@ -1,10 +1,18 @@
 import {
   BadRequestException,
   Injectable,
+  Inject,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { AdminReportsRepository } from './admin-reports.repository';
 import { ReportStatus } from './dto/admin-report-query.dto';
+import { AuditService } from '../audit/audit.service';
+import {
+  AuditAction,
+  AuditEntityType,
+  AuditSeverity,
+} from '../audit/audit.constants';
 
 export interface AdminReportListResult {
   items: Awaited<ReturnType<AdminReportsRepository['findManyAdminReports']>>;
@@ -20,7 +28,12 @@ const ALLOWED_STATUSES = new Set<string>([
 
 @Injectable()
 export class AdminReportsService {
-  constructor(private readonly repo: AdminReportsRepository) {}
+  constructor(
+    private readonly repo: AdminReportsRepository,
+    @Optional()
+    @Inject(AuditService)
+    private readonly audit: AuditService | null = null,
+  ) {}
 
   async listReports(options: {
     status?: string;
@@ -93,7 +106,23 @@ export class AdminReportsService {
       updateData.reviewedBy = actorId;
     }
 
-    return this.repo.updateAdminReport(id, updateData);
+    const updated = await this.repo.updateAdminReport(id, updateData);
+
+    await this.audit?.record({
+      actorId,
+      targetUserId: report.reportedUserId,
+      action: AuditAction.REPORT_UPDATED,
+      entityType: AuditEntityType.USER_REPORT,
+      entityId: report.id,
+      severity: AuditSeverity.WARNING,
+      metadata: {
+        oldStatus: report.status,
+        newStatus: input.status ?? report.status,
+        adminNote: input.adminNote ?? null,
+      },
+    });
+
+    return updated;
   }
 
   private encodeCursor(

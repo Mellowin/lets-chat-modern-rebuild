@@ -108,6 +108,7 @@ model User {
   channelReadStates              ChannelReadState[]
   refreshTokens                  RefreshToken[]
   auditLogs                      AuditLog[]                      @relation("AuditLogActor")
+  auditLogsTarget                AuditLog[]                      @relation("AuditLogTarget")
   messageEdits                   MessageEdit[]
   directConversationParticipants DirectConversationParticipant[]
   directMessages                 DirectMessage[]
@@ -302,27 +303,38 @@ model Attachment {
 }
 
 model AuditLog {
-  id          String   @id @default(uuid()) @db.Uuid
-  actorId     String?  @db.Uuid
-  action      String
-  entityType  String
-  entityId    String   @db.Uuid
-  workspaceId String?  @db.Uuid
-  channelId   String?  @db.Uuid
-  metadata    Json?
-  ipAddress   String?
-  userAgent   String?
-  createdAt   DateTime @default(now())
+  id           String   @id @default(uuid()) @db.Uuid
+  actorId      String?  @db.Uuid
+  targetUserId String?  @db.Uuid
+  action       String
+  entityType   String
+  entityId     String   @db.Uuid
+  workspaceId  String?  @db.Uuid
+  channelId    String?  @db.Uuid
+  groupId      String?  @db.Uuid
+  severity     String   @default("info")
+  requestId    String?
+  metadata     Json?
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
 
   // Relations
-  actor     User?      @relation("AuditLogActor", fields: [actorId], references: [id])
-  workspace Workspace? @relation(fields: [workspaceId], references: [id])
-  channel   Channel?   @relation(fields: [channelId], references: [id])
+  actor      User?      @relation("AuditLogActor", fields: [actorId], references: [id])
+  targetUser User?      @relation("AuditLogTarget", fields: [targetUserId], references: [id])
+  workspace  Workspace? @relation(fields: [workspaceId], references: [id])
+  channel    Channel?   @relation(fields: [channelId], references: [id])
 
+  @@index([createdAt])
   @@index([workspaceId, createdAt])
   @@index([entityType, entityId])
+  @@index([entityType])
   @@index([actorId, createdAt])
+  @@index([actorId])
+  @@index([targetUserId])
   @@index([action, createdAt])
+  @@index([action])
+  @@index([severity])
 }
 
 model RefreshToken {

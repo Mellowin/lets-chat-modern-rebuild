@@ -3,7 +3,9 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Inject,
   NotFoundException,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -16,6 +18,12 @@ import { TokenService } from './token.service';
 import { RefreshTokensRepository } from './refresh-tokens.repository';
 import { JwtPayload } from './jwt-payload.type';
 import { MailService } from '../mail/mail.service';
+import { AuditService } from '../audit/audit.service';
+import {
+  AuditAction,
+  AuditEntityType,
+  AuditSeverity,
+} from '../audit/audit.constants';
 
 type SafeUser = Omit<User, 'passwordHash'>;
 
@@ -78,6 +86,9 @@ export class AuthService {
     private readonly refreshTokens: RefreshTokensRepository,
     private readonly config: ConfigService,
     private readonly mail: MailService,
+    @Optional()
+    @Inject(AuditService)
+    private readonly audit: AuditService | null = null,
   ) {}
 
   async register(input: RegisterInput): Promise<RegisterPendingResult> {
@@ -152,6 +163,14 @@ export class AuthService {
 
     await this.persistRefreshToken(user.id, refreshToken, payload.jti);
 
+    await this.audit?.record({
+      actorId: user.id,
+      action: AuditAction.LOGIN_SUCCESS,
+      entityType: AuditEntityType.USER,
+      entityId: user.id,
+      severity: AuditSeverity.INFO,
+    });
+
     const authUser = this.toAuthUserResponse(user);
     return { user: authUser, accessToken, refreshToken };
   }
@@ -198,6 +217,14 @@ export class AuthService {
     } catch {
       // ignore errors for already revoked or missing tokens
     }
+
+    await this.audit?.record({
+      action: AuditAction.LOGOUT,
+      entityType: AuditEntityType.SESSION,
+      entityId: tokenHash.slice(0, 36),
+      severity: AuditSeverity.INFO,
+    });
+
     return { success: true };
   }
 
@@ -217,6 +244,15 @@ export class AuthService {
     }
 
     await this.users.markEmailVerified(user.id);
+
+    await this.audit?.record({
+      actorId: user.id,
+      action: AuditAction.EMAIL_VERIFIED,
+      entityType: AuditEntityType.USER,
+      entityId: user.id,
+      severity: AuditSeverity.INFO,
+    });
+
     return { success: true };
   }
 
@@ -411,6 +447,14 @@ export class AuthService {
     await this.users.clearPasswordResetToken(user.id);
     await this.refreshTokens.revokeAllForUser(user.id);
 
+    await this.audit?.record({
+      actorId: user.id,
+      action: AuditAction.PASSWORD_RESET_COMPLETED,
+      entityType: AuditEntityType.USER,
+      entityId: user.id,
+      severity: AuditSeverity.CRITICAL,
+    });
+
     return { success: true };
   }
 
@@ -445,6 +489,14 @@ export class AuthService {
     const passwordHash = await this.password.hashPassword(newPassword);
     await this.users.updatePassword(user.id, passwordHash);
     await this.refreshTokens.revokeAllForUser(user.id);
+
+    await this.audit?.record({
+      actorId: userId,
+      action: AuditAction.PASSWORD_CHANGED,
+      entityType: AuditEntityType.USER,
+      entityId: userId,
+      severity: AuditSeverity.CRITICAL,
+    });
 
     return { success: true };
   }
@@ -539,6 +591,16 @@ export class AuthService {
     userId: string,
   ): Promise<{ success: boolean; revokedCount: number }> {
     const revokedCount = await this.refreshTokens.revokeAllForUser(userId);
+
+    await this.audit?.record({
+      actorId: userId,
+      action: AuditAction.SESSION_REVOKED,
+      entityType: AuditEntityType.SESSION,
+      entityId: userId,
+      severity: AuditSeverity.WARNING,
+      metadata: { scope: 'all', revokedCount },
+    });
+
     return { success: true, revokedCount };
   }
 
@@ -550,6 +612,16 @@ export class AuthService {
       userId,
       currentSessionId,
     );
+
+    await this.audit?.record({
+      actorId: userId,
+      action: AuditAction.SESSION_REVOKED,
+      entityType: AuditEntityType.SESSION,
+      entityId: currentSessionId,
+      severity: AuditSeverity.WARNING,
+      metadata: { scope: 'others', revokedCount },
+    });
+
     return { success: true, revokedCount };
   }
 
@@ -564,6 +636,16 @@ export class AuthService {
     if (revokedCount === 0) {
       throw new NotFoundException('Session not found');
     }
+
+    await this.audit?.record({
+      actorId: userId,
+      action: AuditAction.SESSION_REVOKED,
+      entityType: AuditEntityType.SESSION,
+      entityId: sessionId,
+      severity: AuditSeverity.WARNING,
+      metadata: { scope: 'single' },
+    });
+
     return { success: true };
   }
 

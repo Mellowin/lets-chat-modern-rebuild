@@ -1,12 +1,20 @@
 import {
   BadRequestException,
   Injectable,
+  Inject,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { PrismaService } from '@lets-chat/database';
 import { UsersRepository } from '../users/users.repository';
 import { ReportsRepository } from './reports.repository';
 import { CreateReportDto } from './dto/create-report.dto';
+import { AuditService } from '../audit/audit.service';
+import {
+  AuditAction,
+  AuditEntityType,
+  AuditSeverity,
+} from '../audit/audit.constants';
 
 @Injectable()
 export class ReportsService {
@@ -14,6 +22,9 @@ export class ReportsService {
     private readonly reports: ReportsRepository,
     private readonly users: UsersRepository,
     private readonly prisma: PrismaService,
+    @Optional()
+    @Inject(AuditService)
+    private readonly audit: AuditService | null = null,
   ) {}
 
   async createReport(reporterId: string, dto: CreateReportDto) {
@@ -50,7 +61,7 @@ export class ReportsService {
       }
     }
 
-    return this.reports.createReport({
+    const report = await this.reports.createReport({
       reporterId,
       reportedUserId: dto.reportedUserId,
       messageId: dto.messageId,
@@ -59,6 +70,23 @@ export class ReportsService {
       reason: dto.reason,
       details: dto.details,
     });
+
+    await this.audit?.record({
+      actorId: reporterId,
+      targetUserId: dto.reportedUserId,
+      action: AuditAction.REPORT_CREATED,
+      entityType: AuditEntityType.USER_REPORT,
+      entityId: report.id,
+      severity: AuditSeverity.WARNING,
+      metadata: {
+        reason: dto.reason,
+        messageId: dto.messageId ?? null,
+        directConversationId: dto.directConversationId ?? null,
+        groupId: dto.groupId ?? null,
+      },
+    });
+
+    return report;
   }
 
   private async findReportableMessage(

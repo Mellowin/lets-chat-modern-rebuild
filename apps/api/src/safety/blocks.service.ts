@@ -2,16 +2,27 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Inject,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { UsersRepository } from '../users/users.repository';
 import { BlocksRepository } from './blocks.repository';
+import { AuditService } from '../audit/audit.service';
+import {
+  AuditAction,
+  AuditEntityType,
+  AuditSeverity,
+} from '../audit/audit.constants';
 
 @Injectable()
 export class BlocksService {
   constructor(
     private readonly blocks: BlocksRepository,
     private readonly users: UsersRepository,
+    @Optional()
+    @Inject(AuditService)
+    private readonly audit: AuditService | null = null,
   ) {}
 
   async block(
@@ -39,6 +50,16 @@ export class BlocksService {
 
     const block = await this.blocks.upsertBlock(blockerId, blockedId, reason);
 
+    await this.audit?.record({
+      actorId: blockerId,
+      targetUserId: blockedId,
+      action: AuditAction.USER_BLOCKED,
+      entityType: AuditEntityType.USER_BLOCK,
+      entityId: block.id,
+      severity: AuditSeverity.WARNING,
+      metadata: { reason: reason ?? null },
+    });
+
     return {
       id: block.id,
       blockerId: block.blockerId,
@@ -62,6 +83,16 @@ export class BlocksService {
     if (deletedCount === 0) {
       throw new NotFoundException('Block not found');
     }
+
+    await this.audit?.record({
+      actorId: blockerId,
+      targetUserId: blockedId,
+      action: AuditAction.USER_UNBLOCKED,
+      entityType: AuditEntityType.USER_BLOCK,
+      entityId: blockedId,
+      severity: AuditSeverity.INFO,
+    });
+
     return { success: true };
   }
 

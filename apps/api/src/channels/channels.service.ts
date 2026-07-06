@@ -3,7 +3,9 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Inject,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { ChannelType, Prisma } from '@lets-chat/database';
 import { WorkspacesRepository } from '../workspaces/workspaces.repository';
@@ -12,6 +14,12 @@ import { ChannelsRepository } from './channels.repository';
 import { CreateChannelDto } from './dto/create-channel.dto';
 import { slugify } from '../common/transliterate';
 import { UpdateChannelDto } from './dto/update-channel.dto';
+import { AuditService } from '../audit/audit.service';
+import {
+  AuditAction,
+  AuditEntityType,
+  AuditSeverity,
+} from '../audit/audit.constants';
 
 @Injectable()
 export class ChannelsService {
@@ -19,6 +27,9 @@ export class ChannelsService {
     private readonly channels: ChannelsRepository,
     private readonly workspaces: WorkspacesRepository,
     private readonly users: UsersRepository,
+    @Optional()
+    @Inject(AuditService)
+    private readonly audit: AuditService | null = null,
   ) {}
 
   async create(workspaceId: string, dto: CreateChannelDto, userId: string) {
@@ -40,7 +51,7 @@ export class ChannelsService {
     }
 
     try {
-      return await this.channels.createChannel(
+      const channel = await this.channels.createChannel(
         {
           workspaceId,
           name: dto.name.trim(),
@@ -51,6 +62,19 @@ export class ChannelsService {
         },
         userId,
       );
+
+      await this.audit?.record({
+        actorId: userId,
+        action: AuditAction.CHANNEL_CREATED,
+        entityType: AuditEntityType.CHANNEL,
+        entityId: channel.id,
+        workspaceId,
+        channelId: channel.id,
+        severity: AuditSeverity.INFO,
+        metadata: { type: channel.type },
+      });
+
+      return channel;
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -158,7 +182,23 @@ export class ChannelsService {
     if (dto.name !== undefined) updateData.name = dto.name;
     if (dto.description !== undefined) updateData.description = dto.description;
 
-    return this.channels.updateChannel(channelId, updateData);
+    const updated = await this.channels.updateChannel(channelId, updateData);
+
+    await this.audit?.record({
+      actorId: userId,
+      action: AuditAction.CHANNEL_UPDATED,
+      entityType: AuditEntityType.CHANNEL,
+      entityId: channelId,
+      workspaceId,
+      channelId,
+      severity: AuditSeverity.INFO,
+      metadata: {
+        name: updateData.name ?? null,
+        description: updateData.description ?? null,
+      },
+    });
+
+    return updated;
   }
 
   async listChannelMembers(
@@ -269,6 +309,18 @@ export class ChannelsService {
         role,
       });
 
+      await this.audit?.record({
+        actorId: userId,
+        targetUserId: targetUser.id,
+        action: AuditAction.CHANNEL_MEMBER_ADDED,
+        entityType: AuditEntityType.CHANNEL_MEMBER,
+        entityId: member.id,
+        workspaceId,
+        channelId,
+        severity: AuditSeverity.INFO,
+        metadata: { role },
+      });
+
       return {
         id: member.id,
         channelId: member.channelId,
@@ -345,6 +397,19 @@ export class ChannelsService {
     if (deletedCount === 0) {
       throw new NotFoundException('Member not found');
     }
+
+    await this.audit?.record({
+      actorId: userId,
+      targetUserId: targetMember.userId,
+      action: AuditAction.CHANNEL_MEMBER_REMOVED,
+      entityType: AuditEntityType.CHANNEL_MEMBER,
+      entityId: targetMember.id,
+      workspaceId,
+      channelId,
+      severity: AuditSeverity.INFO,
+      metadata: { role: targetMember.role },
+    });
+
     return { success: true };
   }
 
@@ -379,6 +444,17 @@ export class ChannelsService {
       throw new NotFoundException('Channel not found');
     }
 
+    await this.audit?.record({
+      actorId: userId,
+      action: AuditAction.CHANNEL_MEMBER_REMOVED,
+      entityType: AuditEntityType.CHANNEL_MEMBER,
+      entityId: member.id,
+      workspaceId,
+      channelId,
+      severity: AuditSeverity.INFO,
+      metadata: { role: member.role, reason: 'left' },
+    });
+
     return { success: true };
   }
 
@@ -405,6 +481,17 @@ export class ChannelsService {
     }
 
     await this.channels.archiveChannel(channelId);
+
+    await this.audit?.record({
+      actorId: userId,
+      action: AuditAction.CHANNEL_ARCHIVED,
+      entityType: AuditEntityType.CHANNEL,
+      entityId: channelId,
+      workspaceId,
+      channelId,
+      severity: AuditSeverity.WARNING,
+    });
+
     return { success: true };
   }
 
@@ -426,6 +513,17 @@ export class ChannelsService {
     }
 
     await this.channels.permanentlyDeleteChannel(channelId);
+
+    await this.audit?.record({
+      actorId: userId,
+      action: AuditAction.CHANNEL_DELETED,
+      entityType: AuditEntityType.CHANNEL,
+      entityId: channelId,
+      workspaceId,
+      channelId,
+      severity: AuditSeverity.CRITICAL,
+    });
+
     return { success: true };
   }
 
@@ -453,6 +551,18 @@ export class ChannelsService {
     }
 
     await this.channels.restoreChannel(channelId);
+
+    await this.audit?.record({
+      actorId: userId,
+      action: AuditAction.CHANNEL_UPDATED,
+      entityType: AuditEntityType.CHANNEL,
+      entityId: channelId,
+      workspaceId,
+      channelId,
+      severity: AuditSeverity.INFO,
+      metadata: { restored: true },
+    });
+
     return { success: true };
   }
 }

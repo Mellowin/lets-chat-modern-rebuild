@@ -24,6 +24,7 @@ All scripts are located in `scripts/` and are exposed as root package scripts.
 | **Realtime** | `pnpm verify:prod:realtime` | WebSocket delivery for channel, direct, and group messages plus typing events; diagnostics leak checks. | Two disposable accounts, one workspace, one channel, one group, one direct conversation | Group archived at the end |
 | **Mentions & notifications** | `node scripts/verify-production-mentions.mjs` | Notification preference endpoints, mention resolution in DMs and groups, and non-resolvable mention filtering. | Two disposable accounts, one direct conversation, one group | None |
 | **Admin reports** | `pnpm verify:prod:admin-reports` | Regular users cannot access admin report endpoints; optional positive admin list/filter/detail/update checks. | Two disposable accounts, one report | None |
+| **Admin audit log** | `pnpm verify:prod:audit` | Regular users cannot access admin audit endpoints; optional positive admin list/filter/detail checks plus sensitive-field leak checks. | Two disposable accounts, one block, one report | None |
 | **All** | `pnpm verify:prod:all` | Runs public → auth → permissions → browser → attachments → contacts → pwa sequentially. | Same as above | Same as above |
 
 ---
@@ -39,7 +40,7 @@ All scripts default to the production URLs. Override only when needed.
 | `VERIFY_MAIL_BASE` | `https://api.catchmail.io/api/v1` | auth, permissions, browser (fallback to Mail.tm if set) |
 | `VERIFY_PASSWORD` | random per run | auth, permissions, browser |
 | `VERIFY_PERMISSIONS_ENABLE_DESTRUCTIVE` | unset | permissions (must be `1` to run delete tests) |
-| `VERIFY_ADMIN_ACCESS_TOKEN` | unset | admin reports / realtime (optional, enables positive admin diagnostics checks) |
+| `VERIFY_ADMIN_ACCESS_TOKEN` | unset | admin reports / audit / realtime (optional, enables positive admin diagnostics checks) |
 | `WS_URL` / `VERIFY_WS_URL` | `wss://lets-chat-api-v2.onrender.com` | realtime |
 
 **Do not commit `VERIFY_PASSWORD` or any token.** Scripts never print tokens, passwords, or DB URLs to the console.
@@ -79,6 +80,12 @@ pnpm verify:prod:admin-reports
 
 # Admin reports — with positive admin checks
 VERIFY_ADMIN_ACCESS_TOKEN=<token> pnpm verify:prod:admin-reports
+
+# Admin audit log — negative checks only by default
+pnpm verify:prod:audit
+
+# Admin audit log — with positive admin checks
+VERIFY_ADMIN_ACCESS_TOKEN=<token> pnpm verify:prod:audit
 
 # Full pack (respects the destructive flag)
 VERIFY_PERMISSIONS_ENABLE_DESTRUCTIVE=1 pnpm verify:prod:all

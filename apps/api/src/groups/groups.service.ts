@@ -2,7 +2,9 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Inject,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import {
   decodeMessageCursor,
@@ -14,6 +16,12 @@ import { PushService } from '../push/push.service';
 import { BlocksService } from '../safety/blocks.service';
 import { MentionsService } from '../common/mentions.service';
 import { GroupsRepository } from './groups.repository';
+import { AuditService } from '../audit/audit.service';
+import {
+  AuditAction,
+  AuditEntityType,
+  AuditSeverity,
+} from '../audit/audit.constants';
 import { CreateGroupDto } from './dto/create-group.dto';
 import { UpdateGroupDto } from './dto/update-group.dto';
 import { AddGroupMemberDto } from './dto/add-group-member.dto';
@@ -30,6 +38,9 @@ export class GroupsService {
     private readonly pushService: PushService,
     private readonly blocks: BlocksService,
     private readonly mentions: MentionsService,
+    @Optional()
+    @Inject(AuditService)
+    private readonly audit: AuditService | null = null,
   ) {}
 
   private normalizeMentions(
@@ -157,6 +168,19 @@ export class GroupsService {
       [currentUserId, ...uniqueMemberIds],
     );
 
+    await this.audit?.record({
+      actorId: currentUserId,
+      action: AuditAction.GROUP_CREATED,
+      entityType: AuditEntityType.GROUP,
+      entityId: created.id,
+      groupId: created.id,
+      severity: AuditSeverity.INFO,
+      metadata: {
+        name: created.name,
+        memberCount: uniqueMemberIds.length,
+      },
+    });
+
     return response;
   }
 
@@ -204,6 +228,16 @@ export class GroupsService {
       { groupId, archivedAt: new Date() },
       memberIds,
     );
+
+    await this.audit?.record({
+      actorId: currentUserId,
+      action: AuditAction.GROUP_ARCHIVED,
+      entityType: AuditEntityType.GROUP,
+      entityId: groupId,
+      groupId,
+      severity: AuditSeverity.WARNING,
+    });
+
     return { success: true };
   }
 
@@ -240,6 +274,17 @@ export class GroupsService {
       response,
       updated?.members.map((m) => m.user.id) ?? [],
     );
+
+    await this.audit?.record({
+      actorId: currentUserId,
+      targetUserId: dto.userId,
+      action: AuditAction.GROUP_MEMBER_ADDED,
+      entityType: AuditEntityType.GROUP_MEMBER,
+      entityId: groupId,
+      groupId,
+      severity: AuditSeverity.INFO,
+    });
+
     return response;
   }
 
@@ -272,6 +317,18 @@ export class GroupsService {
       updated?.members.map((m) => m.user.id) ?? [],
     );
     this.websocketEvents.broadcastGroupMemberRemoved(groupId, { userId });
+
+    await this.audit?.record({
+      actorId: currentUserId,
+      targetUserId: userId,
+      action: AuditAction.GROUP_MEMBER_REMOVED,
+      entityType: AuditEntityType.GROUP_MEMBER,
+      entityId: groupId,
+      groupId,
+      severity: AuditSeverity.WARNING,
+      metadata: { role: targetMember.role },
+    });
+
     return response;
   }
 
@@ -291,6 +348,18 @@ export class GroupsService {
     this.websocketEvents.broadcastGroupMemberRemoved(groupId, {
       userId: currentUserId,
     });
+
+    await this.audit?.record({
+      actorId: currentUserId,
+      targetUserId: currentUserId,
+      action: AuditAction.GROUP_MEMBER_LEFT,
+      entityType: AuditEntityType.GROUP_MEMBER,
+      entityId: groupId,
+      groupId,
+      severity: AuditSeverity.INFO,
+      metadata: { role: member.role },
+    });
+
     return { success: true };
   }
 

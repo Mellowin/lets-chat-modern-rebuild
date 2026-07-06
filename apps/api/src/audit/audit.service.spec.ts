@@ -1,7 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { AuditService } from './audit.service';
 import { AuditRepository } from './audit.repository';
-import { AuditAction, AuditEntityType } from './audit.constants';
+import { AuditAction, AuditEntityType, AuditSeverity } from './audit.constants';
 
 type CreatedAuditLog = Awaited<ReturnType<AuditRepository['create']>>;
 
@@ -183,14 +183,18 @@ describe('AuditService', () => {
 
     expect(auditRepository.create).toHaveBeenCalledWith({
       actorId: input.actorId,
+      targetUserId: null,
       action: input.action,
       entityType: input.entityType,
       entityId: input.entityId,
       workspaceId: input.workspaceId,
       channelId: null,
+      groupId: null,
+      severity: AuditSeverity.INFO,
       metadata: input.metadata,
       ipAddress: input.ipAddress,
       userAgent: input.userAgent,
+      requestId: null,
     });
   });
 

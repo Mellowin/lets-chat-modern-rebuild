@@ -1,7 +1,9 @@
 import {
   ConflictException,
   Injectable,
+  Inject,
   NotFoundException,
+  Optional,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { ChannelsService } from '../channels/channels.service';
@@ -16,6 +18,12 @@ import {
 } from './attachment-validation';
 import { classifyAttachmentKind } from './messages.service';
 import { randomUUID } from 'crypto';
+import { AuditService } from '../audit/audit.service';
+import {
+  AuditAction,
+  AuditEntityType,
+  AuditSeverity,
+} from '../audit/audit.constants';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -56,6 +64,9 @@ export class AttachmentsService {
     private readonly messages: MessagesRepository,
     private readonly attachments: AttachmentsRepository,
     private readonly storage: StorageService,
+    @Optional()
+    @Inject(AuditService)
+    private readonly audit: AuditService | null = null,
   ) {}
 
   private async validateUploadedFile(
@@ -86,6 +97,25 @@ export class AttachmentsService {
     const { uploadUrl, expiresInSeconds } =
       await this.storage.getPresignedUploadUrl(storageKey, dto.mimeType, 300);
 
+    const auditEntityId = randomUUID();
+    await this.audit?.record({
+      actorId: userId,
+      action: AuditAction.ATTACHMENT_UPLOADED,
+      entityType: AuditEntityType.ATTACHMENT,
+      entityId: auditEntityId,
+      workspaceId,
+      channelId,
+      severity: AuditSeverity.INFO,
+      metadata: {
+        method: 'presigned',
+        storageKey,
+        fileName: dto.filename,
+        mimeType: dto.mimeType,
+        sizeBytes: dto.sizeBytes,
+        kind: classifyAttachmentKind(dto.mimeType),
+      },
+    });
+
     return {
       uploadUrl,
       storageKey,
@@ -111,6 +141,25 @@ export class AttachmentsService {
     const storageKey = `attachments/${userId}/${randomUUID()}-${sanitized}`;
 
     await this.storage.putObject(storageKey, file.buffer, normalizedMimeType);
+
+    const auditEntityId = randomUUID();
+    await this.audit?.record({
+      actorId: userId,
+      action: AuditAction.ATTACHMENT_UPLOADED,
+      entityType: AuditEntityType.ATTACHMENT,
+      entityId: auditEntityId,
+      workspaceId,
+      channelId,
+      severity: AuditSeverity.INFO,
+      metadata: {
+        method: 'direct',
+        storageKey,
+        fileName: decodedOriginalName,
+        mimeType: normalizedMimeType,
+        sizeBytes: file.size,
+        kind: classifyAttachmentKind(normalizedMimeType),
+      },
+    });
 
     return {
       storageKey,
