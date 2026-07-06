@@ -234,3 +234,92 @@ export async function updateAdminReport(
 
   return res.json() as Promise<AdminReport>;
 }
+
+// ── Admin diagnostics ───────────────────────────────────────────────
+
+export type DiagnosticsCheckStatus = "ok" | "not_configured" | "error";
+
+export interface DiagnosticsCheck {
+  status: DiagnosticsCheckStatus;
+  detail?: string;
+}
+
+export interface DiagnosticsHealthResponse {
+  status: "ok" | "degraded";
+  timestamp: string;
+  uptime: number;
+  environment: string;
+  version: string;
+  requestId?: string;
+  checks: {
+    api: DiagnosticsCheck;
+    database: DiagnosticsCheck;
+    redis: DiagnosticsCheck;
+    push: DiagnosticsCheck;
+    attachments: DiagnosticsCheck;
+    mail: DiagnosticsCheck;
+  };
+}
+
+export interface DiagnosticsConfigResponse {
+  push: boolean;
+  pwa: boolean;
+  attachments: boolean;
+  email: boolean;
+  redis: boolean;
+  rateLimit: boolean;
+  websocket: boolean;
+  adminModeration: boolean;
+  messageSearch: boolean;
+}
+
+export interface DiagnosticsChecksResponse {
+  timestamp: string;
+  requestId?: string;
+  checks: DiagnosticsHealthResponse["checks"];
+}
+
+export async function getAdminDiagnosticsHealth(
+  accessToken: string,
+): Promise<DiagnosticsHealthResponse> {
+  const res = await authFetch(`${API_BASE}/admin/diagnostics/health`, {
+    method: "GET",
+    headers: authHeaders(accessToken),
+  });
+  if (!res.ok) {
+    throw new Error(
+      await parseErrorMessage(res, `Failed to load health diagnostics: ${res.status} ${res.statusText}`),
+    );
+  }
+  return res.json() as Promise<DiagnosticsHealthResponse>;
+}
+
+export async function getAdminDiagnosticsConfig(
+  accessToken: string,
+): Promise<DiagnosticsConfigResponse> {
+  const res = await authFetch(`${API_BASE}/admin/diagnostics/config`, {
+    method: "GET",
+    headers: authHeaders(accessToken),
+  });
+  if (!res.ok) {
+    throw new Error(
+      await parseErrorMessage(res, `Failed to load diagnostics config: ${res.status} ${res.statusText}`),
+    );
+  }
+  return res.json() as Promise<DiagnosticsConfigResponse>;
+}
+
+export async function getAdminDiagnosticsChecks(
+  accessToken: string,
+): Promise<DiagnosticsChecksResponse> {
+  const res = await authFetch(`${API_BASE}/admin/diagnostics/checks`, {
+    method: "GET",
+    headers: authHeaders(accessToken),
+  });
+  if (!res.ok) {
+    throw new Error(
+      await parseErrorMessage(res, `Failed to load diagnostics checks: ${res.status} ${res.statusText}`),
+    );
+  }
+  return res.json() as Promise<DiagnosticsChecksResponse>;
+}

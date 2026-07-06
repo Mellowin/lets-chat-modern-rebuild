@@ -14,6 +14,7 @@ import {
   Loader2,
   Lock,
   Shield,
+  Activity,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { getWorkspaces, type Workspace } from "@/lib/workspaces-api";
@@ -638,7 +639,7 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
         <Shield size={14} />
         <span>Admin</span>
       </div>
-      <div className="mt-1">
+      <div className="mt-1 space-y-0.5">
         <Link
           href="/admin/reports"
           data-testid="sidebar-admin-reports-link"
@@ -651,6 +652,19 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
         >
           <Shield size={14} />
           <span>Moderation</span>
+        </Link>
+        <Link
+          href="/admin/diagnostics"
+          data-testid="sidebar-admin-diagnostics-link"
+          data-active={pathname?.startsWith("/admin/diagnostics") ? "true" : undefined}
+          className={`${baseItem} gap-1.5 ${
+            pathname?.startsWith("/admin/diagnostics")
+              ? activeItem
+              : `text-sidebar-foreground/90 ${hoverItem}`
+          }`}
+        >
+          <Activity size={14} />
+          <span>Diagnostics</span>
         </Link>
       </div>
     </div>

@@ -24,6 +24,7 @@ import { GroupsModule } from './groups/groups.module';
 import { ContactsModule } from './contacts/contacts.module';
 import { PushModule } from './push/push.module';
 import { SafetyModule } from './safety/safety.module';
+import { AdminDiagnosticsModule } from './admin-diagnostics/admin-diagnostics.module';
 import { AppController } from './app.controller';
 
 @Module({
@@ -62,6 +63,7 @@ import { AppController } from './app.controller';
     ContactsModule,
     PushModule,
     SafetyModule,
+    AdminDiagnosticsModule,
   ],
   controllers: [AppController],
   providers: [

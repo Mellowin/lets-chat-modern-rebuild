@@ -132,6 +132,7 @@ describe("Sidebar — structure", () => {
       expect(screen.getByTestId("sidebar-admin-reports-link")).toBeInTheDocument();
     });
     expect(screen.getByTestId("sidebar-admin-reports-link")).toHaveAttribute("href", "/admin/reports");
+    expect(screen.getByTestId("sidebar-admin-diagnostics-link")).toHaveAttribute("href", "/admin/diagnostics");
   });
 
   it("does not show Moderation link for regular users", async () => {
