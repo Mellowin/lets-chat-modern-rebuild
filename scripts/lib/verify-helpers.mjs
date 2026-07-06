@@ -81,9 +81,11 @@ export async function getMailToken(address, password) {
 }
 
 export async function listMessages(token) {
-  return fetchJson(`${MAIL_BASE}/messages`, {
+  const data = await fetchJson(`${MAIL_BASE}/messages`, {
     headers: { Authorization: `Bearer ${token}` },
   });
+  // Mail.tm API may return either a plain array or a Hydra collection object.
+  return Array.isArray(data) ? data : data?.['hydra:member'] ?? [];
 }
 
 export async function getMessageSource(token, messageId) {
