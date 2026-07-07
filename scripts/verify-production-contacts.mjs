@@ -40,6 +40,11 @@ async function main() {
   await sleep(1500);
   const stranger = await createVerifiedAccount("contactstranger");
 
+  // The classic contact lifecycle assumes the target accepts direct adds.
+  await api(contact.accessToken, "PATCH", "/users/me/contact-privacy", {
+    contactPrivacySetting: "EVERYONE",
+  });
+
   // ---- Contacts ----
 
   const added = await api(owner.accessToken, "POST", "/contacts", {
