@@ -35,7 +35,8 @@ async function main() {
 
   if (!status.enabled) {
     console.log("Demo mode is disabled; skipping verification.");
-    process.exit(0);
+    process.exitCode = 0;
+    return;
   }
 
   results.push({
@@ -87,5 +88,5 @@ async function main() {
 
 main().catch((err) => {
   console.error("Verification failed:", err.message);
-  process.exit(1);
+  process.exitCode = 1;
 });
