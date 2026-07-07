@@ -351,10 +351,11 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
     loadChannelsForWorkspaceRef.current = loadChannelsForWorkspace;
   }, [loadChannelsForWorkspace]);
 
-  // Initialize workspace expansion from localStorage / active route
+  // Initialize workspace expansion from localStorage / active route and hydrate
+  // channel lists for any workspace that starts expanded.
   const workspacesInitialized = useRef(false);
   useEffect(() => {
-    if (workspaces.kind === "success" && !workspacesInitialized.current) {
+    if (workspaces.kind === "success" && accessToken && !workspacesInitialized.current) {
       workspacesInitialized.current = true;
       const initial = new Set<string>();
       workspaces.data.forEach((ws) => {
@@ -364,8 +365,11 @@ export default function Sidebar({ mobileOpen = false }: SidebarProps) {
         }
       });
       setExpandedWorkspaces(initial);
+      initial.forEach((wsId) => {
+        loadChannelsForWorkspace(accessToken, wsId, false);
+      });
     }
-  }, [workspaces, activeWorkspaceId]);
+  }, [workspaces, activeWorkspaceId, accessToken, loadChannelsForWorkspace]);
 
   // Hydrate the active workspace channel list on direct route entry without
   // requiring the user to visit the Overview page first.

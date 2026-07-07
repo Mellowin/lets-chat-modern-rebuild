@@ -121,7 +121,7 @@ beforeEach(() => {
 
 describe("Sidebar — structure", () => {
   it("shows Moderation link for admin users", async () => {
-    mockAuth({ user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", role: "ADMIN", createdAt: "2024-01-01T00:00:00Z", pushNotificationsEnabled: true, mentionNotificationsEnabled: true, directMessageNotificationsEnabled: true, groupMessageNotificationsEnabled: true, channelMessageNotificationsEnabled: true } });
+    mockAuth({ user: { id: "u1", email: "a@b.com", username: "alice", displayName: null, avatarUrl: null, avatarUpdatedAt: null, interfaceLanguage: "en", role: "ADMIN", createdAt: "2024-01-01T00:00:00Z", pushNotificationsEnabled: true, mentionNotificationsEnabled: true, directMessageNotificationsEnabled: true, groupMessageNotificationsEnabled: true, channelMessageNotificationsEnabled: true, contactPrivacySetting: "EVERYONE" } });
     vi.mocked(getWorkspaces).mockResolvedValue([]);
     vi.mocked(listDirectConversations).mockResolvedValue([]);
     vi.mocked(listGroups).mockResolvedValue([]);
