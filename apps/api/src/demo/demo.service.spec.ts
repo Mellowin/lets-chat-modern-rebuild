@@ -99,7 +99,7 @@ describe('DemoService', () => {
   });
 
   it('creates a demo session with user, workspace, channels and tokens', async () => {
-    const user: User = {
+    const user = {
       id: 'user-id',
       email: 'demo-1-abc@lets-chat.demo',
       username: 'demo_user_abc',
@@ -122,7 +122,7 @@ describe('DemoService', () => {
       passwordResetExpiresAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
-    };
+    } as unknown as User;
 
     mockUsers.createUser.mockResolvedValue(user);
     mockUsers.markEmailVerified.mockResolvedValue(user);
