@@ -16,7 +16,7 @@ import { TokenService } from './token.service';
 import { RefreshTokensRepository } from './refresh-tokens.repository';
 import { ConfigService } from '@nestjs/config';
 import { MailService } from '../mail/mail.service';
-import { UserRole } from '@lets-chat/database';
+import { UserRole, ContactPrivacySetting } from '@lets-chat/database';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -117,6 +117,7 @@ describe('AuthService', () => {
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
       role: UserRole.USER,
+      contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
     };
 
     usersRepository.updateDisplayName.mockResolvedValue(user);
@@ -160,6 +161,7 @@ describe('AuthService', () => {
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
       role: UserRole.USER,
+      contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
     };
 
     const servicePrivate = service as unknown as {
@@ -202,6 +204,7 @@ describe('AuthService', () => {
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
       role: UserRole.USER,
+      contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
     };
 
     const servicePrivate = service as unknown as {
@@ -244,6 +247,7 @@ describe('AuthService', () => {
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
       role: UserRole.USER,
+      contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
     };
 
     usersRepository.updateInterfaceLanguage.mockResolvedValue(user);
@@ -287,6 +291,7 @@ describe('AuthService', () => {
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
       role: UserRole.USER,
+      contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
     };
 
     usersRepository.updateAvatar.mockResolvedValue(user);
@@ -334,6 +339,7 @@ describe('AuthService', () => {
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
       role: UserRole.USER,
+      contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
     };
 
     usersRepository.updateAvatar.mockResolvedValue(user);
@@ -384,6 +390,7 @@ describe('AuthService — email verification', () => {
     groupMessageNotificationsEnabled: true,
     channelMessageNotificationsEnabled: true,
     role: UserRole.USER,
+    contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
     ...overrides,
   });
 
@@ -857,6 +864,7 @@ describe('AuthService — password reset', () => {
     groupMessageNotificationsEnabled: true,
     channelMessageNotificationsEnabled: true,
     role: UserRole.USER,
+    contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
     ...overrides,
   });
 
@@ -1316,6 +1324,7 @@ describe('AuthService — change password', () => {
     groupMessageNotificationsEnabled: true,
     channelMessageNotificationsEnabled: true,
     role: UserRole.USER,
+    contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
     ...overrides,
   });
 

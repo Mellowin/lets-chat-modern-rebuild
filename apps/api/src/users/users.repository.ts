@@ -89,6 +89,7 @@ export class UsersRepository {
         username: true,
         displayName: true,
         avatarUrl: true,
+        contactPrivacySetting: true,
       },
     });
   }
@@ -259,6 +260,16 @@ export class UsersRepository {
     return this.prisma.user.update({
       where: { id: userId },
       data: { email: this.normalizeEmail(email), emailVerifiedAt: new Date() },
+    });
+  }
+
+  async updateContactPrivacySetting(
+    userId: string,
+    contactPrivacySetting: 'EVERYONE' | 'REQUESTS_ONLY' | 'NOBODY',
+  ) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { contactPrivacySetting },
     });
   }
 }

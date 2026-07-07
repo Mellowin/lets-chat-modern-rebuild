@@ -53,6 +53,7 @@ export interface AuthUserResponse {
   directMessageNotificationsEnabled: boolean;
   groupMessageNotificationsEnabled: boolean;
   channelMessageNotificationsEnabled: boolean;
+  contactPrivacySetting?: 'EVERYONE' | 'REQUESTS_ONLY' | 'NOBODY';
   createdAt: Date;
 }
 
@@ -700,6 +701,8 @@ export class AuthService {
       channelMessageNotificationsEnabled:
         (user as User).channelMessageNotificationsEnabled ?? true,
       role: (user as User).role ?? 'USER',
+      contactPrivacySetting:
+        (user as User).contactPrivacySetting ?? 'REQUESTS_ONLY',
       createdAt: user.createdAt,
     };
   }

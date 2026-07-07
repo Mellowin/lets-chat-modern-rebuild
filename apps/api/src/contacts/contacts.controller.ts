@@ -17,6 +17,7 @@ import {
   ApiBadRequestResponse,
   ApiNotFoundResponse,
   ApiUnauthorizedResponse,
+  ApiForbiddenResponse,
 } from '@nestjs/swagger';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -40,9 +41,10 @@ export class ContactsController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Add a contact' })
-  @ApiCreatedResponse({ description: 'Contact added' })
+  @ApiOperation({ summary: 'Add a contact or send a contact request' })
+  @ApiCreatedResponse({ description: 'Contact added or request sent' })
   @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiForbiddenResponse({ description: 'User does not accept requests' })
   @ApiNotFoundResponse({ description: 'User not found' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   async create(
@@ -50,6 +52,50 @@ export class ContactsController {
     @CurrentUser() user: AuthUserResponse,
   ) {
     return this.contacts.create(dto, user.id);
+  }
+
+  @Get('requests')
+  @ApiOperation({ summary: 'List incoming contact requests' })
+  @ApiOkResponse({ description: 'Incoming contact requests' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async findRequests(@CurrentUser() user: AuthUserResponse) {
+    return this.contacts.listRequests(user.id);
+  }
+
+  @Post('requests/:id/accept')
+  @ApiOperation({ summary: 'Accept an incoming contact request' })
+  @ApiOkResponse({ description: 'Request accepted' })
+  @ApiNotFoundResponse({ description: 'Request not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async acceptRequest(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.contacts.acceptRequest(id, user.id);
+  }
+
+  @Post('requests/:id/decline')
+  @ApiOperation({ summary: 'Decline an incoming contact request' })
+  @ApiOkResponse({ description: 'Request declined' })
+  @ApiNotFoundResponse({ description: 'Request not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async declineRequest(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.contacts.declineRequest(id, user.id);
+  }
+
+  @Delete('requests/:id')
+  @ApiOperation({ summary: 'Cancel an outgoing contact request' })
+  @ApiOkResponse({ description: 'Request cancelled' })
+  @ApiNotFoundResponse({ description: 'Request not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async cancelRequest(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.contacts.cancelRequest(id, user.id);
   }
 
   @Delete(':contactUserId')

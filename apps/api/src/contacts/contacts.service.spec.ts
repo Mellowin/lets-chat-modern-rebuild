@@ -5,7 +5,12 @@ import { ContactsRepository } from './contacts.repository';
 import { UsersRepository } from '../users/users.repository';
 import { DirectConversationsService } from '../direct-conversations/direct-conversations.service';
 import { BlocksService } from '../safety/blocks.service';
-import { UserRole } from '@lets-chat/database';
+import { ContactRequestsRepository } from './contact-requests.repository';
+import {
+  PrismaService,
+  UserRole,
+  ContactPrivacySetting,
+} from '@lets-chat/database';
 
 const userId = '11111111-1111-1111-1111-111111111111';
 const otherUserId = '22222222-2222-2222-2222-222222222222';
@@ -42,6 +47,7 @@ function makeUser(
     groupMessageNotificationsEnabled: true,
     channelMessageNotificationsEnabled: true,
     role: UserRole.USER,
+    contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
     ...overrides,
   };
 }
@@ -113,6 +119,35 @@ describe('ContactsService', () => {
             listBlockedUsers: jest.fn().mockResolvedValue([]),
           },
         },
+        {
+          provide: ContactRequestsRepository,
+          useValue: {
+            findBetweenUsers: jest.fn(),
+            findPendingByIdForRecipient: jest.fn(),
+            listPendingForRecipient: jest.fn(),
+            upsertPending: jest.fn(),
+            updateStatus: jest.fn(),
+            deleteById: jest.fn(),
+            findPendingByIdForSender: jest.fn(),
+          },
+        },
+        {
+          provide: PrismaService,
+          useValue: {
+            $transaction: jest.fn(
+              (
+                fn: (tx: {
+                  contactRequest: { update: jest.Mock };
+                  userContact: { upsert: jest.Mock };
+                }) => unknown,
+              ) =>
+                fn({
+                  contactRequest: { update: jest.fn() },
+                  userContact: { upsert: jest.fn() },
+                }),
+            ),
+          },
+        },
       ],
     }).compile();
 
@@ -128,12 +163,17 @@ describe('ContactsService', () => {
 
   describe('create', () => {
     it('adds a contact by userId', async () => {
-      usersRepository.findById.mockResolvedValue(makeUser());
+      usersRepository.findById.mockResolvedValue(
+        makeUser({ contactPrivacySetting: ContactPrivacySetting.EVERYONE }),
+      );
       contactsRepository.upsertContact.mockResolvedValue(makeContact());
 
       const result = await service.create({ userId: otherUserId }, userId);
 
-      expect(result?.contactUserId).toBe(otherUserId);
+      expect(result.type).toBe('contact');
+      if (result.type === 'contact') {
+        expect(result.contactUserId).toBe(otherUserId);
+      }
       expect(contactsRepository.upsertContact).toHaveBeenCalledWith({
         ownerUserId: userId,
         contactUserId: otherUserId,
@@ -142,12 +182,17 @@ describe('ContactsService', () => {
     });
 
     it('adds a contact by email', async () => {
-      usersRepository.findByEmail.mockResolvedValue(makeUser());
+      usersRepository.findByEmail.mockResolvedValue(
+        makeUser({ contactPrivacySetting: ContactPrivacySetting.EVERYONE }),
+      );
       contactsRepository.upsertContact.mockResolvedValue(makeContact());
 
       const result = await service.create({ email: 'bob@example.com' }, userId);
 
-      expect(result?.contactUserId).toBe(otherUserId);
+      expect(result.type).toBe('contact');
+      if (result.type === 'contact') {
+        expect(result.contactUserId).toBe(otherUserId);
+      }
     });
 
     it('rejects adding self', async () => {

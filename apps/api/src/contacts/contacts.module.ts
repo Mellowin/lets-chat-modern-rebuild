@@ -6,11 +6,12 @@ import { SafetyModule } from '../safety/safety.module';
 import { ContactsController } from './contacts.controller';
 import { ContactsService } from './contacts.service';
 import { ContactsRepository } from './contacts.repository';
+import { ContactRequestsRepository } from './contact-requests.repository';
 
 @Module({
   imports: [AuthModule, UsersModule, DirectConversationsModule, SafetyModule],
   controllers: [ContactsController],
-  providers: [ContactsService, ContactsRepository],
+  providers: [ContactsService, ContactsRepository, ContactRequestsRepository],
   exports: [ContactsService, ContactsRepository],
 })
 export class ContactsModule {}

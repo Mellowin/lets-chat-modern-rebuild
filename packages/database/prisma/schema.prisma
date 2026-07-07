@@ -44,6 +44,18 @@ enum UserRole {
   ADMIN
 }
 
+enum ContactPrivacySetting {
+  EVERYONE
+  REQUESTS_ONLY
+  NOBODY
+}
+
+enum ContactRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
 enum StorageBackend {
   LOCAL
   S3
@@ -90,9 +102,14 @@ model User {
   emailChangeExpiresAt DateTime?
   emailChangeSentAt    DateTime?
 
+  // Contact privacy
+  contactPrivacySetting ContactPrivacySetting @default(REQUESTS_ONLY)
+
   // Relations
   ownedWorkspaces                Workspace[]
   workspaceMemberships           WorkspaceMember[]
+  sentContactRequests            ContactRequest[] @relation("SentContactRequests")
+  receivedContactRequests        ContactRequest[] @relation("ReceivedContactRequests")
   channelMemberships             ChannelMember[]
   createdChannels                Channel[]
   createdGroups                  GroupConversation[]
@@ -284,6 +301,8 @@ model Reaction {
 model Attachment {
   id             String         @id @default(uuid()) @db.Uuid
   messageId      String?        @db.Uuid
+  directMessageId String?       @db.Uuid
+  groupMessageId String?        @db.Uuid
   filename       String
   originalName   String
   mimeType       String
@@ -296,10 +315,14 @@ model Attachment {
   deletedAt      DateTime?
 
   // Relations
-  message   Message? @relation(fields: [messageId], references: [id])
-  createdBy User     @relation(fields: [createdById], references: [id])
+  message        Message?       @relation(fields: [messageId], references: [id])
+  directMessage  DirectMessage? @relation(fields: [directMessageId], references: [id], onDelete: Cascade)
+  groupMessage   GroupMessage?  @relation(fields: [groupMessageId], references: [id], onDelete: Cascade)
+  createdBy      User           @relation(fields: [createdById], references: [id])
 
   @@index([messageId])
+  @@index([directMessageId])
+  @@index([groupMessageId])
 }
 
 model AuditLog {
@@ -503,6 +526,7 @@ model DirectMessage {
   parent       DirectMessage?          @relation("DirectMessageReplies", fields: [parentId], references: [id])
   replies      DirectMessage[]         @relation("DirectMessageReplies")
   reactions    DirectMessageReaction[]
+  attachments  Attachment[]
   mentions     Json?
 
   @@index([conversationId, createdAt, id])
@@ -541,6 +565,23 @@ model UserContact {
   @@index([ownerUserId])
   @@index([contactUserId])
   @@index([ownerUserId, deletedAt])
+}
+
+model ContactRequest {
+  id         String               @id @default(uuid()) @db.Uuid
+  fromUserId String               @db.Uuid
+  toUserId   String               @db.Uuid
+  status     ContactRequestStatus @default(PENDING)
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+  declinedAt DateTime?
+
+  fromUser User @relation("SentContactRequests", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User @relation("ReceivedContactRequests", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@unique([fromUserId, toUserId])
+  @@index([toUserId, status])
+  @@index([fromUserId, status])
 }
 
 model GroupConversation {
@@ -651,6 +692,7 @@ model GroupMessage {
 
   group  GroupConversation @relation(fields: [groupId], references: [id], onDelete: Cascade)
   author User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  attachments Attachment[]
   mentions Json?
 
   @@index([groupId, createdAt, id])

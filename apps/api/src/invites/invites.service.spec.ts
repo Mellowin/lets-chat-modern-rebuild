@@ -15,7 +15,7 @@ import { WorkspacesRepository } from '../workspaces/workspaces.repository';
 import { UsersRepository } from '../users/users.repository';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction, AuditEntityType } from '../audit/audit.constants';
-import { UserRole } from '@lets-chat/database';
+import { UserRole, ContactPrivacySetting } from '@lets-chat/database';
 
 describe('InvitesService', () => {
   let service: InvitesService;
@@ -143,6 +143,7 @@ describe('InvitesService', () => {
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
       role: UserRole.USER,
+      contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
       ...overrides,
     };
   }
