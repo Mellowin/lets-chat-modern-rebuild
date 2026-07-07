@@ -6,11 +6,19 @@ services:
     plan: free
     branch: main
     rootDir: .
-    buildCommand: pnpm install --prod=false && pnpm run build:api:prod
-    # Migrations are applied by the GitHub Actions 'migrate' job before this
-    # service is deployed. Do NOT rely on render.yaml to update an existing
-    # Render service; verify the actual dashboard Start Command matches this.
-    startCommand: pnpm --filter api start:prod
+    # IMPORTANT: if you edit these commands, also update the Render dashboard
+    # Settings for this service. render.yaml is not always auto-synced for
+    # existing services.
+    buildCommand: |
+      pnpm install --prod=false
+      pnpm run build:api:prod
+      test -f apps/api/dist/main.js || (echo "❌ apps/api/dist/main.js not built" && exit 1)
+    startCommand: |
+      if [ -f apps/api/dist/main.js ]; then
+        cd apps/api && node dist/main
+      else
+        node dist/main
+      fi
     envVars:
       - key: NODE_ENV
         value: production
