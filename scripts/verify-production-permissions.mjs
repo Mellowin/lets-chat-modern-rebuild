@@ -17,11 +17,13 @@
 
 import {
   API_BASE,
-  createVerifiedAccount,
+  getVerifiedAccount,
   api,
   finalize,
   sleep,
 } from "./lib/verify-helpers.mjs";
+
+const runId = `verify-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const ENABLE_DESTRUCTIVE = process.env.VERIFY_PERMISSIONS_ENABLE_DESTRUCTIVE === "1";
 
@@ -40,12 +42,12 @@ async function main() {
 
   const results = [];
 
-  const owner = await createVerifiedAccount("owner");
+  const owner = await getVerifiedAccount("owner");
   await sleep(3000);
-  const member = await createVerifiedAccount("member");
+  const member = await getVerifiedAccount("member");
 
   // Owner creates workspace
-  const workspaceName = `B203 Verify Workspace ${Date.now()}`;
+  const workspaceName = `B203 Verify Workspace ${runId}`;
   const workspace = await api(owner.accessToken, "POST", "/workspaces", { name: workspaceName });
   results.push({
     check: "Owner can create workspace",
@@ -73,7 +75,7 @@ async function main() {
 
   // Owner creates channel
   const channel = await api(owner.accessToken, "POST", `/workspaces/${workspace.id}/channels`, {
-    name: "verify-channel",
+    name: `verify-channel-${runId}`,
     description: "Verification channel",
     type: "PUBLIC",
   });

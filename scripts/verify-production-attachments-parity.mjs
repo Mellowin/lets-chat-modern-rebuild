@@ -16,11 +16,13 @@
 
 import {
   API_BASE,
-  createVerifiedAccount,
+  getVerifiedAccount,
   api,
   finalize,
   sleep,
 } from "./lib/verify-helpers.mjs";
+
+const runId = `verify-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 function expectStatus(fn) {
   return fn.catch((err) => ({
@@ -72,11 +74,11 @@ async function main() {
 
   const results = [];
 
-  const alice = await createVerifiedAccount("attachalice");
+  const alice = await getVerifiedAccount("attachalice");
   await sleep(1500);
-  const bob = await createVerifiedAccount("attachbob");
+  const bob = await getVerifiedAccount("attachbob");
   await sleep(1500);
-  const carol = await createVerifiedAccount("attachcarol");
+  const carol = await getVerifiedAccount("attachcarol");
 
   // ---- Direct message attachments ----
 
@@ -103,7 +105,7 @@ async function main() {
   const directAttachment = await uploadFile(
     alice.accessToken,
     `/direct-conversations/${direct.id}/messages/attachments/upload`,
-    "parity-direct.txt",
+    `parity-direct-${runId}.txt`,
     directContent,
     "text/plain",
   );
@@ -111,7 +113,7 @@ async function main() {
     check: "Direct attachment upload returns attachment metadata",
     ok:
       directAttachment.id &&
-      directAttachment.fileName === "parity-direct.txt" &&
+      directAttachment.fileName === `parity-direct-${runId}.txt` &&
       directAttachment.sizeBytes === directContent.length,
     detail: `id=${directAttachment.id}`,
   });
@@ -133,7 +135,7 @@ async function main() {
   const directOnlyAttachment = await uploadFile(
     alice.accessToken,
     `/direct-conversations/${direct.id}/messages/attachments/upload`,
-    "parity-direct-only.txt",
+    `parity-direct-only-${runId}.txt`,
     directOnlyContent,
     "text/plain",
   );
@@ -181,7 +183,7 @@ async function main() {
   // ---- Group message attachments ----
 
   const group = await api(alice.accessToken, "POST", "/groups", {
-    name: `B226 Attach Parity ${Date.now()}`,
+    name: `B226 Attach Parity ${runId}`,
     memberIds: [bob.user.id, carol.user.id],
   });
   results.push({
@@ -204,7 +206,7 @@ async function main() {
   const groupAttachment = await uploadFile(
     alice.accessToken,
     `/groups/${group.id}/messages/attachments/upload`,
-    "parity-group.txt",
+    `parity-group-${runId}.txt`,
     groupContent,
     "text/plain",
   );
@@ -212,7 +214,7 @@ async function main() {
     check: "Group attachment upload returns attachment metadata",
     ok:
       groupAttachment.id &&
-      groupAttachment.fileName === "parity-group.txt" &&
+      groupAttachment.fileName === `parity-group-${runId}.txt` &&
       groupAttachment.sizeBytes === groupContent.length,
     detail: `id=${groupAttachment.id}`,
   });
@@ -234,7 +236,7 @@ async function main() {
   const groupOnlyAttachment = await uploadFile(
     alice.accessToken,
     `/groups/${group.id}/messages/attachments/upload`,
-    "parity-group-only.txt",
+    `parity-group-only-${runId}.txt`,
     groupOnlyContent,
     "text/plain",
   );

@@ -135,10 +135,58 @@ All scripts default to the production URLs. Override only when needed.
 | `VERIFY_PERMISSIONS_ENABLE_DESTRUCTIVE` | unset | permissions (must be `1` to run delete tests) |
 | `VERIFY_ADMIN_ACCESS_TOKEN` | unset | admin reports / audit / realtime (optional, enables positive admin diagnostics checks) |
 | `WS_URL` / `VERIFY_WS_URL` | `wss://lets-chat-api-v2.onrender.com` | realtime |
+| `VERIFY_ACCOUNT_POOL_JSON` | unset | reusable verified account pool (see below) |
+| `VERIFY_ACCOUNT_N_EMAIL` / `VERIFY_ACCOUNT_N_PASSWORD` | unset | reusable verified account pool alternative |
 
-**Do not commit `VERIFY_PASSWORD` or any token.** Scripts never print tokens, passwords, or DB URLs to the console.
+**Do not commit `VERIFY_PASSWORD`, account passwords, or any token.** Scripts never print tokens, passwords, or DB URLs to the console.
 
 ---
+
+## Reusable verifier account pool
+
+Most verifiers create disposable email accounts through catchmail.io. After many runs the catchmail.io quota can be exhausted, blocking verification. To remove that dependency, configure a pool of **pre-verified** reusable accounts.
+
+Create 5 verified accounts in production once (for example when the mail provider quota is available), then store their credentials in your local environment or GitHub Actions secrets — **never commit them**.
+
+```bash
+# Format 1: JSON array
+VERIFY_ACCOUNT_POOL_JSON='[
+  {"email":"verify1@example.com","password":"..."},
+  {"email":"verify2@example.com","password":"..."},
+  {"email":"verify3@example.com","password":"..."},
+  {"email":"verify4@example.com","password":"..."},
+  {"email":"verify5@example.com","password":"..."}
+]'
+
+# Format 2: indexed pairs
+VERIFY_ACCOUNT_1_EMAIL=verify1@example.com
+VERIFY_ACCOUNT_1_PASSWORD=...
+VERIFY_ACCOUNT_2_EMAIL=verify2@example.com
+VERIFY_ACCOUNT_2_PASSWORD=...
+```
+
+Run any verifier as usual:
+
+```bash
+VERIFY_ACCOUNT_POOL_JSON='[...]' pnpm verify:prod:attachments-parity
+```
+
+The suite runner reports the active mode and masks account addresses:
+
+```text
+Account mode: reusable pool
+Pool size: 5
+Accounts: ve***@example.com, ve***@example.com, ...
+```
+
+When a pool is configured:
+
+- verifiers log in through the normal `/auth/login` endpoint;
+- no disposable inboxes are created;
+- scripts reset only the test state they need (contact privacy, contacts between pool accounts) and use unique workspace/channel/group/message names per run;
+- if a verifier needs more accounts than the pool provides, it fails with a clear message such as `VERIFY_ACCOUNT_POOL_JSON has only 3 accounts, but this verifier needs 5`.
+
+If no pool is configured, verifiers fall back to the existing disposable registration flow.
 
 ## Safety notes
 
@@ -214,7 +262,7 @@ The main `CI` workflow also runs the API E2E security smoke tests (`apps/api/tes
 
 ## Known limitations
 
-- The default disposable-email provider is catchmail.io (1 request/second). Running the full pack repeatedly from the same IP in a short window may hit rate limits. Wait a few seconds between runs if this happens. You can override the provider via `VERIFY_MAIL_BASE`.
+- The default disposable-email provider is catchmail.io. Running the full pack repeatedly may hit the provider's quota. Configure a reusable account pool (see above) to avoid this. You can still override the disposable provider via `VERIFY_MAIL_BASE`.
 - Disposable accounts cannot be deleted through the API. They accumulate over time but remain harmless (no workspaces/channels/memberships).
 - Browser checks rely on production `data-testid` attributes. If the UI changes, the selectors may need updating.
 - PWA checks assume the production build has exposed `/manifest.webmanifest`, `/service-worker.js`, and `/offline.html`.

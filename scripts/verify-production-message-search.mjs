@@ -14,11 +14,13 @@
 
 import {
   API_BASE,
-  createVerifiedAccount,
+  getVerifiedAccount,
   api,
   finalize,
   sleep,
 } from "./lib/verify-helpers.mjs";
+
+const runId = `verify-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 function expectStatus(fn, expected) {
   return fn.catch((err) => ({
@@ -34,31 +36,18 @@ async function main() {
 
   const results = [];
 
-  async function createAccount(prefix, attempts = 5) {
-    for (let i = 0; i < attempts; i++) {
-      try {
-        return await createVerifiedAccount(prefix);
-      } catch (err) {
-        if (i < attempts - 1 && err.message.includes("429")) {
-          const delay = 30000 * (i + 1);
-          console.warn(`[auth] ${prefix} hit rate limit, retrying in ${delay}ms...`);
-          await sleep(delay);
-        } else {
-          throw err;
-        }
-      }
-    }
-    throw new Error(`Could not create ${prefix} account`);
+  async function createAccount(prefix) {
+    return getVerifiedAccount(prefix);
   }
 
   const owner = await createAccount("searchowner");
-  await sleep(5000);
+  await sleep(1500);
   const member = await createAccount("searchmember");
-  await sleep(5000);
+  await sleep(1500);
   const stranger = await createAccount("searchstranger");
 
   // Owner creates a workspace and adds member.
-  const workspaceName = `B219 Verify Workspace ${Date.now()}`;
+  const workspaceName = `B219 Verify Workspace ${runId}`;
   const workspace = await api(owner.accessToken, "POST", "/workspaces", {
     name: workspaceName,
   });
@@ -90,13 +79,13 @@ async function main() {
     owner.accessToken,
     "POST",
     `/workspaces/${workspace.id}/channels`,
-    { name: "public-search", type: "PUBLIC" },
+    { name: `public-search-${runId}`, type: "PUBLIC" },
   );
   const privateChannel = await api(
     owner.accessToken,
     "POST",
     `/workspaces/${workspace.id}/channels`,
-    { name: "private-search", type: "PRIVATE" },
+    { name: `private-search-${runId}`, type: "PRIVATE" },
   );
   results.push({
     check: "Owner can create public channel",
@@ -110,7 +99,7 @@ async function main() {
   });
 
   // Owner creates a group with member.
-  const groupName = `B219 Verify Group ${Date.now()}`;
+  const groupName = `B219 Verify Group ${runId}`;
   const group = await api(owner.accessToken, "POST", "/groups", {
     name: groupName,
     memberIds: [member.user.id],

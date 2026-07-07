@@ -14,11 +14,13 @@
 
 import {
   API_BASE,
-  createVerifiedAccount,
+  getVerifiedAccount,
   api,
   finalize,
   sleep,
 } from "./lib/verify-helpers.mjs";
+
+const runId = `verify-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 async function main() {
   console.log("=== Production Mentions & Notification Preferences Verification ===\n");
@@ -26,9 +28,9 @@ async function main() {
 
   const results = [];
 
-  const sender = await createVerifiedAccount("mentionsender");
+  const sender = await getVerifiedAccount("mentionsender");
   await sleep(1500);
-  const recipient = await createVerifiedAccount("mentionrecipient");
+  const recipient = await getVerifiedAccount("mentionrecipient");
   await sleep(1500);
 
   // GET /auth/me/notification-preferences
@@ -116,7 +118,7 @@ async function main() {
   });
 
   // Create a group with sender as owner and recipient as member.
-  const groupName = `B217 Verify Mentions ${Date.now()}`;
+  const groupName = `B217 Verify Mentions ${runId}`;
   const group = await api(sender.accessToken, "POST", "/groups", {
     name: groupName,
     memberIds: [recipient.user.id],

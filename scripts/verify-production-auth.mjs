@@ -17,7 +17,7 @@
 
 import {
   API_BASE,
-  createVerifiedAccount,
+  getVerifiedAccount,
   api,
   finalize,
 } from "./lib/verify-helpers.mjs";
@@ -28,7 +28,7 @@ async function main() {
 
   const results = [];
 
-  const account = await createVerifiedAccount("auth");
+  const account = await getVerifiedAccount("auth");
 
   // GET /auth/me with fresh access token
   {

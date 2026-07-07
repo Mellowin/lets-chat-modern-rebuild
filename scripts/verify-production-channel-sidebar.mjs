@@ -16,10 +16,12 @@ import { chromium } from "playwright";
 import {
   WEB_BASE,
   API_BASE,
-  createVerifiedAccount,
+  getVerifiedAccount,
   api,
   sleep,
 } from "./lib/verify-helpers.mjs";
+
+const runId = `verify-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 async function main() {
   console.log("=== Production Channel Sidebar Hydration (B226 Part B) ===\n");
@@ -28,20 +30,20 @@ async function main() {
 
   const results = [];
 
-  const owner = await createVerifiedAccount("sidebarowner");
+  const owner = await getVerifiedAccount("sidebarowner");
 
-  const workspaceName = `B226 Sidebar Workspace ${Date.now()}`;
+  const workspaceName = `B226 Sidebar Workspace ${runId}`;
   const workspace = await api(owner.accessToken, "POST", "/workspaces", {
     name: workspaceName,
   });
 
   const channel1 = await api(owner.accessToken, "POST", `/workspaces/${workspace.id}/channels`, {
-    name: "sidebar-public",
+    name: `sidebar-public-${runId}`,
     description: "Public channel for sidebar verify",
     type: "PUBLIC",
   });
   const channel2 = await api(owner.accessToken, "POST", `/workspaces/${workspace.id}/channels`, {
-    name: "sidebar-second",
+    name: `sidebar-second-${runId}`,
     description: "Second public channel",
     type: "PUBLIC",
   });

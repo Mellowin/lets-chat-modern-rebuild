@@ -18,11 +18,13 @@
 
 import {
   API_BASE,
-  createVerifiedAccount,
+  getVerifiedAccount,
   api,
   finalize,
   sleep,
 } from "./lib/verify-helpers.mjs";
+
+const runId = `verify-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 function expectStatus(fn, expected) {
   return fn.catch((err) => ({
@@ -38,11 +40,11 @@ async function main() {
 
   const results = [];
 
-  const alice = await createVerifiedAccount("safetyalice");
+  const alice = await getVerifiedAccount("safetyalice");
   await sleep(1500);
-  const bob = await createVerifiedAccount("safetybob");
+  const bob = await getVerifiedAccount("safetybob");
   await sleep(1500);
-  const carol = await createVerifiedAccount("safetycarol");
+  const carol = await getVerifiedAccount("safetycarol");
 
   // ---- Block lifecycle ----
 
@@ -174,7 +176,7 @@ async function main() {
   // ---- Block prevents targeted group member add ----
 
   const group = await api(alice.accessToken, "POST", "/groups", {
-    name: `B215 Verify Group ${Date.now()}`,
+    name: `B215 Verify Group ${runId}`,
     memberIds: [carol.user.id],
   });
   results.push({

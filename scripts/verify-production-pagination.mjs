@@ -16,11 +16,13 @@
 
 import {
   API_BASE,
-  createVerifiedAccount,
+  getVerifiedAccount,
   api,
   finalize,
   sleep,
 } from "./lib/verify-helpers.mjs";
+
+const runId = `verify-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 function isPaginatedShape(body) {
   return (
@@ -46,7 +48,7 @@ async function sendMessages(token, sendFn, count) {
 
 async function verifyChannelPagination(owner, workspace, results) {
   const channel = await api(owner.accessToken, "POST", `/workspaces/${workspace.id}/channels`, {
-    name: `B216 Pagination Channel ${Date.now()}`,
+    name: `B216 Pagination Channel ${runId}`,
     type: "PUBLIC",
   });
   results.push({
@@ -100,7 +102,7 @@ async function verifyChannelPagination(owner, workspace, results) {
 
 async function verifyGroupPagination(owner, memberUserId, results) {
   const group = await api(owner.accessToken, "POST", "/groups", {
-    name: `B216 Pagination Group ${Date.now()}`,
+    name: `B216 Pagination Group ${runId}`,
     memberIds: [memberUserId],
   });
   results.push({
@@ -201,13 +203,13 @@ async function main() {
 
   const results = [];
 
-  const owner = await createVerifiedAccount("pageowner");
-  await sleep(30000);
-  const member = await createVerifiedAccount("pagemember");
+  const owner = await getVerifiedAccount("pageowner");
+  await sleep(1500);
+  const member = await getVerifiedAccount("pagemember");
 
   const workspace = await api(owner.accessToken, "POST", "/workspaces", {
-    name: `B216 Pagination ${Date.now()}`,
-    slug: `b216-page-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+    name: `B216 Pagination ${runId}`,
+    slug: `b216-page-${runId}`,
   });
   results.push({
     check: "Owner can create a workspace for pagination testing",

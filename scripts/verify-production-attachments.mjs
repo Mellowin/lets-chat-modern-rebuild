@@ -26,10 +26,12 @@ import { join } from "path";
 import {
   WEB_BASE,
   API_BASE,
-  createVerifiedAccount,
+  getVerifiedAccount,
   api,
   sleep,
 } from "./lib/verify-helpers.mjs";
+
+const runId = `verify-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const SCREENSHOT_DIR = join(process.cwd(), "visual-qa", "production-attachments");
 mkdirSync(SCREENSHOT_DIR, { recursive: true });
@@ -92,14 +94,14 @@ async function main() {
   await sleep(3000);
 
   const results = [];
-  const owner = await createVerifiedAccount("attach-owner");
-  await sleep(3000);
+  const owner = await getVerifiedAccount("attach-owner");
+  await sleep(1500);
 
   const workspace = await api(owner.accessToken, "POST", "/workspaces", {
-    name: `B204B Attach Verify ${Date.now()}`,
+    name: `B204B Attach Verify ${runId}`,
   });
   const channel = await api(owner.accessToken, "POST", `/workspaces/${workspace.id}/channels`, {
-    name: "attach-verify",
+    name: `attach-verify-${runId}`,
     description: "Attachment verification",
     type: "PUBLIC",
   });
@@ -631,7 +633,7 @@ async function main() {
     pushResult("No access/refresh token leaked to console", !leaked);
 
     // 15. DM attachments not supported.
-    const other = await createVerifiedAccount("attach-other");
+    const other = await getVerifiedAccount("attach-other");
     const conv = await api(owner.accessToken, "POST", "/direct-conversations", {
       userId: other.user.id,
     });

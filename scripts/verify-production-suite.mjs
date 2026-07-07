@@ -23,6 +23,9 @@ import {
   API_BASE,
   WEB_BASE,
   fetchJson,
+  getAccountMode,
+  maskEmail,
+  getVerifierAccountPool,
 } from "./lib/verify-helpers.mjs";
 
 const GROUPS = {
@@ -98,6 +101,13 @@ async function precheck() {
     console.warn(`⚠️  Could not fetch /health: ${err.message}`);
   }
 
+  const mode = getAccountMode();
+  console.log(`Account mode: ${mode}`);
+  if (mode === "reusable pool") {
+    const pool = getVerifierAccountPool();
+    console.log(`Pool size: ${pool.length}`);
+    console.log(`Accounts: ${pool.map((a) => maskEmail(a.email)).join(", ")}`);
+  }
   console.log("");
 }
 

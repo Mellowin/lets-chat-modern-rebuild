@@ -17,11 +17,13 @@
 import { io } from "socket.io-client";
 import {
   API_BASE,
-  createVerifiedAccount,
+  getVerifiedAccount,
   api,
   finalize,
   sleep,
 } from "./lib/verify-helpers.mjs";
+
+const runId = `verify-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const WS_URL =
   process.env.VERIFY_WS_URL ||
@@ -109,9 +111,9 @@ async function main() {
 
   const results = [];
 
-  const owner = await createVerifiedAccount("prowner");
-  await sleep(3000);
-  const member = await createVerifiedAccount("prmember");
+  const owner = await getVerifiedAccount("prowner");
+  await sleep(1500);
+  const member = await getVerifiedAccount("prmember");
 
   // Direct conversation between owner and member.
   const directConversation = await api(

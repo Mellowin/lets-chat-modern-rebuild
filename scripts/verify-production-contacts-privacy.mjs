@@ -10,18 +10,25 @@
  *   - NOBODY rejects new contact requests
  *   - Cross-request auto-accept works when both users send requests
  *
+ * Supports reusable verifier account pools. When a pool is used, the script
+ * resets privacy and removes contacts between the test accounts before each
+ * scenario so repeated runs do not interfere with each other.
+ *
  * Optional env vars:
  *   VERIFY_API_BASE  — override API endpoint
  *   VERIFY_PASSWORD  — fixed password (do not commit)
+ *   VERIFY_ACCOUNT_POOL_JSON — reusable verified account pool
  */
 
 import {
   API_BASE,
-  createVerifiedAccount,
+  getVerifiedAccount,
   api,
   finalize,
   sleep,
 } from "./lib/verify-helpers.mjs";
+
+const runId = `verify-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 function expectStatus(fn) {
   return fn.catch((err) => ({
@@ -31,34 +38,69 @@ function expectStatus(fn) {
   }));
 }
 
+async function setPrivacy(token, setting) {
+  await api(token, "PATCH", "/users/me/contact-privacy", {
+    contactPrivacySetting: setting,
+  });
+}
+
+async function removeContactIfExists(token, userId) {
+  await api(token, "DELETE", `/contacts/${userId}`).catch(() => {});
+}
+
+async function resetAccounts(accounts) {
+  for (const account of accounts) {
+    await setPrivacy(account.accessToken, "REQUESTS_ONLY");
+  }
+  for (const account of accounts) {
+    for (const other of accounts) {
+      if (other.user.id !== account.user.id) {
+        await removeContactIfExists(account.accessToken, other.user.id);
+      }
+    }
+  }
+}
+
 async function main() {
   console.log("=== Production Contact Privacy Verification (B226 Part A) ===\n");
   console.log(`API_BASE: ${API_BASE}\n`);
 
   const results = [];
 
-  const alice = await createVerifiedAccount("privacyalice");
+  const alice = await getVerifiedAccount("privacyalice");
   await sleep(1500);
-  const bob = await createVerifiedAccount("privacybob");
+  const bob = await getVerifiedAccount("privacybob");
   await sleep(1500);
-  const carol = await createVerifiedAccount("privacycarol");
+  const carol = await getVerifiedAccount("privacycarol");
   await sleep(1500);
-  const dave = await createVerifiedAccount("privacydave");
+  const dave = await getVerifiedAccount("privacydave");
 
-  // ---- Default privacy ----
+  const all = [alice, bob, carol, dave];
+
+  // Reset state so reusable accounts behave deterministically.
+  await resetAccounts(all);
+
+  // ---- Default / explicit privacy ----
 
   const alicePrivacy = await api(alice.accessToken, "GET", "/users/me/contact-privacy");
   results.push({
-    check: "Default contact privacy is REQUESTS_ONLY",
-    ok: alicePrivacy.contactPrivacySetting === "REQUESTS_ONLY",
+    check: "Contact privacy can be read",
+    ok: ["REQUESTS_ONLY", "EVERYONE", "NOBODY"].includes(alicePrivacy.contactPrivacySetting),
     detail: alicePrivacy.contactPrivacySetting,
+  });
+
+  await setPrivacy(alice.accessToken, "REQUESTS_ONLY");
+  const aliceReset = await api(alice.accessToken, "GET", "/users/me/contact-privacy");
+  results.push({
+    check: "User can set privacy to REQUESTS_ONLY",
+    ok: aliceReset.contactPrivacySetting === "REQUESTS_ONLY",
+    detail: aliceReset.contactPrivacySetting,
   });
 
   // ---- EVERYONE: direct mutual contact ----
 
-  await api(alice.accessToken, "PATCH", "/users/me/contact-privacy", {
-    contactPrivacySetting: "EVERYONE",
-  });
+  await setPrivacy(alice.accessToken, "EVERYONE");
+  await removeContactIfExists(bob.accessToken, alice.user.id);
   const aliceUpdated = await api(alice.accessToken, "GET", "/users/me/contact-privacy");
   results.push({
     check: "User can set privacy to EVERYONE",
@@ -81,13 +123,10 @@ async function main() {
     ok: bobContacts.some((c) => c.contactUserId === alice.user.id),
   });
 
-  // Note: EVERYONE only creates a contact for the requester, not a mutual row.
-
   // ---- REQUESTS_ONLY: outgoing request + accept ----
 
-  await api(alice.accessToken, "PATCH", "/users/me/contact-privacy", {
-    contactPrivacySetting: "REQUESTS_ONLY",
-  });
+  await setPrivacy(alice.accessToken, "REQUESTS_ONLY");
+  await removeContactIfExists(carol.accessToken, alice.user.id);
 
   const carolAddsAlice = await api(carol.accessToken, "POST", "/contacts", {
     userId: alice.user.id,
@@ -122,9 +161,8 @@ async function main() {
 
   // ---- NOBODY: reject new requests ----
 
-  await api(alice.accessToken, "PATCH", "/users/me/contact-privacy", {
-    contactPrivacySetting: "NOBODY",
-  });
+  await setPrivacy(alice.accessToken, "NOBODY");
+  await removeContactIfExists(dave.accessToken, alice.user.id);
   const aliceNobody = await api(alice.accessToken, "GET", "/users/me/contact-privacy");
   results.push({
     check: "User can set privacy to NOBODY",
@@ -143,10 +181,9 @@ async function main() {
 
   // ---- Cross-request auto-accept ----
 
-  // Reset Alice to REQUESTS_ONLY for a clean cross-request test with Dave.
-  await api(alice.accessToken, "PATCH", "/users/me/contact-privacy", {
-    contactPrivacySetting: "REQUESTS_ONLY",
-  });
+  await setPrivacy(alice.accessToken, "REQUESTS_ONLY");
+  await removeContactIfExists(dave.accessToken, alice.user.id);
+  await removeContactIfExists(alice.accessToken, dave.user.id);
 
   const daveToAlice = await api(dave.accessToken, "POST", "/contacts", {
     userId: alice.user.id,

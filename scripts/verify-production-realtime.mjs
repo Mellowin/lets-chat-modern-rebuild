@@ -16,11 +16,13 @@
 import { io } from "socket.io-client";
 import {
   API_BASE,
-  createVerifiedAccount,
+  getVerifiedAccount,
   api,
   finalize,
   sleep,
 } from "./lib/verify-helpers.mjs";
+
+const runId = `verify-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const WS_URL =
   process.env.VERIFY_WS_URL ||
@@ -133,12 +135,12 @@ async function main() {
 
   const results = [];
 
-  const owner = await createVerifiedAccount("rtowner");
-  await sleep(3000);
-  const member = await createVerifiedAccount("rtmember");
+  const owner = await getVerifiedAccount("rtowner");
+  await sleep(1500);
+  const member = await getVerifiedAccount("rtmember");
 
   // Owner creates a workspace and invites member.
-  const workspaceName = `B222 Verify Workspace ${Date.now()}`;
+  const workspaceName = `B222 Verify Workspace ${runId}`;
   const workspace = await api(owner.accessToken, "POST", "/workspaces", {
     name: workspaceName,
   });
@@ -163,7 +165,7 @@ async function main() {
     owner.accessToken,
     "POST",
     `/workspaces/${workspace.id}/channels`,
-    { name: "rt-channel", type: "PUBLIC" },
+    { name: `rt-channel-${runId}`, type: "PUBLIC" },
   );
   results.push({
     check: "Owner can create public channel",
@@ -186,7 +188,7 @@ async function main() {
 
   // Create group.
   const group = await api(owner.accessToken, "POST", "/groups", {
-    name: `B222 Verify Group ${Date.now()}`,
+    name: `B222 Verify Group ${runId}`,
     memberIds: [member.user.id],
   });
   results.push({

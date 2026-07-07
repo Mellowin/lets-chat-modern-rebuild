@@ -14,11 +14,13 @@
 
 import {
   API_BASE,
-  createVerifiedAccount,
+  getVerifiedAccount,
   api,
   finalize,
   sleep,
 } from "./lib/verify-helpers.mjs";
+
+const runId = `verify-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 async function main() {
   console.log("=== Production Message Jump Verification (B221) ===\n");
@@ -26,31 +28,18 @@ async function main() {
 
   const results = [];
 
-  async function createAccount(prefix, attempts = 5) {
-    for (let i = 0; i < attempts; i++) {
-      try {
-        return await createVerifiedAccount(prefix);
-      } catch (err) {
-        if (i < attempts - 1 && err.message.includes("429")) {
-          const delay = 30000 * (i + 1);
-          console.warn(`[auth] ${prefix} hit rate limit, retrying in ${delay}ms...`);
-          await sleep(delay);
-        } else {
-          throw err;
-        }
-      }
-    }
-    throw new Error(`Could not create ${prefix} account`);
+  async function createAccount(prefix) {
+    return getVerifiedAccount(prefix);
   }
 
   const owner = await createAccount("jumpowner");
-  await sleep(5000);
+  await sleep(1500);
   const member = await createAccount("jumpmember");
-  await sleep(5000);
+  await sleep(1500);
   const stranger = await createAccount("jumpstranger");
 
   // Owner creates a workspace and adds member.
-  const workspaceName = `B221 Verify Workspace ${Date.now()}`;
+  const workspaceName = `B221 Verify Workspace ${runId}`;
   const workspace = await api(owner.accessToken, "POST", "/workspaces", {
     name: workspaceName,
   });
@@ -82,7 +71,7 @@ async function main() {
     owner.accessToken,
     "POST",
     `/workspaces/${workspace.id}/channels`,
-    { name: "jump-channel", type: "PUBLIC" },
+    { name: `jump-channel-${runId}`, type: "PUBLIC" },
   );
   results.push({
     check: "Owner can create public channel",
@@ -91,7 +80,7 @@ async function main() {
   });
 
   // Owner creates a group with member.
-  const groupName = `B221 Verify Group ${Date.now()}`;
+  const groupName = `B221 Verify Group ${runId}`;
   const group = await api(owner.accessToken, "POST", "/groups", {
     name: groupName,
     memberIds: [member.user.id],
@@ -112,7 +101,7 @@ async function main() {
     detail: `id=${directConversation.id}`,
   });
 
-  const jumpToken = `B221-jump-token-${Date.now()}`;
+  const jumpToken = `B221-jump-token-${runId}`;
 
   // Send messages before and after the target so it is not in the latest page
   // and the context endpoint can return both sides.

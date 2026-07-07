@@ -14,11 +14,13 @@
 
 import {
   API_BASE,
-  createVerifiedAccount,
+  getVerifiedAccount,
   api,
   finalize,
   sleep,
 } from "./lib/verify-helpers.mjs";
+
+const runId = `verify-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 function expectStatus(fn, expected) {
   return fn.catch((err) => ({
@@ -34,11 +36,11 @@ async function main() {
 
   const results = [];
 
-  const owner = await createVerifiedAccount("contactowner");
+  const owner = await getVerifiedAccount("contactowner");
   await sleep(1500);
-  const contact = await createVerifiedAccount("contacttarget");
+  const contact = await getVerifiedAccount("contacttarget");
   await sleep(1500);
-  const stranger = await createVerifiedAccount("contactstranger");
+  const stranger = await getVerifiedAccount("contactstranger");
 
   // The classic contact lifecycle assumes the target accepts direct adds.
   await api(contact.accessToken, "PATCH", "/users/me/contact-privacy", {
@@ -106,7 +108,7 @@ async function main() {
 
   // ---- Group invite links ----
 
-  const groupName = `B214 Verify Group ${Date.now()}`;
+  const groupName = `B214 Verify Group ${runId}`;
   const group = await api(owner.accessToken, "POST", "/groups", {
     name: groupName,
     memberIds: [contact.user.id],

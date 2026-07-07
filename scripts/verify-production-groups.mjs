@@ -14,11 +14,13 @@
 
 import {
   API_BASE,
-  createVerifiedAccount,
+  getVerifiedAccount,
   api,
   finalize,
   sleep,
 } from "./lib/verify-helpers.mjs";
+
+const runId = `verify-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 function expectStatus(fn, expected) {
   return fn.catch((err) => ({
@@ -34,14 +36,14 @@ async function main() {
 
   const results = [];
 
-  const owner = await createVerifiedAccount("groupowner");
+  const owner = await getVerifiedAccount("groupowner");
   await sleep(1500);
-  const member = await createVerifiedAccount("groupmember");
+  const member = await getVerifiedAccount("groupmember");
   await sleep(1500);
-  const stranger = await createVerifiedAccount("groupstranger");
+  const stranger = await getVerifiedAccount("groupstranger");
 
   // Owner creates a group with the member.
-  const groupName = `B213 Verify Group ${Date.now()}`;
+  const groupName = `B213 Verify Group ${runId}`;
   const group = await api(owner.accessToken, "POST", "/groups", {
     name: groupName,
     memberIds: [member.user.id],
@@ -102,7 +104,7 @@ async function main() {
   });
 
   // Member can send a message.
-  const messageText = `B213 verify message ${Date.now()}`;
+  const messageText = `B213 verify message ${runId}`;
   const message = await api(member.accessToken, "POST", `/groups/${group.id}/messages`, {
     content: messageText,
   });

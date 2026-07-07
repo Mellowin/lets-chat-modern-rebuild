@@ -12,6 +12,124 @@ export const API_BASE =
 export const MAIL_BASE =
   process.env.VERIFY_MAIL_BASE || process.env.MAIL_BASE || "https://api.catchmail.io/api/v1";
 
+// Reusable production verifier account pool.
+// Supports either VERIFY_ACCOUNT_POOL_JSON or indexed VERIFY_ACCOUNT_N_EMAIL/PASSWORD pairs.
+let cachedAccountPool = null;
+let accountPoolIndex = 0;
+
+export function maskEmail(email) {
+  if (typeof email !== "string" || !email.includes("@")) return "***";
+  const [local, domain] = email.split("@");
+  if (local.length <= 4) return `***@${domain}`;
+  return `${local.slice(0, 2)}***${local.slice(-2)}@${domain}`;
+}
+
+function parseAccountPool() {
+  const json = process.env.VERIFY_ACCOUNT_POOL_JSON;
+  if (json && json.trim()) {
+    let parsed;
+    try {
+      parsed = JSON.parse(json);
+    } catch (err) {
+      throw new Error(`VERIFY_ACCOUNT_POOL_JSON is not valid JSON: ${err.message}`);
+    }
+    if (!Array.isArray(parsed)) {
+      throw new Error("VERIFY_ACCOUNT_POOL_JSON must be a JSON array");
+    }
+    const accounts = parsed
+      .map((entry, idx) => {
+        if (!entry || typeof entry !== "object") {
+          throw new Error(`VERIFY_ACCOUNT_POOL_JSON entry ${idx} is not an object`);
+        }
+        const email = entry.email;
+        const password = entry.password;
+        if (typeof email !== "string" || !email.includes("@")) {
+          throw new Error(`VERIFY_ACCOUNT_POOL_JSON entry ${idx} has invalid email`);
+        }
+        if (typeof password !== "string" || password.length === 0) {
+          throw new Error(`VERIFY_ACCOUNT_POOL_JSON entry ${idx} has invalid password`);
+        }
+        return { email, password };
+      });
+    return accounts.length > 0 ? accounts : null;
+  }
+
+  const accounts = [];
+  for (let i = 1; ; i++) {
+    const email = process.env[`VERIFY_ACCOUNT_${i}_EMAIL`];
+    const password = process.env[`VERIFY_ACCOUNT_${i}_PASSWORD`];
+    if (email === undefined && password === undefined) break;
+    if (typeof email !== "string" || !email.includes("@")) {
+      throw new Error(`VERIFY_ACCOUNT_${i}_EMAIL is missing or invalid`);
+    }
+    if (typeof password !== "string" || password.length === 0) {
+      throw new Error(`VERIFY_ACCOUNT_${i}_PASSWORD is missing or empty`);
+    }
+    accounts.push({ email, password });
+  }
+  return accounts.length > 0 ? accounts : null;
+}
+
+export function getVerifierAccountPool() {
+  if (cachedAccountPool === null) {
+    cachedAccountPool = parseAccountPool();
+  }
+  return cachedAccountPool;
+}
+
+export function getAccountMode() {
+  return getVerifierAccountPool() ? "reusable pool" : "disposable email";
+}
+
+export async function loginVerifierAccount(account) {
+  const masked = maskEmail(account.email);
+  console.log(`[auth] logging in ${masked}`);
+  try {
+    const session = await retry("login", () => login(account.email, account.password));
+    console.log(`[auth] logged in as ${session.user.username} (${masked})`);
+    return { ...session, email: account.email };
+  } catch (err) {
+    throw new Error(`Login failed for ${masked}: ${err.message}`);
+  }
+}
+
+export async function getVerifiedAccount(label) {
+  const pool = getVerifierAccountPool();
+  if (pool) {
+    const idx = accountPoolIndex++;
+    if (idx >= pool.length) {
+      throw new Error(
+        `VERIFY_ACCOUNT_POOL_JSON has only ${pool.length} accounts, but this verifier needs at least ${idx + 1}`,
+      );
+    }
+    const account = pool[idx];
+    console.log(`[auth] ${label} account: ${maskEmail(account.email)} (pool)`);
+    return loginVerifierAccount(account);
+  }
+  return createVerifiedAccount(label);
+}
+
+export async function getVerifiedAccounts(label, count) {
+  const pool = getVerifierAccountPool();
+  if (pool) {
+    const start = accountPoolIndex;
+    const end = accountPoolIndex + count;
+    if (end > pool.length) {
+      throw new Error(
+        `VERIFY_ACCOUNT_POOL_JSON has only ${pool.length} accounts, but this verifier needs ${count} more (total ${end})`,
+      );
+    }
+    const accounts = pool.slice(start, end);
+    accountPoolIndex = end;
+    const masked = accounts.map((a) => maskEmail(a.email)).join(", ");
+    console.log(`[auth] ${label} accounts: ${masked} (pool)`);
+    return Promise.all(accounts.map((account) => loginVerifierAccount(account)));
+  }
+  return Promise.all(
+    Array.from({ length: count }, (_, i) => createVerifiedAccount(`${label}${i + 1}`)),
+  );
+}
+
 export function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
