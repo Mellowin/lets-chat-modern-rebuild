@@ -37,7 +37,8 @@ describe("Header — global unread", () => {
       mentionNotificationsEnabled: true,
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
-      channelMessageNotificationsEnabled: true, } });
+      channelMessageNotificationsEnabled: true,
+      contactPrivacySetting: "EVERYONE", } });
     render(<Header />);
     expect(screen.queryByTestId("header-global-unread")).not.toBeInTheDocument();
   });
@@ -48,7 +49,8 @@ describe("Header — global unread", () => {
       mentionNotificationsEnabled: true,
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
-      channelMessageNotificationsEnabled: true, } });
+      channelMessageNotificationsEnabled: true,
+      contactPrivacySetting: "EVERYONE", } });
     render(<Header />);
     act(() => {
       window.dispatchEvent(new CustomEvent("global-unread:changed", { detail: { total: 5 } }));
@@ -62,7 +64,8 @@ describe("Header — global unread", () => {
       mentionNotificationsEnabled: true,
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
-      channelMessageNotificationsEnabled: true, } });
+      channelMessageNotificationsEnabled: true,
+      contactPrivacySetting: "EVERYONE", } });
     render(<Header />);
     act(() => {
       window.dispatchEvent(new CustomEvent("global-unread:changed", { detail: { total: 150 } }));
@@ -76,7 +79,8 @@ describe("Header — global unread", () => {
       mentionNotificationsEnabled: true,
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
-      channelMessageNotificationsEnabled: true, } });
+      channelMessageNotificationsEnabled: true,
+      contactPrivacySetting: "EVERYONE", } });
     render(<Header />);
     act(() => {
       window.dispatchEvent(new CustomEvent("global-unread:changed", { detail: { total: 5 } }));
@@ -108,6 +112,7 @@ describe("Header — global search", () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
+      contactPrivacySetting: "EVERYONE",
       },
     });
     render(<Header />);

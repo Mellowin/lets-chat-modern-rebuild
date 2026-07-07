@@ -21,6 +21,7 @@ export interface AuthUser {
   directMessageNotificationsEnabled: boolean;
   groupMessageNotificationsEnabled: boolean;
   channelMessageNotificationsEnabled: boolean;
+  contactPrivacySetting: "EVERYONE" | "REQUESTS_ONLY" | "NOBODY";
 }
 
 export interface NotificationPreferences {
@@ -441,6 +442,27 @@ export async function revokeSession(accessToken: string, sessionId: string): Pro
   }
 
   return res.json() as Promise<{ success: boolean }>;
+}
+
+export async function updateContactPrivacy(
+  accessToken: string,
+  contactPrivacySetting: "EVERYONE" | "REQUESTS_ONLY" | "NOBODY",
+): Promise<AuthUser> {
+  const res = await authFetch(`${API_BASE}/users/me/contact-privacy`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ contactPrivacySetting }),
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to update contact privacy: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<AuthUser>;
 }
 
 export async function updateInterfaceLanguage(accessToken: string, interfaceLanguage: "en" | "uk" | "ru"): Promise<AuthUser> {

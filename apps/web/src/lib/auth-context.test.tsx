@@ -53,7 +53,8 @@ function TestConsumer() {
       mentionNotificationsEnabled: true,
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
-      channelMessageNotificationsEnabled: true, },
+      channelMessageNotificationsEnabled: true,
+      contactPrivacySetting: "EVERYONE", },
             accessToken: "at",
             refreshToken: "rt",
           })
@@ -69,7 +70,8 @@ function TestConsumer() {
       mentionNotificationsEnabled: true,
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
-      channelMessageNotificationsEnabled: true, })
+      channelMessageNotificationsEnabled: true,
+      contactPrivacySetting: "EVERYONE", })
         }
       >
         SetUser
@@ -127,6 +129,7 @@ describe("AuthProvider", () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
+      contactPrivacySetting: "EVERYONE",
     });
 
     render(
@@ -174,7 +177,8 @@ describe("AuthProvider", () => {
       mentionNotificationsEnabled: true,
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
-      channelMessageNotificationsEnabled: true, },
+      channelMessageNotificationsEnabled: true,
+      contactPrivacySetting: "EVERYONE", },
       accessToken: validAccessToken,
       refreshToken: "new-refresh-token",
     });
@@ -193,6 +197,7 @@ describe("AuthProvider", () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
+      contactPrivacySetting: "EVERYONE",
     });
 
     render(
@@ -242,7 +247,8 @@ describe("AuthProvider", () => {
       mentionNotificationsEnabled: true,
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
-      channelMessageNotificationsEnabled: true, },
+      channelMessageNotificationsEnabled: true,
+      contactPrivacySetting: "EVERYONE", },
       accessToken: "refreshed-access-token",
       refreshToken: "new-refresh-token",
     });
@@ -261,6 +267,7 @@ describe("AuthProvider", () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
+      contactPrivacySetting: "EVERYONE",
     });
 
     render(
@@ -316,6 +323,7 @@ describe("AuthProvider", () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
+      contactPrivacySetting: "EVERYONE",
     });
     vi.mocked(apiLogout).mockResolvedValueOnce({ success: true });
 
@@ -359,6 +367,7 @@ describe("AuthProvider", () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
+      contactPrivacySetting: "EVERYONE",
     });
     vi.mocked(apiLogout).mockRejectedValueOnce(new Error("Network error"));
 
@@ -401,6 +410,7 @@ describe("AuthProvider", () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
+      contactPrivacySetting: "EVERYONE",
     });
 
     render(
@@ -438,6 +448,7 @@ describe("AuthProvider", () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
+      contactPrivacySetting: "EVERYONE",
     });
 
     function LocaleConsumer() {
@@ -489,7 +500,8 @@ describe("AuthProvider", () => {
       mentionNotificationsEnabled: true,
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
-      channelMessageNotificationsEnabled: true, },
+      channelMessageNotificationsEnabled: true,
+      contactPrivacySetting: "EVERYONE", },
                 accessToken: "at",
                 refreshToken: "rt",
               })

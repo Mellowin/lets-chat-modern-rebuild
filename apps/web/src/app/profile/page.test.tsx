@@ -28,6 +28,7 @@ vi.mock("@/lib/auth-api", () => ({
     directMessageNotificationsEnabled: true,
     groupMessageNotificationsEnabled: true,
     channelMessageNotificationsEnabled: true,
+      contactPrivacySetting: "EVERYONE",
   }),
   updateNotificationPreferences: vi.fn().mockResolvedValue({
     pushNotificationsEnabled: true,
@@ -35,6 +36,7 @@ vi.mock("@/lib/auth-api", () => ({
     directMessageNotificationsEnabled: true,
     groupMessageNotificationsEnabled: true,
     channelMessageNotificationsEnabled: true,
+      contactPrivacySetting: "EVERYONE",
   }),
 }));
 
@@ -45,7 +47,8 @@ function mockAuth(userOverrides?: Partial<ReturnType<typeof useAuth>>) {
       mentionNotificationsEnabled: true,
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
-      channelMessageNotificationsEnabled: true, },
+      channelMessageNotificationsEnabled: true,
+      contactPrivacySetting: "EVERYONE", },
     accessToken: "token",
     refreshToken: "rt",
     isLoading: false,
@@ -125,7 +128,8 @@ describe("ProfilePage — authenticated", () => {
       mentionNotificationsEnabled: true,
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
-      channelMessageNotificationsEnabled: true, },
+      channelMessageNotificationsEnabled: true,
+      contactPrivacySetting: "EVERYONE", },
     });
 
     render(<ProfilePage />);
@@ -145,7 +149,8 @@ describe("ProfilePage — authenticated", () => {
       mentionNotificationsEnabled: true,
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
-      channelMessageNotificationsEnabled: true, },
+      channelMessageNotificationsEnabled: true,
+      contactPrivacySetting: "EVERYONE", },
     });
 
     render(<ProfilePage />);
@@ -164,7 +169,8 @@ describe("ProfilePage — authenticated", () => {
       mentionNotificationsEnabled: true,
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
-      channelMessageNotificationsEnabled: true, },
+      channelMessageNotificationsEnabled: true,
+      contactPrivacySetting: "EVERYONE", },
     });
 
     render(<ProfilePage />);
@@ -184,7 +190,8 @@ describe("ProfilePage — authenticated", () => {
       mentionNotificationsEnabled: true,
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
-      channelMessageNotificationsEnabled: true, },
+      channelMessageNotificationsEnabled: true,
+      contactPrivacySetting: "EVERYONE", },
     });
 
     render(<ProfilePage />);
@@ -247,6 +254,7 @@ describe("ProfilePage — authenticated", () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
+      contactPrivacySetting: "EVERYONE",
     });
 
     render(<ProfilePage />);
@@ -284,6 +292,7 @@ describe("ProfilePage — authenticated", () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
+      contactPrivacySetting: "EVERYONE",
     });
 
     render(<ProfilePage />);
@@ -294,7 +303,7 @@ describe("ProfilePage — authenticated", () => {
     });
 
     await userEvent.type(screen.getByPlaceholderText(/Your display name/i), "Alice");
-    await userEvent.click(screen.getByRole("button", { name: /^Save$/i }));
+    await userEvent.click(screen.getByTestId("display-name-save"));
 
     await waitFor(() => {
       expect(updateDisplayName).toHaveBeenCalledWith("token", "Alice");
@@ -317,7 +326,7 @@ describe("ProfilePage — authenticated", () => {
     });
 
     await userEvent.type(screen.getByPlaceholderText(/Your display name/i), "a".repeat(81));
-    await userEvent.click(screen.getByRole("button", { name: /^Save$/i }));
+    await userEvent.click(screen.getByTestId("display-name-save"));
 
     expect(await screen.findByText(/Failed to update display name/i)).toBeInTheDocument();
   });
@@ -422,6 +431,7 @@ describe("ProfilePage — authenticated", () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
+      contactPrivacySetting: "EVERYONE",
       });
 
       render(<ProfilePage />);
@@ -460,6 +470,7 @@ describe("ProfilePage — authenticated", () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
+      contactPrivacySetting: "EVERYONE",
       });
 
       render(<ProfilePage />);
@@ -513,6 +524,7 @@ describe("ProfilePage — authenticated", () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
+      contactPrivacySetting: "EVERYONE",
       });
 
       render(<ProfilePage />);
@@ -609,7 +621,8 @@ describe("ProfilePage — authenticated", () => {
       mentionNotificationsEnabled: true,
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
-      channelMessageNotificationsEnabled: true, },
+      channelMessageNotificationsEnabled: true,
+      contactPrivacySetting: "EVERYONE", },
       });
 
       render(<ProfilePage />);

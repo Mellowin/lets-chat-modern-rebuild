@@ -786,6 +786,26 @@ export type TranslationKey =
   | "direct.report"
   | "contacts.block"
   | "contacts.report"
+  | "contacts.contactRequestSent"
+  | "contacts.requestReceived"
+  | "contacts.acceptRequest"
+  | "contacts.declineRequest"
+  | "contacts.cancelRequest"
+  | "contacts.noRequests"
+  | "contacts.requestsTitle"
+  | "contacts.doesNotAcceptContacts"
+  | "contacts.sendRequest"
+  | "contacts.failedLoadRequests"
+  | "contacts.failedAcceptRequest"
+  | "contacts.failedDeclineRequest"
+  | "contacts.failedCancelRequest"
+  | "profile.contactPrivacy"
+  | "profile.contactPrivacyDescription"
+  | "profile.contactPrivacyEveryone"
+  | "profile.contactPrivacyRequestsOnly"
+  | "profile.contactPrivacyNobody"
+  | "profile.contactPrivacySaved"
+  | "profile.contactPrivacySaveFailed"
   | "groups.block"
   | "groups.report";
 
@@ -1559,6 +1579,26 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "direct.report": "Report user",
     "contacts.block": "Block",
     "contacts.report": "Report",
+    "contacts.contactRequestSent": "Contact request sent.",
+    "contacts.requestReceived": "wants to add you as a contact",
+    "contacts.acceptRequest": "Accept",
+    "contacts.declineRequest": "Decline",
+    "contacts.cancelRequest": "Cancel request",
+    "contacts.noRequests": "No pending contact requests.",
+    "contacts.requestsTitle": "Incoming contact requests",
+    "contacts.doesNotAcceptContacts": "Doesn’t accept contacts",
+    "contacts.sendRequest": "Send request",
+    "contacts.failedLoadRequests": "Failed to load contact requests",
+    "contacts.failedAcceptRequest": "Failed to accept request",
+    "contacts.failedDeclineRequest": "Failed to decline request",
+    "contacts.failedCancelRequest": "Failed to cancel request",
+    "profile.contactPrivacy": "Contact privacy",
+    "profile.contactPrivacyDescription": "Choose who can add you as a contact without a request.",
+    "profile.contactPrivacyEveryone": "Everyone",
+    "profile.contactPrivacyRequestsOnly": "Requests only",
+    "profile.contactPrivacyNobody": "Nobody",
+    "profile.contactPrivacySaved": "Contact privacy setting saved.",
+    "profile.contactPrivacySaveFailed": "Failed to save contact privacy setting.",
     "groups.block": "Block",
     "groups.report": "Report",
   },
@@ -2331,6 +2371,26 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "direct.report": "Поскаржитися на користувача",
     "contacts.block": "Заблокувати",
     "contacts.report": "Поскаржитися",
+    "contacts.contactRequestSent": "Запит на додавання контакту надіслано.",
+    "contacts.requestReceived": "хоче додати вас до контактів",
+    "contacts.acceptRequest": "Прийняти",
+    "contacts.declineRequest": "Відхилити",
+    "contacts.cancelRequest": "Скасувати запит",
+    "contacts.noRequests": "Немає очікуючих запитів на контакт.",
+    "contacts.requestsTitle": "Вхідні запити на контакт",
+    "contacts.doesNotAcceptContacts": "Не приймає контакти",
+    "contacts.sendRequest": "Надіслати запит",
+    "contacts.failedLoadRequests": "Не вдалося завантажити запити на контакт",
+    "contacts.failedAcceptRequest": "Не вдалося прийняти запит",
+    "contacts.failedDeclineRequest": "Не вдалося відхилити запит",
+    "contacts.failedCancelRequest": "Не вдалося скасувати запит",
+    "profile.contactPrivacy": "Конфіденційність контактів",
+    "profile.contactPrivacyDescription": "Оберіть, хто може додавати вас до контактів без запиту.",
+    "profile.contactPrivacyEveryone": "Усі",
+    "profile.contactPrivacyRequestsOnly": "Лише запити",
+    "profile.contactPrivacyNobody": "Ніхто",
+    "profile.contactPrivacySaved": "Налаштування конфіденційності контактів збережено.",
+    "profile.contactPrivacySaveFailed": "Не вдалося зберегти налаштування конфіденційності контактів.",
     "groups.block": "Заблокувати",
     "groups.report": "Поскаржитися",
   },
@@ -3103,6 +3163,26 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "direct.report": "Пожаловаться на пользователя",
     "contacts.block": "Заблокировать",
     "contacts.report": "Пожаловаться",
+    "contacts.contactRequestSent": "Запрос на добавление в контакты отправлен.",
+    "contacts.requestReceived": "хочет добавить вас в контакты",
+    "contacts.acceptRequest": "Принять",
+    "contacts.declineRequest": "Отклонить",
+    "contacts.cancelRequest": "Отменить запрос",
+    "contacts.noRequests": "Нет ожидающих запросов на контакт.",
+    "contacts.requestsTitle": "Входящие запросы на контакт",
+    "contacts.doesNotAcceptContacts": "Не принимает контакты",
+    "contacts.sendRequest": "Отправить запрос",
+    "contacts.failedLoadRequests": "Не удалось загрузить запросы на контакт",
+    "contacts.failedAcceptRequest": "Не удалось принять запрос",
+    "contacts.failedDeclineRequest": "Не удалось отклонить запрос",
+    "contacts.failedCancelRequest": "Не удалось отменить запрос",
+    "profile.contactPrivacy": "Конфиденциальность контактов",
+    "profile.contactPrivacyDescription": "Выберите, кто может добавлять вас в контакты без запроса.",
+    "profile.contactPrivacyEveryone": "Все",
+    "profile.contactPrivacyRequestsOnly": "Только запросы",
+    "profile.contactPrivacyNobody": "Никто",
+    "profile.contactPrivacySaved": "Настройка конфиденциальности контактов сохранена.",
+    "profile.contactPrivacySaveFailed": "Не удалось сохранить настройку конфиденциальности контактов.",
     "groups.block": "Заблокировать",
     "groups.report": "Пожаловаться",
   },

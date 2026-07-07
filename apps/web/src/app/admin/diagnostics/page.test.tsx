@@ -35,6 +35,7 @@ function mockAuth(role: string | null) {
           directMessageNotificationsEnabled: true,
           groupMessageNotificationsEnabled: true,
           channelMessageNotificationsEnabled: true,
+      contactPrivacySetting: "EVERYONE",
         }
       : null,
     accessToken: "token",

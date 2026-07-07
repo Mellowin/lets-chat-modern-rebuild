@@ -27,6 +27,7 @@ import {
   listSessions,
   revokeOtherSessions,
   revokeSession,
+  updateContactPrivacy,
 } from "@/lib/auth-api";
 import { useLocale, type Locale, localeLabel } from "@/lib/locale";
 import { localizeApiError } from "@/lib/api-errors";
@@ -152,6 +153,13 @@ export default function ProfilePage() {
     kind: "idle",
   });
 
+  const [contactPrivacyInput, setContactPrivacyInput] = useState<
+    "EVERYONE" | "REQUESTS_ONLY" | "NOBODY"
+  >("EVERYONE");
+  const [contactPrivacyState, setContactPrivacyState] = useState<FormState>({
+    kind: "idle",
+  });
+
   const [avatarState, setAvatarState] = useState<FormState>({ kind: "idle" });
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -193,7 +201,11 @@ export default function ProfilePage() {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setDisplayNameInput(user.displayName);
     }
-  }, [user?.displayName]);
+    if (user?.contactPrivacySetting) {
+       
+      setContactPrivacyInput(user.contactPrivacySetting);
+    }
+  }, [user?.displayName, user?.contactPrivacySetting]);
 
   const loadSessions = useCallback(async () => {
     if (!accessToken || !isAuthenticated) return;
@@ -285,6 +297,20 @@ export default function ProfilePage() {
     } catch (err) {
       const message = localizeApiError(err, "profile.errorUpdateDisplayNameFailed", t);
       setDisplayNameState({ kind: "error", message });
+    }
+  }
+
+  async function handleUpdateContactPrivacy(e: React.FormEvent) {
+    e.preventDefault();
+    if (!accessToken) return;
+    setContactPrivacyState({ kind: "loading" });
+    try {
+      const updated = await updateContactPrivacy(accessToken, contactPrivacyInput);
+      setUser(updated);
+      setContactPrivacyState({ kind: "success" });
+    } catch (err) {
+      const message = localizeApiError(err, "profile.contactPrivacySaveFailed", t);
+      setContactPrivacyState({ kind: "error", message });
     }
   }
 
@@ -544,6 +570,7 @@ export default function ProfilePage() {
                 <Button
                   type="submit"
                   disabled={displayNameState.kind === "loading"}
+                  data-testid="display-name-save"
                 >
                   {displayNameState.kind === "loading"
                     ? t("profile.saving")
@@ -560,6 +587,78 @@ export default function ProfilePage() {
               {displayNameState.kind === "error" && (
                 <div className="mt-3">
                   <Alert variant="error">{displayNameState.message}</Alert>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("profile.contactPrivacy")}</CardTitle>
+              <CardDescription>{t("profile.contactPrivacyDescription")}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleUpdateContactPrivacy} className="space-y-4">
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="contact-privacy"
+                      value="EVERYONE"
+                      checked={contactPrivacyInput === "EVERYONE"}
+                      onChange={(e) =>
+                        setContactPrivacyInput(e.target.value as "EVERYONE" | "REQUESTS_ONLY" | "NOBODY")
+                      }
+                      disabled={contactPrivacyState.kind === "loading"}
+                      className="h-4 w-4 rounded border-border text-primary focus:ring-ring"
+                    />
+                    {t("profile.contactPrivacyEveryone")}
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="contact-privacy"
+                      value="REQUESTS_ONLY"
+                      checked={contactPrivacyInput === "REQUESTS_ONLY"}
+                      onChange={(e) =>
+                        setContactPrivacyInput(e.target.value as "EVERYONE" | "REQUESTS_ONLY" | "NOBODY")
+                      }
+                      disabled={contactPrivacyState.kind === "loading"}
+                      className="h-4 w-4 rounded border-border text-primary focus:ring-ring"
+                    />
+                    {t("profile.contactPrivacyRequestsOnly")}
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="contact-privacy"
+                      value="NOBODY"
+                      checked={contactPrivacyInput === "NOBODY"}
+                      onChange={(e) =>
+                        setContactPrivacyInput(e.target.value as "EVERYONE" | "REQUESTS_ONLY" | "NOBODY")
+                      }
+                      disabled={contactPrivacyState.kind === "loading"}
+                      className="h-4 w-4 rounded border-border text-primary focus:ring-ring"
+                    />
+                    {t("profile.contactPrivacyNobody")}
+                  </label>
+                </div>
+                <Button
+                  type="submit"
+                  disabled={contactPrivacyState.kind === "loading"}
+                  data-testid="contact-privacy-save"
+                >
+                  {contactPrivacyState.kind === "loading" ? t("profile.saving") : t("profile.save")}
+                </Button>
+              </form>
+              {contactPrivacyState.kind === "success" && (
+                <div className="mt-3">
+                  <Alert variant="success">{t("profile.contactPrivacySaved")}</Alert>
+                </div>
+              )}
+              {contactPrivacyState.kind === "error" && (
+                <div className="mt-3">
+                  <Alert variant="error">{contactPrivacyState.message}</Alert>
                 </div>
               )}
             </CardContent>

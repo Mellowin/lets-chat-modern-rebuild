@@ -20,6 +20,7 @@ export function createAuthUser(overrides?: Partial<AuthUser>): AuthUser {
     directMessageNotificationsEnabled: true,
     groupMessageNotificationsEnabled: true,
     channelMessageNotificationsEnabled: true,
+    contactPrivacySetting: "EVERYONE",
     ...overrides,
   };
 }

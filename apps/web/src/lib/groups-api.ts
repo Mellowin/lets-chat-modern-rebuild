@@ -46,6 +46,17 @@ export interface GroupMessageMention {
   username: string;
 }
 
+export interface GroupMessageAttachment {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  kind: "image" | "file";
+  createdAt: string;
+  url?: string;
+  thumbnailUrl?: string;
+}
+
 export interface GroupMessage {
   id: string;
   groupId: string;
@@ -54,6 +65,7 @@ export interface GroupMessage {
   updatedAt: string;
   author: GroupMessageAuthor;
   mentions?: GroupMessageMention[];
+  attachments?: GroupMessageAttachment[];
 }
 
 export interface PaginatedGroupMessages {
@@ -88,6 +100,7 @@ export interface SearchUserResult {
   username: string;
   displayName: string | null;
   avatarUrl: string | null;
+  contactPrivacySetting?: "EVERYONE" | "REQUESTS_ONLY" | "NOBODY";
 }
 
 async function parseErrorMessage(res: Response, fallback: string): Promise<string> {
@@ -289,10 +302,15 @@ export async function getGroupMessageContext(
   return res.json() as Promise<GroupMessageContextResult>;
 }
 
+export interface CreateGroupMessageInput {
+  content?: string;
+  attachmentIds?: string[];
+}
+
 export async function sendGroupMessage(
   accessToken: string,
   groupId: string,
-  content: string,
+  input: CreateGroupMessageInput,
 ): Promise<GroupMessage> {
   const res = await authFetch(`${API_BASE}/groups/${encodeURIComponent(groupId)}/messages`, {
     method: "POST",
@@ -300,7 +318,7 @@ export async function sendGroupMessage(
       ...authHeaders(accessToken),
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ content }),
+    body: JSON.stringify(input),
   });
 
   if (!res.ok) {
@@ -308,6 +326,120 @@ export async function sendGroupMessage(
   }
 
   return res.json() as Promise<GroupMessage>;
+}
+
+export interface UploadGroupAttachmentViaProxyResponse {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  kind: "image" | "file";
+  createdAt: string;
+}
+
+export function uploadGroupAttachmentViaProxyWithProgress(
+  accessToken: string,
+  groupId: string,
+  file: File,
+  onProgress: (percent: number) => void,
+): Promise<UploadGroupAttachmentViaProxyResponse> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const formData = new FormData();
+    formData.append("file", file);
+
+    xhr.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable) {
+        const percent = Math.round((event.loaded / event.total) * 100);
+        onProgress(percent);
+      }
+    });
+
+    xhr.addEventListener("load", () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          resolve(data as UploadGroupAttachmentViaProxyResponse);
+        } catch {
+          reject(new Error("Upload failed: invalid server response"));
+        }
+      } else {
+        let message = `Upload failed: ${xhr.status} ${xhr.statusText}`;
+        try {
+          const data = JSON.parse(xhr.responseText);
+          if (data?.message) message = data.message;
+        } catch {
+          // keep default message
+        }
+        reject(new Error(message));
+      }
+    });
+
+    xhr.addEventListener("error", () => {
+      reject(new Error("Upload failed: network error"));
+    });
+
+    xhr.addEventListener("abort", () => {
+      reject(new Error("Upload failed: aborted"));
+    });
+
+    xhr.open(
+      "POST",
+      `${API_BASE}/groups/${encodeURIComponent(groupId)}/messages/attachments/upload`,
+    );
+    xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
+    xhr.send(formData);
+  });
+}
+
+export async function fetchGroupAttachmentFile(
+  accessToken: string,
+  groupId: string,
+  messageId: string,
+  attachmentId: string,
+): Promise<Blob> {
+  const url = `${API_BASE}/groups/${encodeURIComponent(groupId)}/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}/file`;
+
+  const res = await authFetch(
+    url,
+    {
+      method: "GET",
+      headers: {
+        Accept: "*/*",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+    { timeoutMs: 60_000 },
+  );
+
+  if (!res.ok) {
+    let message = `Failed to download file: ${res.status} ${res.statusText}`;
+    try {
+      const body = await res.json();
+      if (body?.message) message = body.message;
+      else if (body?.error) message = body.error;
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+
+  return res.blob();
+}
+
+export async function getGroupAttachmentFileObjectUrl(
+  accessToken: string,
+  groupId: string,
+  messageId: string,
+  attachmentId: string,
+): Promise<string> {
+  const blob = await fetchGroupAttachmentFile(
+    accessToken,
+    groupId,
+    messageId,
+    attachmentId,
+  );
+  return URL.createObjectURL(blob);
 }
 
 export async function markGroupRead(

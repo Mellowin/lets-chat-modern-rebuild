@@ -32,6 +32,7 @@ describe("NotificationPreferencesSection", () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
+      contactPrivacySetting: "EVERYONE",
     });
 
     render(<NotificationPreferencesSection />);
@@ -50,6 +51,7 @@ describe("NotificationPreferencesSection", () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
+      contactPrivacySetting: "EVERYONE",
     });
     mockUpdateNotificationPreferences.mockResolvedValue({
       pushNotificationsEnabled: false,
@@ -57,6 +59,7 @@ describe("NotificationPreferencesSection", () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
+      contactPrivacySetting: "EVERYONE",
     });
 
     render(<NotificationPreferencesSection />);
