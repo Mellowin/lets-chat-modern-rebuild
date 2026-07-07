@@ -49,7 +49,7 @@ async function main() {
   // ---- Generate a user.blocked audit event ----
 
   const block = await api(actor.accessToken, "POST", "/blocks", {
-    blockedId: target.user.id,
+    userId: target.user.id,
     reason: "verification block",
   });
   results.push({
