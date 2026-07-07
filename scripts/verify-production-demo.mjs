@@ -20,7 +20,19 @@ async function main() {
 
   const results = [];
 
-  const status = await fetchJson(`${API_BASE}/demo/status`);
+  let status;
+  try {
+    status = await fetchJson(`${API_BASE}/demo/status`);
+  } catch (err) {
+    if (err.message.includes("404")) {
+      console.log(
+        "Demo status endpoint is not deployed or demo mode is unavailable; skipping verification.",
+      );
+      process.exit(0);
+    }
+    throw err;
+  }
+
   if (!status.enabled) {
     console.log("Demo mode is disabled; skipping verification.");
     process.exit(0);

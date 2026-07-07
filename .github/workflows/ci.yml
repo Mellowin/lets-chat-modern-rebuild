@@ -242,13 +242,14 @@ jobs:
       needs.migrate.outputs.should_deploy == 'true'
     steps:
       - name: Trigger Render deploy hook
+        id: trigger
         env:
           RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_API_V2_DEPLOY_HOOK_URL }}
         run: |
           if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
             echo "⚠️  RENDER_API_V2_DEPLOY_HOOK_URL is not configured."
             echo "    Render auto-deploy must be enabled in the dashboard, or the secret must be set."
-            echo "    Skipping deploy hook trigger."
+            echo "    Skipping deploy hook trigger and verification."
             exit 0
           fi
 
@@ -261,3 +262,32 @@ jobs:
           fi
 
           echo "✅ Render deploy hook accepted (HTTP $HTTP_CODE)"
+          echo "RENDER_DEPLOY_TRIGGERED=true" >> "$GITHUB_OUTPUT"
+
+      - name: Verify live production revision
+        if: steps.trigger.outputs.RENDER_DEPLOY_TRIGGERED == 'true'
+        env:
+          API_BASE: ${{ vars.VERIFICATION_API_URL || 'https://lets-chat-api-v2.onrender.com/api/v1' }}
+          EXPECTED_COMMIT: ${{ github.sha }}
+        run: |
+          echo "⏳ Waiting for production to serve commit $EXPECTED_COMMIT..."
+          for i in $(seq 1 30); do
+            sleep 20
+            VERSION=$(curl -sf "$API_BASE/version" || echo '{}')
+            COMMIT=$(echo "$VERSION" | jq -r '.commit // "unknown"')
+            HEALTH=$(curl -sf "$API_BASE/health" | jq -r '.status // "unknown"' || echo 'unknown')
+            echo "Attempt $i/30: commit=$COMMIT health=$HEALTH"
+
+            if [ "$COMMIT" = "$EXPECTED_COMMIT" ] || [ "$COMMIT" = "${EXPECTED_COMMIT:0:7}" ]; then
+              echo "✅ Production is serving the expected commit."
+              exit 0
+            fi
+
+            if [ "$HEALTH" != "ok" ]; then
+              echo "⚠️  Health check not ok yet."
+            fi
+          done
+
+          echo "❌ Production did not report expected commit within 10 minutes."
+          echo "   Last version response: $VERSION"
+          exit 1
