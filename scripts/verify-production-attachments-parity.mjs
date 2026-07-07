@@ -6,6 +6,9 @@
  * Verifies that direct messages and group messages support the same attachment
  * lifecycle as channel messages: upload, link to message, list, and download.
  *
+ * Also verifies attachment-only messages (empty text + file) work, because
+ * that is the primary real-world flow for file sharing.
+ *
  * Optional env vars:
  *   VERIFY_API_BASE  — override API endpoint
  *   VERIFY_PASSWORD  — fixed password (do not commit)
@@ -18,6 +21,14 @@ import {
   finalize,
   sleep,
 } from "./lib/verify-helpers.mjs";
+
+function expectStatus(fn) {
+  return fn.catch((err) => ({
+    __expectedError: true,
+    status: err.message.match(/HTTP (\d+)/)?.[1] || "error",
+    message: err.message,
+  }));
+}
 
 async function uploadFile(token, endpoint, filename, content, mimeType = "text/plain") {
   const form = new FormData();
@@ -78,6 +89,16 @@ async function main() {
     detail: `id=${direct.id}`,
   });
 
+  // Empty message without attachments must be rejected.
+  const emptyDirect = await expectStatus(
+    api(alice.accessToken, "POST", `/direct-conversations/${direct.id}/messages`, {}),
+  );
+  results.push({
+    check: "Direct empty message without attachments is rejected",
+    ok: emptyDirect.__expectedError && emptyDirect.status === "400",
+    detail: emptyDirect.status,
+  });
+
   const directContent = Buffer.from("Direct message attachment content 🚀");
   const directAttachment = await uploadFile(
     alice.accessToken,
@@ -95,42 +116,66 @@ async function main() {
     detail: `id=${directAttachment.id}`,
   });
 
+  // Text + attachment
   const directMessage = await api(alice.accessToken, "POST", `/direct-conversations/${direct.id}/messages`, {
     content: "Message with direct attachment",
     attachmentIds: [directAttachment.id],
   });
   results.push({
-    check: "Direct message links attachment",
+    check: "Direct message with text links attachment",
     ok:
       Array.isArray(directMessage.attachments) &&
       directMessage.attachments.some((a) => a.id === directAttachment.id),
   });
 
-  const directDownloadUrl = `${API_BASE}/direct-conversations/${direct.id}/messages/${directMessage.id}/attachments/${directAttachment.id}/file`;
+  // Attachment-only
+  const directOnlyContent = Buffer.from("Direct attachment-only content 🚀");
+  const directOnlyAttachment = await uploadFile(
+    alice.accessToken,
+    `/direct-conversations/${direct.id}/messages/attachments/upload`,
+    "parity-direct-only.txt",
+    directOnlyContent,
+    "text/plain",
+  );
+
+  const directOnlyMessage = await api(alice.accessToken, "POST", `/direct-conversations/${direct.id}/messages`, {
+    content: "",
+    attachmentIds: [directOnlyAttachment.id],
+  });
+  results.push({
+    check: "Direct attachment-only message (empty text) is accepted",
+    ok:
+      directOnlyMessage.id &&
+      Array.isArray(directOnlyMessage.attachments) &&
+      directOnlyMessage.attachments.some((a) => a.id === directOnlyAttachment.id),
+    detail: `messageId=${directOnlyMessage.id}`,
+  });
+
+  const directDownloadUrl = `${API_BASE}/direct-conversations/${direct.id}/messages/${directOnlyMessage.id}/attachments/${directOnlyAttachment.id}/file`;
   const directDownloaded = await downloadFile(alice.accessToken, directDownloadUrl);
   results.push({
-    check: "Direct attachment download returns identical content",
-    ok: directDownloaded.equals(directContent),
+    check: "Direct attachment-only download returns identical content",
+    ok: directDownloaded.equals(directOnlyContent),
   });
 
   // Recipient can also list and download
   const bobMessages = await api(bob.accessToken, "GET", `/direct-conversations/${direct.id}/messages`);
-  const bobMessage = bobMessages.items?.[0] ?? bobMessages[0];
+  const bobMessage = bobMessages.items?.find((m) => m.id === directOnlyMessage.id) ?? bobMessages.find((m) => m.id === directOnlyMessage.id);
   results.push({
-    check: "Recipient sees direct message with attachment",
+    check: "Recipient sees direct attachment-only message",
     ok:
       bobMessage &&
       Array.isArray(bobMessage.attachments) &&
-      bobMessage.attachments.some((a) => a.id === directAttachment.id),
+      bobMessage.attachments.some((a) => a.id === directOnlyAttachment.id),
   });
 
   const bobDownloaded = await downloadFile(
     bob.accessToken,
-    `${API_BASE}/direct-conversations/${direct.id}/messages/${directMessage.id}/attachments/${directAttachment.id}/file`,
+    `${API_BASE}/direct-conversations/${direct.id}/messages/${directOnlyMessage.id}/attachments/${directOnlyAttachment.id}/file`,
   );
   results.push({
-    check: "Recipient can download direct attachment",
-    ok: bobDownloaded.equals(directContent),
+    check: "Recipient can download direct attachment-only file",
+    ok: bobDownloaded.equals(directOnlyContent),
   });
 
   // ---- Group message attachments ----
@@ -143,6 +188,16 @@ async function main() {
     check: "Group created",
     ok: Boolean(group.id) && group.myRole === "OWNER",
     detail: `id=${group.id}`,
+  });
+
+  // Empty message without attachments must be rejected.
+  const emptyGroup = await expectStatus(
+    api(alice.accessToken, "POST", `/groups/${group.id}/messages`, {}),
+  );
+  results.push({
+    check: "Group empty message without attachments is rejected",
+    ok: emptyGroup.__expectedError && emptyGroup.status === "400",
+    detail: emptyGroup.status,
   });
 
   const groupContent = Buffer.from("Group message attachment content 🌟");
@@ -162,34 +217,58 @@ async function main() {
     detail: `id=${groupAttachment.id}`,
   });
 
+  // Text + attachment
   const groupMessage = await api(alice.accessToken, "POST", `/groups/${group.id}/messages`, {
     content: "Message with group attachment",
     attachmentIds: [groupAttachment.id],
   });
   results.push({
-    check: "Group message links attachment",
+    check: "Group message with text links attachment",
     ok:
       Array.isArray(groupMessage.attachments) &&
       groupMessage.attachments.some((a) => a.id === groupAttachment.id),
   });
 
+  // Attachment-only
+  const groupOnlyContent = Buffer.from("Group attachment-only content 🌟");
+  const groupOnlyAttachment = await uploadFile(
+    alice.accessToken,
+    `/groups/${group.id}/messages/attachments/upload`,
+    "parity-group-only.txt",
+    groupOnlyContent,
+    "text/plain",
+  );
+
+  const groupOnlyMessage = await api(alice.accessToken, "POST", `/groups/${group.id}/messages`, {
+    content: "",
+    attachmentIds: [groupOnlyAttachment.id],
+  });
+  results.push({
+    check: "Group attachment-only message (empty text) is accepted",
+    ok:
+      groupOnlyMessage.id &&
+      Array.isArray(groupOnlyMessage.attachments) &&
+      groupOnlyMessage.attachments.some((a) => a.id === groupOnlyAttachment.id),
+    detail: `messageId=${groupOnlyMessage.id}`,
+  });
+
   const groupDownloaded = await downloadFile(
     bob.accessToken,
-    `${API_BASE}/groups/${group.id}/messages/${groupMessage.id}/attachments/${groupAttachment.id}/file`,
+    `${API_BASE}/groups/${group.id}/messages/${groupOnlyMessage.id}/attachments/${groupOnlyAttachment.id}/file`,
   );
   results.push({
-    check: "Member can download group attachment",
-    ok: groupDownloaded.equals(groupContent),
+    check: "Member can download group attachment-only file",
+    ok: groupDownloaded.equals(groupOnlyContent),
   });
 
   const carolMessages = await api(carol.accessToken, "GET", `/groups/${group.id}/messages`);
-  const carolMessage = carolMessages.items?.[0] ?? carolMessages[0];
+  const carolMessage = carolMessages.items?.find((m) => m.id === groupOnlyMessage.id) ?? carolMessages.find((m) => m.id === groupOnlyMessage.id);
   results.push({
-    check: "Other member sees group message with attachment",
+    check: "Other member sees group attachment-only message",
     ok:
       carolMessage &&
       Array.isArray(carolMessage.attachments) &&
-      carolMessage.attachments.some((a) => a.id === groupAttachment.id),
+      carolMessage.attachments.some((a) => a.id === groupOnlyAttachment.id),
   });
 
   finalize(results);

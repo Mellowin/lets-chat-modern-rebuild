@@ -1072,6 +1072,67 @@ describe('DirectConversationsService', () => {
       expect(repository.createMessage).not.toHaveBeenCalled();
     });
 
+    it('creates attachment-only direct message', async () => {
+      const attachmentId = '66666666-6666-6666-6666-666666666666';
+      repository.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+      ]);
+      repository.findUnattachedAttachmentsByIds.mockResolvedValue([
+        { id: attachmentId },
+      ]);
+      repository.createMessage.mockResolvedValue(
+        makeMessage({
+          content: '',
+          attachments: [
+            {
+              id: attachmentId,
+              filename: 'doc.pdf',
+              mimeType: 'application/pdf',
+              size: 1234,
+              createdAt: new Date(),
+            },
+          ],
+        }),
+      );
+
+      const result = await service.createMessage(
+        conversationId,
+        { attachmentIds: [attachmentId] },
+        userId,
+      );
+
+      expect(result.content).toBe('');
+      expect(result.attachments).toHaveLength(1);
+      expect(repository.createMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ content: '', attachmentIds: [attachmentId] }),
+      );
+    });
+
+    it('throws BadRequest for empty content and no attachments', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+      ]);
+
+      await expect(
+        service.createMessage(conversationId, {}, userId),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(repository.createMessage).not.toHaveBeenCalled();
+    });
+
     it('supports parentId reply to a direct message', async () => {
       const parentId = '55555555-5555-5555-5555-555555555555';
       repository.findParticipant.mockResolvedValue({

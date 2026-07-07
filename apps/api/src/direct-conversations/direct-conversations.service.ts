@@ -444,8 +444,9 @@ export class DirectConversationsService {
         currentUserId,
       ),
     );
+    const content = dto.content?.trim() ?? '';
     const mentions = await this.mentions.resolveMentions(
-      dto.content,
+      content,
       mentionableUserIds,
     );
 
@@ -465,10 +466,18 @@ export class DirectConversationsService {
       }
     }
 
+    const hasContent = content.length > 0;
+    const hasAttachments = attachmentIds.length > 0;
+    if (!hasContent && !hasAttachments) {
+      throw new BadRequestException(
+        'Message content or attachment is required',
+      );
+    }
+
     const message = await this.directConversations.createMessage({
       conversationId,
       authorId: currentUserId,
-      content: dto.content,
+      content,
       parentId: dto.parentId,
       mentions,
       ...(attachmentIds.length > 0 && { attachmentIds }),

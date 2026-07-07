@@ -3,7 +3,6 @@ import {
   IsString,
   IsOptional,
   IsUUID,
-  MinLength,
   MaxLength,
   ValidateNested,
   ArrayMaxSize,
@@ -16,7 +15,6 @@ export class CreateMessageDto {
   @ApiProperty({ example: 'Hello everyone!', required: false })
   @IsOptional()
   @IsString()
-  @MinLength(1)
   @MaxLength(4000)
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,

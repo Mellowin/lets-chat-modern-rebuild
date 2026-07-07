@@ -13,16 +13,30 @@ describe('CreateMessageDto', () => {
     expect(errors).toHaveLength(0);
   });
 
-  it('rejects empty content', async () => {
+  it('accepts empty content', async () => {
     const errors = await validateDto({ content: '' });
-    expect(errors).toHaveLength(1);
-    expect(errors[0].property).toBe('content');
+    expect(errors).toHaveLength(0);
   });
 
-  it('rejects whitespace-only content after trim', async () => {
+  it('accepts whitespace-only content after trim', async () => {
     const errors = await validateDto({ content: '   ' });
-    expect(errors).toHaveLength(1);
-    expect(errors[0].property).toBe('content');
+    expect(errors).toHaveLength(0);
+  });
+
+  it('accepts empty content when attachments are present', async () => {
+    const errors = await validateDto({
+      content: '',
+      attachments: [
+        {
+          storageKey: 'attachments/user-id/uuid-file.png',
+          fileName: 'file.png',
+          mimeType: 'image/png',
+          sizeBytes: 1234,
+          kind: 'image',
+        },
+      ],
+    });
+    expect(errors).toHaveLength(0);
   });
 
   it('rejects content longer than 4000 characters', async () => {

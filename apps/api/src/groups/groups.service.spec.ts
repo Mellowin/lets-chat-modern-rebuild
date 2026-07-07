@@ -722,5 +722,50 @@ describe('GroupsService', () => {
       ).rejects.toBeInstanceOf(BadRequestException);
       expect(groupsRepository.createMessage).not.toHaveBeenCalled();
     });
+
+    it('creates attachment-only group message', async () => {
+      const attachmentId = '66666666-6666-6666-6666-666666666666';
+      groupsRepository.findById.mockResolvedValue(makeGroup());
+      groupsRepository.findUnattachedAttachmentsByIds.mockResolvedValue([
+        { id: attachmentId },
+      ]);
+      groupsRepository.createMessage.mockResolvedValue(
+        makeMessage({
+          content: '',
+          attachments: [
+            {
+              id: attachmentId,
+              filename: 'image.png',
+              mimeType: 'image/png',
+              size: 5678,
+              createdAt: new Date(),
+            },
+          ],
+        }),
+      );
+      groupsRepository.touchUpdatedAt.mockResolvedValue(makeGroup());
+      groupsRepository.countUnreadMessages.mockResolvedValue(0);
+
+      const result = await service.createMessage(
+        groupId,
+        { attachmentIds: [attachmentId] },
+        userId,
+      );
+
+      expect(result.content).toBe('');
+      expect(result.attachments).toHaveLength(1);
+      expect(groupsRepository.createMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ content: '', attachmentIds: [attachmentId] }),
+      );
+    });
+
+    it('throws BadRequest for empty content and no attachments', async () => {
+      groupsRepository.findById.mockResolvedValue(makeGroup());
+
+      await expect(
+        service.createMessage(groupId, {}, userId),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(groupsRepository.createMessage).not.toHaveBeenCalled();
+    });
   });
 });

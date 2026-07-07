@@ -495,11 +495,13 @@ export class GroupsService {
       throw new BadRequestException('Replies are not supported in groups');
     }
 
+    const content = dto.content?.trim() ?? '';
+
     const mentionableUserIds = new Set(
       await this.groups.findMentionableUserIds(groupId),
     );
     const mentions = await this.mentions.resolveMentions(
-      dto.content,
+      content,
       mentionableUserIds,
     );
 
@@ -518,10 +520,18 @@ export class GroupsService {
       }
     }
 
+    const hasContent = content.length > 0;
+    const hasAttachments = attachmentIds.length > 0;
+    if (!hasContent && !hasAttachments) {
+      throw new BadRequestException(
+        'Message content or attachment is required',
+      );
+    }
+
     const message = await this.groups.createMessage({
       groupId,
       authorId: currentUserId,
-      content: dto.content,
+      content,
       mentions,
       ...(attachmentIds.length > 0 && { attachmentIds }),
     });
