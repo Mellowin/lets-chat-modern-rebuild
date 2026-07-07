@@ -15,6 +15,19 @@ import { WebsocketEventsService } from '../websocket/websocket-events.service';
 import { PushService } from '../push/push.service';
 import { BlocksService } from '../safety/blocks.service';
 import { MentionsService } from '../common/mentions.service';
+import { mapAttachmentResponse } from '../messages/messages.service';
+import {
+  validateAttachmentFile,
+  assertAttachmentAllowed,
+} from '../messages/attachment-validation';
+import {
+  decodeMultipartFilename,
+  sanitizeStorageFilename,
+} from '../messages/attachments.service';
+import { StorageService } from '../storage/storage.service';
+import { AttachmentsRepository } from '../messages/attachments.repository';
+import { StorageBackend } from '@lets-chat/database';
+import { randomUUID } from 'crypto';
 import { GroupsRepository } from './groups.repository';
 import { AuditService } from '../audit/audit.service';
 import {
@@ -38,6 +51,8 @@ export class GroupsService {
     private readonly pushService: PushService,
     private readonly blocks: BlocksService,
     private readonly mentions: MentionsService,
+    private readonly storage: StorageService,
+    private readonly attachments: AttachmentsRepository,
     @Optional()
     @Inject(AuditService)
     private readonly audit: AuditService | null = null,
@@ -396,6 +411,7 @@ export class GroupsService {
         createdAt: m.createdAt,
         updatedAt: m.updatedAt,
         author: m.author,
+        attachments: (m.attachments ?? []).map(mapAttachmentResponse),
         mentions: this.normalizeMentions(m.mentions),
       }));
 
@@ -407,6 +423,7 @@ export class GroupsService {
         createdAt: m.createdAt,
         updatedAt: m.updatedAt,
         author: m.author,
+        attachments: (m.attachments ?? []).map(mapAttachmentResponse),
         mentions: this.normalizeMentions(m.mentions),
       }),
     );
@@ -419,6 +436,7 @@ export class GroupsService {
         createdAt: target.createdAt,
         updatedAt: target.updatedAt,
         author: target.author,
+        attachments: (target.attachments ?? []).map(mapAttachmentResponse),
         mentions: this.normalizeMentions(target.mentions),
       },
       before,
@@ -454,6 +472,7 @@ export class GroupsService {
       createdAt: m.createdAt,
       updatedAt: m.updatedAt,
       author: m.author,
+      attachments: (m.attachments ?? []).map(mapAttachmentResponse),
       mentions: this.normalizeMentions(m.mentions),
     }));
 
@@ -484,11 +503,27 @@ export class GroupsService {
       mentionableUserIds,
     );
 
+    const attachmentIds = dto.attachmentIds?.length
+      ? Array.from(new Set(dto.attachmentIds))
+      : [];
+    if (attachmentIds.length > 0) {
+      const attachments = await this.groups.findUnattachedAttachmentsByIds(
+        attachmentIds,
+        currentUserId,
+      );
+      if (attachments.length !== attachmentIds.length) {
+        throw new BadRequestException(
+          'One or more attachments are invalid or already in use',
+        );
+      }
+    }
+
     const message = await this.groups.createMessage({
       groupId,
       authorId: currentUserId,
       content: dto.content,
       mentions,
+      ...(attachmentIds.length > 0 && { attachmentIds }),
     });
 
     await this.groups.touchUpdatedAt(groupId);
@@ -500,6 +535,7 @@ export class GroupsService {
       createdAt: message.createdAt,
       updatedAt: message.updatedAt,
       author: message.author,
+      attachments: (message.attachments ?? []).map(mapAttachmentResponse),
       mentions: this.normalizeMentions(message.mentions),
     };
 
@@ -552,5 +588,68 @@ export class GroupsService {
       readAt: new Date().toISOString(),
     });
     return { success: true, lastReadAt: new Date().toISOString() };
+  }
+
+  async uploadAttachment(
+    groupId: string,
+    file: Express.Multer.File,
+    userId: string,
+  ) {
+    await this.requireActiveMembership(groupId, userId);
+
+    const normalizedMimeType = assertAttachmentAllowed(
+      await validateAttachmentFile(file),
+    );
+
+    const decodedOriginalName = decodeMultipartFilename(file.originalname);
+    const sanitized = sanitizeStorageFilename(decodedOriginalName);
+    const storageKey = `attachments/${userId}/${randomUUID()}-${sanitized}`;
+
+    await this.storage.putObject(storageKey, file.buffer, normalizedMimeType);
+
+    const attachment = await this.attachments.createUnattachedAttachment({
+      createdById: userId,
+      filename: decodedOriginalName,
+      originalName: decodedOriginalName,
+      mimeType: normalizedMimeType,
+      size: file.size,
+      storageKey,
+      storageBackend: StorageBackend.MINIO,
+    });
+
+    return mapAttachmentResponse(attachment);
+  }
+
+  async downloadAttachmentFile(
+    groupId: string,
+    messageId: string,
+    attachmentId: string,
+    userId: string,
+  ) {
+    await this.requireActiveMembership(groupId, userId);
+
+    const message = await this.groups.findMessageByIdWithRelations(messageId);
+    if (!message || message.groupId !== groupId) {
+      throw new NotFoundException('Message not found');
+    }
+
+    const attachment = await this.attachments.findById(attachmentId);
+    if (
+      !attachment ||
+      attachment.groupMessageId !== messageId ||
+      attachment.deletedAt !== null
+    ) {
+      throw new NotFoundException('Attachment not found');
+    }
+
+    const object = await this.storage.getObject(attachment.storageKey);
+    return {
+      body: object.body,
+      contentType: object.contentType,
+      contentLength: object.contentLength,
+      filename: attachment.filename,
+      mimeType: attachment.mimeType,
+      sizeBytes: attachment.size,
+    };
   }
 }

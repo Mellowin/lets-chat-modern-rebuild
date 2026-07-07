@@ -44,7 +44,9 @@ export function sanitizeStorageFilename(filename: string): string {
   return filename.replace(/[^a-zA-Z0-9._-]/g, '_');
 }
 
-export function encodeContentDisposition(filename: string): string {
+export { encodeContentDispositionInternal as encodeContentDisposition };
+
+function encodeContentDispositionInternal(filename: string): string {
   const asciiFallback = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
   const utf8 = encodeURIComponent(filename);
   return `inline; filename="${asciiFallback}"; filename*=UTF-8''${utf8}`;

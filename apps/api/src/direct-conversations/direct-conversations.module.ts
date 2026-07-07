@@ -5,6 +5,8 @@ import { WebsocketModule } from '../websocket/websocket.module';
 import { PushModule } from '../push/push.module';
 import { SafetyModule } from '../safety/safety.module';
 import { MentionsService } from '../common/mentions.service';
+import { MessagesModule } from '../messages/messages.module';
+import { StorageModule } from '../storage/storage.module';
 import { DirectConversationsService } from './direct-conversations.service';
 import { DirectConversationsRepository } from './direct-conversations.repository';
 import { DirectConversationsController } from './direct-conversations.controller';
@@ -16,6 +18,8 @@ import { DirectConversationsController } from './direct-conversations.controller
     forwardRef(() => WebsocketModule),
     PushModule,
     SafetyModule,
+    MessagesModule,
+    StorageModule,
   ],
   controllers: [DirectConversationsController],
   providers: [

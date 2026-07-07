@@ -3,6 +3,7 @@ import {
   IsString,
   IsOptional,
   IsUUID,
+  IsArray,
   MinLength,
   MaxLength,
 } from 'class-validator';
@@ -25,4 +26,14 @@ export class CreateGroupMessageDto {
   @IsOptional()
   @IsUUID()
   parentId?: string;
+
+  @ApiProperty({
+    type: [String],
+    description: 'Optional attachment IDs to link to the message',
+    required: false,
+  })
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  attachmentIds?: string[];
 }

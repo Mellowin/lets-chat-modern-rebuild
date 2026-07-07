@@ -14,7 +14,20 @@ import { PresenceService } from '../websocket/presence.service';
 import { PushService } from '../push/push.service';
 import { BlocksService } from '../safety/blocks.service';
 import { MentionsService } from '../common/mentions.service';
+import { mapAttachmentResponse } from '../messages/messages.service';
+import {
+  validateAttachmentFile,
+  assertAttachmentAllowed,
+} from '../messages/attachment-validation';
+import {
+  decodeMultipartFilename,
+  sanitizeStorageFilename,
+} from '../messages/attachments.service';
+import { StorageService } from '../storage/storage.service';
+import { AttachmentsRepository } from '../messages/attachments.repository';
 import { DirectConversationsRepository } from './direct-conversations.repository';
+import { StorageBackend } from '@lets-chat/database';
+import { randomUUID } from 'crypto';
 import { CreateDirectConversationDto } from './dto/create-direct-conversation.dto';
 import { CreateDirectMessageDto } from './dto/create-direct-message.dto';
 import { CreateDirectReactionDto } from './dto/create-direct-reaction.dto';
@@ -31,6 +44,8 @@ export class DirectConversationsService {
     private readonly pushService: PushService,
     private readonly blocks: BlocksService,
     private readonly mentions: MentionsService,
+    private readonly storage: StorageService,
+    private readonly attachments: AttachmentsRepository,
   ) {}
 
   private makePairKey(userIdA: string, userIdB: string): string {
@@ -114,6 +129,7 @@ export class DirectConversationsService {
           }
         : null,
       reactions: reactions ?? [],
+      attachments: (message.attachments ?? []).map(mapAttachmentResponse),
       readByOtherParticipant:
         message.authorId === currentUserId
           ? !!(
@@ -433,12 +449,29 @@ export class DirectConversationsService {
       mentionableUserIds,
     );
 
+    const attachmentIds = dto.attachmentIds?.length
+      ? Array.from(new Set(dto.attachmentIds))
+      : [];
+    if (attachmentIds.length > 0) {
+      const attachments =
+        await this.directConversations.findUnattachedAttachmentsByIds(
+          attachmentIds,
+          currentUserId,
+        );
+      if (attachments.length !== attachmentIds.length) {
+        throw new BadRequestException(
+          'One or more attachments are invalid or already in use',
+        );
+      }
+    }
+
     const message = await this.directConversations.createMessage({
       conversationId,
       authorId: currentUserId,
       content: dto.content,
       parentId: dto.parentId,
       mentions,
+      ...(attachmentIds.length > 0 && { attachmentIds }),
     });
 
     await this.directConversations.touchConversationUpdatedAt(conversationId);
@@ -801,5 +834,80 @@ export class DirectConversationsService {
     });
 
     return reactions;
+  }
+
+  async uploadAttachment(
+    conversationId: string,
+    file: Express.Multer.File,
+    userId: string,
+  ) {
+    const participant = await this.directConversations.findParticipant(
+      conversationId,
+      userId,
+    );
+    if (!participant) {
+      throw new ForbiddenException('Access denied');
+    }
+
+    const normalizedMimeType = assertAttachmentAllowed(
+      await validateAttachmentFile(file),
+    );
+
+    const decodedOriginalName = decodeMultipartFilename(file.originalname);
+    const sanitized = sanitizeStorageFilename(decodedOriginalName);
+    const storageKey = `attachments/${userId}/${randomUUID()}-${sanitized}`;
+
+    await this.storage.putObject(storageKey, file.buffer, normalizedMimeType);
+
+    const attachment = await this.attachments.createUnattachedAttachment({
+      createdById: userId,
+      filename: decodedOriginalName,
+      originalName: decodedOriginalName,
+      mimeType: normalizedMimeType,
+      size: file.size,
+      storageKey,
+      storageBackend: StorageBackend.MINIO,
+    });
+
+    return mapAttachmentResponse(attachment);
+  }
+
+  async downloadAttachmentFile(
+    conversationId: string,
+    messageId: string,
+    attachmentId: string,
+    userId: string,
+  ) {
+    const participant = await this.directConversations.findParticipant(
+      conversationId,
+      userId,
+    );
+    if (!participant) {
+      throw new ForbiddenException('Access denied');
+    }
+
+    const message = await this.directConversations.findMessageById(messageId);
+    if (!message || message.conversationId !== conversationId) {
+      throw new NotFoundException('Message not found');
+    }
+
+    const attachment = await this.attachments.findById(attachmentId);
+    if (
+      !attachment ||
+      attachment.directMessageId !== messageId ||
+      attachment.deletedAt !== null
+    ) {
+      throw new NotFoundException('Attachment not found');
+    }
+
+    const object = await this.storage.getObject(attachment.storageKey);
+    return {
+      body: object.body,
+      contentType: object.contentType,
+      contentLength: object.contentLength,
+      filename: attachment.filename,
+      mimeType: attachment.mimeType,
+      sizeBytes: attachment.size,
+    };
   }
 }

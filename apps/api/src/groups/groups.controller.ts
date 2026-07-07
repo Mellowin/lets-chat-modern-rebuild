@@ -9,7 +9,13 @@ import {
   Query,
   UseGuards,
   ParseUUIDPipe,
+  UploadedFile,
+  UseInterceptors,
+  Res,
+  StreamableFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
 import {
   ApiTags,
   ApiOperation,
@@ -31,6 +37,7 @@ import { GroupMessageContextQueryDto } from './dto/message-context-query.dto';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUserResponse } from '../auth/auth.service';
+import { MAX_ATTACHMENT_SIZE_BYTES } from '../messages/attachment-validation';
 
 @ApiTags('Groups')
 @Controller('groups')
@@ -193,5 +200,67 @@ export class GroupsController {
     @CurrentUser() user: AuthUserResponse,
   ) {
     return this.groups.markAsRead(groupId, user.id);
+  }
+
+  @Post(':groupId/messages/attachments/upload')
+  @ApiOperation({
+    summary: 'Upload a group message attachment through the API proxy',
+  })
+  @ApiCreatedResponse({ description: 'Attachment uploaded' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiForbiddenResponse({ description: 'Access denied' })
+  @ApiNotFoundResponse({ description: 'Group not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: {
+        fileSize: MAX_ATTACHMENT_SIZE_BYTES,
+      },
+    }),
+  )
+  async uploadAttachment(
+    @Param('groupId', ParseUUIDPipe) groupId: string,
+    @UploadedFile() file: Express.Multer.File,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.groups.uploadAttachment(groupId, file, user.id);
+  }
+
+  @Get(':groupId/messages/:messageId/attachments/:attachmentId/file')
+  @ApiOperation({
+    summary: 'Download group message attachment file through API proxy',
+  })
+  @ApiOkResponse({ description: 'Attachment file content' })
+  @ApiForbiddenResponse({ description: 'Access denied' })
+  @ApiNotFoundResponse({ description: 'Attachment or message not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async downloadAttachmentFile(
+    @Param('groupId', ParseUUIDPipe) groupId: string,
+    @Param('messageId', ParseUUIDPipe) messageId: string,
+    @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
+    @CurrentUser() user: AuthUserResponse,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { encodeContentDisposition } =
+      await import('../messages/attachments.service.js');
+    const file = await this.groups.downloadAttachmentFile(
+      groupId,
+      messageId,
+      attachmentId,
+      user.id,
+    );
+
+    res.setHeader('Content-Type', file.mimeType);
+    if (file.contentLength > 0) {
+      res.setHeader('Content-Length', String(file.contentLength));
+    }
+    res.setHeader(
+      'Content-Disposition',
+      encodeContentDisposition(file.filename),
+    );
+
+    return new StreamableFile(file.body, {
+      type: file.mimeType,
+    });
   }
 }

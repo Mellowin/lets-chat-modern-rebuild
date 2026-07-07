@@ -5,6 +5,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { DirectConversationsService } from './direct-conversations.service';
+import { StorageService } from '../storage/storage.service';
+import { AttachmentsRepository } from '../messages/attachments.repository';
 import {
   DirectConversationsRepository,
   DirectConversationWithParticipants,
@@ -16,7 +18,7 @@ import { PresenceService } from '../websocket/presence.service';
 import { PushService } from '../push/push.service';
 import { BlocksService } from '../safety/blocks.service';
 import { MentionsService } from '../common/mentions.service';
-import { UserRole } from '@lets-chat/database';
+import { UserRole, ContactPrivacySetting } from '@lets-chat/database';
 
 const userId = '11111111-1111-1111-1111-111111111111';
 const otherUserId = '22222222-2222-2222-2222-222222222222';
@@ -85,6 +87,7 @@ function makeMessage(
       avatarUrl: null,
     },
     parent: null,
+    attachments: [],
   };
   return { ...base, ...overrides };
 }
@@ -120,6 +123,7 @@ describe('DirectConversationsService', () => {
             countUnreadMessages: jest.fn(),
             updateDirectMessageContent: jest.fn(),
             softDeleteDirectMessage: jest.fn(),
+            findUnattachedAttachmentsByIds: jest.fn(),
             findDirectReaction: jest.fn(),
             createDirectReaction: jest.fn(),
             deleteDirectReaction: jest.fn(),
@@ -172,6 +176,24 @@ describe('DirectConversationsService', () => {
           provide: MentionsService,
           useValue: {
             resolveMentions: jest.fn().mockResolvedValue([]),
+          },
+        },
+        {
+          provide: StorageService,
+          useValue: {
+            putObject: jest.fn().mockResolvedValue(undefined),
+            getObject: jest.fn().mockResolvedValue({
+              body: {} as unknown as ReadableStream,
+              contentType: 'application/octet-stream',
+              contentLength: 0,
+            }),
+          },
+        },
+        {
+          provide: AttachmentsRepository,
+          useValue: {
+            findById: jest.fn(),
+            createUnattachedAttachment: jest.fn(),
           },
         },
       ],
@@ -978,6 +1000,78 @@ describe('DirectConversationsService', () => {
       ).not.toHaveBeenCalled();
     });
 
+    it('links attachments and includes them in the response', async () => {
+      const attachmentId = '66666666-6666-6666-6666-666666666666';
+      repository.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+      ]);
+      repository.findUnattachedAttachmentsByIds.mockResolvedValue([
+        { id: attachmentId },
+      ]);
+      repository.createMessage.mockResolvedValue(
+        makeMessage({
+          attachments: [
+            {
+              id: attachmentId,
+              filename: 'doc.pdf',
+              mimeType: 'application/pdf',
+              size: 1234,
+              createdAt: new Date(),
+            },
+          ],
+        }),
+      );
+
+      const result = await service.createMessage(
+        conversationId,
+        { content: 'hello', attachmentIds: [attachmentId] },
+        userId,
+      );
+
+      expect(result.attachments).toHaveLength(1);
+      expect(result.attachments[0]).toMatchObject({
+        id: attachmentId,
+        fileName: 'doc.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 1234,
+        kind: 'file',
+      });
+      expect(repository.createMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ attachmentIds: [attachmentId] }),
+      );
+    });
+
+    it('rejects invalid or already-used attachments', async () => {
+      const attachmentId = '66666666-6666-6666-6666-666666666666';
+      repository.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+      ]);
+      repository.findUnattachedAttachmentsByIds.mockResolvedValue([]);
+
+      await expect(
+        service.createMessage(
+          conversationId,
+          { content: 'hello', attachmentIds: [attachmentId] },
+          userId,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(repository.createMessage).not.toHaveBeenCalled();
+    });
+
     it('supports parentId reply to a direct message', async () => {
       const parentId = '55555555-5555-5555-5555-555555555555';
       repository.findParticipant.mockResolvedValue({
@@ -1594,6 +1688,7 @@ describe('DirectConversationsService', () => {
         groupMessageNotificationsEnabled: true,
         channelMessageNotificationsEnabled: true,
         role: UserRole.USER,
+        contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
         emailVerifiedAt: null,
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
@@ -1741,6 +1836,7 @@ describe('DirectConversationsService', () => {
         groupMessageNotificationsEnabled: true,
         channelMessageNotificationsEnabled: true,
         role: UserRole.USER,
+        contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
         emailVerifiedAt: null,
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
@@ -1816,6 +1912,7 @@ describe('DirectConversationsService', () => {
         groupMessageNotificationsEnabled: true,
         channelMessageNotificationsEnabled: true,
         role: UserRole.USER,
+        contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
         emailVerifiedAt: null,
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
@@ -1899,6 +1996,7 @@ describe('DirectConversationsService', () => {
         groupMessageNotificationsEnabled: true,
         channelMessageNotificationsEnabled: true,
         role: UserRole.USER,
+        contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
         emailVerifiedAt: null,
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
@@ -1980,6 +2078,7 @@ describe('DirectConversationsService', () => {
         groupMessageNotificationsEnabled: true,
         channelMessageNotificationsEnabled: true,
         role: UserRole.USER,
+        contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
         emailVerifiedAt: null,
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
@@ -2060,6 +2159,7 @@ describe('DirectConversationsService', () => {
         groupMessageNotificationsEnabled: true,
         channelMessageNotificationsEnabled: true,
         role: UserRole.USER,
+        contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
         emailVerifiedAt: null,
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
@@ -2143,6 +2243,7 @@ describe('DirectConversationsService', () => {
         groupMessageNotificationsEnabled: true,
         channelMessageNotificationsEnabled: true,
         role: UserRole.USER,
+        contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
         emailVerifiedAt: null,
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
@@ -2263,6 +2364,7 @@ describe('DirectConversationsService', () => {
         groupMessageNotificationsEnabled: true,
         channelMessageNotificationsEnabled: true,
         role: UserRole.USER,
+        contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
         emailVerifiedAt: null,
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,
@@ -2348,6 +2450,7 @@ describe('DirectConversationsService', () => {
         groupMessageNotificationsEnabled: true,
         channelMessageNotificationsEnabled: true,
         role: UserRole.USER,
+        contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
         emailVerifiedAt: null,
         emailVerificationTokenHash: null,
         emailVerificationExpiresAt: null,

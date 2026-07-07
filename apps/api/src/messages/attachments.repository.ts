@@ -25,4 +25,18 @@ export class AttachmentsRepository {
       data,
     });
   }
+
+  async createUnattachedAttachment(data: {
+    createdById: string;
+    filename: string;
+    originalName: string;
+    mimeType: string;
+    size: number;
+    storageKey: string;
+    storageBackend: StorageBackend;
+  }) {
+    return this.prisma.attachment.create({
+      data,
+    });
+  }
 }

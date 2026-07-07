@@ -13,7 +13,31 @@ interface CreateMessageInput {
   authorId: string;
   content: string;
   mentions?: { userId: string; username: string }[];
+  attachmentIds?: string[];
 }
+
+const authorSelect = {
+  id: true,
+  username: true,
+  displayName: true,
+  avatarUrl: true,
+} as const;
+
+const groupMessageInclude = {
+  author: {
+    select: authorSelect,
+  },
+  attachments: {
+    where: { deletedAt: null },
+    select: {
+      id: true,
+      filename: true,
+      mimeType: true,
+      size: true,
+      createdAt: true,
+    },
+  },
+} as const;
 
 export type GroupWithMembersAndLastMessage = NonNullable<
   Awaited<ReturnType<GroupsRepository['findById']>>
@@ -331,40 +355,56 @@ export class GroupsRepository {
     });
   }
 
+  async findUnattachedAttachmentsByIds(ids: string[], userId: string) {
+    if (ids.length === 0) return [];
+    return this.prisma.attachment.findMany({
+      where: {
+        id: { in: ids },
+        createdById: userId,
+        deletedAt: null,
+        messageId: null,
+        directMessageId: null,
+        groupMessageId: null,
+      },
+      select: { id: true },
+    });
+  }
+
   async createMessage(data: CreateMessageInput) {
-    return this.prisma.groupMessage.create({
-      data: {
-        groupId: data.groupId,
-        authorId: data.authorId,
-        content: data.content,
-        mentions: data.mentions as never,
-      },
-      include: {
-        author: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            avatarUrl: true,
-          },
+    return this.prisma.$transaction(async (tx) => {
+      const message = await tx.groupMessage.create({
+        data: {
+          groupId: data.groupId,
+          authorId: data.authorId,
+          content: data.content,
+          mentions: data.mentions as never,
         },
-      },
+      });
+
+      if (data.attachmentIds?.length) {
+        await tx.attachment.updateMany({
+          where: { id: { in: data.attachmentIds } },
+          data: { groupMessageId: message.id },
+        });
+      }
+
+      const result = await tx.groupMessage.findUnique({
+        where: { id: message.id },
+        include: groupMessageInclude,
+      });
+
+      if (!result) {
+        throw new Error('Group message not found after creation');
+      }
+
+      return result;
     });
   }
 
   async findMessageByIdWithRelations(id: string) {
     return this.prisma.groupMessage.findUnique({
       where: { id },
-      include: {
-        author: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            avatarUrl: true,
-          },
-        },
-      },
+      include: groupMessageInclude,
     });
   }
 
@@ -380,16 +420,7 @@ export class GroupsRepository {
       },
       orderBy: { createdAt: 'desc' },
       take: limit + 1,
-      include: {
-        author: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            avatarUrl: true,
-          },
-        },
-      },
+      include: groupMessageInclude,
     });
   }
 
@@ -405,16 +436,7 @@ export class GroupsRepository {
       },
       orderBy: { createdAt: 'asc' },
       take: limit + 1,
-      include: {
-        author: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            avatarUrl: true,
-          },
-        },
-      },
+      include: groupMessageInclude,
     });
   }
 
@@ -430,16 +452,7 @@ export class GroupsRepository {
       },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: limit + 1,
-      include: {
-        author: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            avatarUrl: true,
-          },
-        },
-      },
+      include: groupMessageInclude,
     });
   }
 

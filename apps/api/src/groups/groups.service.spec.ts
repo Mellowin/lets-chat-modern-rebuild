@@ -5,6 +5,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { GroupsService } from './groups.service';
+import { StorageService } from '../storage/storage.service';
+import { AttachmentsRepository } from '../messages/attachments.repository';
 import {
   GroupsRepository,
   GroupWithMembersAndLastMessage,
@@ -15,7 +17,7 @@ import { WebsocketEventsService } from '../websocket/websocket-events.service';
 import { PushService } from '../push/push.service';
 import { BlocksService } from '../safety/blocks.service';
 import { MentionsService } from '../common/mentions.service';
-import { UserRole } from '@lets-chat/database';
+import { UserRole, ContactPrivacySetting } from '@lets-chat/database';
 
 const userId = '11111111-1111-1111-1111-111111111111';
 const otherUserId = '22222222-2222-2222-2222-222222222222';
@@ -79,6 +81,7 @@ function makeUser(
     groupMessageNotificationsEnabled: true,
     channelMessageNotificationsEnabled: true,
     role: UserRole.USER,
+    contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
     ...overrides,
   };
 }
@@ -129,6 +132,7 @@ function makeMessage(
       displayName: 'Alice',
       avatarUrl: null,
     },
+    attachments: [],
   };
   return { ...base, ...overrides };
 }
@@ -170,6 +174,7 @@ describe('GroupsService', () => {
             findMessageByIdWithRelations: jest.fn(),
             findContextBefore: jest.fn(),
             findContextAfter: jest.fn(),
+            findUnattachedAttachmentsByIds: jest.fn(),
           },
         },
         {
@@ -209,6 +214,24 @@ describe('GroupsService', () => {
           provide: MentionsService,
           useValue: {
             resolveMentions: jest.fn().mockResolvedValue([]),
+          },
+        },
+        {
+          provide: StorageService,
+          useValue: {
+            putObject: jest.fn().mockResolvedValue(undefined),
+            getObject: jest.fn().mockResolvedValue({
+              body: {} as unknown as ReadableStream,
+              contentType: 'application/octet-stream',
+              contentLength: 0,
+            }),
+          },
+        },
+        {
+          provide: AttachmentsRepository,
+          useValue: {
+            findById: jest.fn(),
+            createUnattachedAttachment: jest.fn(),
           },
         },
       ],
@@ -642,6 +665,62 @@ describe('GroupsService', () => {
       ).rejects.toBeInstanceOf(NotFoundException);
       expect(groupsRepository.createMessage).not.toHaveBeenCalled();
       expect(pushService.notifyGroupMessage).not.toHaveBeenCalled();
+    });
+
+    it('links attachments and includes them in the response', async () => {
+      const attachmentId = '66666666-6666-6666-6666-666666666666';
+      groupsRepository.findById.mockResolvedValue(makeGroup());
+      groupsRepository.findUnattachedAttachmentsByIds.mockResolvedValue([
+        { id: attachmentId },
+      ]);
+      groupsRepository.createMessage.mockResolvedValue(
+        makeMessage({
+          attachments: [
+            {
+              id: attachmentId,
+              filename: 'image.png',
+              mimeType: 'image/png',
+              size: 5678,
+              createdAt: new Date(),
+            },
+          ],
+        }),
+      );
+      groupsRepository.touchUpdatedAt.mockResolvedValue(makeGroup());
+      groupsRepository.countUnreadMessages.mockResolvedValue(0);
+
+      const result = await service.createMessage(
+        groupId,
+        { content: 'Hello everyone!', attachmentIds: [attachmentId] },
+        userId,
+      );
+
+      expect(result.attachments).toHaveLength(1);
+      expect(result.attachments[0]).toMatchObject({
+        id: attachmentId,
+        fileName: 'image.png',
+        mimeType: 'image/png',
+        sizeBytes: 5678,
+        kind: 'image',
+      });
+      expect(groupsRepository.createMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ attachmentIds: [attachmentId] }),
+      );
+    });
+
+    it('rejects invalid or already-used attachments', async () => {
+      const attachmentId = '66666666-6666-6666-6666-666666666666';
+      groupsRepository.findById.mockResolvedValue(makeGroup());
+      groupsRepository.findUnattachedAttachmentsByIds.mockResolvedValue([]);
+
+      await expect(
+        service.createMessage(
+          groupId,
+          { content: 'Hello everyone!', attachmentIds: [attachmentId] },
+          userId,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(groupsRepository.createMessage).not.toHaveBeenCalled();
     });
   });
 });

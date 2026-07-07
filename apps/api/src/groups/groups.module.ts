@@ -5,6 +5,8 @@ import { WebsocketModule } from '../websocket/websocket.module';
 import { PushModule } from '../push/push.module';
 import { SafetyModule } from '../safety/safety.module';
 import { MentionsService } from '../common/mentions.service';
+import { MessagesModule } from '../messages/messages.module';
+import { StorageModule } from '../storage/storage.module';
 import { GroupsController } from './groups.controller';
 import { GroupInvitesController } from './group-invites.controller';
 import { GroupsService } from './groups.service';
@@ -19,6 +21,8 @@ import { GroupInvitesRepository } from './group-invites.repository';
     forwardRef(() => WebsocketModule),
     PushModule,
     SafetyModule,
+    MessagesModule,
+    StorageModule,
   ],
   controllers: [GroupsController, GroupInvitesController],
   providers: [

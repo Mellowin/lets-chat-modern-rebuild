@@ -9,7 +9,13 @@ import {
   Query,
   UseGuards,
   ParseUUIDPipe,
+  UploadedFile,
+  UseInterceptors,
+  Res,
+  StreamableFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
 import {
   ApiTags,
   ApiOperation,
@@ -31,6 +37,7 @@ import { DirectMessageContextQueryDto } from './dto/message-context-query.dto';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUserResponse } from '../auth/auth.service';
+import { MAX_ATTACHMENT_SIZE_BYTES } from '../messages/attachment-validation';
 
 @ApiTags('Direct Conversations')
 @Controller('direct-conversations')
@@ -207,5 +214,70 @@ export class DirectConversationsController {
       emoji,
       user.id,
     );
+  }
+
+  @Post(':conversationId/messages/attachments/upload')
+  @ApiOperation({
+    summary: 'Upload a direct message attachment through the API proxy',
+  })
+  @ApiCreatedResponse({ description: 'Attachment uploaded' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiForbiddenResponse({ description: 'Access denied' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: {
+        fileSize: MAX_ATTACHMENT_SIZE_BYTES,
+      },
+    }),
+  )
+  async uploadAttachment(
+    @Param('conversationId', ParseUUIDPipe) conversationId: string,
+    @UploadedFile() file: Express.Multer.File,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.directConversations.uploadAttachment(
+      conversationId,
+      file,
+      user.id,
+    );
+  }
+
+  @Get(':conversationId/messages/:messageId/attachments/:attachmentId/file')
+  @ApiOperation({
+    summary: 'Download direct message attachment file through API proxy',
+  })
+  @ApiOkResponse({ description: 'Attachment file content' })
+  @ApiForbiddenResponse({ description: 'Access denied' })
+  @ApiNotFoundResponse({ description: 'Attachment or message not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async downloadAttachmentFile(
+    @Param('conversationId', ParseUUIDPipe) conversationId: string,
+    @Param('messageId', ParseUUIDPipe) messageId: string,
+    @Param('attachmentId', ParseUUIDPipe) attachmentId: string,
+    @CurrentUser() user: AuthUserResponse,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { encodeContentDisposition } =
+      await import('../messages/attachments.service.js');
+    const file = await this.directConversations.downloadAttachmentFile(
+      conversationId,
+      messageId,
+      attachmentId,
+      user.id,
+    );
+
+    res.setHeader('Content-Type', file.mimeType);
+    if (file.contentLength > 0) {
+      res.setHeader('Content-Length', String(file.contentLength));
+    }
+    res.setHeader(
+      'Content-Disposition',
+      encodeContentDisposition(file.filename),
+    );
+
+    return new StreamableFile(file.body, {
+      type: file.mimeType,
+    });
   }
 }

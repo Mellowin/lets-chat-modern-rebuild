@@ -13,7 +13,38 @@ interface CreateMessageInput {
   content: string;
   parentId?: string;
   mentions?: { userId: string; username: string }[];
+  attachmentIds?: string[];
 }
+
+const authorSelect = {
+  id: true,
+  username: true,
+  displayName: true,
+  avatarUrl: true,
+} as const;
+
+const directMessageInclude = {
+  author: {
+    select: authorSelect,
+  },
+  parent: {
+    include: {
+      author: {
+        select: authorSelect,
+      },
+    },
+  },
+  attachments: {
+    where: { deletedAt: null },
+    select: {
+      id: true,
+      filename: true,
+      mimeType: true,
+      size: true,
+      createdAt: true,
+    },
+  },
+} as const;
 
 export type DirectConversationWithParticipants = NonNullable<
   Awaited<ReturnType<DirectConversationsRepository['findById']>>
@@ -218,37 +249,50 @@ export class DirectConversationsRepository {
     });
   }
 
+  async findUnattachedAttachmentsByIds(ids: string[], userId: string) {
+    if (ids.length === 0) return [];
+    return this.prisma.attachment.findMany({
+      where: {
+        id: { in: ids },
+        createdById: userId,
+        deletedAt: null,
+        messageId: null,
+        directMessageId: null,
+        groupMessageId: null,
+      },
+      select: { id: true },
+    });
+  }
+
   async createMessage(data: CreateMessageInput) {
-    return this.prisma.directMessage.create({
-      data: {
-        conversationId: data.conversationId,
-        authorId: data.authorId,
-        content: data.content,
-        parentId: data.parentId,
-        mentions: data.mentions as never,
-      },
-      include: {
-        author: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            avatarUrl: true,
-          },
+    return this.prisma.$transaction(async (tx) => {
+      const message = await tx.directMessage.create({
+        data: {
+          conversationId: data.conversationId,
+          authorId: data.authorId,
+          content: data.content,
+          parentId: data.parentId,
+          mentions: data.mentions as never,
         },
-        parent: {
-          include: {
-            author: {
-              select: {
-                id: true,
-                username: true,
-                displayName: true,
-                avatarUrl: true,
-              },
-            },
-          },
-        },
-      },
+      });
+
+      if (data.attachmentIds?.length) {
+        await tx.attachment.updateMany({
+          where: { id: { in: data.attachmentIds } },
+          data: { directMessageId: message.id },
+        });
+      }
+
+      const result = await tx.directMessage.findUnique({
+        where: { id: message.id },
+        include: directMessageInclude,
+      });
+
+      if (!result) {
+        throw new Error('Direct message not found after creation');
+      }
+
+      return result;
     });
   }
 
@@ -261,28 +305,7 @@ export class DirectConversationsRepository {
   async findMessageByIdWithRelations(id: string) {
     return this.prisma.directMessage.findUnique({
       where: { id, deletedAt: null },
-      include: {
-        author: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            avatarUrl: true,
-          },
-        },
-        parent: {
-          include: {
-            author: {
-              select: {
-                id: true,
-                username: true,
-                displayName: true,
-                avatarUrl: true,
-              },
-            },
-          },
-        },
-      },
+      include: directMessageInclude,
     });
   }
 
@@ -299,28 +322,7 @@ export class DirectConversationsRepository {
       },
       orderBy: { createdAt: 'desc' },
       take: limit + 1,
-      include: {
-        author: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            avatarUrl: true,
-          },
-        },
-        parent: {
-          include: {
-            author: {
-              select: {
-                id: true,
-                username: true,
-                displayName: true,
-                avatarUrl: true,
-              },
-            },
-          },
-        },
-      },
+      include: directMessageInclude,
     });
   }
 
@@ -337,28 +339,7 @@ export class DirectConversationsRepository {
       },
       orderBy: { createdAt: 'asc' },
       take: limit + 1,
-      include: {
-        author: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            avatarUrl: true,
-          },
-        },
-        parent: {
-          include: {
-            author: {
-              select: {
-                id: true,
-                username: true,
-                displayName: true,
-                avatarUrl: true,
-              },
-            },
-          },
-        },
-      },
+      include: directMessageInclude,
     });
   }
 
@@ -375,28 +356,7 @@ export class DirectConversationsRepository {
       },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: limit + 1,
-      include: {
-        author: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            avatarUrl: true,
-          },
-        },
-        parent: {
-          include: {
-            author: {
-              select: {
-                id: true,
-                username: true,
-                displayName: true,
-                avatarUrl: true,
-              },
-            },
-          },
-        },
-      },
+      include: directMessageInclude,
     });
   }
 
@@ -442,28 +402,7 @@ export class DirectConversationsRepository {
     return this.prisma.directMessage.update({
       where: { id: messageId },
       data: { content, editedAt: new Date() },
-      include: {
-        author: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            avatarUrl: true,
-          },
-        },
-        parent: {
-          include: {
-            author: {
-              select: {
-                id: true,
-                username: true,
-                displayName: true,
-                avatarUrl: true,
-              },
-            },
-          },
-        },
-      },
+      include: directMessageInclude,
     });
   }
 
