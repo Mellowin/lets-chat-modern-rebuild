@@ -26,7 +26,99 @@ All scripts are located in `scripts/` and are exposed as root package scripts.
 | **Admin reports** | `pnpm verify:prod:admin-reports` | Regular users cannot access admin report endpoints; optional positive admin list/filter/detail/update checks. | Two disposable accounts, one report | None |
 | **Admin audit log** | `pnpm verify:prod:audit` | Regular users cannot access admin audit endpoints; optional positive admin list/filter/detail checks plus sensitive-field leak checks. | Two disposable accounts, one block, one report | None |
 | **Demo mode** | `pnpm verify:prod:demo` | Checks the public demo onboarding endpoint. Skipped entirely when `DEMO_MODE_ENABLED` is not `true`. | One demo user and workspace | None |
-| **All** | `pnpm verify:prod:all` | Runs public → auth → permissions → browser → attachments → contacts → pwa sequentially. | Same as above | Same as above |
+| **Core** | `pnpm verify:prod:core` | public, auth, permissions, browser, pwa | Varies | Varies |
+| **Messaging** | `pnpm verify:prod:messaging` | attachments, attachments-parity, pagination, mentions, message-search, message-jump, realtime, presence | Varies | Varies |
+| **Social** | `pnpm verify:prod:social` | contacts, contacts-privacy, groups, channel-sidebar, safety | Varies | Varies |
+| **Admin suite** | `pnpm verify:prod:admin-suite` | admin-reports, diagnostics, audit | Varies | Varies |
+| **Browser suite** | `pnpm verify:prod:browser-suite` | browser, attachments, channel-sidebar, push-browser, mobile-shell | Varies | Varies |
+| **All** | `pnpm verify:prod:all` | Runs core → messaging → social → admin-suite through the suite runner. | Same as above | Same as above |
+
+---
+
+## Suite runner
+
+The grouped commands are driven by `scripts/verify-production-suite.mjs`.
+
+```bash
+# Run every verifier group sequentially
+pnpm verify:prod:all
+
+# Run a single group
+pnpm verify:prod:core
+pnpm verify:prod:messaging
+pnpm verify:prod:social
+pnpm verify:prod:admin-suite
+pnpm verify:prod:browser-suite
+
+# Continue after a failure (useful for debugging)
+node scripts/verify-production-suite.mjs --group all --continue-on-error
+```
+
+The runner:
+
+- executes verifiers sequentially;
+- prints duration per verifier;
+- stops on the first failure by default;
+- prints a final summary with pass/fail counts and total duration.
+
+---
+
+## Timeout control
+
+Each verifier has its own step timeout so a single slow browser check cannot hang forever, and the practical ceiling is no longer the shell’s 300 s default.
+
+| Variable | Default | Description |
+|---|---|---|
+| `VERIFY_STEP_TIMEOUT_MS` | `300000` (5 minutes) | Per-verifier timeout in milliseconds. Browser-heavy verifiers such as attachments, browser, channel-sidebar, and push-browser use this. |
+| `VERIFY_TIMEOUT_MS` | `0` (disabled) | Total suite timeout in milliseconds. If set, the runner aborts remaining verifiers once the total is reached. |
+
+If a verifier times out, the runner reports exactly which script timed out and marks it as failed.
+
+---
+
+## Production precheck
+
+Before any verifier group runs, the suite runner fetches:
+
+```bash
+GET /api/v1/version
+GET /api/v1/health
+```
+
+It prints:
+
+- `API_BASE` and `WEB_BASE`;
+- the deployed commit hash and branch from `/version`;
+- the health status.
+
+If `/version` is missing or returns an unknown commit, the runner warns clearly but still attempts the verifiers.
+
+---
+
+## Demo readiness
+
+Demo mode is disabled by default in production. Verify it safely without enabling it:
+
+```bash
+pnpm verify:prod:demo-readiness
+```
+
+This checks:
+
+- `GET /demo/status` returns `{ enabled: false }`;
+- `POST /demo/session` returns `404` when demo mode is disabled;
+- no demo session or user is created;
+- `docs/production-verification.md` documents how to enable demo mode safely via `DEMO_MODE_ENABLED`.
+
+To run the full demo flow you must explicitly enable demo mode on the server:
+
+```bash
+DEMO_MODE_ENABLED=true
+```
+
+Then use `pnpm verify:prod:demo`.
+
+**Do not enable demo mode on Render automatically and do not commit `DEMO_MODE_ENABLED=true`.**
 
 ---
 
@@ -91,6 +183,13 @@ VERIFY_ADMIN_ACCESS_TOKEN=<token> pnpm verify:prod:audit
 
 # Demo mode — skipped automatically when demo mode is disabled
 pnpm verify:prod:demo
+
+# Grouped suites
+pnpm verify:prod:core
+pnpm verify:prod:social
+pnpm verify:prod:messaging
+pnpm verify:prod:admin-suite
+pnpm verify:prod:demo-readiness
 
 # Full pack (respects the destructive flag)
 VERIFY_PERMISSIONS_ENABLE_DESTRUCTIVE=1 pnpm verify:prod:all
