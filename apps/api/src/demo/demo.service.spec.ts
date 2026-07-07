@@ -160,14 +160,16 @@ describe('DemoService', () => {
     const result = await service.createSession('127.0.0.1', 'test-agent');
 
     expect(mockUsers.createUser).toHaveBeenCalledWith(
-      expect.objectContaining({
-        email: expect.stringContaining('@lets-chat.demo'),
-        username: expect.stringContaining('demo_user_'),
+      expect.objectContaining<{ email: string; username: string }>({
+        email: expect.stringContaining('@lets-chat.demo') as string,
+        username: expect.stringContaining('demo_user_') as string,
       }),
     );
     expect(mockUsers.markEmailVerified).toHaveBeenCalledWith('user-id');
     expect(mockWorkspaces.create).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'LetsChat Demo' }),
+      expect.objectContaining<{ name: string }>({
+        name: 'LetsChat Demo',
+      }),
       'user-id',
     );
     expect(mockChannels.create).toHaveBeenCalledTimes(3);
