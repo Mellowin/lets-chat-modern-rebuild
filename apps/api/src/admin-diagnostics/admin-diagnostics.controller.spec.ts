@@ -75,6 +75,7 @@ describe('AdminDiagnosticsController', () => {
         websocket: true,
         adminModeration: true,
         messageSearch: true,
+        demoMode: 'disabled' as const,
       };
       service.getConfig.mockReturnValue(config);
 

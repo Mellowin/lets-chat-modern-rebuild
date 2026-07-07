@@ -183,6 +183,9 @@ export type TranslationKey =
   | "auth.signInAfterVerification"
   | "auth.backToSignIn"
   | "auth.loading"
+  | "auth.tryDemo"
+  | "auth.demoLoading"
+  | "auth.demoUnavailable"
   | "auth.passwordsDoNotMatch"
   | "auth.passwordMinLength"
   | "auth.confirmPassword"
@@ -916,6 +919,9 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "auth.signInAfterVerification": "You can now sign in with your verified email.",
     "auth.backToSignIn": "Back to sign in",
     "auth.loading": "Loading…",
+    "auth.tryDemo": "Try live demo",
+    "auth.demoLoading": "Starting demo…",
+    "auth.demoUnavailable": "Demo is currently unavailable",
     "auth.passwordsDoNotMatch": "Passwords do not match",
     "auth.passwordMinLength": "Password must be at least 8 characters",
     "auth.confirmPassword": "Confirm password",
@@ -1685,6 +1691,9 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "auth.signInAfterVerification": "Тепер ви можете увійти з підтвердженим email.",
     "auth.backToSignIn": "Назад до входу",
     "auth.loading": "Завантаження…",
+    "auth.tryDemo": "Спробувати демо",
+    "auth.demoLoading": "Запуск демо…",
+    "auth.demoUnavailable": "Демо зараз недоступне",
     "auth.passwordsDoNotMatch": "Паролі не збігаються",
     "auth.passwordMinLength": "Пароль має містити щонайменше 8 символів",
     "auth.confirmPassword": "Підтвердіть пароль",
@@ -2454,6 +2463,9 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "auth.signInAfterVerification": "Теперь вы можете войти с подтверждённым email.",
     "auth.backToSignIn": "Назад ко входу",
     "auth.loading": "Загрузка…",
+    "auth.tryDemo": "Попробовать демо",
+    "auth.demoLoading": "Запуск демо…",
+    "auth.demoUnavailable": "Демо сейчас недоступно",
     "auth.passwordsDoNotMatch": "Пароли не совпадают",
     "auth.passwordMinLength": "Пароль должен содержать минимум 8 символов",
     "auth.confirmPassword": "Подтвердите пароль",

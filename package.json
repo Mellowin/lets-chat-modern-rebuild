@@ -33,6 +33,7 @@
     "verify:prod:admin-reports": "node scripts/verify-production-admin-reports.mjs",
     "verify:prod:diagnostics": "node scripts/verify-production-diagnostics.mjs",
     "verify:prod:audit": "node scripts/verify-production-audit.mjs",
+    "verify:prod:demo": "node scripts/verify-production-demo.mjs",
     "verify:prod:message-search": "node scripts/verify-production-message-search.mjs",
     "verify:prod:message-jump": "node scripts/verify-production-message-jump.mjs",
     "verify:prod:realtime": "node scripts/verify-production-realtime.mjs",

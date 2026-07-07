@@ -14,6 +14,7 @@ export const AuditAction = {
   PASSWORD_RESET_REQUESTED: 'auth.password_reset.requested',
   PASSWORD_RESET_COMPLETED: 'auth.password_reset.completed',
   SESSION_REVOKED: 'auth.session.revoked',
+  DEMO_SESSION_CREATED: 'demo.session.created',
 
   // Workspace
   WORKSPACE_CREATED: 'workspace.created',

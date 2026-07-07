@@ -43,6 +43,7 @@ export interface DiagnosticsConfigResponse {
   websocket: boolean;
   adminModeration: boolean;
   messageSearch: boolean;
+  demoMode: 'enabled' | 'disabled';
 }
 
 export interface DiagnosticsChecksResponse {
@@ -102,6 +103,7 @@ export class AdminDiagnosticsService {
       websocket: true,
       adminModeration: true,
       messageSearch: true,
+      demoMode: this.isDemoModeEnabled() ? 'enabled' : 'disabled',
     };
   }
 
@@ -233,6 +235,10 @@ export class AdminDiagnosticsService {
 
   private isRateLimitConfigured(): boolean {
     return this.config.get<string>('RATE_LIMIT_ENABLED') === 'true';
+  }
+
+  private isDemoModeEnabled(): boolean {
+    return this.config.get<boolean>('DEMO_MODE_ENABLED', false) === true;
   }
 
   private hasConfig(key: string): boolean {

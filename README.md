@@ -59,6 +59,7 @@ Portfolio guidance:
 - **User Blocking & Reporting** — block users to stop new DMs, contact adds, and targeted group adds; report users or messages.
 - **Admin Moderation Dashboard** — `/admin/reports` page for `ADMIN`/`MODERATOR` users to review reports, update status, and add internal notes.
 - **Admin Audit Log** — `/admin/audit` page with searchable, paginated security event trail covering auth, moderation, channels, groups, and attachments.
+- **Recruiter demo mode** — one-click "Try live demo" creates a disposable verified user, an isolated demo workspace with seeded channels/messages, and skips email providers. Disabled by default; gated by `DEMO_MODE_ENABLED`.
 - **Real-time messaging** — live create/update/delete/reaction events via WebSocket rooms.
 - **Replies & Forwarding** — thread replies and message forwarding between channels.
 - **Reactions** — emoji reactions with toggle/replace behavior.
@@ -117,7 +118,7 @@ Portfolio guidance:
 
 - **CI:** GitHub Actions runs lint, typecheck, unit tests, builds, and API E2E security smoke tests (with a PostgreSQL service container) on every push.
 - **Deploy:** Render deploy hook fires only after green CI; Vercel builds the frontend in parallel.
-- **Verification:** `scripts/smoke-deploy.mjs`, `scripts/verify-production-attachments.mjs`, `scripts/verify-production-groups.mjs`, `scripts/verify-production-contacts.mjs`, `scripts/verify-production-safety.mjs`, `scripts/verify-production-admin-reports.mjs`, and `scripts/verify-production-audit.mjs` run against production after deploy.
+- **Verification:** `scripts/smoke-deploy.mjs`, `scripts/verify-production-attachments.mjs`, `scripts/verify-production-groups.mjs`, `scripts/verify-production-contacts.mjs`, `scripts/verify-production-safety.mjs`, `scripts/verify-production-admin-reports.mjs`, `scripts/verify-production-audit.mjs`, and `scripts/verify-production-demo.mjs` (skipped when demo mode is disabled) run against production after deploy.
 
 ---
 
@@ -238,6 +239,14 @@ pnpm --filter web dev
 - Swagger: `http://localhost:3001/api/docs`
 - Web app: `http://localhost:3000`
 
+**Optional — enable recruiter demo mode:**
+
+```bash
+# In .env set DEMO_MODE_ENABLED=true, then restart the API.
+# Clean up stale demo users/workspaces older than DEMO_SESSION_TTL_HOURS:
+pnpm --filter api demo:cleanup
+```
+
 ---
 
 ## 🧪 Running Tests
@@ -274,7 +283,7 @@ push main → GitHub Actions (lint/typecheck/test/build)
                 ↓
       Vercel production deploy
                 ↓
-      smoke-deploy.mjs + verify-production-attachments.mjs + verify-production-groups.mjs + verify-production-contacts.mjs + verify-production-admin-reports.mjs
+      smoke-deploy.mjs + verify-production-attachments.mjs + verify-production-groups.mjs + verify-production-contacts.mjs + verify-production-admin-reports.mjs + verify-production-demo.mjs
 ```
 
 No secrets, credentials, or DB URLs are committed to the repository.

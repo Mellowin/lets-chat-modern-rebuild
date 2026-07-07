@@ -39,6 +39,24 @@ export interface AuthResult {
   refreshToken: string;
 }
 
+export interface DemoChannel {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+export interface DemoWorkspace {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+export interface DemoSessionResult extends AuthResult {
+  workspace: DemoWorkspace;
+  channels: DemoChannel[];
+  defaultChannel: DemoChannel;
+}
+
 export interface LoginInput {
   email: string;
   password: string;
@@ -73,6 +91,19 @@ async function parseErrorMessage(res: Response, fallback: string): Promise<strin
     // ignore parse error
   }
   return message;
+}
+
+export async function createDemoSession(): Promise<DemoSessionResult> {
+  const res = await fetchWithTimeout(`${API_BASE}/demo/session`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Demo session failed: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<DemoSessionResult>;
 }
 
 export async function login(input: LoginInput): Promise<AuthResult> {

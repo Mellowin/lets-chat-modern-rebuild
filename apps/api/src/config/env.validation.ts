@@ -52,4 +52,8 @@ export const envValidationSchema = Joi.object({
   SMTP_USER: Joi.string().optional(),
   SMTP_PASS: Joi.string().optional(),
   SMTP_FROM: Joi.string().optional(),
+
+  DEMO_MODE_ENABLED: Joi.boolean().default(false),
+  DEMO_SESSION_TTL_HOURS: Joi.number().integer().min(1).default(24),
+  DEMO_RATE_LIMIT_PER_HOUR: Joi.number().integer().min(1).default(10),
 });

@@ -25,6 +25,7 @@ All scripts are located in `scripts/` and are exposed as root package scripts.
 | **Mentions & notifications** | `node scripts/verify-production-mentions.mjs` | Notification preference endpoints, mention resolution in DMs and groups, and non-resolvable mention filtering. | Two disposable accounts, one direct conversation, one group | None |
 | **Admin reports** | `pnpm verify:prod:admin-reports` | Regular users cannot access admin report endpoints; optional positive admin list/filter/detail/update checks. | Two disposable accounts, one report | None |
 | **Admin audit log** | `pnpm verify:prod:audit` | Regular users cannot access admin audit endpoints; optional positive admin list/filter/detail checks plus sensitive-field leak checks. | Two disposable accounts, one block, one report | None |
+| **Demo mode** | `pnpm verify:prod:demo` | Checks the public demo onboarding endpoint. Skipped entirely when `DEMO_MODE_ENABLED` is not `true`. | One demo user and workspace | None |
 | **All** | `pnpm verify:prod:all` | Runs public → auth → permissions → browser → attachments → contacts → pwa sequentially. | Same as above | Same as above |
 
 ---
@@ -87,6 +88,9 @@ pnpm verify:prod:audit
 
 # Admin audit log — with positive admin checks
 VERIFY_ADMIN_ACCESS_TOKEN=<token> pnpm verify:prod:audit
+
+# Demo mode — skipped automatically when demo mode is disabled
+pnpm verify:prod:demo
 
 # Full pack (respects the destructive flag)
 VERIFY_PERMISSIONS_ENABLE_DESTRUCTIVE=1 pnpm verify:prod:all
@@ -243,3 +247,27 @@ node scripts/verify-production-mentions.mjs
 - Mentions in groups resolve for members.
 - Mentions of non-members in a group do not resolve.
 - Self-mentions resolve (the author is a member), while push filtering prevents the author from being notified.
+
+## Demo Mode Verification
+
+The dedicated verifier is `scripts/verify-production-demo.mjs`.
+
+```bash
+pnpm verify:prod:demo
+```
+
+**What it checks:**
+
+- `GET /demo/status` returns `{ enabled: true }`.
+- `POST /demo/session` returns a valid `AuthResult` with demo user, workspace, channels, and default channel.
+- The demo user's email ends with `@lets-chat.demo` and has `role: "USER"`.
+- The issued access token can list workspaces and includes the demo workspace.
+
+**Environment variables:**
+
+| Variable | Default | Description |
+|---|---|---|
+| `VERIFY_API_BASE` | `https://lets-chat-api-v2.onrender.com/api/v1` | API endpoint to verify against |
+| `DEMO_MODE_ENABLED` | read from API status | The script is skipped when the API reports demo mode is disabled |
+
+The script does not print tokens, passwords, or DB credentials. It creates one disposable demo account per run; clean up stale demo data with `pnpm --filter api demo:cleanup`.
