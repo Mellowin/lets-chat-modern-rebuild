@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -8,18 +8,30 @@ import {
   Check,
   CheckCheck,
   Copy,
+  Download,
   Edit3,
+  File as FileIcon,
+  FileArchive,
+  FileAudio,
+  FileSpreadsheet,
+  FileText,
+  FileVideo,
   Flag,
   Forward,
+  ImageIcon,
   Loader2,
   MessageSquare,
   MoreHorizontal,
+  Paperclip,
+  Presentation,
   Reply,
   Send,
   Smile,
   Trash2,
+  UploadCloud,
   X,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLocale } from "@/lib/locale";
 import { localizeApiError } from "@/lib/api-errors";
@@ -41,14 +53,30 @@ import {
   updateDirectMessage,
   deleteDirectMessage,
   getDirectMessageContext,
+  uploadDirectAttachmentViaProxyWithProgress,
+  getDirectAttachmentFileObjectUrl,
+  fetchDirectAttachmentFile,
   type DirectMessage,
   type SendDirectMessageInput,
   type UpdateDirectMessageInput,
   type DirectConversation,
   type DirectMessageReactionSummary,
   type DirectMessageContextResult,
+  type DirectMessageAttachment,
 } from "@/lib/direct-conversations-api";
 import { createSocket } from "@/lib/socket-client";
+import {
+  ALLOWED_ATTACHMENT_MIME_TYPES as ALLOWED_ATTACHMENT_TYPES,
+  EXTENSION_TO_MIME_TYPE as EXTENSION_MIME_MAP,
+  MAX_ATTACHMENTS_PER_MESSAGE,
+  MAX_IMAGE_ATTACHMENTS_PER_MESSAGE,
+  MAX_TOTAL_ATTACHMENT_SIZE_BYTES,
+  ATTACHMENT_CATEGORY_MAX_SIZE_BYTES,
+  getAttachmentCategory,
+  getAttachmentMimeType,
+  getAttachmentExtension,
+  isAllowedAttachmentExtension,
+} from "@lets-chat/shared";
 
 type MessagesState =
   | { kind: "idle" }
@@ -63,6 +91,220 @@ type ConversationState =
   | { kind: "error"; message: string };
 
 type MenuPosition = { top: number; left: number };
+
+type ComposerAttachment = {
+  id: string;
+  file: File;
+  status: "ready" | "uploading" | "uploaded" | "failed";
+  progress: number;
+  error: string | null;
+  result?: DirectMessageAttachment;
+};
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function isAllowedAttachmentFile(file: File): boolean {
+  if (ALLOWED_ATTACHMENT_TYPES.includes(file.type)) return true;
+  const ext = getAttachmentExtension(file.name);
+  if (!isAllowedAttachmentExtension(ext)) return false;
+  const mapped = EXTENSION_MIME_MAP[ext];
+  return mapped ? ALLOWED_ATTACHMENT_TYPES.includes(mapped) : false;
+}
+
+function normalizeAttachmentFile(file: File): File {
+  const type = getAttachmentMimeType(file.name, file.type);
+  if (type === file.type) return file;
+  return new File([file], file.name, { type, lastModified: file.lastModified });
+}
+
+type AttachmentTypeLabelKey =
+  | "channel.attachmentTypeImage"
+  | "channel.attachmentTypePdf"
+  | "channel.attachmentTypeWord"
+  | "channel.attachmentTypeExcel"
+  | "channel.attachmentTypePowerPoint"
+  | "channel.attachmentTypeArchive"
+  | "channel.attachmentTypeVideo"
+  | "channel.attachmentTypeAudio"
+  | "channel.attachmentTypeFile";
+
+function getAttachmentTypeInfo(mimeType: string): {
+  icon: LucideIcon;
+  labelKey: AttachmentTypeLabelKey;
+} {
+  if (mimeType.startsWith("image/")) {
+    return { icon: ImageIcon, labelKey: "channel.attachmentTypeImage" };
+  }
+  if (
+    mimeType === "application/msword" ||
+    mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    mimeType === "application/vnd.oasis.opendocument.text"
+  ) {
+    return { icon: FileText, labelKey: "channel.attachmentTypeWord" };
+  }
+  if (
+    mimeType === "application/vnd.ms-excel" ||
+    mimeType === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+    mimeType === "text/csv" ||
+    mimeType === "application/csv" ||
+    mimeType === "application/vnd.oasis.opendocument.spreadsheet"
+  ) {
+    return { icon: FileSpreadsheet, labelKey: "channel.attachmentTypeExcel" };
+  }
+  if (
+    mimeType === "application/vnd.ms-powerpoint" ||
+    mimeType === "application/vnd.openxmlformats-officedocument.presentationml.presentation" ||
+    mimeType === "application/vnd.oasis.opendocument.presentation"
+  ) {
+    return { icon: Presentation, labelKey: "channel.attachmentTypePowerPoint" };
+  }
+  if (
+    mimeType === "application/zip" ||
+    mimeType === "application/x-7z-compressed" ||
+    mimeType === "application/vnd.rar" ||
+    mimeType === "application/x-rar-compressed"
+  ) {
+    return { icon: FileArchive, labelKey: "channel.attachmentTypeArchive" };
+  }
+  if (mimeType.startsWith("video/")) {
+    return { icon: FileVideo, labelKey: "channel.attachmentTypeVideo" };
+  }
+  if (mimeType.startsWith("audio/")) {
+    return { icon: FileAudio, labelKey: "channel.attachmentTypeAudio" };
+  }
+  if (mimeType === "application/pdf") {
+    return { icon: FileText, labelKey: "channel.attachmentTypePdf" };
+  }
+  return { icon: FileIcon, labelKey: "channel.attachmentTypeFile" };
+}
+
+function DirectAttachmentFileCard({
+  attachment,
+  message,
+  onDownload,
+}: {
+  attachment: DirectMessageAttachment;
+  message: DirectMessage;
+  onDownload: (msg: DirectMessage, att: DirectMessageAttachment) => void;
+}) {
+  const { t } = useLocale();
+  const { icon: Icon, labelKey } = getAttachmentTypeInfo(attachment.mimeType);
+
+  return (
+    <button
+      key={attachment.id}
+      onClick={() => onDownload(message, attachment)}
+      data-testid={`direct-message-attachment-${message.id}-${attachment.id}`}
+      className="group flex w-full max-w-[16rem] sm:max-w-[20rem] items-center gap-3 rounded-xl border border-border/80 bg-card/70 px-3 py-2 text-left shadow-sm transition-all hover:border-primary/40 hover:bg-accent/40 hover:shadow-md"
+    >
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/10 transition-colors group-hover:bg-primary/15">
+        <Icon size={18} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium text-foreground">{attachment.fileName}</p>
+        <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+          <span>{formatFileSize(attachment.sizeBytes)}</span>
+          <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+            {t(labelKey)}
+          </span>
+        </div>
+      </div>
+      <Download size={16} className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+    </button>
+  );
+}
+
+function DirectAttachmentImagePreview({
+  attachment,
+  messageId,
+  conversationId,
+  accessToken,
+}: {
+  attachment: DirectMessageAttachment;
+  messageId: string;
+  conversationId: string;
+  accessToken: string;
+}) {
+  const { t } = useLocale();
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    let createdUrl: string | null = null;
+
+    async function load() {
+      try {
+        const url = await getDirectAttachmentFileObjectUrl(
+          accessToken,
+          conversationId,
+          messageId,
+          attachment.id,
+        );
+        if (!cancelled) {
+          createdUrl = url;
+          setObjectUrl(url);
+        } else {
+          URL.revokeObjectURL(url);
+        }
+      } catch {
+        if (!cancelled) setFailed(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void load();
+
+    return () => {
+      cancelled = true;
+      if (createdUrl) URL.revokeObjectURL(createdUrl);
+    };
+  }, [accessToken, conversationId, messageId, attachment.id]);
+
+  return (
+    <button
+      type="button"
+      data-testid={`direct-message-attachment-image-${messageId}-${attachment.id}`}
+      className="block w-fit max-w-full rounded-lg border border-border bg-muted/50 p-1 text-left hover:bg-accent/50 transition-colors"
+    >
+      {loading ? (
+        <div className="flex min-h-[8rem] items-center justify-center gap-2 rounded-lg bg-muted/50 px-3 py-2 text-xs">
+          <Loader2 size={16} className="animate-spin text-muted-foreground" />
+          <span className="text-muted-foreground">{t("channel.attachmentLoading")}</span>
+        </div>
+      ) : failed || !objectUrl ? (
+        <div className="flex min-h-[8rem] items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2 text-xs">
+          <ImageIcon size={16} className="text-muted-foreground" />
+          <span className="truncate font-medium text-foreground">{attachment.fileName}</span>
+          <span className="shrink-0 text-muted-foreground">{formatFileSize(attachment.sizeBytes)}</span>
+        </div>
+      ) : (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element -- attachment file is streamed through the API proxy */}
+          <img
+            src={objectUrl}
+            alt={attachment.fileName}
+            draggable={false}
+            loading="lazy"
+            decoding="async"
+            className="pointer-events-none max-h-60 rounded-lg object-cover shadow-sm"
+            onError={() => setFailed(true)}
+          />
+          <div className="mt-1.5 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+            <span className="truncate font-medium text-foreground">{attachment.fileName}</span>
+            <span className="shrink-0">{formatFileSize(attachment.sizeBytes)}</span>
+          </div>
+        </>
+      )}
+    </button>
+  );
+}
 
 export default function DirectConversationPage() {
   const params = useParams();
@@ -118,6 +360,15 @@ export default function DirectConversationPage() {
   const [presenceStatus, setPresenceStatus] = useState<"online" | "offline">("offline");
   const [scrollPaused, setScrollPaused] = useState(false);
   const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [composerAttachments, setComposerAttachments] = useState<ComposerAttachment[]>([]);
+  const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const dragCounterRef = useRef(0);
+  const composerAttachmentsRef = useRef<ComposerAttachment[]>([]);
+  useEffect(() => {
+    composerAttachmentsRef.current = composerAttachments;
+  }, [composerAttachments]);
   const {
     scrollRef: hookScrollRef,
     contentRef: messagesContentRef,
@@ -281,6 +532,9 @@ export default function DirectConversationPage() {
     closeMenuAndPicker();
     setForwardMessage(null);
     setReplyToMessage(null);
+    setComposerAttachments([]);
+    composerAttachmentsRef.current = [];
+    setAttachmentError(null);
     setEditingMessage(msg);
     setContent(msg.content);
     setEditState({ kind: "idle" });
@@ -908,6 +1162,218 @@ export default function DirectConversationPage() {
       ? messages.data
       : [];
 
+  function getFileCategoryMaxSize(file: File): number {
+    const mime = getAttachmentMimeType(file.name, file.type);
+    const category = getAttachmentCategory(mime);
+    return ATTACHMENT_CATEGORY_MAX_SIZE_BYTES[category];
+  }
+
+  function validateAndAddFiles(files: File[]) {
+    setAttachmentError(null);
+
+    if (files.length === 0) return;
+
+    const normalizedFiles = files.map(normalizeAttachmentFile);
+    const accepted: File[] = [];
+    let hasTypeReject = false;
+    let hasSizeReject = false;
+
+    for (const file of normalizedFiles) {
+      if (!isAllowedAttachmentFile(file)) {
+        hasTypeReject = true;
+        continue;
+      }
+      if (file.size > getFileCategoryMaxSize(file)) {
+        hasSizeReject = true;
+        continue;
+      }
+      accepted.push(file);
+    }
+
+    const projectedCount = composerAttachments.length + accepted.length;
+    const existingAllImage = composerAttachments.every(
+      (att) =>
+        getAttachmentCategory(
+          getAttachmentMimeType(att.file.name, att.file.type),
+        ) === "image",
+    );
+    const acceptedAllImage = accepted.every(
+      (file) =>
+        getAttachmentCategory(getAttachmentMimeType(file.name, file.type)) ===
+        "image",
+    );
+    const allImage = existingAllImage && acceptedAllImage;
+    const countLimit = allImage
+      ? MAX_IMAGE_ATTACHMENTS_PER_MESSAGE
+      : MAX_ATTACHMENTS_PER_MESSAGE;
+
+    if (projectedCount > countLimit) {
+      setAttachmentError(t("channel.errorTooManyAttachments"));
+      return;
+    }
+
+    const existingTotalSize = composerAttachments.reduce(
+      (sum, att) => sum + att.file.size,
+      0,
+    );
+    const acceptedTotalSize = accepted.reduce((sum, file) => sum + file.size, 0);
+    const projectedTotalSize = existingTotalSize + acceptedTotalSize;
+    if (projectedTotalSize > MAX_TOTAL_ATTACHMENT_SIZE_BYTES) {
+      setAttachmentError(t("channel.errorAttachmentsTotalTooLarge"));
+      return;
+    }
+
+    if (accepted.length === 0) {
+      if (hasTypeReject) {
+        setAttachmentError(t("channel.errorInvalidAttachmentType"));
+      } else {
+        setAttachmentError(t("channel.errorAttachmentTooLargeByCategory"));
+      }
+      return;
+    }
+
+    if (hasTypeReject) {
+      setAttachmentError(t("channel.errorInvalidAttachmentType"));
+    } else if (hasSizeReject) {
+      setAttachmentError(t("channel.errorAttachmentTooLargeByCategory"));
+    }
+
+    const addFiles = (prev: ComposerAttachment[]) => [
+      ...prev,
+      ...accepted.map((file): ComposerAttachment => ({
+        id: crypto.randomUUID(),
+        file,
+        status: "ready",
+        progress: 0,
+        error: null,
+      })),
+    ];
+    setComposerAttachments(addFiles);
+    composerAttachmentsRef.current = addFiles(composerAttachmentsRef.current);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []);
+    validateAndAddFiles(files);
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  }
+
+  function handleDragEnter(e: React.DragEvent) {
+    e.preventDefault();
+    dragCounterRef.current += 1;
+    if (dragCounterRef.current === 1) {
+      setIsDragOver(true);
+    }
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    e.preventDefault();
+    dragCounterRef.current -= 1;
+    if (dragCounterRef.current <= 0) {
+      dragCounterRef.current = 0;
+      setIsDragOver(false);
+    }
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    dragCounterRef.current = 0;
+    setIsDragOver(false);
+    const files = Array.from(e.dataTransfer.files);
+    validateAndAddFiles(files);
+  }
+
+  function handleRemoveAttachment(id: string) {
+    const remove = (prev: ComposerAttachment[]) => prev.filter((a) => a.id !== id);
+    setComposerAttachments(remove);
+    composerAttachmentsRef.current = remove(composerAttachmentsRef.current);
+    setAttachmentError(null);
+  }
+
+  async function uploadOneAttachment(id: string): Promise<boolean> {
+    if (!accessToken || !conversationId) return false;
+    const att = composerAttachmentsRef.current.find((a) => a.id === id);
+    if (!att || att.status === "uploaded") return true;
+
+    const setUploading = (prev: ComposerAttachment[]) =>
+      prev.map((a): ComposerAttachment => (a.id === id ? { ...a, status: "uploading", progress: 0, error: null } : a));
+    setComposerAttachments(setUploading);
+    composerAttachmentsRef.current = setUploading(composerAttachmentsRef.current);
+
+    try {
+      const uploadResult = await uploadDirectAttachmentViaProxyWithProgress(
+        accessToken,
+        conversationId,
+        att.file,
+        (percent) => {
+          const setProgress = (prev: ComposerAttachment[]) =>
+            prev.map((a): ComposerAttachment => (a.id === id ? { ...a, progress: percent } : a));
+          setComposerAttachments(setProgress);
+          composerAttachmentsRef.current = setProgress(composerAttachmentsRef.current);
+        },
+      );
+
+      const setUploaded = (prev: ComposerAttachment[]) =>
+        prev.map((a): ComposerAttachment =>
+          a.id === id
+            ? {
+                ...a,
+                status: "uploaded",
+                progress: 100,
+                error: null,
+                result: {
+                  id: uploadResult.id,
+                  fileName: uploadResult.fileName,
+                  mimeType: uploadResult.mimeType,
+                  sizeBytes: uploadResult.sizeBytes,
+                  kind: uploadResult.kind,
+                  createdAt: uploadResult.createdAt,
+                },
+              }
+            : a,
+        );
+      setComposerAttachments(setUploaded);
+      composerAttachmentsRef.current = setUploaded(composerAttachmentsRef.current);
+      return true;
+    } catch (err) {
+      const message = localizeApiError(err, "channel.errorAttachmentUploadFailed", t);
+      const setFailed = (prev: ComposerAttachment[]) =>
+        prev.map((a): ComposerAttachment => (a.id === id ? { ...a, status: "failed", progress: 0, error: message } : a));
+      setComposerAttachments(setFailed);
+      composerAttachmentsRef.current = setFailed(composerAttachmentsRef.current);
+      return false;
+    }
+  }
+
+  function handleRetryAttachment(id: string) {
+    void uploadOneAttachment(id);
+  }
+
+  async function handleDownloadAttachment(msg: DirectMessage, att: DirectMessageAttachment) {
+    if (!accessToken || !conversationId) return;
+    try {
+      const blob = await fetchDirectAttachmentFile(accessToken, conversationId, msg.id, att.id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = att.fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      const message = localizeApiError(err, "channel.errorDownloadFailed", t);
+      setSocketError(message);
+    }
+  }
+
   async function submitMessage() {
     if (editingMessage) {
       await handleEditSubmit();
@@ -915,24 +1381,58 @@ export default function DirectConversationPage() {
       return;
     }
     const trimmed = content.trim();
-    if (!trimmed) {
+    const hasContent = trimmed.length > 0;
+    const hasAttachments = composerAttachments.length > 0;
+
+    if (!hasContent && !hasAttachments) {
       setSendState({ kind: "error", message: t("channel.errorMessageEmpty") });
       return;
     }
-    if (trimmed.length > 4000) {
+    if (hasContent && trimmed.length > 4000) {
       setSendState({ kind: "error", message: t("channel.errorMessageTooLong") });
       return;
     }
     if (!accessToken || !conversationId) return;
 
     setSendState({ kind: "loading" });
+    setAttachmentError(null);
+
     try {
+      const needsUpload = composerAttachmentsRef.current.filter(
+        (a) => a.status === "ready" || a.status === "failed",
+      );
+
+      if (needsUpload.length > 0) {
+        const results = await Promise.all(needsUpload.map((a) => uploadOneAttachment(a.id)));
+        if (!results.every((r) => r)) {
+          const failedAttachment = composerAttachmentsRef.current.find((a) => a.status === "failed" && a.error);
+          const detail = failedAttachment?.error;
+          const message = detail
+            ? `${t("channel.errorAttachmentUploadFailed")} ${detail}`
+            : t("channel.errorAttachmentUploadFailed");
+          setSendState({ kind: "error", message });
+          return;
+        }
+      }
+
+      const current = composerAttachmentsRef.current;
+      const allUploaded = current.every((a) => a.status === "uploaded");
+      if (!allUploaded) {
+        setSendState({ kind: "error", message: t("channel.errorAttachmentUploadFailed") });
+        return;
+      }
+
+      const attachmentIds = current.map((a) => a.result?.id).filter((id): id is string => !!id);
+
       const input: SendDirectMessageInput = {
-        content: trimmed,
+        ...(hasContent ? { content: trimmed } : {}),
         ...(replyToMessage ? { parentId: replyToMessage.id } : {}),
+        ...(attachmentIds.length > 0 ? { attachmentIds } : {}),
       };
       const msg = await sendDirectMessage(accessToken, conversationId, input);
       setContent("");
+      setComposerAttachments([]);
+      composerAttachmentsRef.current = [];
       setReplyToMessage(null);
       setSendState({ kind: "idle" });
       emitTypingStop();
@@ -980,6 +1480,23 @@ export default function DirectConversationPage() {
       setForwardState({ kind: "error", message });
     }
   }
+
+  const isUploadingAttachments = composerAttachments.some((a) => a.status === "uploading");
+  const filePreviews = useMemo(() => {
+    const map = new Map<string, string>();
+    composerAttachments.forEach((att) => {
+      if (att.file.type.startsWith("image/")) {
+        map.set(att.id, URL.createObjectURL(att.file));
+      }
+    });
+    return map;
+  }, [composerAttachments]);
+
+  useEffect(() => {
+    return () => {
+      filePreviews.forEach((url: string) => URL.revokeObjectURL(url));
+    };
+  }, [filePreviews]);
 
   const forwardTargets = forwardConversations.filter((c) => c.id !== conversationId);
 
@@ -1097,7 +1614,14 @@ export default function DirectConversationPage() {
           </div>
         </header>
 
-        <div className="mt-4 flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-border/80 bg-card shadow-md">
+        <div
+          data-testid="direct-chat-panel"
+          onDragOver={handleDragOver}
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className="relative mt-4 flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-border/80 bg-card shadow-md"
+        >
           <div ref={messagesScrollRef} data-testid="direct-messages-scroll" onScroll={() => { setMessageMenuId(null); setMessageMenuPosition(null); setReactionPickerMessageId(null); setReactionPickerPosition(null); }} className="chat-canvas min-h-0 flex-1 overflow-y-auto px-4 py-3">
             <div ref={messagesContentRef} className="flex w-full max-w-3xl flex-col">
               {isContextMode && (
@@ -1293,9 +1817,33 @@ export default function DirectConversationPage() {
                                   })()}
                                 </div>
                               )}
-                              <p className={`whitespace-pre-wrap break-words text-sm leading-6 ${isOwnMessage ? "text-white" : "text-foreground"}`}>
-                                <MessageContent content={msg.content} mentions={msg.mentions} />
-                              </p>
+                              {msg.content.trim().length > 0 && (
+                                <p className={`whitespace-pre-wrap break-words text-sm leading-6 ${isOwnMessage ? "text-white" : "text-foreground"}`}>
+                                  <MessageContent content={msg.content} mentions={msg.mentions} />
+                                </p>
+                              )}
+                              {msg.attachments && msg.attachments.length > 0 && (
+                                <div data-testid={`direct-message-attachments-${msg.id}`} className="mt-2 flex flex-col gap-1.5">
+                                  {msg.attachments.map((att) =>
+                                    att.kind === "image" ? (
+                                      <DirectAttachmentImagePreview
+                                        key={`${att.id}-${accessToken}`}
+                                        attachment={att}
+                                        messageId={msg.id}
+                                        conversationId={conversationId}
+                                        accessToken={accessToken || ""}
+                                      />
+                                    ) : (
+                                      <DirectAttachmentFileCard
+                                        key={att.id}
+                                        attachment={att}
+                                        message={msg}
+                                        onDownload={handleDownloadAttachment}
+                                      />
+                                    ),
+                                  )}
+                                </div>
+                              )}
                               {msg.reactions && msg.reactions.length > 0 && (
                                 <div data-testid={`direct-reactions-${msg.id}`} className="mt-1.5 flex flex-wrap gap-1">
                                   {msg.reactions.map((reaction) => (
@@ -1330,6 +1878,18 @@ export default function DirectConversationPage() {
               <div ref={messagesEndRef} className="h-1" />
             </div>
           </div>
+
+          {isDragOver && (
+            <div
+              data-testid="direct-drop-overlay"
+              className="pointer-events-none absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-primary bg-primary/10 backdrop-blur-sm"
+            >
+              <UploadCloud size={48} className="text-primary" />
+              <span className="text-lg font-semibold text-primary">
+                {t("channel.dropFilesHere")}
+              </span>
+            </div>
+          )}
 
           <form onSubmit={handleSendMessage} data-testid="direct-composer" className="shrink-0 flex flex-col gap-2 border-t border-indigo-200/60 bg-gradient-to-b from-card to-indigo-100/60 dark:from-card dark:to-indigo-950/30 p-4 shadow-lg">
             {socketError && (
@@ -1415,23 +1975,208 @@ export default function DirectConversationPage() {
               disabled={sendState.kind === "loading" || editState.kind === "loading"}
               className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-60"
             />
+            {composerAttachments.length > 0 && (
+              <div data-testid="direct-composer-attachments" className="flex flex-wrap gap-2">
+                {composerAttachments.map((att, index) => {
+                  const previewUrl = filePreviews.get(att.id);
+                  const isUploading = att.status === "uploading";
+                  const isFailed = att.status === "failed";
+                  const isUploaded = att.status === "uploaded";
+                  const canRemove = att.status === "ready" || att.status === "failed";
+
+                  return previewUrl ? (
+                    <div
+                      key={att.id}
+                      data-testid={`direct-composer-attachment-preview-${index}`}
+                      className="relative inline-flex flex-col gap-1 rounded-lg border border-border bg-muted/50 p-1"
+                    >
+                      <div className="relative">
+                        {/* eslint-disable-next-line @next/next/no-img-element -- blob preview URLs are intentionally rendered with native img */}
+                        <img src={previewUrl} alt={att.file.name} className="h-16 w-16 rounded object-cover" />
+                        {canRemove && (
+                          <Button
+                            type="button"
+                            variant="icon"
+                            size="sm"
+                            onClick={() => handleRemoveAttachment(att.id)}
+                            data-testid={`direct-composer-attachment-remove-${index}`}
+                            className="absolute -right-1.5 -top-1.5 h-4 w-4"
+                            aria-label={t("channel.removeAttachment")}
+                          >
+                            <X size={10} />
+                          </Button>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between gap-1 px-0.5">
+                        <span className="text-[10px] text-muted-foreground">
+                          {formatFileSize(att.file.size)}
+                        </span>
+                        <span
+                          className={`text-[10px] font-medium ${
+                            isFailed
+                              ? "text-destructive"
+                              : isUploaded
+                              ? "text-primary"
+                              : "text-muted-foreground"
+                          }`}
+                          data-testid={`direct-composer-attachment-status-${index}`}
+                        >
+                          {isUploading
+                            ? t("channel.attachmentUploading")
+                            : isFailed
+                            ? t("channel.attachmentUploadFailed")
+                            : isUploaded
+                            ? t("channel.attachmentUploaded")
+                            : t("channel.attachmentReady")}
+                        </span>
+                      </div>
+                      {isUploading && (
+                        <div className="w-full px-0.5">
+                          <div className="h-1 w-full rounded-full bg-muted">
+                            <div
+                              className="h-1 rounded-full bg-primary transition-all"
+                              style={{ width: `${att.progress}%` }}
+                              data-testid={`direct-composer-attachment-progress-${index}`}
+                            />
+                          </div>
+                          <span className="text-[10px] text-muted-foreground">{att.progress}%</span>
+                        </div>
+                      )}
+                      {isFailed && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRetryAttachment(att.id)}
+                          data-testid={`direct-composer-attachment-retry-${index}`}
+                          className="h-auto px-0.5 py-0 text-xs"
+                        >
+                          {t("channel.retryUpload")}
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                    <div
+                      key={att.id}
+                      data-testid={`direct-composer-attachment-chip-${index}`}
+                      className="inline-flex flex-col gap-1 rounded-lg border border-border bg-muted/50 px-2.5 py-1 text-xs"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <Paperclip size={12} className="text-muted-foreground" />
+                        <span className="truncate max-w-[6rem]">{att.file.name}</span>
+                        {canRemove && (
+                          <Button
+                            type="button"
+                            variant="icon"
+                            size="sm"
+                            onClick={() => handleRemoveAttachment(att.id)}
+                            data-testid={`direct-composer-attachment-remove-${index}`}
+                            className="h-4 w-4"
+                            aria-label={t("channel.removeAttachment")}
+                          >
+                            <X size={10} />
+                          </Button>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-[10px] text-muted-foreground">
+                          {formatFileSize(att.file.size)}
+                        </span>
+                        <span
+                          className={`text-[10px] font-medium ${
+                            isFailed
+                              ? "text-destructive"
+                              : isUploaded
+                              ? "text-primary"
+                              : "text-muted-foreground"
+                          }`}
+                          data-testid={`direct-composer-attachment-status-${index}`}
+                        >
+                          {isUploading
+                            ? t("channel.attachmentUploading")
+                            : isFailed
+                            ? t("channel.attachmentUploadFailed")
+                            : isUploaded
+                            ? t("channel.attachmentUploaded")
+                            : t("channel.attachmentReady")}
+                        </span>
+                      </div>
+                      {isUploading && (
+                        <div className="w-full">
+                          <div className="h-1 w-full rounded-full bg-muted">
+                            <div
+                              className="h-1 rounded-full bg-primary transition-all"
+                              style={{ width: `${att.progress}%` }}
+                              data-testid={`direct-composer-attachment-progress-${index}`}
+                            />
+                          </div>
+                          <span className="text-[10px] text-muted-foreground">{att.progress}%</span>
+                        </div>
+                      )}
+                      {isFailed && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRetryAttachment(att.id)}
+                          data-testid={`direct-composer-attachment-retry-${index}`}
+                          className="h-auto px-0 py-0 text-xs"
+                        >
+                          {t("channel.retryUpload")}
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             <div className="flex items-center justify-between gap-2">
-              <div className="text-[10px] text-muted-foreground">
-                {content.length > 0 && `${content.length} / 4000`}
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={sendState.kind === "loading" || editState.kind === "loading" || isUploadingAttachments}
+                  data-testid="direct-composer-attach-button"
+                  aria-label={t("channel.attachFile")}
+                >
+                  <Paperclip size={16} />
+                </Button>
+                <input
+                  id="direct-file-input"
+                  name="direct-file-input"
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain,application/rtf,text/rtf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,application/csv,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.oasis.opendocument.text,application/vnd.oasis.opendocument.spreadsheet,application/vnd.oasis.opendocument.presentation,application/zip,application/x-7z-compressed,application/vnd.rar,application/x-rar-compressed,video/mp4,video/webm,video/quicktime,video/x-msvideo,video/x-matroska,audio/mpeg,audio/wav,audio/ogg,audio/mp4,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.odt,.ods,.odp,.zip,.7z,.rar,.png,.jpg,.jpeg,.webp,.gif,.pdf,.txt,.rtf,.mp4,.webm,.mov,.avi,.mkv,.mp3,.wav,.ogg,.m4a"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  data-testid="direct-composer-file-input"
+                  aria-label={t("channel.attachFile")}
+                />
+                <span className="text-xs text-muted-foreground">
+                  {content.length}/4000
+                </span>
               </div>
               <Button
                 type="submit"
-                disabled={sendState.kind === "loading" || editState.kind === "loading"}
+                disabled={sendState.kind === "loading" || editState.kind === "loading" || isUploadingAttachments}
               >
                 {editingMessage
                   ? editState.kind === "loading"
                     ? <><Loader2 size={16} className="mr-1.5 animate-spin" />{t("channel.savingEdit")}</>
                     : t("direct.saveEdit")
-                  : sendState.kind === "loading"
+                  : sendState.kind === "loading" || isUploadingAttachments
                     ? <><Loader2 size={16} className="mr-1.5 animate-spin" />{t("direct.sending")}</>
                     : <><Send size={16} className="mr-1.5" />{t("direct.send")}</>}
               </Button>
             </div>
+            {attachmentError && (
+              <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-2.5 text-sm text-destructive">
+                {attachmentError}
+              </div>
+            )}
             {editState.kind === "error" && (
               <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-2.5 text-xs text-destructive">
                 {editState.message}

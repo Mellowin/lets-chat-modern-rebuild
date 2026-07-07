@@ -2,7 +2,14 @@ import { render, screen, waitFor, fireEvent, act } from "@testing-library/react"
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import DirectConversationPage from "./page";
-import { listDirectMessages, sendDirectMessage, markDirectConversationRead, listDirectConversations, updateDirectMessage, deleteDirectMessage } from "@/lib/direct-conversations-api";
+import {
+  listDirectMessages,
+  sendDirectMessage,
+  markDirectConversationRead,
+  listDirectConversations,
+  updateDirectMessage,
+  deleteDirectMessage,
+} from "@/lib/direct-conversations-api";
 import type { DirectMessage } from "@/lib/direct-conversations-api";
 import { createSocketMock } from "@/test/socket-mock";
 
@@ -50,6 +57,9 @@ vi.mock("@/lib/direct-conversations-api", () => ({
   removeDirectMessageReaction: vi.fn(),
   updateDirectMessage: vi.fn(),
   deleteDirectMessage: vi.fn(),
+  uploadDirectAttachmentViaProxyWithProgress: vi.fn(),
+  fetchDirectAttachmentFile: vi.fn(),
+  getDirectAttachmentFileObjectUrl: vi.fn(),
 }));
 
 vi.mock("@/lib/socket-client", () => ({

@@ -57,6 +57,17 @@ export interface DirectMessageMention {
   username: string;
 }
 
+export interface DirectMessageAttachment {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  kind: "image" | "file";
+  createdAt: string;
+  url?: string;
+  thumbnailUrl?: string;
+}
+
 export interface DirectMessage {
   id: string;
   conversationId: string;
@@ -71,6 +82,7 @@ export interface DirectMessage {
   readByOtherParticipant: boolean;
   isUnreadForMe: boolean;
   mentions?: DirectMessageMention[];
+  attachments?: DirectMessageAttachment[];
 }
 
 export interface PaginatedDirectMessages {
@@ -88,8 +100,9 @@ export interface DirectMessageContextResult {
 }
 
 export interface SendDirectMessageInput {
-  content: string;
+  content?: string;
   parentId?: string;
+  attachmentIds?: string[];
 }
 
 export interface UpdateDirectMessageInput {
@@ -223,6 +236,120 @@ export async function sendDirectMessage(
   }
 
   return res.json() as Promise<DirectMessage>;
+}
+
+export interface UploadDirectAttachmentViaProxyResponse {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  kind: "image" | "file";
+  createdAt: string;
+}
+
+export function uploadDirectAttachmentViaProxyWithProgress(
+  accessToken: string,
+  conversationId: string,
+  file: File,
+  onProgress: (percent: number) => void,
+): Promise<UploadDirectAttachmentViaProxyResponse> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const formData = new FormData();
+    formData.append("file", file);
+
+    xhr.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable) {
+        const percent = Math.round((event.loaded / event.total) * 100);
+        onProgress(percent);
+      }
+    });
+
+    xhr.addEventListener("load", () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          resolve(data as UploadDirectAttachmentViaProxyResponse);
+        } catch {
+          reject(new Error("Upload failed: invalid server response"));
+        }
+      } else {
+        let message = `Upload failed: ${xhr.status} ${xhr.statusText}`;
+        try {
+          const data = JSON.parse(xhr.responseText);
+          if (data?.message) message = data.message;
+        } catch {
+          // keep default message
+        }
+        reject(new Error(message));
+      }
+    });
+
+    xhr.addEventListener("error", () => {
+      reject(new Error("Upload failed: network error"));
+    });
+
+    xhr.addEventListener("abort", () => {
+      reject(new Error("Upload failed: aborted"));
+    });
+
+    xhr.open(
+      "POST",
+      `${API_BASE}/direct-conversations/${encodeURIComponent(conversationId)}/messages/attachments/upload`,
+    );
+    xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
+    xhr.send(formData);
+  });
+}
+
+export async function fetchDirectAttachmentFile(
+  accessToken: string,
+  conversationId: string,
+  messageId: string,
+  attachmentId: string,
+): Promise<Blob> {
+  const url = `${API_BASE}/direct-conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}/file`;
+
+  const res = await authFetch(
+    url,
+    {
+      method: "GET",
+      headers: {
+        Accept: "*/*",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+    { timeoutMs: 60_000 },
+  );
+
+  if (!res.ok) {
+    let message = `Failed to download file: ${res.status} ${res.statusText}`;
+    try {
+      const body = await res.json();
+      if (body?.message) message = body.message;
+      else if (body?.error) message = body.error;
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+
+  return res.blob();
+}
+
+export async function getDirectAttachmentFileObjectUrl(
+  accessToken: string,
+  conversationId: string,
+  messageId: string,
+  attachmentId: string,
+): Promise<string> {
+  const blob = await fetchDirectAttachmentFile(
+    accessToken,
+    conversationId,
+    messageId,
+    attachmentId,
+  );
+  return URL.createObjectURL(blob);
 }
 
 export async function markDirectConversationRead(
