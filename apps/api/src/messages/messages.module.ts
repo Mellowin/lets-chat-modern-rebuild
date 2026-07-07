@@ -18,10 +18,10 @@ import { UserSearchController } from './user-search.controller';
 import { GlobalSearchController } from './global-search.controller';
 import { StorageModule } from '../storage/storage.module';
 import { WebsocketModule } from '../websocket/websocket.module';
+import { AttachmentsModule } from './attachments.module';
 import { PushModule } from '../push/push.module';
 import { MentionsService } from '../common/mentions.service';
 import { AttachmentsService } from './attachments.service';
-import { AttachmentsRepository } from './attachments.repository';
 import { AttachmentsController } from './attachments.controller';
 
 @Module({
@@ -33,6 +33,7 @@ import { AttachmentsController } from './attachments.controller';
     StorageModule,
     WebsocketModule,
     PushModule,
+    AttachmentsModule,
   ],
   controllers: [
     MessagesController,
@@ -52,7 +53,6 @@ import { AttachmentsController } from './attachments.controller';
     ReadReceiptsRepository,
     MessagesSearchService,
     AttachmentsService,
-    AttachmentsRepository,
     MentionsService,
   ],
   exports: [
@@ -64,7 +64,6 @@ import { AttachmentsController } from './attachments.controller';
     ReadReceiptsRepository,
     MessagesSearchService,
     AttachmentsService,
-    AttachmentsRepository,
   ],
 })
 export class MessagesModule {}

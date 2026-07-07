@@ -59,6 +59,12 @@ describe('Contacts E2E Security', () => {
       ),
     );
 
+    // The classic contact lifecycle assumes the target accepts direct adds.
+    await prisma.user.update({
+      where: { id: userB.id },
+      data: { contactPrivacySetting: 'EVERYONE' },
+    });
+
     tokenA = await tokenService.signAccessToken({
       sub: userA.id,
       email: userA.email,
@@ -72,6 +78,14 @@ describe('Contacts E2E Security', () => {
   });
 
   afterAll(async () => {
+    await prisma.contactRequest.deleteMany({
+      where: {
+        OR: [
+          { fromUserId: { in: [userA.id, userB.id] } },
+          { toUserId: { in: [userA.id, userB.id] } },
+        ],
+      },
+    });
     await prisma.userContact.deleteMany({
       where: { ownerUserId: { in: [userA.id, userB.id] } },
     });
