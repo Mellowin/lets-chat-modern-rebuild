@@ -88,6 +88,15 @@ async function parseErrorMessage(res: Response, fallback: string): Promise<strin
     const body = await res.json();
     if (body?.message) message = body.message;
     else if (body?.error) message = body.error;
+
+    // Include backend error codes for mail-provider failures so the UI can map
+    // them to user-friendly messages even when the human-readable text changes.
+    if (
+      typeof body?.code === "string" &&
+      body.code.startsWith("MAIL_PROVIDER")
+    ) {
+      message = `${body.code}: ${message}`;
+    }
   } catch {
     // ignore parse error
   }

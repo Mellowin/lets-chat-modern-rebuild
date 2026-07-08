@@ -167,6 +167,48 @@ describe("RegisterPage", () => {
     expect(pushMock).not.toHaveBeenCalled();
   });
 
+  it("shows registration unavailable for MAIL_PROVIDER_QUOTA_EXCEEDED", async () => {
+    vi.mocked(register).mockRejectedValueOnce(
+      new Error(
+        "MAIL_PROVIDER_QUOTA_EXCEEDED: Email delivery is temporarily unavailable. Please try again later.",
+      ),
+    );
+
+    render(<RegisterPage />);
+
+    await userEvent.type(screen.getByLabelText(/Email/i), "quota@example.com");
+    await userEvent.type(screen.getByLabelText(/Username/i), "alice");
+    await userEvent.type(screen.getByLabelText(/^Password$/i), "password123");
+    await userEvent.click(screen.getByRole("button", { name: /Create account/i }));
+
+    expect(
+      await screen.findByText(/Registration is temporarily unavailable/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Registration failed/i)).not.toBeInTheDocument();
+    expect(loginSuccessMock).not.toHaveBeenCalled();
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it("shows registration unavailable for safe backend message", async () => {
+    vi.mocked(register).mockRejectedValueOnce(
+      new Error(
+        "Email delivery is temporarily unavailable. Please try again later.",
+      ),
+    );
+
+    render(<RegisterPage />);
+
+    await userEvent.type(screen.getByLabelText(/Email/i), "quota2@example.com");
+    await userEvent.type(screen.getByLabelText(/Username/i), "alice");
+    await userEvent.type(screen.getByLabelText(/^Password$/i), "password123");
+    await userEvent.click(screen.getByRole("button", { name: /Create account/i }));
+
+    expect(
+      await screen.findByText(/Registration is temporarily unavailable/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Registration failed/i)).not.toBeInTheDocument();
+  });
+
   it("shows loading state while submitting", async () => {
     let resolveRegister: (value: unknown) => void;
     const registerPromise = new Promise((resolve) => {

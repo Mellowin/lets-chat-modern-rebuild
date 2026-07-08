@@ -80,6 +80,9 @@ export function localizeApiError(
     if (normalized.includes("email not verified")) return t("errors.emailNotVerified");
     if (normalized.includes("email delivery is temporarily unavailable")) return t("errors.registrationUnavailable");
     if (normalized.includes("mail provider quota exceeded")) return t("errors.registrationUnavailable");
+    if (normalized.includes("mail_provider_quota_exceeded")) return t("errors.registrationUnavailable");
+    if (normalized.includes("mail provider unavailable")) return t("errors.registrationUnavailable");
+    if (normalized.includes("mail_provider_unavailable")) return t("errors.registrationUnavailable");
     if (normalized.includes("current password")) return t("errors.currentPasswordIncorrect");
   }
 
