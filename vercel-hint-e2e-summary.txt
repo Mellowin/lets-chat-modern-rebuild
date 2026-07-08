@@ -1,0 +1,29 @@
+Vercel local-API hint E2E summary
+
+Email: hint-test-1783549105404-g1dpe2@example.com
+Username: hintuser1783549105404g1dpe2
+API override after click: http://localhost:3001/api/v1
+Success: true
+
+Network log:
+POST http://localhost:3001/api/v1/auth/register
+RESPONSE POST http://localhost:3001/api/v1/auth/register 201
+
+Page body:
+lets-chat
+Sign in
+Create account
+Create account
+
+Get started with a free account.
+
+Check your email to verify your account
+
+A verification email has been sent to hint-test-1783549105404-g1dpe2@example.com
+
+Check your spam or junk folder if you don’t see it.
+
+Didn’t receive the email? You can resend it.
+
+Resend verification email
+Sign in
