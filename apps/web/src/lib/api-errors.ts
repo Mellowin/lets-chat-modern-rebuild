@@ -30,6 +30,8 @@ const MESSAGE_MAP: Record<string, TranslationKey> = {
   "email already exists": "errors.emailAlreadyExists",
   "username already taken": "errors.generic",
   "too many requests": "errors.tooManyRequests",
+  "mail provider quota exceeded": "errors.registrationUnavailable",
+  "email delivery is temporarily unavailable. please try again later": "errors.registrationUnavailable",
   "invite not found": "errors.inviteExpiredOrInvalid",
   "invite expired": "errors.inviteExpiredOrInvalid",
   "cannot start a conversation with this user": "safety.actionBlocked",
@@ -76,6 +78,8 @@ export function localizeApiError(
     if (normalized.includes("internal server error")) return t("errors.internalServerError");
     if (normalized.includes("invalid credentials")) return t("errors.invalidCredentials");
     if (normalized.includes("email not verified")) return t("errors.emailNotVerified");
+    if (normalized.includes("email delivery is temporarily unavailable")) return t("errors.registrationUnavailable");
+    if (normalized.includes("mail provider quota exceeded")) return t("errors.registrationUnavailable");
     if (normalized.includes("current password")) return t("errors.currentPasswordIncorrect");
   }
 

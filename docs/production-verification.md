@@ -136,7 +136,7 @@ All scripts default to the production URLs. Override only when needed.
 | `VERIFY_ADMIN_ACCESS_TOKEN` | unset | admin reports / audit / realtime (optional, enables positive admin diagnostics checks) |
 | `WS_URL` / `VERIFY_WS_URL` | `wss://lets-chat-api-v2.onrender.com` | realtime |
 | `VERIFY_ACCOUNT_POOL_JSON` | unset | reusable verified account pool (see below) |
-| `VERIFY_ACCOUNT_N_EMAIL` / `VERIFY_ACCOUNT_N_PASSWORD` | unset | reusable verified account pool alternative |
+| `VERIFY_ACCOUNT_N_EMAIL` / `VERIFY_ACCOUNT_N_USERNAME` / `VERIFY_ACCOUNT_N_PASSWORD` | unset | reusable verified account pool alternative |
 
 **Do not commit `VERIFY_PASSWORD`, account passwords, or any token.** Scripts never print tokens, passwords, or DB URLs to the console.
 
@@ -146,24 +146,48 @@ All scripts default to the production URLs. Override only when needed.
 
 Most verifiers create disposable email accounts through catchmail.io. After many runs the catchmail.io quota can be exhausted, blocking verification. To remove that dependency, configure a pool of **pre-verified** reusable accounts.
 
-Create 5 verified accounts in production once (for example when the mail provider quota is available), then store their credentials in your local environment or GitHub Actions secrets — **never commit them**.
+Create 5 verified accounts in production once with the safe server-side seed script, then store their credentials in your local environment or GitHub Actions secrets — **never commit them**.
 
 ```bash
 # Format 1: JSON array
 VERIFY_ACCOUNT_POOL_JSON='[
-  {"email":"verify1@example.com","password":"..."},
-  {"email":"verify2@example.com","password":"..."},
-  {"email":"verify3@example.com","password":"..."},
-  {"email":"verify4@example.com","password":"..."},
-  {"email":"verify5@example.com","password":"..."}
+  {"email":"verify1@example.com","username":"verify1","password":"..."},
+  {"email":"verify2@example.com","username":"verify2","password":"..."},
+  {"email":"verify3@example.com","username":"verify3","password":"..."},
+  {"email":"verify4@example.com","username":"verify4","password":"..."},
+  {"email":"verify5@example.com","username":"verify5","password":"..."}
 ]'
 
-# Format 2: indexed pairs
+# Format 2: indexed triples
 VERIFY_ACCOUNT_1_EMAIL=verify1@example.com
+VERIFY_ACCOUNT_1_USERNAME=verify1
 VERIFY_ACCOUNT_1_PASSWORD=...
 VERIFY_ACCOUNT_2_EMAIL=verify2@example.com
+VERIFY_ACCOUNT_2_USERNAME=verify2
 VERIFY_ACCOUNT_2_PASSWORD=...
 ```
+
+### Seeding accounts directly in the database
+
+When the mail provider is quota-exhausted, you can seed or update reusable verified accounts directly through the database without sending any email. This is a server-side CLI script only — there is no public API or web route.
+
+```bash
+DATABASE_URL="postgresql://..." \
+VERIFY_ACCOUNT_POOL_JSON='[
+  {"email":"verify1@example.com","username":"verify1","password":"..."}
+]' \
+pnpm verify:seed-accounts
+```
+
+The script:
+
+- connects directly to `DATABASE_URL` via Prisma;
+- validates every entry (email, username, password length/allowed characters);
+- hashes passwords with the configured `BCRYPT_SALT_ROUNDS`;
+- creates new users or updates existing users with the supplied password and `emailVerifiedAt`;
+- always sets `role = USER`, clears stale verification tokens, and restores soft-deleted accounts;
+- never logs passwords, password hashes, or the database URL;
+- exits with a non-zero code if any account fails.
 
 Run any verifier as usual:
 

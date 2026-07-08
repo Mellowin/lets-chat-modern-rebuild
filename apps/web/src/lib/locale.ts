@@ -629,6 +629,7 @@ export type TranslationKey =
   | "errors.currentPasswordIncorrect"
   | "errors.newPasswordMustDiffer"
   | "errors.tooManyRequests"
+  | "errors.registrationUnavailable"
   | "home.description"
   | "home.title"
   | "home.projectStatus"
@@ -1422,6 +1423,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "errors.currentPasswordIncorrect": "Current password is incorrect.",
     "errors.newPasswordMustDiffer": "New password must differ from current.",
     "errors.tooManyRequests": "Too many requests. Please wait a moment.",
+    "errors.registrationUnavailable": "Registration is temporarily unavailable. Please try again later.",
     "home.description": "Secure team collaboration platform. Backend infrastructure is bootstrapped and ready.",
     "home.title": "lets-chat — Modern Rebuild",
     "home.projectStatus": "Project status",
@@ -2214,6 +2216,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "errors.currentPasswordIncorrect": "Поточний пароль невірний.",
     "errors.newPasswordMustDiffer": "Новий пароль має відрізнятися від поточного.",
     "errors.tooManyRequests": "Забагато запитів. Зачекайте трохи.",
+    "errors.registrationUnavailable": "Реєстрація тимчасово недоступна. Спробуйте пізніше.",
     "home.description": "Безпечна платформа для командної співпраці. Бекенд-інфраструктура готова до роботи.",
     "home.title": "lets-chat — Сучасна версія",
     "home.projectStatus": "Статус проєкту",
@@ -3006,6 +3009,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "errors.currentPasswordIncorrect": "Текущий пароль неверен.",
     "errors.newPasswordMustDiffer": "Новый пароль должен отличаться от текущего.",
     "errors.tooManyRequests": "Слишком много запросов. Подождите немного.",
+    "errors.registrationUnavailable": "Регистрация временно недоступна. Попробуйте позже.",
     "home.description": "Безопасная платформа для командного взаимодействия. Бэкенд-инфраструктура готова к работе.",
     "home.title": "lets-chat — Современная версия",
     "home.projectStatus": "Статус проекта",

@@ -49,7 +49,8 @@
     "verify:prod:admin-suite": "node scripts/verify-production-suite.mjs --group admin-suite",
     "verify:prod:browser-suite": "node scripts/verify-production-suite.mjs --group browser-suite",
     "verify:prod:all": "node scripts/verify-production-suite.mjs --group all",
-    "verify:prod:demo-readiness": "node scripts/verify-production-demo-readiness.mjs"
+    "verify:prod:demo-readiness": "node scripts/verify-production-demo-readiness.mjs",
+    "verify:seed-accounts": "pnpm --filter api seed:verifier-accounts"
   },
   "dependencies": {
     "@types/node": "^20.14.0"
