@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { ValidationPipe, ConsoleLogger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { join } from 'path';
+import type { Request, Response, NextFunction } from 'express';
 import { AppModule } from './app.module';
 import { uploadsFallbackMiddleware } from './common/uploads-fallback.middleware';
 
@@ -64,6 +65,35 @@ async function bootstrap() {
       'CORS_ORIGIN is not set in production. Falling back to localhost origins, which will block real frontend requests.',
     );
   }
+
+  // Private Network Access support: a public HTTPS frontend (e.g. Vercel)
+  // is allowed by Chrome to fetch a local API on localhost/127.0.0.1 only if
+  // the server responds to the PNA preflight with
+  // Access-Control-Allow-Private-Network: true.
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const requestPrivateNetwork =
+      req.headers['access-control-request-private-network'];
+    if (req.method === 'OPTIONS' && requestPrivateNetwork === 'true') {
+      const origin = req.headers.origin;
+      if (origin && allowedOrigins.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Private-Network', 'true');
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Vary', 'Origin');
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+        res.setHeader(
+          'Access-Control-Allow-Methods',
+          'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+        );
+        const requestedHeaders = req.headers['access-control-request-headers'];
+        if (requestedHeaders) {
+          res.setHeader('Access-Control-Allow-Headers', requestedHeaders);
+        }
+        res.status(204).end();
+        return;
+      }
+    }
+    next();
+  });
 
   app.enableCors({
     origin: allowedOrigins,
