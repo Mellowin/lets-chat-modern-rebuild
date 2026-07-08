@@ -229,8 +229,17 @@ jobs:
           DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
         run: |
           echo "🚀 Running prisma migrate deploy against production database..."
-          pnpm --filter @lets-chat/database migrate:deploy
-          echo "✅ Production migrations applied successfully."
+          for i in 1 2 3; do
+            echo "Attempt $i/3..."
+            if pnpm --filter @lets-chat/database migrate:deploy; then
+              echo "✅ Production migrations applied successfully."
+              exit 0
+            fi
+            echo "⚠️ Migration attempt $i failed. Retrying in 15s..."
+            sleep 15
+          done
+          echo "❌ Production migrations failed after 3 attempts."
+          exit 1
 
   deploy:
     name: Deploy API v2 to Render
