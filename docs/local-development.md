@@ -1,6 +1,8 @@
 # Local Development Guide
 
-This guide runs LetsChat entirely on your own computer using Docker for Postgres and Redis. It does **not** use Render Postgres.
+This guide runs LetsChat entirely on your own computer using Docker for Postgres, Redis and MinIO. It does **not** use Render Postgres.
+
+> **Render is deprecated for this project.** The Render Postgres free tier has expired and the production API is no longer reachable. Local development with Docker is now the source of truth. The Vercel frontend deployment may still be online, but it is **not a fully working production site** without a public API and database. To go back to public production later you will need a hosted Postgres provider and a hosted API (e.g., Render paid plan, Railway, Fly.io, AWS, Google Cloud, etc.).
 
 ## Prerequisites
 
@@ -160,6 +162,12 @@ pnpm --filter web test
 pnpm run build:api:prod
 pnpm --filter web build
 ```
+
+## CI and Render status
+
+GitHub Actions now runs the standard CI (lint, typecheck, tests, builds, API E2E with a local Postgres service, and a local infrastructure smoke test) on every push and pull request.
+
+The Render production migration/deploy jobs and the production verifier workflows have been moved to **manual `workflow_dispatch` only**. They are kept for recovery purposes but will not run automatically and will not turn the main CI red while Render is disabled.
 
 ## Important warnings
 

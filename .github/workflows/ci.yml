@@ -181,11 +181,13 @@ jobs:
             printf "::error::%s\n" "$line"
           done
 
-  migrate:
-    name: Migrate production database
+  migrate-production-render-manual:
+    name: Migrate production database (Render, manual only)
     needs: [ci, api-e2e]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    # Render production infrastructure is currently suspended/expired.
+    # This job is kept for manual recovery only; it does not run on normal pushes.
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
     outputs:
       should_deploy: ${{ steps.check.outputs.should_deploy }}
     steps:
@@ -241,14 +243,14 @@ jobs:
           echo "❌ Production migrations failed after 3 attempts."
           exit 1
 
-  deploy:
-    name: Deploy API v2 to Render
-    needs: [ci, migrate, api-e2e]
+  deploy-production-render-manual:
+    name: Deploy API v2 to Render (manual only)
+    needs: [ci, migrate-production-render-manual, api-e2e]
     runs-on: ubuntu-latest
     if: |
       github.ref == 'refs/heads/main' &&
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
-      needs.migrate.outputs.should_deploy == 'true'
+      github.event_name == 'workflow_dispatch' &&
+      needs.migrate-production-render-manual.outputs.should_deploy == 'true'
     steps:
       - name: Trigger Render deploy hook
         id: trigger
@@ -300,3 +302,89 @@ jobs:
           echo "❌ Production did not report expected commit within 10 minutes."
           echo "   Last version response: $VERSION"
           exit 1
+
+  local-smoke:
+    name: Local infrastructure smoke test
+    needs: [ci, api-e2e]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    env:
+      DATABASE_URL: postgresql://letschat:letschat@localhost:5432/letschat_local?schema=public
+      REDIS_URL: redis://localhost:6379
+      S3_ENDPOINT: http://localhost:9000
+      S3_REGION: us-east-1
+      S3_ACCESS_KEY: minioadmin
+      S3_SECRET_KEY: minioadmin
+      S3_BUCKET: letschat-uploads
+      S3_FORCE_PATH_STYLE: "true"
+      JWT_ACCESS_SECRET: ci-test-jwt-access-secret-min-32-characters-long
+      JWT_REFRESH_SECRET: ci-test-jwt-refresh-secret-min-32-characters-long
+      MAIL_PROVIDER: console
+      APP_WEB_URL: http://localhost:3000
+      NODE_ENV: development
+      PORT: 3001
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Start local Postgres, Redis and MinIO
+        run: docker compose up -d --wait
+
+      - name: Generate Prisma client
+        run: pnpm db:generate
+
+      - name: Apply migrations to local database
+        run: pnpm db:migrate:local
+
+      - name: Build API
+        run: pnpm run build:api:prod
+
+      - name: Start API in background
+        run: |
+          node apps/api/dist/src/main.js > api-smoke.log 2>&1 &
+          echo "API_PID=$!" >> "$GITHUB_ENV"
+
+      - name: Wait for API health
+        run: |
+          for i in $(seq 1 30); do
+            sleep 2
+            if curl -sf http://localhost:3001/api/v1/health > /dev/null; then
+              echo "✅ API is healthy (attempt $i)"
+              exit 0
+            fi
+            echo "⏳ Waiting for API... attempt $i/30"
+          done
+          echo "❌ API did not become healthy"
+          cat api-smoke.log || true
+          exit 1
+
+      - name: Check API version
+        run: |
+          echo "--- /version ---"
+          curl -sf http://localhost:3001/api/v1/version || true
+
+      - name: Stop API
+        if: always()
+        run: |
+          if [ -n "$API_PID" ]; then
+            kill "$API_PID" 2>/dev/null || true
+            wait "$API_PID" 2>/dev/null || true
+          fi
+          echo "--- API log ---"
+          cat api-smoke.log || true
+
+      - name: Tear down local infrastructure
+        if: always()
+        run: docker compose down

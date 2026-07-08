@@ -1,4 +1,8 @@
-name: Seed and verify production verifier accounts
+name: Manual — Seed and verify production verifier accounts (requires hosted DB)
+
+# ⚠️  Render production infrastructure is currently disabled.
+# This workflow is kept for manual use only and requires a working hosted
+# Postgres database. It does not run automatically.
 
 # Safe one-off job: seeds reusable verified accounts directly in the production
 # database (bypassing mail quota) and runs a subset of production verifiers in

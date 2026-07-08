@@ -271,17 +271,20 @@ pnpm --filter api typecheck
 
 ## 🚢 Deploy Flow
 
+> **Render is currently disabled** because the free Postgres tier expired. The project is now developed and tested locally with Docker Postgres/Redis/MinIO.
+
 ```text
-push main → GitHub Actions (lint/typecheck/test/build)
+push main → GitHub Actions (lint/typecheck/test/build + local E2E + local smoke)
                 ↓
-      Migrate production database
-                ↓
-      Deploy API v2 to Render
-                ↓
-      Vercel production deploy
-                ↓
-      smoke-deploy.mjs + verify-production-attachments.mjs + verify-production-groups.mjs + verify-production-contacts.mjs + verify-production-admin-reports.mjs + verify-production-demo.mjs
+      Vercel production deploy (frontend only)
 ```
+
+The Render production migration/deploy jobs and production verifier workflows are still in `.github/workflows/` but are now **manual `workflow_dispatch` only**. They are kept for recovery if a new hosted Postgres + hosted API is configured later.
+
+A public production deployment later requires:
+- hosted PostgreSQL (Render paid, Supabase, Railway, AWS RDS, Google Cloud SQL, etc.)
+- hosted Node.js API (Render, Railway, Fly.io, AWS, etc.)
+- updated `DATABASE_URL`, deploy hook and API URL environment variables
 
 No secrets, credentials, or DB URLs are committed to the repository.
 

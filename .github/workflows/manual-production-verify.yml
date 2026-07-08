@@ -1,4 +1,8 @@
-name: Production Verification
+name: Manual — Production Verification (requires hosted API/DB)
+
+# ⚠️  Render production infrastructure is currently disabled.
+# This workflow is kept for manual verification only and requires a working
+# hosted Postgres + hosted API (not Render). It does not run automatically.
 
 on:
   workflow_dispatch:
