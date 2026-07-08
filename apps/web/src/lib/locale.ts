@@ -179,6 +179,12 @@ export type TranslationKey =
   | "auth.resendVerification"
   | "auth.resendingVerification"
   | "auth.resendVerificationSuccess"
+  | "auth.resendVerificationHint"
+  | "auth.resendCooldown"
+  | "auth.resendLimitReached"
+  | "auth.spamFolderHint"
+  | "auth.verificationExpiredOrInvalid"
+  | "auth.emailNotVerifiedHint"
   | "auth.emailNotVerified"
   | "auth.signInAfterVerification"
   | "auth.backToSignIn"
@@ -937,6 +943,12 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "auth.resendVerification": "Resend verification email",
     "auth.resendingVerification": "Sending…",
     "auth.resendVerificationSuccess": "If the email exists and is not verified, a verification email has been sent.",
+    "auth.resendVerificationHint": "Didn’t receive the email? You can resend it.",
+    "auth.resendCooldown": "Resend available in {arg0}s",
+    "auth.resendLimitReached": "Too many resend attempts. Please wait a few minutes and try again.",
+    "auth.spamFolderHint": "Check your spam or junk folder if you don’t see it.",
+    "auth.verificationExpiredOrInvalid": "This verification link has expired or is invalid.",
+    "auth.emailNotVerifiedHint": "We sent a verification link to {arg0}. Please check your inbox.",
     "auth.emailNotVerified": "Please verify your email before signing in.",
     "auth.signInAfterVerification": "You can now sign in with your verified email.",
     "auth.backToSignIn": "Back to sign in",
@@ -1731,6 +1743,12 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "auth.resendVerification": "Надіслати лист повторно",
     "auth.resendingVerification": "Надсилаємо…",
     "auth.resendVerificationSuccess": "Якщо email існує та не підтверджений, лист надіслано.",
+    "auth.resendVerificationHint": "Не отримали листа? Можете надіслати повторно.",
+    "auth.resendCooldown": "Повторне надсилання через {arg0} с",
+    "auth.resendLimitReached": "Забагато спроб повторного надсилання. Зачекайте кілька хвилин і спробуйте ще раз.",
+    "auth.spamFolderHint": "Перевірте папку «Спам», якщо лист не видно.",
+    "auth.verificationExpiredOrInvalid": "Це посилання для підтвердження застаріло або недійсне.",
+    "auth.emailNotVerifiedHint": "Ми надіслали посилання для підтвердження на {arg0}. Перевірте пошту.",
     "auth.emailNotVerified": "Будь ласка, підтвердьте email перед входом.",
     "auth.signInAfterVerification": "Тепер ви можете увійти з підтвердженим email.",
     "auth.backToSignIn": "Назад до входу",
@@ -2525,6 +2543,12 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "auth.resendVerification": "Отправить письмо повторно",
     "auth.resendingVerification": "Отправляем…",
     "auth.resendVerificationSuccess": "Если email существует и не подтверждён, письмо отправлено.",
+    "auth.resendVerificationHint": "Не получили письмо? Можете отправить повторно.",
+    "auth.resendCooldown": "Повторная отправка через {arg0} с",
+    "auth.resendLimitReached": "Слишком много попыток повторной отправки. Подождите несколько минут и попробуйте снова.",
+    "auth.spamFolderHint": "Проверьте папку «Спам», если письмо не видно.",
+    "auth.verificationExpiredOrInvalid": "Эта ссылка для подтверждения устарела или недействительна.",
+    "auth.emailNotVerifiedHint": "Мы отправили ссылку для подтверждения на {arg0}. Проверьте почту.",
     "auth.emailNotVerified": "Пожалуйста, подтвердите email перед входом.",
     "auth.signInAfterVerification": "Теперь вы можете войти с подтверждённым email.",
     "auth.backToSignIn": "Назад ко входу",

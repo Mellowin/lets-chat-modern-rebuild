@@ -11,7 +11,7 @@ All scripts are located in `scripts/` and are exposed as root package scripts.
 | Script | Command | What it verifies | Data created | Cleanup |
 |---|---|---|---|---|
 | **Public smoke** | `pnpm verify:prod:public` | Wraps `scripts/smoke-deploy.mjs`. Public web/API endpoints, protected auth rejections, avatar fallback. | None | N/A |
-| **Auth flow** | `pnpm verify:prod:auth` | Registers a disposable Mail.tm account, verifies email, logs in, refreshes tokens, validates new token, logs out, confirms revoked refresh token is rejected. | One disposable account | None (API has no self-delete) |
+| **Auth flow** | `pnpm verify:prod:auth` | Registers a disposable Mail.tm account, verifies email, logs in, refreshes tokens, validates new token, logs out, confirms revoked refresh token is rejected. Also exercises the resend-verification UX introduced in B229. | One disposable account | None (API has no self-delete) |
 | **Permissions** | `pnpm verify:prod:permissions` | Owner vs member permissions: workspace/channel creation, channel invite/accept, member cannot delete channel, owner can delete channel/workspace, deleted content is invisible and excluded from search. | Owner account, member account, one workspace, one channel | Workspace is deleted at the end when destructive tests are enabled |
 | **Browser sanity** | `pnpm verify:prod:browser` | Playwright checks: public login page, authenticated dashboard/workspace/channel, B202C workspace-search validation, owner delete affordances, non-owner hidden delete UI, mobile viewport smoke. | Owner account, member account, one workspace, one channel | Workspace is deleted at the end |
 | **PWA** | `pnpm verify:prod:pwa` | Checks manifest validity, service worker presence, offline fallback, icons, and manifest link in HTML. | None | N/A |
@@ -292,6 +292,20 @@ The main `CI` workflow also runs the API E2E security smoke tests (`apps/api/tes
 - PWA checks assume the production build has exposed `/manifest.webmanifest`, `/service-worker.js`, and `/offline.html`.
 - Mobile shell QA opens a visible Chromium window by default (`headless: false`) because some PWA APIs are only available in real browsers. Set `HEADLESS=true` to run headlessly.
 - The pack verifies behavior against the live production deployment. Do not run destructive tests against a shared staging environment that other people are using.
+
+---
+
+## Email deliverability and verification UX
+
+B229 improved the post-registration, resend-verification, unverified-login, and verification-result UX. For details on provider failures, fallback configuration, and DNS recommendations, see `docs/email-deliverability.md`.
+
+When running the auth flow verifier:
+
+- It creates a disposable Mail.tm inbox if no reusable account pool is configured.
+- It asserts that the registration success screen shows the target email and a resend action.
+- It verifies the email via the link, then logs in with the now-verified account.
+
+If Resend is quota-exhausted, the auth verifier will fail with the localized `registrationUnavailable` message unless a reusable verified pool is configured.
 
 ---
 

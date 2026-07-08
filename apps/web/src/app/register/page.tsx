@@ -15,6 +15,7 @@ import {
 import { register, resendVerification } from "@/lib/auth-api";
 import { useLocale } from "@/lib/locale";
 import { localizeApiError } from "@/lib/api-errors";
+import { useResendCooldown } from "@/lib/use-resend-cooldown";
 import { Button } from "@/components/ui/Button";
 import {
   Card,
@@ -31,7 +32,7 @@ type FormState =
   | { kind: "success"; email: string }
   | { kind: "error"; message: string }
   | { kind: "resend-loading"; email: string }
-  | { kind: "resend-success"; message: string };
+  | { kind: "resend-success" };
 
 function Alert({
   variant,
@@ -78,6 +79,9 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [formState, setFormState] = useState<FormState>({ kind: "idle" });
+  const [successEmail, setSuccessEmail] = useState("");
+  const { cooldown, limitReached, canResend, startCooldown } =
+    useResendCooldown();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -97,6 +101,7 @@ export default function RegisterPage() {
         username: username.trim(),
         password,
       });
+      setSuccessEmail(data.email);
       setFormState({ kind: "success", email: data.email });
     } catch (err) {
       setFormState({
@@ -107,14 +112,16 @@ export default function RegisterPage() {
   }
 
   async function handleResend() {
+    if (!canResend) return;
     const targetEmail =
       formState.kind === "success" || formState.kind === "resend-loading"
         ? formState.email
-        : email;
+        : successEmail || email;
     setFormState({ kind: "resend-loading", email: targetEmail });
     try {
-      const data = await resendVerification({ email: targetEmail });
-      setFormState({ kind: "resend-success", message: data.message });
+      await resendVerification({ email: targetEmail });
+      startCooldown();
+      setFormState({ kind: "resend-success" });
     } catch (err) {
       setFormState({
         kind: "error",
@@ -130,7 +137,7 @@ export default function RegisterPage() {
   const displayEmail =
     formState.kind === "success" || formState.kind === "resend-loading"
       ? formState.email
-      : email;
+      : successEmail || email;
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center p-4 sm:p-6">
@@ -149,25 +156,50 @@ export default function RegisterPage() {
                   {t("auth.verificationEmailSent")}{" "}
                   <span className="font-semibold">{displayEmail}</span>
                 </p>
+                <p className="mt-2 text-xs opacity-80">
+                  {t("auth.spamFolderHint")}
+                </p>
               </Alert>
 
               {formState.kind === "resend-success" && (
                 <Alert variant="success">
-                  <span className="font-medium">{formState.message}</span>
+                  <span className="font-medium">
+                    {t("auth.resendVerificationSuccess")}
+                  </span>
                 </Alert>
               )}
 
-              <Button
-                type="button"
-                variant="secondary"
-                className="w-full"
-                onClick={handleResend}
-                disabled={formState.kind === "resend-loading"}
-              >
-                {formState.kind === "resend-loading"
-                  ? t("auth.resendingVerification")
-                  : t("auth.resendVerification")}
-              </Button>
+              {limitReached ? (
+                <Alert variant="error">
+                  <span className="font-medium">
+                    {t("auth.resendLimitReached")}
+                  </span>
+                </Alert>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    {t("auth.resendVerificationHint")}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="w-full"
+                    onClick={handleResend}
+                    disabled={formState.kind === "resend-loading" || !canResend}
+                  >
+                    {formState.kind === "resend-loading" ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        {t("auth.resendingVerification")}
+                      </>
+                    ) : cooldown > 0 ? (
+                      t("auth.resendCooldown", String(cooldown))
+                    ) : (
+                      t("auth.resendVerification")
+                    )}
+                  </Button>
+                </div>
+              )}
 
               <Button asChild variant="primary" className="w-full">
                 <Link href="/login">{t("auth.signIn")}</Link>

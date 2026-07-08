@@ -14,6 +14,7 @@ import {
 import { verifyEmail, resendVerification } from "@/lib/auth-api";
 import { useLocale } from "@/lib/locale";
 import { localizeApiError } from "@/lib/api-errors";
+import { useResendCooldown } from "@/lib/use-resend-cooldown";
 import { Button } from "@/components/ui/Button";
 import {
   Card,
@@ -29,8 +30,7 @@ type VerifyState =
   | { kind: "success" }
   | { kind: "error"; message: string }
   | { kind: "missing-token" }
-  | { kind: "resend-loading" }
-  | { kind: "resend-success"; message: string };
+  | { kind: "resend-success" };
 
 function Alert({
   variant,
@@ -73,12 +73,15 @@ function BrandHero() {
   );
 }
 
-export default function VerifyEmailPage() {
+export default function VerifyEmailContent() {
   const { t } = useLocale();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
   const [verifyState, setVerifyState] = useState<VerifyState>({ kind: "idle" });
   const [emailInput, setEmailInput] = useState("");
+  const [isResending, setIsResending] = useState(false);
+  const { cooldown, limitReached, canResend, startCooldown } =
+    useResendCooldown();
 
   const doVerify = useCallback(
     async (verifyToken: string) => {
@@ -107,16 +110,19 @@ export default function VerifyEmailPage() {
 
   async function handleResend() {
     const email = emailInput.trim();
-    if (!email) return;
-    setVerifyState({ kind: "resend-loading" });
+    if (!email || !canResend) return;
+    setIsResending(true);
     try {
-      const data = await resendVerification({ email });
-      setVerifyState({ kind: "resend-success", message: data.message });
+      await resendVerification({ email });
+      startCooldown();
+      setVerifyState({ kind: "resend-success" });
     } catch (err) {
       setVerifyState({
         kind: "error",
         message: localizeApiError(err, "auth.emailVerificationFailed", t),
       });
+    } finally {
+      setIsResending(false);
     }
   }
 
@@ -165,12 +171,17 @@ export default function VerifyEmailPage() {
           {verifyState.kind === "error" && (
             <>
               <Alert variant="error">
-                <span className="font-medium">{verifyState.message}</span>
+                <div className="font-medium">
+                  {t("auth.verificationExpiredOrInvalid")}
+                </div>
+                <p className="mt-1 text-xs opacity-90">
+                  {verifyState.message}
+                </p>
               </Alert>
 
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">
-                  {t("auth.resendVerification")}
+                  {t("auth.resendVerificationHint")}
                 </p>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -185,14 +196,36 @@ export default function VerifyEmailPage() {
                     className="pl-9"
                   />
                 </div>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="w-full"
-                  onClick={handleResend}
-                >
-                  {t("auth.resendVerification")}
-                </Button>
+                {limitReached ? (
+                  <Alert variant="error">
+                    <span className="font-medium">
+                      {t("auth.resendLimitReached")}
+                    </span>
+                  </Alert>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="w-full"
+                    onClick={handleResend}
+                    disabled={
+                      isResending ||
+                      !emailInput.trim() ||
+                      !canResend
+                    }
+                  >
+                    {isResending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        {t("auth.resendingVerification")}
+                      </>
+                    ) : cooldown > 0 ? (
+                      t("auth.resendCooldown", String(cooldown))
+                    ) : (
+                      t("auth.resendVerification")
+                    )}
+                  </Button>
+                )}
               </div>
 
               <Button asChild variant="primary" className="w-full">
@@ -202,9 +235,16 @@ export default function VerifyEmailPage() {
           )}
 
           {verifyState.kind === "resend-success" && (
-            <Alert variant="success">
-              <span className="font-medium">{verifyState.message}</span>
-            </Alert>
+            <>
+              <Alert variant="success">
+                <span className="font-medium">
+                  {t("auth.resendVerificationSuccess")}
+                </span>
+              </Alert>
+              <Button asChild variant="primary" className="w-full">
+                <Link href="/login">{t("auth.backToSignIn")}</Link>
+              </Button>
+            </>
           )}
         </CardContent>
       </Card>

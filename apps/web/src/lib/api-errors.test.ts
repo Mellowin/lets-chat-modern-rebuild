@@ -106,6 +106,24 @@ describe("localizeApiError", () => {
     expect(result).toBe("This username is already taken.");
   });
 
+  it("maps 'email not verified' to localized message", () => {
+    const result = localizeApiError(
+      new Error("Email not verified"),
+      "auth.loginFailed",
+      t(),
+    );
+    expect(result).toBe("Please verify your email before signing in.");
+  });
+
+  it("maps 'invalid or expired verification token' to invite expired message", () => {
+    const result = localizeApiError(
+      new Error("Invalid or expired verification token"),
+      "auth.emailVerificationFailed",
+      t(),
+    );
+    expect(result).toBe("Invite link is invalid or expired.");
+  });
+
   it("falls back for non-Error values", () => {
     const result = localizeApiError(null, "errors.generic", t());
     expect(result).toBe("Something went wrong. Please try again.");
