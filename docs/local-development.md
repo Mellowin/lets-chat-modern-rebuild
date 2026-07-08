@@ -166,6 +166,19 @@ Use this when you want to preview the deployed Vercel frontend while your own lo
 
 5. Open `/project-status` on Vercel while in development (or when an override is active) to see the currently active API URL and a reset button.
 
+6. **Browser Local Network Access.** Modern Chromium browsers (Chrome/Edge 142+) restrict public HTTPS pages from calling `http://localhost`. The first time the Vercel UI tries to reach your local API you should see a permission prompt such as "lets-chat-web.vercel.app wants to look for and connect to devices on your local network." Choose **Allow**. If no prompt appears, open `chrome://settings/content/localNetworkAccess` and allow `https://lets-chat-web.vercel.app`.
+
+   The local API also returns `Access-Control-Allow-Private-Network: true` on CORS preflights so older Private Network Access enforcement passes once permission is granted.
+
+   Workarounds if you cannot grant the permission:
+
+   - **Automated / temporary bypass:** Launch Chrome with the flags
+     ```text
+     --disable-features=LocalNetworkAccessChecks,PrivateNetworkAccessSendPreflights,PrivateNetworkAccessRespectPreflightResults
+     ```
+   - **Public HTTPS tunnel:** Expose `localhost:3001` via ngrok or cloudflared and set `letsChatApiUrl` to the tunnel URL (e.g., `https://your-tunnel.ngrok-free.app/api/v1`). This avoids the loopback restriction because both origin and target are public addresses.
+   - **Use Firefox** for this development mode, because Firefox does not enforce Local Network Access at this time.
+
 To switch back to the env-based URLs, run:
 
 ```js
