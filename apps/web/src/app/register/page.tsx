@@ -25,6 +25,7 @@ import {
   CardTitle,
 } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
+import LocalApiHint from "@/components/LocalApiHint";
 
 type FormState =
   | { kind: "idle" }
@@ -142,6 +143,7 @@ export default function RegisterPage() {
   return (
     <div className="flex flex-1 flex-col items-center justify-center p-4 sm:p-6">
       <BrandHero />
+      <LocalApiHint />
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <CardTitle>{t("auth.registerTitle")}</CardTitle>
