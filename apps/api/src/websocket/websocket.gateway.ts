@@ -16,9 +16,23 @@ import { GroupsRepository } from '../groups/groups.repository';
 import { PresenceService } from './presence.service';
 import { WebsocketRedisAdapterService } from './websocket-redis-adapter.service';
 
+const isProduction = process.env.NODE_ENV === 'production';
+
+const developmentOrigins = [
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'http://localhost:3001',
+  'http://127.0.0.1:3001',
+  'https://lets-chat-web.vercel.app',
+];
+
+const productionOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000'];
+
 const websocketCorsOrigin = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map((origin) => origin.trim())
-  : ['http://localhost:3000', 'http://127.0.0.1:3000'];
+  : isProduction
+    ? productionOrigins
+    : developmentOrigins;
 
 function isValidUUID(value: unknown): value is string {
   return (

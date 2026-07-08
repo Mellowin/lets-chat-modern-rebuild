@@ -113,7 +113,68 @@ curl http://localhost:3001/api/v1/version
 
 Open the web app: http://localhost:3000
 
-## 9. Manual register → verify → login flow (Mailpit)
+## 9. Development modes
+
+You can use LetsChat locally in two configurations.
+
+### A. Fully local
+
+- Web: `http://localhost:3000`
+- API: `http://localhost:3001`
+- Mailpit: `http://localhost:8025`
+
+This is the default after following the steps above. Both the web app and the API run on your computer.
+
+### B. Vercel UI shell + local API
+
+- Web: `https://lets-chat-web.vercel.app`
+- API: `http://localhost:3001`
+- Mailpit: `http://localhost:8025`
+
+Use this when you want to preview the deployed Vercel frontend while your own local API, Postgres, Redis and Mailpit handle data and email.
+
+1. Start local infrastructure and the API as described above.
+2. Make sure the local API allows the Vercel origin. `.env.example` already sets:
+
+   ```text
+   CORS_ORIGIN=http://localhost:3000,http://127.0.0.1:3000,https://lets-chat-web.vercel.app
+   ```
+
+   If your `.env` overrides `CORS_ORIGIN`, keep the Vercel URL in the comma-separated list.
+
+3. Optional: if you want verification emails from the local API to link back to Vercel, set:
+
+   ```text
+   APP_WEB_URL=https://lets-chat-web.vercel.app
+   ```
+
+   Then restart the API. If you skip this, the links in Mailpit still point to `http://localhost:3000`; you can copy the `token=` value from the link and paste it into the Vercel `/verify-email` page.
+
+4. Open `https://lets-chat-web.vercel.app` in your browser and run the following in the DevTools console to point the frontend at your local API:
+
+   ```js
+   localStorage.setItem("letsChatApiUrl", "http://localhost:3001/api/v1");
+   localStorage.setItem("letsChatWsUrl", "ws://localhost:3001");
+   location.reload();
+   ```
+
+   Or use the query-string shortcut (the values are persisted to `localStorage` automatically):
+
+   ```text
+   https://lets-chat-web.vercel.app/?apiUrl=http://localhost:3001/api/v1&wsUrl=ws://localhost:3001
+   ```
+
+5. Open `/project-status` on Vercel while in development (or when an override is active) to see the currently active API URL and a reset button.
+
+To switch back to the env-based URLs, run:
+
+```js
+localStorage.removeItem("letsChatApiUrl");
+localStorage.removeItem("letsChatWsUrl");
+location.reload();
+```
+
+## 10. Manual register → verify → login flow (Mailpit)
 
 The local `.env` uses Mailpit as the SMTP target, so verification emails are caught by Mailpit instead of being sent over the internet.
 
@@ -143,7 +204,7 @@ The local `.env` uses Mailpit as the SMTP target, so verification emails are cau
 
 If the verification link expires, go back to the login page, enter the credentials, and use the **Resend verification email** action.
 
-## 10. Automated local smoke test
+## 11. Automated local smoke test
 
 A headless register → verify → login smoke test is also available:
 

@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useLocale } from "@/lib/locale";
+import ApiUrlOverridePanel from "./ApiUrlOverridePanel";
 
 function StatusItem({ children }: { children: React.ReactNode }) {
   return (
@@ -77,6 +78,8 @@ export default function ProjectStatusContent() {
       <p className="text-sm text-muted-foreground">
         {t("projectStatus.inProgressNote")}
       </p>
+
+      <ApiUrlOverridePanel />
 
       <Card>
         <CardHeader>

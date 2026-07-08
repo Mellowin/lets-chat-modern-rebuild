@@ -42,11 +42,24 @@ async function bootstrap() {
   );
 
   const corsOrigin = configService.get<string>('CORS_ORIGIN');
+  const isProduction = configService.get<string>('NODE_ENV') === 'production';
+
+  const developmentOrigins = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://localhost:3001',
+    'http://127.0.0.1:3001',
+    'https://lets-chat-web.vercel.app',
+  ];
+  const productionOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000'];
+
   const allowedOrigins = corsOrigin
     ? corsOrigin.split(',').map((o) => o.trim())
-    : ['http://localhost:3000', 'http://127.0.0.1:3000'];
+    : isProduction
+      ? productionOrigins
+      : developmentOrigins;
 
-  if (configService.get<string>('NODE_ENV') === 'production' && !corsOrigin) {
+  if (isProduction && !corsOrigin) {
     logger.warn(
       'CORS_ORIGIN is not set in production. Falling back to localhost origins, which will block real frontend requests.',
     );
