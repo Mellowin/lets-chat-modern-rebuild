@@ -1,0 +1,147 @@
+name: Seed and verify production verifier accounts
+
+# Safe one-off job: seeds reusable verified accounts directly in the production
+# database (bypassing mail quota) and runs a subset of production verifiers in
+# reusable-pool mode. No public API or web route is used for seeding.
+
+on:
+  workflow_dispatch:
+    inputs:
+      verifiers:
+        description: "Verifier scripts to run (comma-separated)"
+        type: string
+        default: "public,auth,permissions"
+
+permissions:
+  contents: read
+
+env:
+  VERIFY_WEB_BASE: ${{ vars.VERIFICATION_WEB_URL || 'https://lets-chat-web.vercel.app' }}
+  VERIFY_API_BASE: ${{ vars.VERIFICATION_API_URL || 'https://lets-chat-api-v2.onrender.com/api/v1' }}
+
+jobs:
+  seed-and-verify:
+    name: Seed accounts and run production verifiers
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @lets-chat/database generate
+
+      - name: Build shared package
+        run: pnpm --filter @lets-chat/shared build
+
+      - name: Build database package
+        run: pnpm --filter @lets-chat/database build
+
+      - name: Prepare reusable account pool
+        id: pool
+        env:
+          POOL_SECRET: ${{ secrets.VERIFY_ACCOUNT_POOL_JSON }}
+        run: |
+          set -e
+          if [ -n "$POOL_SECRET" ]; then
+            POOL="$POOL_SECRET"
+          else
+            POOL="["
+            for i in 1 2 3 4 5; do
+              PASS="$(openssl rand -base64 32)"
+              EMAIL="verify_${GITHUB_RUN_ID}_${i}@example.com"
+              USERNAME="verify_${GITHUB_RUN_ID}_${i}"
+              [ "$i" -gt 1 ] && POOL="${POOL},"
+              POOL="${POOL}{\"email\":\"${EMAIL}\",\"username\":\"${USERNAME}\",\"password\":\"${PASS}\"}"
+              echo "::add-mask::${PASS}"
+              echo "::add-mask::${EMAIL}"
+            done
+            POOL="${POOL}]"
+          fi
+          MASKED=$(node -e '
+            const pool = JSON.parse(process.argv[1]);
+            console.log(pool.map(a => {
+              const [local, domain] = a.email.split("@");
+              const visible = local.length > 4 ? local.slice(0, 2) + "***" + local.slice(-2) : "***";
+              return `${visible}@${domain}`;
+            }).join(", "));
+          ' "$POOL")
+          {
+            echo "pool<<SEED_POOL_EOF"
+            echo "$POOL"
+            echo "SEED_POOL_EOF"
+            echo "masked=$MASKED"
+          } >> "$GITHUB_OUTPUT"
+          echo "Seeding reusable verifier accounts: $MASKED"
+
+      - name: Seed accounts in production database
+        id: seed
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          VERIFY_ACCOUNT_POOL_JSON: ${{ steps.pool.outputs.pool }}
+        run: pnpm verify:seed-accounts
+
+      - name: Run public smoke
+        if: ${{ contains(inputs.verifiers, 'public') }}
+        env:
+          WEB_URL: ${{ env.VERIFY_WEB_BASE }}
+          API_URL: ${{ env.VERIFY_API_BASE }}
+          VERIFY_ACCOUNT_POOL_JSON: ${{ steps.pool.outputs.pool }}
+        run: pnpm verify:prod:public
+
+      - name: Run auth flow
+        if: ${{ contains(inputs.verifiers, 'auth') }}
+        env:
+          VERIFY_ACCOUNT_POOL_JSON: ${{ steps.pool.outputs.pool }}
+        run: pnpm verify:prod:auth
+
+      - name: Run permissions
+        if: ${{ contains(inputs.verifiers, 'permissions') }}
+        env:
+          VERIFY_ACCOUNT_POOL_JSON: ${{ steps.pool.outputs.pool }}
+          VERIFY_PERMISSIONS_ENABLE_DESTRUCTIVE: "1"
+        run: pnpm verify:prod:permissions
+
+      - name: Run safety
+        if: ${{ contains(inputs.verifiers, 'safety') }}
+        env:
+          VERIFY_ACCOUNT_POOL_JSON: ${{ steps.pool.outputs.pool }}
+        run: pnpm verify:prod:safety
+
+      - name: Run browser sanity
+        if: ${{ contains(inputs.verifiers, 'browser') }}
+        env:
+          VERIFY_ACCOUNT_POOL_JSON: ${{ steps.pool.outputs.pool }}
+        run: pnpm verify:prod:browser
+
+      - name: Fetch Render version
+        id: version
+        if: always()
+        run: |
+          VERSION=$(curl -sf "${VERIFY_API_BASE}/version" || echo '{}')
+          echo "render-version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Render version: $VERSION"
+
+      - name: Final report
+        if: always()
+        env:
+          MASKED: ${{ steps.pool.outputs.masked }}
+          VERSION: ${{ steps.version.outputs.render-version }}
+        run: |
+          echo "## B228 Production Verification Report" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Run ID:** ${{ github.run_id }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Render /version:** ${VERSION:-'(unknown)'}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Masked accounts:** ${MASKED:-'(unknown)'}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Seed result:** ${{ steps.seed.outcome == 'success' && '✅ success' || '❌ failure' }}" >> "$GITHUB_STEP_SUMMARY"
