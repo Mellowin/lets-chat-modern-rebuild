@@ -673,7 +673,7 @@ describe("ProfilePage — authenticated", () => {
       await userEvent.type(screen.getByPlaceholderText(/you@example.com/i), "taken@example.com");
       await userEvent.click(screen.getByRole("button", { name: /Request change/i }));
 
-      expect(await screen.findByText(/Email change failed/i)).toBeInTheDocument();
+      expect(await screen.findByText(/This email is already registered/i)).toBeInTheDocument();
     });
   });
 });

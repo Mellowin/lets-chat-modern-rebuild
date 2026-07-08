@@ -26,9 +26,10 @@ const MESSAGE_MAP: Record<string, TranslationKey> = {
   "invalid or expired verification token": "errors.inviteExpiredOrInvalid",
   "invalid or expired reset token": "errors.inviteExpiredOrInvalid",
   "invalid or expired email change token": "errors.inviteExpiredOrInvalid",
+  "email already in use": "errors.emailAlreadyExists",
   "email already registered": "errors.emailAlreadyExists",
   "email already exists": "errors.emailAlreadyExists",
-  "username already taken": "errors.generic",
+  "username already taken": "errors.usernameAlreadyTaken",
   "too many requests": "errors.tooManyRequests",
   "mail provider quota exceeded": "errors.registrationUnavailable",
   "email delivery is temporarily unavailable. please try again later": "errors.registrationUnavailable",
@@ -78,6 +79,7 @@ export function localizeApiError(
     if (normalized.includes("internal server error")) return t("errors.internalServerError");
     if (normalized.includes("invalid credentials")) return t("errors.invalidCredentials");
     if (normalized.includes("email not verified")) return t("errors.emailNotVerified");
+    if (normalized.includes("email already in use")) return t("errors.emailAlreadyExists");
     if (normalized.includes("email delivery is temporarily unavailable")) return t("errors.registrationUnavailable");
     if (normalized.includes("mail provider quota exceeded")) return t("errors.registrationUnavailable");
     if (normalized.includes("mail_provider_quota_exceeded")) return t("errors.registrationUnavailable");

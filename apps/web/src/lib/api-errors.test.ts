@@ -88,6 +88,24 @@ describe("localizeApiError", () => {
     expect(result).toBe("Registration failed");
   });
 
+  it("maps 'email already in use' to email already exists", () => {
+    const result = localizeApiError(
+      new Error("Email already in use"),
+      "auth.registrationFailed",
+      t(),
+    );
+    expect(result).toBe("This email is already registered.");
+  });
+
+  it("maps 'username already taken' to username already taken", () => {
+    const result = localizeApiError(
+      new Error("Username already taken"),
+      "auth.registrationFailed",
+      t(),
+    );
+    expect(result).toBe("This username is already taken.");
+  });
+
   it("falls back for non-Error values", () => {
     const result = localizeApiError(null, "errors.generic", t());
     expect(result).toBe("Something went wrong. Please try again.");

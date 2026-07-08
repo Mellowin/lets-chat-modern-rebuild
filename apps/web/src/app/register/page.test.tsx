@@ -153,11 +153,11 @@ describe("RegisterPage", () => {
   });
 
   it("shows backend error and does not redirect", async () => {
-    vi.mocked(register).mockRejectedValueOnce(new Error("Email already in use"));
+    vi.mocked(register).mockRejectedValueOnce(new Error("Some backend error"));
 
     render(<RegisterPage />);
 
-    await userEvent.type(screen.getByLabelText(/Email/i), "taken@example.com");
+    await userEvent.type(screen.getByLabelText(/Email/i), "backend@example.com");
     await userEvent.type(screen.getByLabelText(/Username/i), "alice");
     await userEvent.type(screen.getByLabelText(/^Password$/i), "password123");
     await userEvent.click(screen.getByRole("button", { name: /Create account/i }));
@@ -206,6 +206,34 @@ describe("RegisterPage", () => {
     expect(
       await screen.findByText(/Registration is temporarily unavailable/i),
     ).toBeInTheDocument();
+    expect(screen.queryByText(/Registration failed/i)).not.toBeInTheDocument();
+  });
+
+  it("shows email already in use message", async () => {
+    vi.mocked(register).mockRejectedValueOnce(new Error("Email already in use"));
+
+    render(<RegisterPage />);
+
+    await userEvent.type(screen.getByLabelText(/Email/i), "taken@example.com");
+    await userEvent.type(screen.getByLabelText(/Username/i), "alice");
+    await userEvent.type(screen.getByLabelText(/^Password$/i), "password123");
+    await userEvent.click(screen.getByRole("button", { name: /Create account/i }));
+
+    expect(await screen.findByText(/This email is already registered/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Registration failed/i)).not.toBeInTheDocument();
+  });
+
+  it("shows username already taken message", async () => {
+    vi.mocked(register).mockRejectedValueOnce(new Error("Username already taken"));
+
+    render(<RegisterPage />);
+
+    await userEvent.type(screen.getByLabelText(/Email/i), "new@example.com");
+    await userEvent.type(screen.getByLabelText(/Username/i), "alice");
+    await userEvent.type(screen.getByLabelText(/^Password$/i), "password123");
+    await userEvent.click(screen.getByRole("button", { name: /Create account/i }));
+
+    expect(await screen.findByText(/This username is already taken/i)).toBeInTheDocument();
     expect(screen.queryByText(/Registration failed/i)).not.toBeInTheDocument();
   });
 

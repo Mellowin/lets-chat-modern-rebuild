@@ -622,6 +622,7 @@ export type TranslationKey =
   | "errors.emailNotVerified"
   | "errors.userNotFound"
   | "errors.emailAlreadyExists"
+  | "errors.usernameAlreadyTaken"
   | "errors.workspaceNotFound"
   | "errors.channelNotFound"
   | "errors.conversationNotFound"
@@ -1416,6 +1417,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "errors.emailNotVerified": "Please verify your email before signing in.",
     "errors.userNotFound": "User not found.",
     "errors.emailAlreadyExists": "This email is already registered.",
+    "errors.usernameAlreadyTaken": "This username is already taken.",
     "errors.workspaceNotFound": "Workspace not found.",
     "errors.channelNotFound": "Channel not found.",
     "errors.conversationNotFound": "Conversation not found.",
@@ -2209,6 +2211,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "errors.emailNotVerified": "Будь ласка, підтвердьте email перед входом.",
     "errors.userNotFound": "Користувача не знайдено.",
     "errors.emailAlreadyExists": "Цей email уже зареєстрований.",
+    "errors.usernameAlreadyTaken": "Це імʼя користувача вже зайняте.",
     "errors.workspaceNotFound": "Робочий простір не знайдено.",
     "errors.channelNotFound": "Канал не знайдено.",
     "errors.conversationNotFound": "Розмову не знайдено.",
@@ -3002,6 +3005,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "errors.emailNotVerified": "Пожалуйста, подтвердите email перед входом.",
     "errors.userNotFound": "Пользователь не найден.",
     "errors.emailAlreadyExists": "Этот email уже зарегистрирован.",
+    "errors.usernameAlreadyTaken": "Это имя пользователя уже занято.",
     "errors.workspaceNotFound": "Рабочее пространство не найдено.",
     "errors.channelNotFound": "Канал не найден.",
     "errors.conversationNotFound": "Разговор не найден.",
