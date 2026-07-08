@@ -319,7 +319,13 @@ jobs:
       S3_FORCE_PATH_STYLE: "true"
       JWT_ACCESS_SECRET: ci-test-jwt-access-secret-min-32-characters-long
       JWT_REFRESH_SECRET: ci-test-jwt-refresh-secret-min-32-characters-long
-      MAIL_PROVIDER: console
+      MAIL_PROVIDER: smtp
+      SMTP_HOST: localhost
+      SMTP_PORT: 1025
+      SMTP_SECURE: "false"
+      SMTP_USER: mailpit
+      SMTP_PASS: mailpit
+      SMTP_FROM: noreply@example.com
       APP_WEB_URL: http://localhost:3000
       NODE_ENV: development
       PORT: 3001
@@ -339,7 +345,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Start local Postgres, Redis and MinIO
+      - name: Start local Postgres, Redis, MinIO and Mailpit
         run: docker compose up -d --wait
 
       - name: Generate Prisma client
@@ -374,6 +380,9 @@ jobs:
         run: |
           echo "--- /version ---"
           curl -sf http://localhost:3001/api/v1/version || true
+
+      - name: Run local register → verify → login smoke
+        run: pnpm smoke:local
 
       - name: Stop API
         if: always()

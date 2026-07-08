@@ -790,6 +790,48 @@ describe('MailService — SMTP fallback', () => {
     expect(sendMailMock).toHaveBeenCalledTimes(1);
   });
 
+  it('sends verification email via local SMTP (Mailpit) config', async () => {
+    configService.get.mockImplementation((key: string, fallback?: unknown) => {
+      const values: Record<string, unknown> = {
+        MAIL_PROVIDER: 'smtp',
+        SMTP_HOST: 'localhost',
+        SMTP_PORT: 1025,
+        SMTP_SECURE: 'false',
+        SMTP_USER: 'mailpit',
+        SMTP_PASS: 'mailpit',
+        SMTP_FROM: 'noreply@example.com',
+      };
+      return key in values ? values[key] : fallback;
+    });
+    configService.getOrThrow.mockReturnValue('http://localhost:3000');
+    sendMailMock.mockResolvedValue({});
+
+    await service.sendVerificationEmail({
+      to: 'local-test@example.com',
+      token: 'local-token',
+    });
+
+    expect(nodemailer.createTransport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        host: 'localhost',
+        port: 1025,
+        secure: false,
+        auth: { user: 'mailpit', pass: 'mailpit' },
+      }),
+    );
+    expect(sendMailMock).toHaveBeenCalledTimes(1);
+
+    const sent = sendMailMock.mock.calls[0][0];
+    expect(sent.to).toBe('local-test@example.com');
+    expect(sent.subject).toBe('Verify your email address for Lets Chat');
+    expect(sent.text).toContain(
+      'http://localhost:3000/verify-email?token=local-token',
+    );
+    expect(sent.html).toContain(
+      'http://localhost:3000/verify-email?token=local-token',
+    );
+  });
+
   it('uses secure transport when SMTP_SECURE is true', async () => {
     givenFallbackConfig({ SMTP_SECURE: 'true', SMTP_PORT: 465 });
     jest.spyOn(global, 'fetch').mockRejectedValue(new Error('network'));
