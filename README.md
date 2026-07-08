@@ -177,6 +177,8 @@ secure-collab-platform/
 
 ## 🏁 Quick Start
 
+For a detailed Windows PowerShell walkthrough, see [`docs/local-development.md`](docs/local-development.md).
+
 ### Prerequisites
 
 - Node.js 20+
@@ -203,28 +205,23 @@ pnpm --filter api push:generate-vapid-keys
 
 Then paste the keys into `.env` as `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and set `VAPID_SUBJECT` to a URL or `mailto:` address you control.
 
-### 3. Start infrastructure
+### 3. Start local infrastructure
 
 ```bash
-docker compose up -d
+pnpm db:local:up
 ```
 
-### 4. Run database migrations
+### 4. Generate Prisma client and run migrations
 
 ```bash
-pnpm --filter @lets-chat/database migrate
+pnpm db:generate
+pnpm db:migrate:local
 ```
 
-### 5. Generate Prisma Client
+### 5. Start API (development)
 
 ```bash
-pnpm --filter @lets-chat/database generate
-```
-
-### 6. Start API (development)
-
-```bash
-pnpm --filter api start:dev
+pnpm dev:api
 ```
 
 ### 7. Start Web (development)
