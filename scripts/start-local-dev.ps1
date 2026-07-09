@@ -8,17 +8,19 @@
     - Makes sure Docker is running and starts postgres/redis/minio/mailpit.
     - Ensures .env exists, loads it, and fills missing local-only defaults.
     - Runs pnpm install, Prisma generate and migrations.
-    - Starts API and Web in separate minimized PowerShell windows.
-    - Opens http://localhost:3000 when ready.
+    - Starts API and Web in separate hidden PowerShell windows.
+    - Prints local URLs; does not open browser unless requested.
 
 .USAGE
     Right-click scripts/start-local-dev.ps1 -> "Run with PowerShell"
     Or double-click:  start-local-dev.bat
     Or for local Mailpit inbox:  start-local-dev-mailpit.bat
+    Or with browser:   start-local-dev-and-open.bat
 #>
 
 param(
-    [switch]$Mailpit
+    [switch]$Mailpit,
+    [switch]$OpenBrowser
 )
 
 $ErrorActionPreference = "Continue"
@@ -484,18 +486,20 @@ if (-not (Test-TcpPort -Port 3000 -TimeoutSeconds 180)) {
 }
 Write-Ok "Web is running on http://localhost:3000"
 
-# 11. Open browser
-try {
-    Start-Process "http://localhost:3000" | Out-Null
-}
-catch {
-    Write-Warn "Could not open browser automatically: $_"
+# 11. Optionally open browser
+if ($OpenBrowser) {
+    try {
+        Start-Process "http://localhost:3000" | Out-Null
+    }
+    catch {
+        Write-Warn "Could not open browser automatically: $_"
+    }
 }
 
 Write-Ok ""
 Write-Ok "=== All set ==="
 Write-Info "Web:     http://localhost:3000"
-Write-Info "API:     http://localhost:3001"
+Write-Info "API:     http://localhost:3001/api/v1/health"
 Write-Info "Mailpit: http://localhost:8025"
 Write-Warn "Close the API and Web PowerShell windows to stop the dev servers."
 Write-Warn "Run 'docker compose down' to stop infrastructure."
