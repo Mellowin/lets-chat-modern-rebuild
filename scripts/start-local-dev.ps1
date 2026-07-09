@@ -14,7 +14,12 @@
 .USAGE
     Right-click scripts/start-local-dev.ps1 -> "Run with PowerShell"
     Or double-click:  start-local-dev.bat
+    Or for local Mailpit inbox:  start-local-dev-mailpit.bat
 #>
+
+param(
+    [switch]$Mailpit
+)
 
 $ErrorActionPreference = "Continue"
 
@@ -345,13 +350,6 @@ function Ensure-LocalEnv() {
         S3_BUCKET = "letschat-uploads"
         S3_FORCE_PATH_STYLE = "true"
         CORS_ORIGIN = "http://localhost:3000,http://127.0.0.1:3000,https://lets-chat-web.vercel.app"
-        MAIL_PROVIDER = "smtp"
-        SMTP_HOST = "localhost"
-        SMTP_PORT = "1025"
-        SMTP_SECURE = "false"
-        SMTP_USER = "mailpit"
-        SMTP_PASS = "mailpit"
-        SMTP_FROM = "noreply@example.com"
         APP_WEB_URL = "http://localhost:3000"
         NEXT_PUBLIC_API_URL = "http://localhost:3001/api/v1"
         NEXT_PUBLIC_WS_URL = "http://localhost:3001"
@@ -365,6 +363,21 @@ function Ensure-LocalEnv() {
     }
 
     Write-Info "DATABASE_URL = $env:DATABASE_URL"
+}
+
+function Apply-MailpitOverrides() {
+    $mailpitOverrides = [ordered]@{
+        MAIL_PROVIDER = "smtp"
+        SMTP_HOST = "localhost"
+        SMTP_PORT = "1025"
+        SMTP_SECURE = "false"
+        SMTP_USER = "mailpit"
+        SMTP_PASS = "mailpit"
+        SMTP_FROM = "noreply@example.com"
+    }
+    foreach ($kv in $mailpitOverrides.GetEnumerator()) {
+        [Environment]::SetEnvironmentVariable($kv.Key, $kv.Value, "Process")
+    }
 }
 
 # ---------------------------------------------------------------------------
@@ -381,16 +394,27 @@ Assert-Command docker
 # 2. Load/fill environment
 Ensure-LocalEnv
 
-# 3. Kill any leftover dev server processes from previous runs
+# 3. Choose mail mode
+if ($Mailpit -or $env:USE_MAILPIT -eq "true") {
+    Apply-MailpitOverrides
+    Write-Info "Mail mode: Mailpit local inbox http://localhost:8025"
+}
+else {
+    $provider = [Environment]::GetEnvironmentVariable("MAIL_PROVIDER", "Process")
+    if ([string]::IsNullOrWhiteSpace($provider)) { $provider = "(not set)" }
+    Write-Info "Mail mode: real provider from .env (MAIL_PROVIDER=$provider)"
+}
+
+# 4. Kill any leftover dev server processes from previous runs
 Stop-DevServerProcesses
 
-# 4. Free dev-server ports
+# 5. Free dev-server ports
 $devPorts = @(3000, 3001)
 foreach ($p in $devPorts) {
     Stop-ProcessOnPort $p
 }
 
-# 5. Ensure Docker and start infrastructure
+# 6. Ensure Docker and start infrastructure
 Ensure-Docker
 
 Write-Info "Stopping any previous LetsChat containers..."
@@ -416,11 +440,11 @@ foreach ($svc in $infra) {
     Write-Ok "$($svc.Name) is ready"
 }
 
-# 6. Dependencies
+# 7. Dependencies
 Write-Info "Installing dependencies (pnpm install)..."
 Invoke-Native pnpm @("install")
 
-# 7. Database
+# 8. Database
 Write-Info "Generating Prisma client..."
 Invoke-Native pnpm @("db:generate")
 
@@ -430,7 +454,7 @@ Invoke-Native pnpm @("db:migrate:local")
 Write-Info "Seeding local data..."
 Invoke-Native pnpm @("db:seed:local")
 
-# 8. Start API
+# 9. Start API
 $ApiOut = "$RepoRoot\logs\dev-api.out.log"
 $ApiErr = "$RepoRoot\logs\dev-api.err.log"
 $WebOut = "$RepoRoot\logs\dev-web.out.log"
@@ -448,7 +472,7 @@ if (-not (Test-TcpPort -Port 3001 -TimeoutSeconds 120)) {
 }
 Write-Ok "API is running on http://localhost:3001"
 
-# 9. Start Web
+# 10. Start Web
 Write-Info "Starting Web (port 3000)..."
 Start-Process powershell -WindowStyle Minimized -ArgumentList @(
     "-NoExit",
@@ -460,7 +484,7 @@ if (-not (Test-TcpPort -Port 3000 -TimeoutSeconds 180)) {
 }
 Write-Ok "Web is running on http://localhost:3000"
 
-# 10. Open browser
+# 11. Open browser
 try {
     Start-Process "http://localhost:3000" | Out-Null
 }
