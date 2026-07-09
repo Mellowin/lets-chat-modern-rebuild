@@ -28,7 +28,3 @@ if not exist ".\scripts\start-local-dev.ps1" (
 )
 
 powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\start-local-dev.ps1" -Mailpit
-
-echo.
-echo Done.
-pause

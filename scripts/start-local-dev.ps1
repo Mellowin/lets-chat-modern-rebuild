@@ -462,7 +462,7 @@ $WebErr = "$RepoRoot\logs\dev-web.err.log"
 New-Item -ItemType Directory -Path "$RepoRoot\logs" -Force | Out-Null
 
 Write-Info "Starting API (port 3001)..."
-Start-Process powershell -WindowStyle Minimized -ArgumentList @(
+Start-Process powershell -WindowStyle Hidden -ArgumentList @(
     "-NoExit",
     "-Command",
     "Set-Location -LiteralPath '$RepoRoot'; `$env:PORT = '3001'; pnpm dev:api"
@@ -474,7 +474,7 @@ Write-Ok "API is running on http://localhost:3001"
 
 # 10. Start Web
 Write-Info "Starting Web (port 3000)..."
-Start-Process powershell -WindowStyle Minimized -ArgumentList @(
+Start-Process powershell -WindowStyle Hidden -ArgumentList @(
     "-NoExit",
     "-Command",
     "Set-Location -LiteralPath '$RepoRoot'; `$env:PORT = '3000'; pnpm dev:web"
