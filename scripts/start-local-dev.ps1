@@ -5,10 +5,10 @@
 
 .DESCRIPTION
     - Kills anything still holding ports 3000/3001 (old web/api dev servers).
-    - Makes sure Docker is running and starts postgres/redis/minio/mailpit.
+    - Makes sure Docker is running and starts postgres/redis/minio (and mailpit only when requested).
     - Ensures .env exists, loads it, and fills missing local-only defaults.
     - Runs pnpm install, Prisma generate and migrations.
-    - Starts API and Web in separate hidden PowerShell windows.
+    - Starts API and Web in separate hidden PowerShell windows (API only in -VercelBackend mode).
     - Prints local URLs; does not open browser unless requested.
 
 .USAGE
@@ -16,11 +16,13 @@
     Or double-click:  start-local-dev.bat
     Or for local Mailpit inbox:  start-local-dev-mailpit.bat
     Or with browser:   start-local-dev-and-open.bat
+    Or for Vercel backend only: start-vercel-local-backend.bat
 #>
 
 param(
     [switch]$Mailpit,
-    [switch]$OpenBrowser
+    [switch]$OpenBrowser,
+    [switch]$VercelBackend
 )
 
 $ErrorActionPreference = "Continue"
@@ -64,6 +66,21 @@ function Test-TcpPort($Port, $TimeoutSeconds = 60) {
         finally {
             if ($client) { $client.Dispose() }
         }
+        Start-Sleep -Seconds 1
+    }
+    return $false
+}
+
+function Test-ApiHealth($TimeoutSeconds = 60) {
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    while ($sw.Elapsed.TotalSeconds -lt $TimeoutSeconds) {
+        try {
+            $code = curl.exe -s -o nul -w "%{http_code}" http://localhost:3001/api/v1/health
+            if ($code -eq "200") {
+                return $true
+            }
+        }
+        catch {}
         Start-Sleep -Seconds 1
     }
     return $false
@@ -121,13 +138,17 @@ function Stop-ProcessOnPort($Port) {
     }
 }
 
-function Stop-DevServerProcesses() {
+function Stop-DevServerProcesses([switch]$IncludeWeb = $true) {
     $patterns = @(
         "pnpm.*--filter api start:dev",
-        "pnpm.*--filter web dev",
-        "nest start --watch",
-        "next dev"
+        "nest start --watch"
     )
+    if ($IncludeWeb) {
+        $patterns += @(
+            "pnpm.*--filter web dev",
+            "next dev"
+        )
+    }
     $procs = Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyContinue |
         Where-Object {
             $cmd = $_.CommandLine
@@ -365,6 +386,10 @@ function Ensure-LocalEnv() {
     }
 
     Write-Info "DATABASE_URL = $env:DATABASE_URL"
+
+    if ($VercelBackend) {
+        [Environment]::SetEnvironmentVariable("APP_WEB_URL", "https://lets-chat-web.vercel.app", "Process")
+    }
 }
 
 function Apply-MailpitOverrides() {
@@ -402,16 +427,14 @@ if ($Mailpit -or $env:USE_MAILPIT -eq "true") {
     Write-Info "Mail mode: Mailpit local inbox http://localhost:8025"
 }
 else {
-    $provider = [Environment]::GetEnvironmentVariable("MAIL_PROVIDER", "Process")
-    if ([string]::IsNullOrWhiteSpace($provider)) { $provider = "(not set)" }
-    Write-Info "Mail mode: real provider from .env (MAIL_PROVIDER=$provider)"
+    Write-Info "Mail mode: real provider from .env"
 }
 
 # 4. Kill any leftover dev server processes from previous runs
-Stop-DevServerProcesses
+Stop-DevServerProcesses -IncludeWeb:(-not $VercelBackend)
 
 # 5. Free dev-server ports
-$devPorts = @(3000, 3001)
+$devPorts = if ($VercelBackend) { @(3001) } else { @(3000, 3001) }
 foreach ($p in $devPorts) {
     Stop-ProcessOnPort $p
 }
@@ -425,15 +448,20 @@ if ($LASTEXITCODE -ne 0) {
     Write-Warn "docker compose down exited with code $LASTEXITCODE (continuing anyway)"
 }
 
-Write-Info "Starting Postgres, Redis, MinIO and Mailpit..."
-Invoke-Native docker @("compose", "up", "-d", "postgres", "redis", "minio", "mailpit")
-
+$containers = @("postgres", "redis", "minio")
 $infra = @(
     @{ Port = 5432; Name = "Postgres" },
     @{ Port = 6379; Name = "Redis" },
-    @{ Port = 9000; Name = "MinIO" },
-    @{ Port = 8025; Name = "Mailpit" }
+    @{ Port = 9000; Name = "MinIO" }
 )
+if ($Mailpit) {
+    $containers += "mailpit"
+    $infra += @{ Port = 8025; Name = "Mailpit" }
+}
+
+$containerList = $containers -join ", "
+Write-Info "Starting $containerList containers..."
+Invoke-Native docker (@("compose", "up", "-d") + $containers)
 foreach ($svc in $infra) {
     Write-Info "Waiting for $($svc.Name) on port $($svc.Port)..."
     if (-not (Test-TcpPort -Port $svc.Port -TimeoutSeconds 90)) {
@@ -474,32 +502,63 @@ if (-not (Test-TcpPort -Port 3001 -TimeoutSeconds 120)) {
 }
 Write-Ok "API is running on http://localhost:3001"
 
-# 10. Start Web
-Write-Info "Starting Web (port 3000)..."
-Start-Process powershell -WindowStyle Hidden -ArgumentList @(
-    "-NoExit",
-    "-Command",
-    "Set-Location -LiteralPath '$RepoRoot'; `$env:PORT = '3000'; pnpm dev:web"
-) -RedirectStandardOutput $WebOut -RedirectStandardError $WebErr
-if (-not (Test-TcpPort -Port 3000 -TimeoutSeconds 180)) {
-    throw "Web did not start on port 3000. See $WebErr"
-}
-Write-Ok "Web is running on http://localhost:3000"
+if (-not $VercelBackend) {
+    # 10. Start Web
+    Write-Info "Starting Web (port 3000)..."
+    Start-Process powershell -WindowStyle Hidden -ArgumentList @(
+        "-NoExit",
+        "-Command",
+        "Set-Location -LiteralPath '$RepoRoot'; `$env:PORT = '3000'; pnpm dev:web"
+    ) -RedirectStandardOutput $WebOut -RedirectStandardError $WebErr
+    if (-not (Test-TcpPort -Port 3000 -TimeoutSeconds 180)) {
+        throw "Web did not start on port 3000. See $WebErr"
+    }
+    Write-Ok "Web is running on http://localhost:3000"
 
-# 11. Optionally open browser
-if ($OpenBrowser) {
-    try {
-        Start-Process "http://localhost:3000" | Out-Null
-    }
-    catch {
-        Write-Warn "Could not open browser automatically: $_"
+    # 11. Optionally open browser
+    if ($OpenBrowser) {
+        try {
+            Start-Process "http://localhost:3000" | Out-Null
+        }
+        catch {
+            Write-Warn "Could not open browser automatically: $_"
+        }
     }
 }
+
+# 12. Verify API health
+Write-Info "Waiting for API health endpoint..."
+if (-not (Test-ApiHealth -TimeoutSeconds 60)) {
+    throw "API health check did not return 200. See $ApiErr"
+}
+Write-Ok "API health is 200"
 
 Write-Ok ""
-Write-Ok "=== All set ==="
-Write-Info "Web:     http://localhost:3000"
-Write-Info "API:     http://localhost:3001/api/v1/health"
-Write-Info "Mailpit: http://localhost:8025"
-Write-Warn "Close the API and Web PowerShell windows to stop the dev servers."
-Write-Warn "Run 'docker compose down' to stop infrastructure."
+if ($VercelBackend) {
+    Write-Ok "=== Vercel + local backend is ready ==="
+    Write-Info "Vercel Web:   https://lets-chat-web.vercel.app"
+    Write-Info "Local API:    http://localhost:3001/api/v1"
+    Write-Info "API health:   http://localhost:3001/api/v1/health"
+    Write-Info "Database:     local Docker Postgres"
+    if ($Mailpit) {
+        Write-Info "Mailpit:      http://localhost:8025"
+    }
+    else {
+        Write-Info "Mail mode:    real provider from .env"
+    }
+    Write-Info "Override URL: https://lets-chat-web.vercel.app/?apiUrl=http://localhost:3001/api/v1&wsUrl=ws://localhost:3001"
+    Write-Warn "Run stop-vercel-local-backend.bat to stop."
+}
+else {
+    Write-Ok "=== All set ==="
+    Write-Info "Web:     http://localhost:3000"
+    Write-Info "API:     http://localhost:3001/api/v1/health"
+    if ($Mailpit) {
+        Write-Info "Mailpit: http://localhost:8025"
+    }
+    else {
+        Write-Info "Mail mode: real provider from .env"
+    }
+    Write-Warn "Close the API and Web PowerShell windows to stop the dev servers."
+    Write-Warn "Run 'docker compose down' to stop infrastructure."
+}
