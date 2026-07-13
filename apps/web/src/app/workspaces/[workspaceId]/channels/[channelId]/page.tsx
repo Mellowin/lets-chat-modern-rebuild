@@ -1318,8 +1318,18 @@ export default function ChannelDetailPage() {
 
   function getMessageSnippet(msg: Message) {
     const singleLine = msg.content.replace(/\s+/g, " ").trim();
+    if (singleLine.length === 0 && msg.attachments && msg.attachments.length > 0) {
+      return t("channel.replyAttachmentIndicator");
+    }
     if (singleLine.length <= 120) return singleLine;
     return `${singleLine.slice(0, 117)}...`;
+  }
+
+  function renderReplyContent(content: string | null) {
+    if (content === null) return null;
+    const singleLine = content.replace(/\s+/g, " ").trim();
+    if (singleLine.length === 0) return t("channel.replyAttachmentIndicator");
+    return singleLine;
   }
 
   function scrollToMessage(messageId: string): boolean {
@@ -1915,7 +1925,7 @@ export default function ChannelDetailPage() {
                                     {msg.replyTo.author.displayName || msg.replyTo.author.username || t("messageAuthor.unknownUser")}
                                   </span>
                                   <span className="text-xs text-muted-foreground line-clamp-2">
-                                    {msg.replyTo.content}
+                                    {renderReplyContent(msg.replyTo.content)}
                                   </span>
                                 </button>
                               ) : (

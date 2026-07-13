@@ -1123,8 +1123,18 @@ export default function DirectConversationPage() {
 
   function getMessageSnippet(msg: DirectMessage) {
     const singleLine = msg.content.replace(/\s+/g, " ").trim();
+    if (singleLine.length === 0 && msg.attachments && msg.attachments.length > 0) {
+      return t("direct.replyAttachmentIndicator");
+    }
     if (singleLine.length <= 120) return singleLine;
     return `${singleLine.slice(0, 117)}...`;
+  }
+
+  function renderReplyContent(content: string | null) {
+    if (content === null) return null;
+    const singleLine = content.replace(/\s+/g, " ").trim();
+    if (singleLine.length === 0) return t("direct.replyAttachmentIndicator");
+    return singleLine;
   }
 
   function scrollToMessage(messageId: string) {
@@ -1794,7 +1804,7 @@ export default function DirectConversationPage() {
                                         {msg.replyTo.author.displayName || msg.replyTo.author.username || t("messageAuthor.unknownUser")}
                                       </span>
                                       <span className="text-xs text-muted-foreground line-clamp-2">
-                                        {msg.replyTo.content}
+                                        {renderReplyContent(msg.replyTo.content)}
                                       </span>
                                     </button>
                                   ) : (

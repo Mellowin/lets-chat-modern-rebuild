@@ -321,6 +321,7 @@ export type TranslationKey =
   | "channel.reply"
   | "channel.replyingTo"
   | "channel.replyOriginalUnavailable"
+  | "channel.replyAttachmentIndicator"
   | "channel.cancelReply"
   | "channel.isTyping"
   | "channel.areTyping"
@@ -469,6 +470,7 @@ export type TranslationKey =
   | "direct.replyingTo"
   | "direct.cancelReply"
   | "direct.originalMessageMissing"
+  | "direct.replyAttachmentIndicator"
   | "direct.forward"
   | "direct.forwardMessage"
   | "direct.forwardTo"
@@ -819,6 +821,7 @@ export type TranslationKey =
   | "groups.replyingTo"
   | "groups.cancelReply"
   | "groups.originalMessageMissing"
+  | "groups.replyAttachmentIndicator"
   | "groups.report";
 
 const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string) => string)>> = {
@@ -1075,6 +1078,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.reply": "Reply",
     "channel.replyingTo": "Replying to",
     "channel.replyOriginalUnavailable": "Original message is not loaded",
+    "channel.replyAttachmentIndicator": "Attachment",
     "channel.cancelReply": "Cancel reply",
     "channel.isTyping": "is typing…",
     "channel.areTyping": "are typing…",
@@ -1165,6 +1169,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "direct.replyingTo": "Replying to",
     "direct.cancelReply": "Cancel reply",
     "direct.originalMessageMissing": "Original message is not loaded",
+    "direct.replyAttachmentIndicator": "Attachment",
     "direct.forward": "Forward",
     "direct.forwardMessage": "Forward message",
     "direct.forwardTo": "Forward to",
@@ -1230,6 +1235,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "groups.replyingTo": "Replying to",
     "groups.cancelReply": "Cancel reply",
     "groups.originalMessageMissing": "Original message unavailable",
+    "groups.replyAttachmentIndicator": "Attachment",
     "groups.failedRenameGroup": "Failed to rename group",
     "groups.failedAddMember": "Failed to add member",
     "groups.failedRemoveMember": "Failed to remove member",
@@ -1879,6 +1885,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.reply": "Відповісти",
     "channel.replyingTo": "Відповідь на",
     "channel.replyOriginalUnavailable": "Оригінальне повідомлення не завантажено",
+    "channel.replyAttachmentIndicator": "Вкладення",
     "channel.cancelReply": "Скасувати відповідь",
     "channel.isTyping": "пише…",
     "channel.areTyping": "пишуть…",
@@ -1969,6 +1976,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "direct.replyingTo": "Відповідь для",
     "direct.cancelReply": "Скасувати відповідь",
     "direct.originalMessageMissing": "Оригінальне повідомлення не завантажено",
+    "direct.replyAttachmentIndicator": "Вкладення",
     "direct.forward": "Переслати",
     "direct.forwardMessage": "Переслати повідомлення",
     "direct.forwardTo": "Переслати до",
@@ -2034,6 +2042,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "groups.replyingTo": "Відповідь на",
     "groups.cancelReply": "Скасувати відповідь",
     "groups.originalMessageMissing": "Оригінальне повідомлення недоступне",
+    "groups.replyAttachmentIndicator": "Вкладення",
     "groups.failedRenameGroup": "Не вдалося перейменувати групу",
     "groups.failedAddMember": "Не вдалося додати учасника",
     "groups.failedRemoveMember": "Не вдалося вилучити учасника",
@@ -2683,6 +2692,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.reply": "Ответить",
     "channel.replyingTo": "Ответ на",
     "channel.replyOriginalUnavailable": "Исходное сообщение не загружено",
+    "channel.replyAttachmentIndicator": "Вложение",
     "channel.cancelReply": "Отменить ответ",
     "channel.isTyping": "печатает…",
     "channel.areTyping": "печатают…",
@@ -2773,6 +2783,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "direct.replyingTo": "Ответ для",
     "direct.cancelReply": "Отменить ответ",
     "direct.originalMessageMissing": "Исходное сообщение не загружено",
+    "direct.replyAttachmentIndicator": "Вложение",
     "direct.forward": "Переслать",
     "direct.forwardMessage": "Переслать сообщение",
     "direct.forwardTo": "Переслать в",
@@ -2838,6 +2849,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "groups.replyingTo": "Ответ на",
     "groups.cancelReply": "Отменить ответ",
     "groups.originalMessageMissing": "Оригинальное сообщение недоступно",
+    "groups.replyAttachmentIndicator": "Вложение",
     "groups.failedRenameGroup": "Не удалось переименовать группу",
     "groups.failedAddMember": "Не удалось добавить участника",
     "groups.failedRemoveMember": "Не удалось удалить участника",

@@ -2712,6 +2712,34 @@ describe("ChannelDetailPage — replies", () => {
     expect(scrollIntoViewMock).toHaveBeenCalled();
     scrollIntoViewMock.mockRestore();
   });
+
+  it("shows attachment indicator when reply target has only attachments", async () => {
+    const attachmentOnlyTarget = {
+      ...parentMessage,
+      content: "",
+      attachments: [
+        { id: "a1", fileName: "doc.pdf", mimeType: "application/pdf", sizeBytes: 1024, kind: "file" as const, createdAt: new Date().toISOString() },
+      ],
+    };
+    const replyToAttachment = {
+      ...replyMessage,
+      replyToMessageId: attachmentOnlyTarget.id,
+      replyTo: {
+        id: attachmentOnlyTarget.id,
+        content: "",
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+      },
+    };
+    mockChannelAndMessages([attachmentOnlyTarget, replyToAttachment]);
+    render(<ChannelDetailPage />);
+    await waitFor(() => {
+      expect(screen.getByText("This is a reply")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
+    await userEvent.click(screen.getByTestId("channel-reply-action-m1"));
+    expect(screen.getByText(/Attachment/i)).toBeInTheDocument();
+    expect(screen.getByTestId("channel-reply-to-preview-m2")).toHaveTextContent("Attachment");
+  });
 });
 
 

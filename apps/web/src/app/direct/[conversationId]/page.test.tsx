@@ -1762,6 +1762,47 @@ describe("DirectConversationPage — send with replyToMessageId", () => {
 
     expect(screen.getByTestId("direct-reply-preview")).toBeInTheDocument();
   });
+
+  it("shows attachment indicator when reply target has only attachments", async () => {
+    mockMessages([
+      {
+        id: "dm1",
+        conversationId: "dc1",
+        content: "",
+        parentId: null,
+        replyToMessageId: null,
+        replyTo: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        editedAt: null,
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        parent: null,
+        reactions: [],
+        readByOtherParticipant: false,
+        isUnreadForMe: false,
+        attachments: [
+          { id: "a1", fileName: "doc.pdf", mimeType: "application/pdf", sizeBytes: 1024, kind: "file" as const, createdAt: new Date().toISOString() },
+        ],
+      },
+    ]);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-message-menu-trigger-dm1")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm1"));
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reply-action-dm1")).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByTestId("direct-reply-action-dm1"));
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-reply-preview")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/Attachment/i)).toBeInTheDocument();
+  });
 });
 
 describe("DirectConversationPage — quote preview", () => {
