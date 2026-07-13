@@ -7,6 +7,7 @@ interface CreateMessageInput {
   authorId: string;
   content: string;
   parentId?: string;
+  replyToMessageId?: string;
   attachments?: Array<{
     storageKey: string;
     filename: string;
@@ -29,6 +30,7 @@ export class MessagesRepository {
           authorId: data.authorId,
           content: data.content,
           parentId: data.parentId,
+          replyToMessageId: data.replyToMessageId,
           mentions: data.mentions as never,
         },
       });
@@ -71,6 +73,21 @@ export class MessagesRepository {
               mimeType: true,
               size: true,
               createdAt: true,
+            },
+          },
+          replyToMessage: {
+            select: {
+              id: true,
+              content: true,
+              deletedAt: true,
+              author: {
+                select: {
+                  id: true,
+                  username: true,
+                  displayName: true,
+                  avatarUrl: true,
+                },
+              },
             },
           },
         },
@@ -126,6 +143,21 @@ export class MessagesRepository {
             createdAt: true,
           },
         },
+        replyToMessage: {
+          select: {
+            id: true,
+            content: true,
+            deletedAt: true,
+            author: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true,
+              },
+            },
+          },
+        },
       },
     });
   }
@@ -164,6 +196,21 @@ export class MessagesRepository {
               mimeType: true,
               size: true,
               createdAt: true,
+            },
+          },
+          replyToMessage: {
+            select: {
+              id: true,
+              content: true,
+              deletedAt: true,
+              author: {
+                select: {
+                  id: true,
+                  username: true,
+                  displayName: true,
+                  avatarUrl: true,
+                },
+              },
             },
           },
         },
@@ -218,6 +265,21 @@ export class MessagesRepository {
             createdAt: true,
           },
         },
+        replyToMessage: {
+          select: {
+            id: true,
+            content: true,
+            deletedAt: true,
+            author: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true,
+              },
+            },
+          },
+        },
       },
     });
   }
@@ -246,6 +308,21 @@ export class MessagesRepository {
             mimeType: true,
             size: true,
             createdAt: true,
+          },
+        },
+        replyToMessage: {
+          select: {
+            id: true,
+            content: true,
+            deletedAt: true,
+            author: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true,
+              },
+            },
           },
         },
       },
@@ -288,6 +365,21 @@ export class MessagesRepository {
             createdAt: true,
           },
         },
+        replyToMessage: {
+          select: {
+            id: true,
+            content: true,
+            deletedAt: true,
+            author: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true,
+              },
+            },
+          },
+        },
       },
     });
   }
@@ -326,6 +418,21 @@ export class MessagesRepository {
             mimeType: true,
             size: true,
             createdAt: true,
+          },
+        },
+        replyToMessage: {
+          select: {
+            id: true,
+            content: true,
+            deletedAt: true,
+            author: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true,
+              },
+            },
           },
         },
       },

@@ -28,6 +28,17 @@ export class WebsocketEventsService {
         count: number;
         reactedByMe: boolean;
       }>;
+      replyToMessageId: string | null;
+      replyTo: {
+        id: string;
+        content: string | null;
+        author: {
+          id: string;
+          username: string;
+          displayName: string | null;
+          avatarUrl: string | null;
+        } | null;
+      } | null;
     },
   ) {
     try {
@@ -229,6 +240,17 @@ export class WebsocketEventsService {
           avatarUrl: string | null;
         };
       } | null;
+      replyToMessageId: string | null;
+      replyTo: {
+        id: string;
+        content: string | null;
+        author: {
+          id: string;
+          username: string;
+          displayName: string | null;
+          avatarUrl: string | null;
+        } | null;
+      } | null;
     },
   ) {
     try {
@@ -280,6 +302,17 @@ export class WebsocketEventsService {
         count: number;
         reactedByMe: boolean;
       }>;
+      replyToMessageId: string | null;
+      replyTo: {
+        id: string;
+        content: string | null;
+        author: {
+          id: string;
+          username: string;
+          displayName: string | null;
+          avatarUrl: string | null;
+        } | null;
+      } | null;
     },
   ) {
     try {
@@ -434,6 +467,17 @@ export class WebsocketEventsService {
         displayName: string | null;
         avatarUrl: string | null;
       };
+      replyToMessageId: string | null;
+      replyTo: {
+        id: string;
+        content: string | null;
+        author: {
+          id: string;
+          username: string;
+          displayName: string | null;
+          avatarUrl: string | null;
+        } | null;
+      } | null;
     },
   ) {
     try {

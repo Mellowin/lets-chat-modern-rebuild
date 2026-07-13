@@ -123,6 +123,7 @@ function makeMessage(
     groupId,
     authorId: userId,
     content: 'Hello everyone!',
+    replyToMessageId: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     mentions: [],
@@ -133,6 +134,7 @@ function makeMessage(
       avatarUrl: null,
     },
     attachments: [],
+    replyToMessage: null,
   };
   return { ...base, ...overrides };
 }
@@ -633,6 +635,7 @@ describe('GroupsService', () => {
         groupId,
         authorId: userId,
         content: 'Hello everyone!',
+        replyToMessageId: null,
         mentions: [],
       });
       expect(groupsRepository.touchUpdatedAt).toHaveBeenCalledWith(groupId);
@@ -642,6 +645,7 @@ describe('GroupsService', () => {
           id: messageId,
           groupId,
           content: 'Hello everyone!',
+          replyToMessageId: null,
         }),
       );
       expect(

@@ -12,6 +12,7 @@ interface CreateMessageInput {
   groupId: string;
   authorId: string;
   content: string;
+  replyToMessageId?: string | null;
   mentions?: { userId: string; username: string }[];
   attachmentIds?: string[];
 }
@@ -35,6 +36,13 @@ const groupMessageInclude = {
       mimeType: true,
       size: true,
       createdAt: true,
+    },
+  },
+  replyToMessage: {
+    select: {
+      id: true,
+      content: true,
+      author: { select: authorSelect },
     },
   },
 } as const;
@@ -377,6 +385,7 @@ export class GroupsRepository {
           groupId: data.groupId,
           authorId: data.authorId,
           content: data.content,
+          replyToMessageId: data.replyToMessageId,
           mentions: data.mentions as never,
         },
       });

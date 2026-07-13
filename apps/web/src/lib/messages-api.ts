@@ -35,6 +35,12 @@ export interface Message {
   channelId: string;
   content: string;
   parentId: string | null;
+  replyToMessageId: string | null;
+  replyTo: {
+    id: string;
+    content: string | null;
+    author: MessageAuthor | null;
+  } | null;
   createdAt: string;
   updatedAt: string;
   editedAt: string | null;
@@ -55,6 +61,7 @@ export interface CreateMessageAttachmentInput {
 export interface CreateMessageInput {
   content?: string;
   parentId?: string;
+  replyToMessageId?: string;
   attachments?: CreateMessageAttachmentInput[];
 }
 

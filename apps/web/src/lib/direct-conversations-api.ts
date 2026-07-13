@@ -73,6 +73,12 @@ export interface DirectMessage {
   conversationId: string;
   content: string;
   parentId: string | null;
+  replyToMessageId: string | null;
+  replyTo: {
+    id: string;
+    content: string | null;
+    author: DirectMessageAuthor | null;
+  } | null;
   createdAt: string;
   updatedAt: string;
   editedAt: string | null;
@@ -102,6 +108,7 @@ export interface DirectMessageContextResult {
 export interface SendDirectMessageInput {
   content?: string;
   parentId?: string;
+  replyToMessageId?: string;
   attachmentIds?: string[];
 }
 

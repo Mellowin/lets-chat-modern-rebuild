@@ -1426,7 +1426,7 @@ export default function DirectConversationPage() {
 
       const input: SendDirectMessageInput = {
         ...(hasContent ? { content: trimmed } : {}),
-        ...(replyToMessage ? { parentId: replyToMessage.id } : {}),
+        ...(replyToMessage ? { replyToMessageId: replyToMessage.id } : {}),
         ...(attachmentIds.length > 0 ? { attachmentIds } : {}),
       };
       const msg = await sendDirectMessage(accessToken, conversationId, input);
@@ -1783,6 +1783,32 @@ export default function DirectConversationPage() {
                                   : "bg-card text-foreground border-border/80 shadow-sm"
                               }`}
                             >
+                              {msg.replyTo && (
+                                <div className="mb-1.5" data-testid={`direct-reply-to-preview-${msg.id}`}>
+                                  {msg.replyTo.content !== null && msg.replyTo.author !== null ? (
+                                    <button
+                                      onClick={() => { closeMenuAndPicker(); scrollToMessage(msg.replyTo!.id); }}
+                                      className="flex w-full flex-col gap-0.5 rounded-lg border-l-4 border-muted-foreground bg-muted/50 px-2.5 py-1.5 text-left hover:bg-accent/50 transition-colors"
+                                    >
+                                      <span className="text-[11px] font-semibold text-foreground">
+                                        {msg.replyTo.author.displayName || msg.replyTo.author.username || t("messageAuthor.unknownUser")}
+                                      </span>
+                                      <span className="text-xs text-muted-foreground line-clamp-2">
+                                        {msg.replyTo.content}
+                                      </span>
+                                    </button>
+                                  ) : (
+                                    <div className="flex flex-col gap-0.5 rounded-lg border-l-4 border-border bg-muted/50 px-2.5 py-1.5">
+                                      <span className="text-[11px] font-semibold text-muted-foreground">
+                                        {t("direct.reply")}
+                                      </span>
+                                      <span className="text-xs text-muted-foreground/80">
+                                        {t("direct.originalMessageMissing")}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                               {msg.parentId && (
                                 <div className="mb-1.5" data-testid={`direct-quote-preview-${msg.id}`}>
                                   {(() => {

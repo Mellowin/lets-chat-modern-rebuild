@@ -27,6 +27,14 @@ export class CreateGroupMessageDto {
   parentId?: string;
 
   @ApiProperty({
+    example: '00000000-0000-0000-0000-000000000000',
+    required: false,
+  })
+  @IsOptional()
+  @IsUUID()
+  replyToMessageId?: string;
+
+  @ApiProperty({
     type: [String],
     description: 'Optional attachment IDs to link to the message',
     required: false,

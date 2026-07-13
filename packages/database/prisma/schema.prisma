@@ -240,30 +240,34 @@ model ChannelMember {
 }
 
 model Message {
-  id        String    @id @default(uuid()) @db.Uuid
-  channelId String    @db.Uuid
-  authorId  String    @db.Uuid
-  parentId  String?   @db.Uuid
-  content   String
-  editedAt  DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  id                String    @id @default(uuid()) @db.Uuid
+  channelId         String    @db.Uuid
+  authorId          String    @db.Uuid
+  parentId          String?   @db.Uuid
+  replyToMessageId  String?   @db.Uuid
+  content           String
+  editedAt          DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
 
   // Relations
-  channel      Channel       @relation(fields: [channelId], references: [id])
-  author       User          @relation(fields: [authorId], references: [id])
-  parent       Message?      @relation("ThreadReplies", fields: [parentId], references: [id])
-  replies      Message[]     @relation("ThreadReplies")
-  reactions    Reaction[]
-  attachments  Attachment[]
-  edits        MessageEdit[]
-  readReceipts ReadReceipt[]
-  mentions     Json?
+  channel         Channel       @relation(fields: [channelId], references: [id])
+  author          User          @relation(fields: [authorId], references: [id])
+  parent          Message?      @relation("ThreadReplies", fields: [parentId], references: [id])
+  replies         Message[]     @relation("ThreadReplies")
+  replyToMessage  Message?      @relation("MessageReplyTo", fields: [replyToMessageId], references: [id])
+  repliesToThis   Message[]     @relation("MessageReplyTo")
+  reactions       Reaction[]
+  attachments     Attachment[]
+  edits           MessageEdit[]
+  readReceipts    ReadReceipt[]
+  mentions        Json?
   // Note: GIN index on searchVector is added via raw migration (see database-schema.md §7.2)
 
   @@index([channelId, createdAt, id])
   @@index([parentId, createdAt])
+  @@index([replyToMessageId])
 }
 
 model MessageEdit {
@@ -511,27 +515,31 @@ model DirectConversationParticipant {
 }
 
 model DirectMessage {
-  id             String    @id @default(uuid()) @db.Uuid
-  conversationId String    @db.Uuid
-  authorId       String    @db.Uuid
-  parentId       String?   @db.Uuid
-  content        String
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  editedAt       DateTime?
-  deletedAt      DateTime?
+  id                String    @id @default(uuid()) @db.Uuid
+  conversationId    String    @db.Uuid
+  authorId          String    @db.Uuid
+  parentId          String?   @db.Uuid
+  replyToMessageId  String?   @db.Uuid
+  content           String
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  editedAt          DateTime?
+  deletedAt         DateTime?
 
-  conversation DirectConversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  author       User                    @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  parent       DirectMessage?          @relation("DirectMessageReplies", fields: [parentId], references: [id])
-  replies      DirectMessage[]         @relation("DirectMessageReplies")
-  reactions    DirectMessageReaction[]
-  attachments  Attachment[]
-  mentions     Json?
+  conversation     DirectConversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  author           User                    @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent           DirectMessage?          @relation("DirectMessageReplies", fields: [parentId], references: [id])
+  replies          DirectMessage[]         @relation("DirectMessageReplies")
+  replyToMessage   DirectMessage?          @relation("DirectMessageReplyTo", fields: [replyToMessageId], references: [id])
+  repliesToThis    DirectMessage[]         @relation("DirectMessageReplyTo")
+  reactions        DirectMessageReaction[]
+  attachments      Attachment[]
+  mentions         Json?
 
   @@index([conversationId, createdAt, id])
   @@index([authorId])
   @@index([parentId])
+  @@index([replyToMessageId])
 }
 
 model DirectMessageReaction {
@@ -683,20 +691,24 @@ model UserReport {
 }
 
 model GroupMessage {
-  id        String   @id @default(uuid()) @db.Uuid
-  groupId   String   @db.Uuid
-  authorId  String   @db.Uuid
-  content   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                String   @id @default(uuid()) @db.Uuid
+  groupId           String   @db.Uuid
+  authorId          String   @db.Uuid
+  replyToMessageId  String?  @db.Uuid
+  content           String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  group  GroupConversation @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  author User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  attachments Attachment[]
-  mentions Json?
+  group           GroupConversation @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  author          User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  replyToMessage  GroupMessage?     @relation("GroupMessageReplyTo", fields: [replyToMessageId], references: [id])
+  repliesToThis   GroupMessage[]    @relation("GroupMessageReplyTo")
+  attachments     Attachment[]
+  mentions        Json?
 
   @@index([groupId, createdAt, id])
   @@index([authorId])
+  @@index([replyToMessageId])
 }
 
 model PushSubscription {

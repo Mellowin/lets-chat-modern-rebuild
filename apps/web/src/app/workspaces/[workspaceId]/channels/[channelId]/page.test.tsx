@@ -199,6 +199,8 @@ describe("ChannelDetailPage — composer", () => {
         channelId: "ch1",
         content: "First message",
         parentId: null,
+        replyToMessageId: null,
+        replyTo: null,
         createdAt: "2024-01-01T00:00:00Z",
         updatedAt: "2024-01-01T00:00:00Z",
         editedAt: null,
@@ -318,6 +320,8 @@ describe("ChannelDetailPage — composer", () => {
       channelId: "ch1",
       content: "Hello",
       parentId: null,
+      replyToMessageId: null,
+      replyTo: null,
       createdAt: "2024-01-01T00:00:00Z",
       updatedAt: "2024-01-01T00:00:00Z",
       editedAt: null,
@@ -368,6 +372,8 @@ describe("ChannelDetailPage — composer", () => {
       channelId: "ch1",
       content: "Hi",
       parentId: null,
+      replyToMessageId: null,
+      replyTo: null,
       createdAt: "2024-01-01T00:00:00Z",
       updatedAt: "2024-01-01T00:00:00Z",
       editedAt: null,
@@ -438,6 +444,8 @@ describe("ChannelDetailPage — composer", () => {
       channelId: "ch1",
       content: "Hello",
       parentId: null,
+      replyToMessageId: null,
+      replyTo: null,
       createdAt: "2024-01-01T00:00:00Z",
       updatedAt: "2024-01-01T00:00:00Z",
       editedAt: null,
@@ -557,6 +565,8 @@ describe("ChannelDetailPage — composer focus", () => {
       channelId: "ch1",
       content: "Hello",
       parentId: null,
+      replyToMessageId: null,
+      replyTo: null,
       createdAt: "2024-01-01T00:00:00Z",
       updatedAt: "2024-01-01T00:00:00Z",
       editedAt: null,
@@ -595,6 +605,8 @@ describe("ChannelDetailPage — message author identity", () => {
         channelId: "ch1",
         content: "Hello",
         parentId: null,
+        replyToMessageId: null,
+        replyTo: null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         editedAt: null,
@@ -616,6 +628,8 @@ describe("ChannelDetailPage — message author identity", () => {
         channelId: "ch1",
         content: "Hello",
         parentId: null,
+        replyToMessageId: null,
+        replyTo: null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         editedAt: null,
@@ -638,6 +652,8 @@ describe("ChannelDetailPage — message author identity", () => {
         channelId: "ch1",
         content: "Hello",
         parentId: null,
+        replyToMessageId: null,
+        replyTo: null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         editedAt: null,
@@ -659,6 +675,8 @@ describe("ChannelDetailPage — message author identity", () => {
         channelId: "ch1",
         content: "Hello",
         parentId: null,
+        replyToMessageId: null,
+        replyTo: null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         editedAt: null,
@@ -680,6 +698,8 @@ describe("ChannelDetailPage — message author identity", () => {
         channelId: "ch1",
         content: "Hello",
         parentId: null,
+        replyToMessageId: null,
+        replyTo: null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         editedAt: null,
@@ -701,6 +721,8 @@ describe("ChannelDetailPage — message author identity", () => {
         channelId: "ch1",
         content: "Important message content",
         parentId: null,
+        replyToMessageId: null,
+        replyTo: null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         editedAt: null,
@@ -722,6 +744,8 @@ describe("ChannelDetailPage — message author identity", () => {
         channelId: "ch1",
         content: "Hello",
         parentId: null,
+        replyToMessageId: null,
+        replyTo: null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         editedAt: null,
@@ -756,6 +780,8 @@ describe("ChannelDetailPage — edit/delete", () => {
     channelId: "ch1",
     content: "Hello",
     parentId: null,
+    replyToMessageId: null,
+    replyTo: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     editedAt: null,
@@ -768,6 +794,8 @@ describe("ChannelDetailPage — edit/delete", () => {
     channelId: "ch1",
     content: "Hi",
     parentId: null,
+    replyToMessageId: null,
+    replyTo: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     editedAt: null,
@@ -949,6 +977,8 @@ describe("ChannelDetailPage — message action locale", () => {
     channelId: "ch1",
     content: "Hello",
     parentId: null,
+    replyToMessageId: null,
+    replyTo: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     editedAt: null,
@@ -991,6 +1021,8 @@ describe("ChannelDetailPage — message action locale", () => {
         ...ownMessage,
         editedAt: "2024-01-02T00:00:00Z",
         parentId: "m0",
+        replyToMessageId: null,
+        replyTo: null,
       },
     ]);
     render(<ChannelDetailPage />);
@@ -1000,6 +1032,7 @@ describe("ChannelDetailPage — message action locale", () => {
     });
 
     expect(screen.getByText("змінено")).toBeInTheDocument();
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
     expect(screen.getByText("Відповісти")).toBeInTheDocument();
   });
 
@@ -1010,6 +1043,8 @@ describe("ChannelDetailPage — message action locale", () => {
         ...ownMessage,
         editedAt: "2024-01-02T00:00:00Z",
         parentId: "m0",
+        replyToMessageId: null,
+        replyTo: null,
       },
     ]);
     render(<ChannelDetailPage />);
@@ -1019,6 +1054,7 @@ describe("ChannelDetailPage — message action locale", () => {
     });
 
     expect(screen.getByText("изменено")).toBeInTheDocument();
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
     expect(screen.getByText("Ответить")).toBeInTheDocument();
   });
 
@@ -1109,6 +1145,8 @@ describe("ChannelDetailPage — WebSocket live events", () => {
     channelId: "ch1",
     content: "Hello",
     parentId: null,
+    replyToMessageId: null,
+    replyTo: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     editedAt: null,
@@ -2024,6 +2062,8 @@ describe("ChannelDetailPage — socket access-loss handling", () => {
     channelId: "ch1",
     content: "Hello",
     parentId: null,
+    replyToMessageId: null,
+    replyTo: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     editedAt: null,
@@ -2188,6 +2228,8 @@ describe("ChannelDetailPage — message alignment", () => {
     channelId: "ch1",
     content: "Own message",
     parentId: null,
+    replyToMessageId: null,
+    replyTo: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     editedAt: null,
@@ -2200,6 +2242,8 @@ describe("ChannelDetailPage — message alignment", () => {
     channelId: "ch1",
     content: "Other message",
     parentId: null,
+    replyToMessageId: null,
+    replyTo: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     editedAt: null,
@@ -2260,12 +2304,14 @@ describe("ChannelDetailPage — message alignment", () => {
     expect(screen.getByTestId("message-avatar-m1")).toHaveClass("self-end");
   });
 
-  it("shows quoted preview inside own reply bubble", async () => {
+  it("shows reply preview inside own reply bubble", async () => {
     const parent = {
       id: "m0",
       channelId: "ch1",
       content: "Parent content",
       parentId: null,
+      replyToMessageId: null,
+      replyTo: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       editedAt: null,
@@ -2276,7 +2322,13 @@ describe("ChannelDetailPage — message alignment", () => {
       id: "m3",
       channelId: "ch1",
       content: "Own reply",
-      parentId: "m0",
+      parentId: null,
+      replyToMessageId: "m0",
+      replyTo: {
+        id: "m0",
+        content: "Parent content",
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+      },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       editedAt: null,
@@ -2289,10 +2341,11 @@ describe("ChannelDetailPage — message alignment", () => {
       expect(screen.getByText("Own reply")).toBeInTheDocument();
     });
     expect(screen.getByTestId("message-row-m3")).toHaveClass("items-start");
-    expect(screen.getAllByText("Parent content").length).toBe(2);
+    expect(screen.getByTestId("channel-reply-to-preview-m3")).toHaveTextContent("Parent content");
+    expect(screen.getByTestId("channel-reply-to-preview-m3")).toHaveTextContent("Bob");
   });
 
-  it("clicking quoted preview in own reply scrolls to parent", async () => {
+  it("clicking reply preview in own reply scrolls to original message", async () => {
     const scrollIntoViewMock = vi.fn();
     Element.prototype.scrollIntoView = scrollIntoViewMock;
     const parent = {
@@ -2300,6 +2353,8 @@ describe("ChannelDetailPage — message alignment", () => {
       channelId: "ch1",
       content: "Parent content",
       parentId: null,
+      replyToMessageId: null,
+      replyTo: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       editedAt: null,
@@ -2310,7 +2365,13 @@ describe("ChannelDetailPage — message alignment", () => {
       id: "m3",
       channelId: "ch1",
       content: "Own reply",
-      parentId: "m0",
+      parentId: null,
+      replyToMessageId: "m0",
+      replyTo: {
+        id: "m0",
+        content: "Parent content",
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+      },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       editedAt: null,
@@ -2322,8 +2383,7 @@ describe("ChannelDetailPage — message alignment", () => {
     await waitFor(() => {
       expect(screen.getByText("Own reply")).toBeInTheDocument();
     });
-    const previews = screen.getAllByText("Parent content");
-    await userEvent.click(previews[previews.length - 1]);
+    await userEvent.click(screen.getByTestId("channel-reply-to-preview-m3").querySelector("button")!);
     expect(scrollIntoViewMock).toHaveBeenCalled();
     scrollIntoViewMock.mockRestore();
   });
@@ -2481,6 +2541,8 @@ describe("ChannelDetailPage — replies", () => {
     channelId: "ch1",
     content: "Parent message content",
     parentId: null,
+    replyToMessageId: null,
+    replyTo: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     editedAt: null,
@@ -2492,7 +2554,13 @@ describe("ChannelDetailPage — replies", () => {
     id: "m2",
     channelId: "ch1",
     content: "This is a reply",
-    parentId: "m1",
+    parentId: null,
+    replyToMessageId: "m1",
+    replyTo: {
+      id: "m1",
+      content: "Parent message content",
+      author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+    },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     editedAt: null,
@@ -2505,6 +2573,8 @@ describe("ChannelDetailPage — replies", () => {
     channelId: "ch1",
     content: "Standalone",
     parentId: null,
+    replyToMessageId: null,
+    replyTo: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     editedAt: null,
@@ -2535,8 +2605,12 @@ describe("ChannelDetailPage — replies", () => {
     expect(screen.getAllByText("Parent message content").length).toBe(2);
   });
 
-  it("shows fallback preview when parent is not loaded", async () => {
-    mockChannelAndMessages([replyMessage]);
+  it("shows fallback preview when reply target is unavailable", async () => {
+    const replyToMissing = {
+      ...replyMessage,
+      replyTo: { id: "m1", content: null, author: null },
+    };
+    mockChannelAndMessages([replyToMissing]);
     render(<ChannelDetailPage />);
     await waitFor(() => {
       expect(screen.getByText("This is a reply")).toBeInTheDocument();
@@ -2571,13 +2645,19 @@ describe("ChannelDetailPage — replies", () => {
     expect(screen.queryByText(/Replying to/i)).not.toBeInTheDocument();
   });
 
-  it("sending a reply calls createMessage with parentId and clears preview", async () => {
+  it("sending a reply calls createMessage with replyToMessageId and clears preview", async () => {
     mockChannelAndMessages([parentMessage]);
     vi.mocked(createMessage).mockResolvedValueOnce({
       id: "m4",
       channelId: "ch1",
       content: "My reply",
-      parentId: "m1",
+      parentId: null,
+      replyToMessageId: "m1",
+      replyTo: {
+        id: "m1",
+        content: "Parent message content",
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+      },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       editedAt: null,
@@ -2597,7 +2677,7 @@ describe("ChannelDetailPage — replies", () => {
     await waitFor(() => {
       expect(createMessage).toHaveBeenCalledWith("token", "ws1", "ch1", {
         content: "My reply",
-        parentId: "m1",
+        replyToMessageId: "m1",
       });
     });
     expect(screen.queryByText(/Replying to/i)).not.toBeInTheDocument();
@@ -2620,7 +2700,7 @@ describe("ChannelDetailPage — replies", () => {
     expect(screen.getByText(/Replying to/i)).toBeInTheDocument();
   });
 
-  it("clicking quoted preview scrolls to parent message", async () => {
+  it("clicking reply preview scrolls to original message", async () => {
     const scrollIntoViewMock = vi.fn();
     Element.prototype.scrollIntoView = scrollIntoViewMock;
     mockChannelAndMessages([parentMessage, replyMessage]);
@@ -2628,8 +2708,7 @@ describe("ChannelDetailPage — replies", () => {
     await waitFor(() => {
       expect(screen.getByText("This is a reply")).toBeInTheDocument();
     });
-    const previews = screen.getAllByText("Parent message content");
-    await userEvent.click(previews[previews.length - 1]);
+    await userEvent.click(screen.getByTestId("channel-reply-to-preview-m2").querySelector("button")!);
     expect(scrollIntoViewMock).toHaveBeenCalled();
     scrollIntoViewMock.mockRestore();
   });
@@ -2655,6 +2734,8 @@ describe("ChannelDetailPage — reactions", () => {
     channelId: "ch1",
     content: "Hello",
     parentId: null,
+    replyToMessageId: null,
+    replyTo: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     editedAt: null,
@@ -2667,6 +2748,8 @@ describe("ChannelDetailPage — reactions", () => {
     channelId: "ch1",
     content: "World",
     parentId: null,
+    replyToMessageId: null,
+    replyTo: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     editedAt: null,
@@ -2679,6 +2762,8 @@ describe("ChannelDetailPage — reactions", () => {
     channelId: "ch1",
     content: "Own msg",
     parentId: null,
+    replyToMessageId: null,
+    replyTo: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     editedAt: null,
@@ -2962,6 +3047,8 @@ describe("ChannelDetailPage — reactions", () => {
       channelId: "ch1",
       content: "New msg",
       parentId: null,
+      replyToMessageId: null,
+      replyTo: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       editedAt: null,
@@ -2989,6 +3076,8 @@ describe("ChannelDetailPage — reactions", () => {
       channelId: "ch1",
       content: "Parent",
       parentId: null,
+      replyToMessageId: null,
+      replyTo: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       editedAt: null,
@@ -2999,7 +3088,13 @@ describe("ChannelDetailPage — reactions", () => {
       id: "m4",
       channelId: "ch1",
       content: "Reply text",
-      parentId: "m1",
+      parentId: null,
+      replyToMessageId: "m1",
+      replyTo: {
+        id: "m1",
+        content: "Parent",
+        author: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+      },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       editedAt: null,
@@ -3020,7 +3115,7 @@ describe("ChannelDetailPage — reactions", () => {
     await waitFor(() => {
       expect(createMessage).toHaveBeenCalledWith("token", "ws1", "ch1", {
         content: "Reply text",
-        parentId: "m1",
+        replyToMessageId: "m1",
       });
     });
   });
@@ -3031,6 +3126,8 @@ describe("ChannelDetailPage — reactions", () => {
       channelId: "ch1",
       content: "Editable",
       parentId: null,
+      replyToMessageId: null,
+      replyTo: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       editedAt: null,
@@ -3085,6 +3182,8 @@ describe("ChannelDetailPage — forward", () => {
     channelId: "ch1",
     content: "Hello",
     parentId: null,
+    replyToMessageId: null,
+    replyTo: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     editedAt: null,
@@ -3120,6 +3219,8 @@ describe("ChannelDetailPage — forward", () => {
       conversationId: "dc1",
       content: "↪ Hello",
       parentId: null,
+      replyToMessageId: null,
+      replyTo: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       editedAt: null,
@@ -3404,6 +3505,8 @@ describe("ChannelDetailPage — forward", () => {
         channelId: "ch1",
         content: "hello with file",
         parentId: null,
+        replyToMessageId: null,
+        replyTo: null,
         createdAt: "2024-01-01T00:00:00Z",
         updatedAt: "2024-01-01T00:00:00Z",
         editedAt: null,
@@ -3491,6 +3594,8 @@ describe("ChannelDetailPage — forward", () => {
         channelId: "ch1",
         content: "",
         parentId: null,
+        replyToMessageId: null,
+        replyTo: null,
         createdAt: "2024-01-01T00:00:00Z",
         updatedAt: "2024-01-01T00:00:00Z",
         editedAt: null,
@@ -3716,6 +3821,8 @@ describe("ChannelDetailPage — forward", () => {
         channelId: "ch1",
         content: "",
         parentId: null,
+        replyToMessageId: null,
+        replyTo: null,
         createdAt: "2024-01-01T00:00:00Z",
         updatedAt: "2024-01-01T00:00:00Z",
         editedAt: null,
@@ -4214,6 +4321,8 @@ describe("ChannelDetailPage — forward", () => {
         channelId: "ch1",
         content: "hello",
         parentId: null,
+        replyToMessageId: null,
+        replyTo: null,
         createdAt: "2024-01-01T00:00:00Z",
         updatedAt: "2024-01-01T00:00:00Z",
         editedAt: null,
@@ -4275,6 +4384,8 @@ describe("ChannelDetailPage — forward", () => {
         channelId: "ch1",
         content: "",
         parentId: null,
+        replyToMessageId: null,
+        replyTo: null,
         createdAt: "2024-01-01T00:00:00Z",
         updatedAt: "2024-01-01T00:00:00Z",
         editedAt: null,
@@ -4344,10 +4455,10 @@ describe("ChannelDetailPage — message context mode", () => {
 
   it("shows context messages and back button when search result not in DOM", async () => {
     const existing = [
-      { id: "m1", channelId: "ch1", content: "first", parentId: null, createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", editedAt: null, author: { id: "u1", username: "alice", displayName: null, avatarUrl: null }, reactions: [] },
-      { id: "m2", channelId: "ch1", content: "second", parentId: null, createdAt: "2024-01-01T00:01:00Z", updatedAt: "2024-01-01T00:01:00Z", editedAt: null, author: { id: "u1", username: "alice", displayName: null, avatarUrl: null }, reactions: [] },
+      { id: "m1", channelId: "ch1", content: "first", parentId: null, replyToMessageId: null, replyTo: null, createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", editedAt: null, author: { id: "u1", username: "alice", displayName: null, avatarUrl: null }, reactions: [] },
+      { id: "m2", channelId: "ch1", content: "second", parentId: null, replyToMessageId: null, replyTo: null, createdAt: "2024-01-01T00:01:00Z", updatedAt: "2024-01-01T00:01:00Z", editedAt: null, author: { id: "u1", username: "alice", displayName: null, avatarUrl: null }, reactions: [] },
     ];
-    const target = { id: "m-old", channelId: "ch1", content: "old message", parentId: null, createdAt: "2024-01-01T00:02:00Z", updatedAt: "2024-01-01T00:02:00Z", editedAt: null, author: { id: "u2", username: "bob", displayName: null, avatarUrl: null }, reactions: [] };
+    const target = { id: "m-old", channelId: "ch1", content: "old message", parentId: null, replyToMessageId: null, replyTo: null, createdAt: "2024-01-01T00:02:00Z", updatedAt: "2024-01-01T00:02:00Z", editedAt: null, author: { id: "u2", username: "bob", displayName: null, avatarUrl: null }, reactions: [] };
     mockChannelAndMessages(existing, []);
 
     vi.mocked(searchChannelMessages).mockResolvedValueOnce({
@@ -4387,10 +4498,10 @@ describe("ChannelDetailPage — message context mode", () => {
 
   it("restores original messages when back to latest is clicked", async () => {
     const existing = [
-      { id: "m1", channelId: "ch1", content: "first", parentId: null, createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", editedAt: null, author: { id: "u1", username: "alice", displayName: null, avatarUrl: null }, reactions: [] },
-      { id: "m2", channelId: "ch1", content: "second", parentId: null, createdAt: "2024-01-01T00:01:00Z", updatedAt: "2024-01-01T00:01:00Z", editedAt: null, author: { id: "u1", username: "alice", displayName: null, avatarUrl: null }, reactions: [] },
+      { id: "m1", channelId: "ch1", content: "first", parentId: null, replyToMessageId: null, replyTo: null, createdAt: "2024-01-01T00:00:00Z", updatedAt: "2024-01-01T00:00:00Z", editedAt: null, author: { id: "u1", username: "alice", displayName: null, avatarUrl: null }, reactions: [] },
+      { id: "m2", channelId: "ch1", content: "second", parentId: null, replyToMessageId: null, replyTo: null, createdAt: "2024-01-01T00:01:00Z", updatedAt: "2024-01-01T00:01:00Z", editedAt: null, author: { id: "u1", username: "alice", displayName: null, avatarUrl: null }, reactions: [] },
     ];
-    const target = { id: "m-old", channelId: "ch1", content: "old message", parentId: null, createdAt: "2024-01-01T00:02:00Z", updatedAt: "2024-01-01T00:02:00Z", editedAt: null, author: { id: "u2", username: "bob", displayName: null, avatarUrl: null }, reactions: [] };
+    const target = { id: "m-old", channelId: "ch1", content: "old message", parentId: null, replyToMessageId: null, replyTo: null, createdAt: "2024-01-01T00:02:00Z", updatedAt: "2024-01-01T00:02:00Z", editedAt: null, author: { id: "u2", username: "bob", displayName: null, avatarUrl: null }, reactions: [] };
     mockChannelAndMessages(existing, []);
 
     vi.mocked(searchChannelMessages).mockResolvedValueOnce({
@@ -4461,6 +4572,8 @@ describe("ChannelDetailPage — attachments", () => {
       channelId: "ch1",
       content: "",
       parentId: null,
+      replyToMessageId: null,
+      replyTo: null,
       createdAt: "2024-01-01T00:00:00Z",
       updatedAt: "2024-01-01T00:00:00Z",
       editedAt: null,
@@ -4509,6 +4622,8 @@ describe("ChannelDetailPage — attachments", () => {
       channelId: "ch1",
       content: "",
       parentId: null,
+      replyToMessageId: null,
+      replyTo: null,
       createdAt: "2024-01-01T00:00:00Z",
       updatedAt: "2024-01-01T00:00:00Z",
       editedAt: null,
@@ -4579,6 +4694,8 @@ describe("ChannelDetailPage — attachments", () => {
         channelId: "ch1",
         content: "",
         parentId: null,
+        replyToMessageId: null,
+        replyTo: null,
         createdAt: "2024-01-01T00:00:00Z",
         updatedAt: "2024-01-01T00:00:00Z",
         editedAt: null,
@@ -4694,6 +4811,8 @@ describe("ChannelDetailPage — attachments", () => {
         channelId: "ch1",
         content: "",
         parentId: null,
+        replyToMessageId: null,
+        replyTo: null,
         createdAt: "2024-01-01T00:00:00Z",
         updatedAt: "2024-01-01T00:00:00Z",
         editedAt: null,
@@ -4726,6 +4845,8 @@ describe("ChannelDetailPage — attachments", () => {
         channelId: "ch1",
         content: "",
         parentId: null,
+        replyToMessageId: null,
+        replyTo: null,
         createdAt: "2024-01-01T00:00:00Z",
         updatedAt: "2024-01-01T00:00:00Z",
         editedAt: null,
@@ -4795,6 +4916,8 @@ describe("ChannelDetailPage — scroll behavior", () => {
     channelId: "ch1",
     content: "Earlier message",
     parentId: null,
+    replyToMessageId: null,
+    replyTo: null,
     createdAt: "2024-01-01T00:00:00Z",
     updatedAt: "2024-01-01T00:00:00Z",
     editedAt: null,
@@ -4882,6 +5005,8 @@ describe("ChannelDetailPage — scroll behavior", () => {
         channelId: "ch1",
         content: "New message",
         parentId: null,
+        replyToMessageId: null,
+        replyTo: null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         editedAt: null,
@@ -4923,6 +5048,8 @@ describe("ChannelDetailPage — scroll behavior", () => {
         channelId: "ch1",
         content: "Far message",
         parentId: null,
+        replyToMessageId: null,
+        replyTo: null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         editedAt: null,

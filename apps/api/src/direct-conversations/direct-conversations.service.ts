@@ -117,6 +117,18 @@ export class DirectConversationsService {
       conversationId: message.conversationId,
       content: message.content,
       parentId: message.parentId,
+      replyToMessageId: message.replyToMessageId ?? null,
+      replyTo: message.replyToMessage
+        ? {
+            id: message.replyToMessage.id,
+            content: message.replyToMessage.deletedAt
+              ? null
+              : message.replyToMessage.content,
+            author: message.replyToMessage.deletedAt
+              ? null
+              : message.replyToMessage.author,
+          }
+        : null,
       createdAt: message.createdAt,
       updatedAt: message.updatedAt,
       editedAt: message.editedAt,
@@ -434,6 +446,19 @@ export class DirectConversationsService {
       }
     }
 
+    if (dto.replyToMessageId) {
+      const replyTarget = await this.directConversations.findMessageById(
+        dto.replyToMessageId,
+      );
+      if (
+        !replyTarget ||
+        replyTarget.conversationId !== conversationId ||
+        replyTarget.deletedAt !== null
+      ) {
+        throw new BadRequestException('Reply target message not found');
+      }
+    }
+
     const myParticipant = participants.find((p) => p.userId === currentUserId);
     const myLastReadAt = myParticipant?.lastReadAt ?? null;
     const otherParticipantLastReadAt = otherParticipant?.lastReadAt ?? null;
@@ -479,6 +504,7 @@ export class DirectConversationsService {
       authorId: currentUserId,
       content,
       parentId: dto.parentId,
+      replyToMessageId: dto.replyToMessageId,
       mentions,
       ...(attachmentIds.length > 0 && { attachmentIds }),
     });

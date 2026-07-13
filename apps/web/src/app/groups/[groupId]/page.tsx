@@ -17,6 +17,7 @@ import {
   MessageSquare,
   Paperclip,
   Presentation,
+  Reply,
   Send,
   Settings,
   UploadCloud,
@@ -313,6 +314,7 @@ export default function GroupConversationPage() {
     { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string }
   >({ kind: "idle" });
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [replyToMessage, setReplyToMessage] = useState<GroupMessage | null>(null);
   const [scrollPaused, setScrollPaused] = useState(false);
   const socketRef = useRef<ReturnType<typeof createSocket> | null>(null);
   const markReadInFlightRef = useRef<Promise<unknown> | null>(null);
@@ -781,12 +783,14 @@ export default function GroupConversationPage() {
 
       const input: CreateGroupMessageInput = {
         ...(hasContent ? { content: trimmed } : {}),
+        ...(replyToMessage ? { replyToMessageId: replyToMessage.id } : {}),
         ...(attachmentIds.length > 0 ? { attachmentIds } : {}),
       };
       const msg = await sendGroupMessage(accessToken, groupId, input);
       setContent("");
       setComposerAttachments([]);
       composerAttachmentsRef.current = [];
+      setReplyToMessage(null);
       setSendState({ kind: "idle" });
       appendMessage(msg);
       requestAnimationFrame(() => {
@@ -900,6 +904,18 @@ export default function GroupConversationPage() {
 
   function getMessageAuthorName(msg: GroupMessage) {
     return msg.author.displayName || msg.author.username || t("messageAuthor.unknownUser");
+  }
+
+  function getMessageSnippet(msg: GroupMessage) {
+    const singleLine = msg.content.replace(/\s+/g, " ").trim();
+    if (singleLine.length <= 120) return singleLine;
+    return `${singleLine.slice(0, 117)}...`;
+  }
+
+  function handleReply(msg: GroupMessage) {
+    setReplyToMessage(msg);
+    const textarea = document.getElementById("group-message-input") as HTMLTextAreaElement | null;
+    textarea?.focus();
   }
 
   function formatTime(iso: string) {
@@ -1114,7 +1130,44 @@ export default function GroupConversationPage() {
                             <span className="text-[10px] text-muted-foreground">
                               {formatTime(msg.createdAt)}
                             </span>
+                            <button
+                              type="button"
+                              onClick={() => handleReply(msg)}
+                              data-testid={`group-reply-action-${msg.id}`}
+                              className="ml-auto inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                              aria-label={t("groups.reply")}
+                            >
+                              <Reply size={12} />
+                              {t("groups.reply")}
+                            </button>
                           </div>
+                          {msg.replyTo && (
+                            <div className="mb-1.5" data-testid={`group-reply-to-preview-${msg.id}`}>
+                              {msg.replyTo.content !== null && msg.replyTo.author !== null ? (
+                                <button
+                                  type="button"
+                                  onClick={() => scrollToMessage(msg.replyTo!.id)}
+                                  className="flex w-full flex-col gap-0.5 rounded-lg border-l-4 border-muted-foreground bg-muted/50 px-2.5 py-1.5 text-left hover:bg-accent/50 transition-colors"
+                                >
+                                  <span className="text-[11px] font-semibold text-foreground">
+                                    {msg.replyTo.author.displayName || msg.replyTo.author.username || t("messageAuthor.unknownUser")}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground line-clamp-2">
+                                    {msg.replyTo.content}
+                                  </span>
+                                </button>
+                              ) : (
+                                <div className="flex flex-col gap-0.5 rounded-lg border-l-4 border-border bg-muted/50 px-2.5 py-1.5">
+                                  <span className="text-[11px] font-semibold text-muted-foreground">
+                                    {t("groups.reply")}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground/80">
+                                    {t("groups.originalMessageMissing")}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          )}
                           <p
                             data-testid={`group-message-content-${msg.id}`}
                             className="whitespace-pre-wrap text-sm text-foreground"
@@ -1167,6 +1220,29 @@ export default function GroupConversationPage() {
 
           <div className="shrink-0 border-t border-border/80 bg-card p-3">
             <form onSubmit={handleSendMessage} className="flex flex-col gap-2">
+              {replyToMessage && (
+                <div data-testid="group-reply-preview" className="flex items-start justify-between gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] font-medium text-muted-foreground">
+                      {t("groups.replyingTo")} {getMessageAuthorName(replyToMessage)}
+                    </p>
+                    <p className="mt-0.5 text-xs text-foreground truncate">
+                      {getMessageSnippet(replyToMessage)}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="icon"
+                    size="sm"
+                    onClick={() => setReplyToMessage(null)}
+                    data-testid="group-cancel-reply"
+                    className="h-6 w-6"
+                    aria-label={t("groups.cancelReply")}
+                  >
+                    <X size={14} />
+                  </Button>
+                </div>
+              )}
               <textarea
                 id="group-message-input"
                 data-testid="group-message-input"

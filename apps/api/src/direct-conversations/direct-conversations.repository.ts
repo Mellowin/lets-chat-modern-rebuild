@@ -12,6 +12,7 @@ interface CreateMessageInput {
   authorId: string;
   content: string;
   parentId?: string;
+  replyToMessageId?: string;
   mentions?: { userId: string; username: string }[];
   attachmentIds?: string[];
 }
@@ -42,6 +43,14 @@ const directMessageInclude = {
       mimeType: true,
       size: true,
       createdAt: true,
+    },
+  },
+  replyToMessage: {
+    select: {
+      id: true,
+      content: true,
+      deletedAt: true,
+      author: { select: authorSelect },
     },
   },
 } as const;
@@ -272,6 +281,7 @@ export class DirectConversationsRepository {
           authorId: data.authorId,
           content: data.content,
           parentId: data.parentId,
+          replyToMessageId: data.replyToMessageId,
           mentions: data.mentions as never,
         },
       });

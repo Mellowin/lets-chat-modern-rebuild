@@ -61,6 +61,12 @@ export interface GroupMessage {
   id: string;
   groupId: string;
   content: string;
+  replyToMessageId: string | null;
+  replyTo: {
+    id: string;
+    content: string | null;
+    author: GroupMessageAuthor | null;
+  } | null;
   createdAt: string;
   updatedAt: string;
   author: GroupMessageAuthor;
@@ -304,6 +310,7 @@ export async function getGroupMessageContext(
 
 export interface CreateGroupMessageInput {
   content?: string;
+  replyToMessageId?: string;
   attachmentIds?: string[];
 }
 

@@ -815,6 +815,10 @@ export type TranslationKey =
   | "profile.contactPrivacySaved"
   | "profile.contactPrivacySaveFailed"
   | "groups.block"
+  | "groups.reply"
+  | "groups.replyingTo"
+  | "groups.cancelReply"
+  | "groups.originalMessageMissing"
   | "groups.report";
 
 const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string) => string)>> = {
@@ -1222,6 +1226,10 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "groups.send": "Send",
     "groups.sending": "Sending…",
     "groups.typeMessage": "Type a message…",
+    "groups.reply": "Reply",
+    "groups.replyingTo": "Replying to",
+    "groups.cancelReply": "Cancel reply",
+    "groups.originalMessageMissing": "Original message unavailable",
     "groups.failedRenameGroup": "Failed to rename group",
     "groups.failedAddMember": "Failed to add member",
     "groups.failedRemoveMember": "Failed to remove member",
@@ -2022,6 +2030,10 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "groups.send": "Надіслати",
     "groups.sending": "Надсилаємо…",
     "groups.typeMessage": "Напишіть повідомлення…",
+    "groups.reply": "Відповісти",
+    "groups.replyingTo": "Відповідь на",
+    "groups.cancelReply": "Скасувати відповідь",
+    "groups.originalMessageMissing": "Оригінальне повідомлення недоступне",
     "groups.failedRenameGroup": "Не вдалося перейменувати групу",
     "groups.failedAddMember": "Не вдалося додати учасника",
     "groups.failedRemoveMember": "Не вдалося вилучити учасника",
@@ -2822,6 +2834,10 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "groups.send": "Отправить",
     "groups.sending": "Отправляем…",
     "groups.typeMessage": "Напишите сообщение…",
+    "groups.reply": "Ответить",
+    "groups.replyingTo": "Ответ на",
+    "groups.cancelReply": "Отменить ответ",
+    "groups.originalMessageMissing": "Оригинальное сообщение недоступно",
     "groups.failedRenameGroup": "Не удалось переименовать группу",
     "groups.failedAddMember": "Не удалось добавить участника",
     "groups.failedRemoveMember": "Не удалось удалить участника",

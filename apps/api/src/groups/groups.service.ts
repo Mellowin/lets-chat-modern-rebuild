@@ -413,6 +413,14 @@ export class GroupsService {
         author: m.author,
         attachments: (m.attachments ?? []).map(mapAttachmentResponse),
         mentions: this.normalizeMentions(m.mentions),
+        replyToMessageId: m.replyToMessageId ?? null,
+        replyTo: m.replyToMessage
+          ? {
+              id: m.replyToMessage.id,
+              content: m.replyToMessage.content,
+              author: m.replyToMessage.author,
+            }
+          : null,
       }));
 
     const after = (hasMoreAfter ? afterRaw.slice(0, afterLimit) : afterRaw).map(
@@ -425,6 +433,14 @@ export class GroupsService {
         author: m.author,
         attachments: (m.attachments ?? []).map(mapAttachmentResponse),
         mentions: this.normalizeMentions(m.mentions),
+        replyToMessageId: m.replyToMessageId ?? null,
+        replyTo: m.replyToMessage
+          ? {
+              id: m.replyToMessage.id,
+              content: m.replyToMessage.content,
+              author: m.replyToMessage.author,
+            }
+          : null,
       }),
     );
 
@@ -438,6 +454,14 @@ export class GroupsService {
         author: target.author,
         attachments: (target.attachments ?? []).map(mapAttachmentResponse),
         mentions: this.normalizeMentions(target.mentions),
+        replyToMessageId: target.replyToMessageId ?? null,
+        replyTo: target.replyToMessage
+          ? {
+              id: target.replyToMessage.id,
+              content: target.replyToMessage.content,
+              author: target.replyToMessage.author,
+            }
+          : null,
       },
       before,
       after,
@@ -474,6 +498,14 @@ export class GroupsService {
       author: m.author,
       attachments: (m.attachments ?? []).map(mapAttachmentResponse),
       mentions: this.normalizeMentions(m.mentions),
+      replyToMessageId: m.replyToMessageId ?? null,
+      replyTo: m.replyToMessage
+        ? {
+            id: m.replyToMessage.id,
+            content: m.replyToMessage.content,
+            author: m.replyToMessage.author,
+          }
+        : null,
     }));
 
     return {
@@ -493,6 +525,15 @@ export class GroupsService {
 
     if (dto.parentId) {
       throw new BadRequestException('Replies are not supported in groups');
+    }
+
+    if (dto.replyToMessageId) {
+      const replyTarget = await this.groups.findMessageByIdWithRelations(
+        dto.replyToMessageId,
+      );
+      if (!replyTarget || replyTarget.groupId !== groupId) {
+        throw new BadRequestException('Reply target message not found');
+      }
     }
 
     const content = dto.content?.trim() ?? '';
@@ -533,6 +574,7 @@ export class GroupsService {
       authorId: currentUserId,
       content,
       mentions,
+      replyToMessageId: dto.replyToMessageId ?? null,
       ...(attachmentIds.length > 0 && { attachmentIds }),
     });
 
@@ -547,6 +589,14 @@ export class GroupsService {
       author: message.author,
       attachments: (message.attachments ?? []).map(mapAttachmentResponse),
       mentions: this.normalizeMentions(message.mentions),
+      replyToMessageId: message.replyToMessageId ?? null,
+      replyTo: message.replyToMessage
+        ? {
+            id: message.replyToMessage.id,
+            content: message.replyToMessage.content,
+            author: message.replyToMessage.author,
+          }
+        : null,
     };
 
     this.websocketEvents.broadcastGroupMessageCreated(groupId, response);

@@ -29,6 +29,14 @@ export class CreateMessageDto {
   @IsUUID()
   parentId?: string;
 
+  @ApiProperty({
+    example: '00000000-0000-0000-0000-000000000000',
+    required: false,
+  })
+  @IsOptional()
+  @IsUUID()
+  replyToMessageId?: string;
+
   @ApiProperty({ type: [CreateMessageAttachmentDto], required: false })
   @IsOptional()
   @ValidateNested({ each: true })

@@ -1221,7 +1221,7 @@ export default function ChannelDetailPage() {
 
       const input: CreateMessageInput = {
         ...(hasContent ? { content: trimmed } : {}),
-        ...(replyTargetId ? { parentId: replyTargetId } : {}),
+        ...(replyTargetId ? { replyToMessageId: replyTargetId } : {}),
         ...(attachmentInputs.length > 0 ? { attachments: attachmentInputs } : {}),
       };
       const msg = await createMessage(accessToken, workspaceId, channelId, input);
@@ -1904,36 +1904,30 @@ export default function ChannelDetailPage() {
                                 : "bg-gradient-to-br from-card via-card to-muted/40 text-foreground border-border shadow-sm dark:to-muted/20"
                             }`}
                           >
-                          {msg.parentId && (
-                            <div className="mb-1.5">
-                              {(() => {
-                                const parent = displayMessages.find((m) => m.id === msg.parentId);
-                                if (parent) {
-                                  return (
-                                    <button
-                                      onClick={() => scrollToMessage(parent.id)}
-                                      className="flex w-full flex-col gap-0.5 rounded-lg border-l-4 border-muted-foreground bg-muted/50 px-2.5 py-1.5 text-left hover:bg-accent/50 transition-colors"
-                                    >
-                                      <span className="text-[11px] font-semibold text-foreground">
-                                        {getMessageAuthorName(parent)}
-                                      </span>
-                                      <span className="text-xs text-muted-foreground line-clamp-2">
-                                        {getMessageSnippet(parent)}
-                                      </span>
-                                    </button>
-                                  );
-                                }
-                                return (
-                                  <div className="flex flex-col gap-0.5 rounded-lg border-l-4 border-border bg-muted/50 px-2.5 py-1.5">
-                                    <span className="text-[11px] font-semibold text-muted-foreground">
-                                      {t("channel.reply")}
-                                    </span>
-                                    <span className="text-xs text-muted-foreground/80">
-                                      {t("channel.replyOriginalUnavailable")}
-                                    </span>
-                                  </div>
-                                );
-                              })()}
+                          {msg.replyTo && (
+                            <div className="mb-1.5" data-testid={`channel-reply-to-preview-${msg.id}`}>
+                              {msg.replyTo.content !== null && msg.replyTo.author !== null ? (
+                                <button
+                                  onClick={() => scrollToMessage(msg.replyTo!.id)}
+                                  className="flex w-full flex-col gap-0.5 rounded-lg border-l-4 border-muted-foreground bg-muted/50 px-2.5 py-1.5 text-left hover:bg-accent/50 transition-colors"
+                                >
+                                  <span className="text-[11px] font-semibold text-foreground">
+                                    {msg.replyTo.author.displayName || msg.replyTo.author.username || t("messageAuthor.unknownUser")}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground line-clamp-2">
+                                    {msg.replyTo.content}
+                                  </span>
+                                </button>
+                              ) : (
+                                <div className="flex flex-col gap-0.5 rounded-lg border-l-4 border-border bg-muted/50 px-2.5 py-1.5">
+                                  <span className="text-[11px] font-semibold text-muted-foreground">
+                                    {t("channel.reply")}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground/80">
+                                    {t("channel.replyOriginalUnavailable")}
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           )}
                           {editingMessageId === msg.id ? (

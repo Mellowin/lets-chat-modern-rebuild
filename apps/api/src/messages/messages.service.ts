@@ -66,6 +66,7 @@ export class MessagesService {
       channelId: string;
       content: string;
       parentId: string | null;
+      replyToMessageId: string | null;
       createdAt: Date;
       updatedAt: Date;
       editedAt: Date | null;
@@ -84,6 +85,17 @@ export class MessagesService {
         createdAt: Date;
       }>;
       mentions?: unknown;
+      replyToMessage?: {
+        id: string;
+        content: string;
+        deletedAt: Date | null;
+        author: {
+          id: string;
+          username: string;
+          displayName: string | null;
+          avatarUrl: string | null;
+        };
+      } | null;
     },
     userId: string,
   ) {
@@ -110,6 +122,18 @@ export class MessagesService {
       channelId: message.channelId,
       content: message.content,
       parentId: message.parentId,
+      replyToMessageId: message.replyToMessageId ?? null,
+      replyTo: message.replyToMessage
+        ? {
+            id: message.replyToMessage.id,
+            content: message.replyToMessage.deletedAt
+              ? null
+              : message.replyToMessage.content,
+            author: message.replyToMessage.deletedAt
+              ? null
+              : message.replyToMessage.author,
+          }
+        : null,
       createdAt: message.createdAt,
       updatedAt: message.updatedAt,
       editedAt: message.editedAt,
@@ -178,6 +202,17 @@ export class MessagesService {
       }
     }
 
+    if (dto.replyToMessageId) {
+      const replyTarget = await this.messages.findById(dto.replyToMessageId);
+      if (
+        !replyTarget ||
+        replyTarget.channelId !== channelId ||
+        replyTarget.deletedAt !== null
+      ) {
+        throw new BadRequestException('Reply target message not found');
+      }
+    }
+
     const hasContent = dto.content && dto.content.trim().length > 0;
     const hasAttachments = dto.attachments && dto.attachments.length > 0;
 
@@ -217,6 +252,7 @@ export class MessagesService {
       authorId: userId,
       content: dto.content ?? '',
       parentId: dto.parentId,
+      replyToMessageId: dto.replyToMessageId,
       attachments: dto.attachments?.map((a) => ({
         storageKey: a.storageKey,
         filename: a.fileName,
