@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService, StorageBackend } from '@lets-chat/database';
+import { PrismaService, StorageBackend, Prisma } from '@lets-chat/database';
 import {
   buildMessageCursorWhereClause,
   buildPinCursorWhereClause,
@@ -19,6 +19,7 @@ interface CreateMessageInput {
     createdById: string;
   }>;
   mentions?: { userId: string; username: string }[];
+  forwardedFrom?: Prisma.InputJsonValue;
 }
 
 @Injectable()
@@ -35,6 +36,7 @@ export class MessagesRepository {
           parentId: data.parentId,
           replyToMessageId: data.replyToMessageId,
           mentions: data.mentions as never,
+          forwardedFrom: data.forwardedFrom as never,
         },
       });
 
@@ -75,6 +77,8 @@ export class MessagesRepository {
               filename: true,
               mimeType: true,
               size: true,
+              storageKey: true,
+              storageBackend: true,
               createdAt: true,
             },
           },
@@ -149,6 +153,8 @@ export class MessagesRepository {
             filename: true,
             mimeType: true,
             size: true,
+            storageKey: true,
+            storageBackend: true,
             createdAt: true,
           },
         },
@@ -210,6 +216,8 @@ export class MessagesRepository {
               filename: true,
               mimeType: true,
               size: true,
+              storageKey: true,
+              storageBackend: true,
               createdAt: true,
             },
           },
@@ -309,7 +317,7 @@ export class MessagesRepository {
                 },
               },
             },
-          },
+            },
         },
       },
     });
@@ -377,7 +385,7 @@ export class MessagesRepository {
                 },
               },
             },
-          },
+            },
         },
       },
     });
@@ -419,6 +427,8 @@ export class MessagesRepository {
             filename: true,
             mimeType: true,
             size: true,
+            storageKey: true,
+            storageBackend: true,
             createdAt: true,
           },
         },
@@ -470,6 +480,8 @@ export class MessagesRepository {
             filename: true,
             mimeType: true,
             size: true,
+            storageKey: true,
+            storageBackend: true,
             createdAt: true,
           },
         },
@@ -531,6 +543,8 @@ export class MessagesRepository {
             filename: true,
             mimeType: true,
             size: true,
+            storageKey: true,
+            storageBackend: true,
             createdAt: true,
           },
         },
@@ -592,6 +606,8 @@ export class MessagesRepository {
             filename: true,
             mimeType: true,
             size: true,
+            storageKey: true,
+            storageBackend: true,
             createdAt: true,
           },
         },

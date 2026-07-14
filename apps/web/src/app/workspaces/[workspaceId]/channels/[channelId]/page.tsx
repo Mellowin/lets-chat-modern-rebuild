@@ -48,8 +48,9 @@ import { getChannel, getChannelMembers, removeChannelMember, archiveChannel, lea
 import { createChannelInvite } from "@/lib/channel-invites-api";
 
 import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, uploadAttachmentViaProxyWithProgress, fetchAttachmentFile, getAttachmentFileObjectUrl, getMessageContext, pinMessage, unpinMessage, getPinnedMessages, type Message, type CreateMessageInput, type UpdateMessageInput, type ReactionSummary, type Attachment, type MessageContextResult, type PinnedMessageSummary, CreateMessageAttachmentInput } from "@/lib/messages-api";
-import { sendDirectMessage, listDirectConversations, type DirectConversation } from "@/lib/direct-conversations-api";
 import { createSocket } from "@/lib/socket-client";
+import { ForwardDialog } from "@/components/ForwardDialog";
+import { ForwardedIndicator } from "@/components/ForwardedIndicator";
 import {
   ALLOWED_ATTACHMENT_MIME_TYPES as ALLOWED_ATTACHMENT_TYPES,
   EXTENSION_TO_MIME_TYPE as EXTENSION_MIME_MAP,
@@ -397,10 +398,7 @@ export default function ChannelDetailPage() {
   const [messageMenuPosition, setMessageMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [reactionPickerMessageId, setReactionPickerMessageId] = useState<string | null>(null);
   const [reactionPickerPosition, setReactionPickerPosition] = useState<{ top: number; left: number } | null>(null);
-  const [forwardModalMessage, setForwardModalMessage] = useState<Message | null>(null);
-  const [forwardTargets, setForwardTargets] = useState<DirectConversation[] | null>(null);
-  const [forwardError, setForwardError] = useState<string | null>(null);
-  const [forwarding, setForwarding] = useState(false);
+  const [forwardMessage, setForwardMessage] = useState<Message | null>(null);
   const [pinnedMessages, setPinnedMessages] = useState<PinnedMessageSummary[]>([]);
   const [pinsPanelOpen, setPinsPanelOpen] = useState(false);
   const [pinsState, setPinsState] = useState<{ kind: "idle" | "loading" | "error"; message?: string }>({ kind: "idle" });
@@ -1136,36 +1134,9 @@ export default function ChannelDetailPage() {
     }
   }
 
-  async function handleForward(message: Message) {
+  function handleForward(message: Message) {
     closeMenuAndPicker();
-    if (!accessToken) return;
-    setForwardModalMessage(message);
-    setForwarding(true);
-    setForwardError(null);
-    try {
-      const list = await listDirectConversations(accessToken);
-      setForwardTargets(list.filter((c) => c.otherParticipant?.id !== user?.id));
-    } catch (err) {
-      const msg = localizeApiError(err, "channel.errorForwardFailed", t);
-      setForwardError(msg);
-    } finally {
-      setForwarding(false);
-    }
-  }
-
-  async function handleForwardSend(targetConversationId: string) {
-    if (!accessToken || !forwardModalMessage) return;
-    setForwarding(true);
-    setForwardError(null);
-    try {
-      await sendDirectMessage(accessToken, targetConversationId, { content: `↪ ${forwardModalMessage.content}` });
-      setForwardModalMessage(null);
-    } catch (err) {
-      const message = localizeApiError(err, "channel.errorForwardFailed", t);
-      setForwardError(message);
-    } finally {
-      setForwarding(false);
-    }
+    setForwardMessage(message);
   }
 
   async function handlePinMessage(message: Message) {
@@ -2076,6 +2047,7 @@ export default function ChannelDetailPage() {
                               {t("channel.pinnedMessage")}
                             </Badge>
                           )}
+                          <ForwardedIndicator forwardedFrom={msg.forwardedFrom} />
                           {editingMessageId !== msg.id && (
                             <Button
                               variant="icon"
@@ -2647,45 +2619,14 @@ export default function ChannelDetailPage() {
         </div>
       )}
 
-      {forwardModalMessage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setForwardModalMessage(null)} />
-          <div className="relative z-10 w-full max-w-sm rounded-xl border border-border bg-card p-4 shadow-lg">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-card-foreground">{t("channel.forwardTo")}</h3>
-              <Button
-                variant="icon"
-                size="sm"
-                onClick={() => setForwardModalMessage(null)}
-                aria-label={t("channel.cancel")}
-              >
-                <X size={16} />
-              </Button>
-            </div>
-            {forwardTargets === null || forwardTargets.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{forwardError || t("channel.noConversations")}</p>
-            ) : (
-              <div className="max-h-60 overflow-y-auto space-y-1">
-                {forwardTargets.map((conv) => (
-                  <button
-                    key={conv.id}
-                    onClick={() => handleForwardSend(conv.id)}
-                    disabled={forwarding}
-                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-card-foreground hover:bg-accent disabled:opacity-50"
-                  >
-                    <Avatar
-                      src={conv.otherParticipant?.avatarUrl}
-                      name={conv.otherParticipant?.displayName || conv.otherParticipant?.username || "?"}
-                      size="sm"
-                      alt=""
-                    />
-                    <span className="truncate">{conv.otherParticipant?.displayName || conv.otherParticipant?.username || t("messageAuthor.unknownUser")}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+      {forwardMessage && accessToken && (
+        <ForwardDialog
+          accessToken={accessToken}
+          sourceType="channel"
+          sourceMessageId={forwardMessage.id}
+          sourceChatId={channelId}
+          onClose={() => setForwardMessage(null)}
+        />
       )}
 
       {lightbox && (

@@ -17,6 +17,7 @@ import { PushService } from '../push/push.service';
 import { BlocksService } from '../safety/blocks.service';
 import { MentionsService } from '../common/mentions.service';
 import { mapAttachmentResponse } from '../messages/messages.service';
+import { ForwardPermissionsHelper } from '../messages/forward-permissions.helper';
 import {
   validateAttachmentFile,
   assertAttachmentAllowed,
@@ -28,7 +29,7 @@ import {
 import { StorageService } from '../storage/storage.service';
 import { AttachmentsRepository } from '../messages/attachments.repository';
 import { DirectConversationsRepository } from './direct-conversations.repository';
-import { StorageBackend } from '@lets-chat/database';
+import { StorageBackend, Prisma } from '@lets-chat/database';
 import { randomUUID } from 'crypto';
 import { CreateDirectConversationDto } from './dto/create-direct-conversation.dto';
 import { CreateDirectMessageDto } from './dto/create-direct-message.dto';
@@ -48,6 +49,7 @@ export class DirectConversationsService {
     private readonly mentions: MentionsService,
     private readonly storage: StorageService,
     private readonly attachments: AttachmentsRepository,
+    private readonly forwardPermissions: ForwardPermissionsHelper,
   ) {}
 
   private makePairKey(userIdA: string, userIdB: string): string {
@@ -105,7 +107,7 @@ export class DirectConversationsService {
     };
   }
 
-  private toMessageResponse(
+  async toMessageResponse(
     message: Awaited<
       ReturnType<DirectConversationsRepository['createMessage']>
     >,
@@ -163,6 +165,10 @@ export class DirectConversationsService {
             pinnedByUserId: message.pin.pinnedByUserId,
           }
         : undefined,
+      forwardedFrom: await this.forwardPermissions.toResponse(
+        message.forwardedFrom,
+        currentUserId,
+      ),
     };
   }
 
@@ -192,39 +198,48 @@ export class DirectConversationsService {
     return participant;
   }
 
-  private mapPinResponse(pin: {
-    id: string;
-    pinnedAt: Date;
-    pinnedBy: {
+  private async mapPinResponse(
+    pin: {
       id: string;
-      username: string;
-      displayName: string | null;
-      avatarUrl: string | null;
-    } | null;
-    message: {
-      id: string;
-      content: string;
-      createdAt: Date;
-      author: {
+      pinnedAt: Date;
+      pinnedBy: {
         id: string;
         username: string;
         displayName: string | null;
         avatarUrl: string | null;
       } | null;
-      attachments: Array<{ id: string }>;
-      replyToMessage?: {
+      message: {
         id: string;
         content: string;
-        deletedAt: Date | null;
+        createdAt: Date;
         author: {
           id: string;
           username: string;
           displayName: string | null;
           avatarUrl: string | null;
         } | null;
-      } | null;
-    };
-  }) {
+        attachments: Array<{ id: string }>;
+        replyToMessage?: {
+          id: string;
+          content: string;
+          deletedAt: Date | null;
+          author: {
+            id: string;
+            username: string;
+            displayName: string | null;
+            avatarUrl: string | null;
+          } | null;
+        } | null;
+        forwardedFrom?: unknown;
+      };
+    },
+    userId: string,
+  ) {
+    const forwardedFrom = await this.forwardPermissions.toResponse(
+      pin.message.forwardedFrom,
+      userId,
+    );
+
     return {
       id: pin.id,
       pinnedAt: pin.pinnedAt,
@@ -265,6 +280,7 @@ export class DirectConversationsService {
                   : null,
             }
           : null,
+        forwardedFrom,
       },
     };
   }
@@ -388,13 +404,15 @@ export class DirectConversationsService {
       reactionsMap.set(message.id, reactions);
     }
 
-    const items = page.map((m) =>
-      this.toMessageResponse(
-        m,
-        currentUserId,
-        myLastReadAt,
-        otherParticipantLastReadAt,
-        reactionsMap.get(m.id) ?? [],
+    const items = await Promise.all(
+      page.map((m) =>
+        this.toMessageResponse(
+          m,
+          currentUserId,
+          myLastReadAt,
+          otherParticipantLastReadAt,
+          reactionsMap.get(m.id) ?? [],
+        ),
       ),
     );
 
@@ -472,9 +490,11 @@ export class DirectConversationsService {
       reactionsMap.set(message.id, reactions);
     }
 
-    const toResponse = (
+    const toResponse = async (
       m: (typeof contextMessages)[number],
-    ): ReturnType<DirectConversationsService['toMessageResponse']> =>
+    ): Promise<
+      ReturnType<DirectConversationsService['toMessageResponse']>
+    > =>
       this.toMessageResponse(
         m,
         currentUserId,
@@ -483,16 +503,18 @@ export class DirectConversationsService {
         reactionsMap.get(m.id) ?? [],
       );
 
-    const before = (hasMoreBefore ? beforeRaw.slice(0, beforeLimit) : beforeRaw)
-      .reverse()
-      .map(toResponse);
+    const before = await Promise.all(
+      (hasMoreBefore ? beforeRaw.slice(0, beforeLimit) : beforeRaw)
+        .reverse()
+        .map(toResponse),
+    );
 
-    const after = (hasMoreAfter ? afterRaw.slice(0, afterLimit) : afterRaw).map(
-      toResponse,
+    const after = await Promise.all(
+      (hasMoreAfter ? afterRaw.slice(0, afterLimit) : afterRaw).map(toResponse),
     );
 
     return {
-      target: toResponse(target),
+      target: await toResponse(target),
       before,
       after,
       hasMoreBefore,
@@ -504,6 +526,7 @@ export class DirectConversationsService {
     conversationId: string,
     dto: CreateDirectMessageDto,
     currentUserId: string,
+    forwardedFrom?: Prisma.InputJsonValue,
   ) {
     const participant = await this.directConversations.findParticipant(
       conversationId,
@@ -603,12 +626,13 @@ export class DirectConversationsService {
       parentId: dto.parentId,
       replyToMessageId: dto.replyToMessageId,
       mentions,
+      forwardedFrom,
       ...(attachmentIds.length > 0 && { attachmentIds }),
     });
 
     await this.directConversations.touchConversationUpdatedAt(conversationId);
 
-    const response = this.toMessageResponse(
+    const response = await this.toMessageResponse(
       message,
       currentUserId,
       myLastReadAt,
@@ -703,7 +727,7 @@ export class DirectConversationsService {
       userId,
     );
 
-    const response = this.toMessageResponse(
+    const response = await this.toMessageResponse(
       updated,
       userId,
       myLastReadAt,
@@ -1076,7 +1100,7 @@ export class DirectConversationsService {
         : { id: userId, username: '', displayName: null, avatarUrl: null },
     });
 
-    return this.mapPinResponse(pin);
+    return this.mapPinResponse(pin, userId);
   }
 
   async unpinMessage(
@@ -1125,7 +1149,7 @@ export class DirectConversationsService {
     const page = hasMore ? rows.slice(0, limit) : rows;
 
     return {
-      items: page.map((p) => this.mapPinResponse(p)),
+      items: await Promise.all(page.map((p) => this.mapPinResponse(p, userId))),
       nextCursor:
         hasMore && page.length > 0
           ? encodePinCursor({
