@@ -72,6 +72,39 @@ export interface GroupMessage {
   author: GroupMessageAuthor;
   mentions?: GroupMessageMention[];
   attachments?: GroupMessageAttachment[];
+  isPinned?: boolean;
+  pin?: {
+    pinnedAt: string;
+    pinnedByUserId?: string | null;
+  } | null;
+}
+
+export interface PinnedGroupMessageSummary {
+  id: string;
+  pinnedAt: string;
+  pinnedBy: {
+    id: string;
+    username: string;
+    displayName: string | null;
+  } | null;
+  message: {
+    id: string;
+    content: string | null;
+    createdAt: string;
+    author: GroupMessageAuthor;
+    attachmentCount: number;
+    replyTo: {
+      id: string;
+      content: string | null;
+      author: GroupMessageAuthor | null;
+    } | null;
+  };
+}
+
+export interface PaginatedPinnedGroupMessages {
+  items: PinnedGroupMessageSummary[];
+  nextCursor: string | null;
+  hasMore: boolean;
 }
 
 export interface PaginatedGroupMessages {
@@ -477,4 +510,60 @@ export async function searchUsers(accessToken: string, query: string): Promise<S
   }
 
   return res.json() as Promise<SearchUserResult[]>;
+}
+
+export async function pinGroupMessage(
+  accessToken: string,
+  groupId: string,
+  messageId: string,
+): Promise<PinnedGroupMessageSummary> {
+  const res = await authFetch(`${API_BASE}/groups/${encodeURIComponent(groupId)}/messages/${encodeURIComponent(messageId)}/pin`, {
+    method: "POST",
+    headers: {
+      ...authHeaders(accessToken),
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to pin message: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<PinnedGroupMessageSummary>;
+}
+
+export async function unpinGroupMessage(
+  accessToken: string,
+  groupId: string,
+  messageId: string,
+): Promise<void> {
+  const res = await authFetch(`${API_BASE}/groups/${encodeURIComponent(groupId)}/messages/${encodeURIComponent(messageId)}/pin`, {
+    method: "DELETE",
+    headers: authHeaders(accessToken),
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to unpin message: ${res.status} ${res.statusText}`));
+  }
+}
+
+export async function getPinnedGroupMessages(
+  accessToken: string,
+  groupId: string,
+  options?: { limit?: number; cursor?: string },
+): Promise<PaginatedPinnedGroupMessages> {
+  const params = new URLSearchParams();
+  params.set("limit", String(options?.limit ?? 20));
+  if (options?.cursor) params.set("cursor", options.cursor);
+
+  const res = await authFetch(`${API_BASE}/groups/${encodeURIComponent(groupId)}/pins?${params.toString()}`, {
+    method: "GET",
+    headers: authHeaders(accessToken),
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to load pinned messages: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<PaginatedPinnedGroupMessages>;
 }

@@ -23,6 +23,7 @@ import {
   MessageSquare,
   MoreHorizontal,
   Paperclip,
+  Pin,
   Presentation,
   Reply,
   Send,
@@ -46,7 +47,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { getChannel, getChannelMembers, removeChannelMember, archiveChannel, leaveChannel, markChannelRead, type Channel, type ChannelMember } from "@/lib/channels-api";
 import { createChannelInvite } from "@/lib/channel-invites-api";
 
-import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, uploadAttachmentViaProxyWithProgress, fetchAttachmentFile, getAttachmentFileObjectUrl, getMessageContext, type Message, type CreateMessageInput, type UpdateMessageInput, type ReactionSummary, type Attachment, type MessageContextResult, CreateMessageAttachmentInput } from "@/lib/messages-api";
+import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, uploadAttachmentViaProxyWithProgress, fetchAttachmentFile, getAttachmentFileObjectUrl, getMessageContext, pinMessage, unpinMessage, getPinnedMessages, type Message, type CreateMessageInput, type UpdateMessageInput, type ReactionSummary, type Attachment, type MessageContextResult, type PinnedMessageSummary, CreateMessageAttachmentInput } from "@/lib/messages-api";
 import { sendDirectMessage, listDirectConversations, type DirectConversation } from "@/lib/direct-conversations-api";
 import { createSocket } from "@/lib/socket-client";
 import {
@@ -400,6 +401,9 @@ export default function ChannelDetailPage() {
   const [forwardTargets, setForwardTargets] = useState<DirectConversation[] | null>(null);
   const [forwardError, setForwardError] = useState<string | null>(null);
   const [forwarding, setForwarding] = useState(false);
+  const [pinnedMessages, setPinnedMessages] = useState<PinnedMessageSummary[]>([]);
+  const [pinsPanelOpen, setPinsPanelOpen] = useState(false);
+  const [pinsState, setPinsState] = useState<{ kind: "idle" | "loading" | "error"; message?: string }>({ kind: "idle" });
   const [lightbox, setLightbox] = useState<{
     messageId: string;
     attachments: Attachment[];
@@ -504,6 +508,7 @@ export default function ChannelDetailPage() {
           setMessages({ kind: "success", data: msgData.items });
           setNextCursor(msgData.nextCursor);
           setHasMoreMessages(msgData.hasMore);
+          loadPins(token, ws, ch);
           // mark channel as read after successful load; dedupe in-flight calls
           if (!markReadInFlightRef.current) {
             markReadInFlightRef.current = markChannelRead(token, ws, ch)
@@ -546,6 +551,7 @@ export default function ChannelDetailPage() {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, workspaceId, channelId, accessToken, router, t]);
 
   useEffect(() => {
@@ -684,6 +690,26 @@ export default function ChannelDetailPage() {
     function handleMessageDeleted(payload: { id: string; channelId: string; deletedAt: string }) {
       if (payload.channelId !== channelId) return;
       removeMessageFromState(payload.id);
+      removePinFromState(payload.id);
+    }
+
+    function handleMessagePinned(payload: {
+      id: string;
+      channelId: string;
+      pinnedAt: string;
+      pinnedByUserId: string;
+    }) {
+      if (payload.channelId !== channelId) return;
+      updateMessagePinState(payload.id, true, { pinnedAt: payload.pinnedAt, pinnedByUserId: payload.pinnedByUserId });
+      if (accessToken && workspaceId) {
+        loadPins(accessToken, workspaceId, channelId);
+      }
+    }
+
+    function handleMessageUnpinned(payload: { id: string; channelId: string }) {
+      if (payload.channelId !== channelId) return;
+      updateMessagePinState(payload.id, false, null);
+      removePinFromState(payload.id);
     }
 
     function handleTypingStarted(payload: { channelId: string; user: { id: string; username: string } }) {
@@ -754,6 +780,8 @@ export default function ChannelDetailPage() {
     socket.on("typing:stopped", handleTypingStopped);
     socket.on("reaction:added", handleReactionAdded);
     socket.on("reaction:removed", handleReactionRemoved);
+    socket.on("message:pinned", handleMessagePinned);
+    socket.on("message:unpinned", handleMessageUnpinned);
 
     return () => {
       if (typingTimeoutRef.current) {
@@ -778,6 +806,8 @@ export default function ChannelDetailPage() {
       socket.off("typing:stopped", handleTypingStopped);
       socket.off("reaction:added", handleReactionAdded);
       socket.off("reaction:removed", handleReactionRemoved);
+      socket.off("message:pinned", handleMessagePinned);
+      socket.off("message:unpinned", handleMessageUnpinned);
       socket.emit("channel:leave", { channelId });
       socket.disconnect();
       socketRef.current = null;
@@ -903,6 +933,31 @@ export default function ChannelDetailPage() {
       const message = localizeApiError(err, "channel.errorLoadMessagesFailed", t);
       setOlderMessagesState({ kind: "error", message });
     }
+  }
+
+  async function loadPins(token: string, ws: string, ch: string) {
+    setPinsState({ kind: "loading" });
+    try {
+      const result = await getPinnedMessages(token, ws, ch, { limit: 50 });
+      setPinnedMessages(result.items);
+      setPinsState({ kind: "idle" });
+    } catch {
+      setPinsState({ kind: "error", message: t("channel.pinFailed") });
+    }
+  }
+
+  function updateMessagePinState(messageId: string, isPinned: boolean, pin?: Message["pin"]) {
+    setMessages((prev) => {
+      if (prev.kind !== "success") return prev;
+      return {
+        kind: "success",
+        data: prev.data.map((m) => (m.id === messageId ? { ...m, isPinned, pin } : m)),
+      };
+    });
+  }
+
+  function removePinFromState(messageId: string) {
+    setPinnedMessages((prev) => prev.filter((p) => p.message.id !== messageId));
   }
 
   function updateMessageInState(msg: Message) {
@@ -1113,6 +1168,35 @@ export default function ChannelDetailPage() {
     }
   }
 
+  async function handlePinMessage(message: Message) {
+    closeMenuAndPicker();
+    if (!accessToken || !workspaceId || !channelId) return;
+    try {
+      const pin = await pinMessage(accessToken, workspaceId, channelId, message.id);
+      updateMessagePinState(message.id, true, { pinnedAt: pin.pinnedAt, pinnedByUserId: pin.pinnedBy?.id });
+      setPinnedMessages((prev) => {
+        const filtered = prev.filter((p) => p.message.id !== message.id);
+        return [pin, ...filtered];
+      });
+    } catch (err) {
+      const messageText = localizeApiError(err, "channel.pinFailed", t);
+      alert(messageText);
+    }
+  }
+
+  async function handleUnpinMessage(message: Message) {
+    closeMenuAndPicker();
+    if (!accessToken || !workspaceId || !channelId) return;
+    try {
+      await unpinMessage(accessToken, workspaceId, channelId, message.id);
+      updateMessagePinState(message.id, false, null);
+      removePinFromState(message.id);
+    } catch (err) {
+      const messageText = localizeApiError(err, "channel.unpinFailed", t);
+      alert(messageText);
+    }
+  }
+
   async function uploadOneAttachment(id: string): Promise<boolean> {
     if (!accessToken || !workspaceId || !channelId) return false;
     const att = composerAttachmentsRef.current.find((a) => a.id === id);
@@ -1277,6 +1361,7 @@ export default function ChannelDetailPage() {
   const canManageMembers = myChannelRole === "OWNER" || myChannelRole === "ADMIN";
   const canArchiveChannel = myChannelRole === "OWNER";
   const canLeaveChannel = myChannelRole === "MEMBER" || myChannelRole === "ADMIN";
+  const canPinMessage = myChannelRole === "OWNER" || myChannelRole === "ADMIN";
 
   function canRemoveMember(targetRole: string, targetUserId: string) {
     if (myChannelRole === "OWNER") {
@@ -1320,6 +1405,16 @@ export default function ChannelDetailPage() {
     const singleLine = msg.content.replace(/\s+/g, " ").trim();
     if (singleLine.length === 0 && msg.attachments && msg.attachments.length > 0) {
       return t("channel.replyAttachmentIndicator");
+    }
+    if (singleLine.length <= 120) return singleLine;
+    return `${singleLine.slice(0, 117)}...`;
+  }
+
+  function getPinnedMessageSnippet(pin: PinnedMessageSummary) {
+    const content = pin.message.content ?? "";
+    const singleLine = content.replace(/\s+/g, " ").trim();
+    if (singleLine.length === 0 && pin.message.attachmentCount > 0) {
+      return t("channel.attachmentOnly");
     }
     if (singleLine.length <= 120) return singleLine;
     return `${singleLine.slice(0, 117)}...`;
@@ -1753,6 +1848,91 @@ export default function ChannelDetailPage() {
         </>
       )}
 
+      {pinnedMessages.length > 0 && (
+        <div data-testid="channel-pinned-header" className="mt-3 rounded-lg border border-border bg-card p-3 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2 text-sm text-foreground">
+              <Pin size={16} className="shrink-0 text-primary" />
+              <span className="font-medium">{t("channel.pinnedMessages")}</span>
+              <span className="text-muted-foreground">({pinnedMessages.length})</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => scrollToMessage(pinnedMessages[0].message.id)}
+                data-testid="channel-pinned-jump-latest"
+              >
+                {t("channel.jumpToMessage")}
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setPinsPanelOpen((prev) => !prev)}
+                data-testid="channel-pins-toggle"
+              >
+                {pinsPanelOpen ? t("channel.cancel") : t("channel.pinnedMessages")}
+              </Button>
+            </div>
+          </div>
+          <div className="mt-1.5 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+            <span className="truncate">{getPinnedMessageSnippet(pinnedMessages[0])}</span>
+            <span className="shrink-0">— {pinnedMessages[0].message.author.displayName || pinnedMessages[0].message.author.username}</span>
+          </div>
+          {pinsPanelOpen && (
+            <div data-testid="channel-pins-panel" className="mt-3 space-y-2 border-t border-border/50 pt-3">
+              {pinsState.kind === "loading" && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 size={14} className="animate-spin" />
+                  {t("channel.loadingMessages")}
+                </div>
+              )}
+              {pinsState.kind === "error" && (
+                <div className="text-sm text-destructive">{pinsState.message}</div>
+              )}
+              {pinnedMessages.map((pin) => (
+                <div
+                  key={pin.id}
+                  data-testid={`channel-pinned-item-${pin.message.id}`}
+                  className="flex items-start justify-between gap-2 rounded-md bg-muted/50 p-2"
+                >
+                  <button
+                    onClick={() => {
+                      setPinsPanelOpen(false);
+                      scrollToMessage(pin.message.id);
+                    }}
+                    className="min-w-0 text-left text-sm"
+                  >
+                    <p className="truncate text-foreground">{getPinnedMessageSnippet(pin)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {pin.message.author.displayName || pin.message.author.username}
+                      {" "}•{" "}
+                      {new Date(pin.pinnedAt).toLocaleString()}
+                      {pin.pinnedBy && (
+                        <span className="ml-1">
+                          • {t("channel.pinnedBy")} {pin.pinnedBy.displayName || pin.pinnedBy.username}
+                        </span>
+                      )}
+                    </p>
+                  </button>
+                  {canPinMessage && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleUnpinMessage({ id: pin.message.id, isPinned: true } as Message)}
+                      data-testid={`channel-pinned-unpin-${pin.message.id}`}
+                      className="shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      {t("channel.unpinMessage")}
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <div
         data-testid="channel-chat-panel"
         onDragOver={handleDragOver}
@@ -1884,6 +2064,16 @@ export default function ChannelDetailPage() {
                           {msg.editedAt && (
                             <Badge variant="muted" className="text-[10px]">
                               {t("channel.edited")}
+                            </Badge>
+                          )}
+                          {msg.isPinned && (
+                            <Badge
+                              variant="info"
+                              className="text-[10px]"
+                              data-testid={`message-pinned-indicator-${msg.id}`}
+                            >
+                              <Pin size={10} className="mr-0.5" />
+                              {t("channel.pinnedMessage")}
                             </Badge>
                           )}
                           {editingMessageId !== msg.id && (
@@ -2389,6 +2579,28 @@ export default function ChannelDetailPage() {
                   <Copy size={16} />
                   <span>{t("channel.copyText")}</span>
                 </button>
+                {canPinMessage && !activeMenuMessage.isPinned && (
+                  <button
+                    onClick={() => handlePinMessage(activeMenuMessage)}
+                    data-testid={`channel-pin-action-${activeMenuMessage.id}`}
+                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground"
+                    role="menuitem"
+                  >
+                    <Pin size={16} />
+                    <span>{t("channel.pinMessage")}</span>
+                  </button>
+                )}
+                {canPinMessage && activeMenuMessage.isPinned && (
+                  <button
+                    onClick={() => handleUnpinMessage(activeMenuMessage)}
+                    data-testid={`channel-unpin-action-${activeMenuMessage.id}`}
+                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground"
+                    role="menuitem"
+                  >
+                    <Pin size={16} />
+                    <span>{t("channel.unpinMessage")}</span>
+                  </button>
+                )}
                 {isOwn && (
                   <button
                     onClick={() => {

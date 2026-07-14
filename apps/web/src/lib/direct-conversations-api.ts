@@ -89,6 +89,39 @@ export interface DirectMessage {
   isUnreadForMe: boolean;
   mentions?: DirectMessageMention[];
   attachments?: DirectMessageAttachment[];
+  isPinned?: boolean;
+  pin?: {
+    pinnedAt: string;
+    pinnedByUserId?: string | null;
+  } | null;
+}
+
+export interface PinnedDirectMessageSummary {
+  id: string;
+  pinnedAt: string;
+  pinnedBy: {
+    id: string;
+    username: string;
+    displayName: string | null;
+  } | null;
+  message: {
+    id: string;
+    content: string | null;
+    createdAt: string;
+    author: DirectMessageAuthor;
+    attachmentCount: number;
+    replyTo: {
+      id: string;
+      content: string | null;
+      author: DirectMessageAuthor | null;
+    } | null;
+  };
+}
+
+export interface PaginatedPinnedDirectMessages {
+  items: PinnedDirectMessageSummary[];
+  nextCursor: string | null;
+  hasMore: boolean;
 }
 
 export interface PaginatedDirectMessages {
@@ -126,6 +159,13 @@ async function parseErrorMessage(res: Response, fallback: string): Promise<strin
     // ignore parse error
   }
   return message;
+}
+
+function authHeaders(accessToken: string) {
+  return {
+    Accept: "application/json",
+    Authorization: `Bearer ${accessToken}`,
+  };
 }
 
 export async function listDirectConversations(accessToken: string): Promise<DirectConversation[]> {
@@ -478,4 +518,70 @@ export async function deleteDirectMessage(
   }
 
   return res.json() as Promise<{ ok: true }>;
+}
+
+export async function pinDirectMessage(
+  accessToken: string,
+  conversationId: string,
+  messageId: string,
+): Promise<PinnedDirectMessageSummary> {
+  const res = await authFetch(
+    `${API_BASE}/direct-conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}/pin`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to pin message: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<PinnedDirectMessageSummary>;
+}
+
+export async function unpinDirectMessage(
+  accessToken: string,
+  conversationId: string,
+  messageId: string,
+): Promise<void> {
+  const res = await authFetch(
+    `${API_BASE}/direct-conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}/pin`,
+    {
+      method: "DELETE",
+      headers: authHeaders(accessToken),
+    },
+  );
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to unpin message: ${res.status} ${res.statusText}`));
+  }
+}
+
+export async function getPinnedDirectMessages(
+  accessToken: string,
+  conversationId: string,
+  options?: { limit?: number; cursor?: string },
+): Promise<PaginatedPinnedDirectMessages> {
+  const params = new URLSearchParams();
+  params.set("limit", String(options?.limit ?? 20));
+  if (options?.cursor) params.set("cursor", options.cursor);
+
+  const res = await authFetch(
+    `${API_BASE}/direct-conversations/${encodeURIComponent(conversationId)}/pins?${params.toString()}`,
+    {
+      method: "GET",
+      headers: authHeaders(accessToken),
+    },
+  );
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to load pinned messages: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<PaginatedPinnedDirectMessages>;
 }

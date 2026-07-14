@@ -135,6 +135,44 @@ function makeMessage(
     },
     attachments: [],
     replyToMessage: null,
+    pin: null,
+  };
+  return { ...base, ...overrides };
+}
+
+function makePin(
+  overrides: Partial<Awaited<ReturnType<GroupsRepository['pinMessage']>>> = {},
+): Awaited<ReturnType<GroupsRepository['pinMessage']>> {
+  const base = {
+    id: 'pin-id',
+    messageId,
+    groupId,
+    pinnedByUserId: userId,
+    pinnedAt: new Date(),
+    pinnedBy: {
+      id: userId,
+      username: 'alice',
+      displayName: 'Alice',
+      avatarUrl: null,
+    },
+    message: {
+      id: messageId,
+      groupId,
+      authorId: userId,
+      content: 'Hello everyone!',
+      replyToMessageId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      mentions: [],
+      author: {
+        id: userId,
+        username: 'alice',
+        displayName: 'Alice',
+        avatarUrl: null,
+      },
+      attachments: [],
+      replyToMessage: null,
+    },
   };
   return { ...base, ...overrides };
 }
@@ -177,6 +215,10 @@ describe('GroupsService', () => {
             findContextBefore: jest.fn(),
             findContextAfter: jest.fn(),
             findUnattachedAttachmentsByIds: jest.fn(),
+            pinMessage: jest.fn(),
+            unpinMessage: jest.fn(),
+            findPinnedMessages: jest.fn(),
+            softDeleteGroupMessage: jest.fn(),
           },
         },
         {
@@ -195,6 +237,8 @@ describe('GroupsService', () => {
             broadcastGroupConversationUpdated: jest.fn(),
             broadcastGroupMemberRemoved: jest.fn(),
             broadcastGroupConversationRead: jest.fn(),
+            broadcastGroupMessagePinned: jest.fn(),
+            broadcastGroupMessageUnpinned: jest.fn(),
           },
         },
         {
@@ -770,6 +814,158 @@ describe('GroupsService', () => {
         service.createMessage(groupId, {}, userId),
       ).rejects.toBeInstanceOf(BadRequestException);
       expect(groupsRepository.createMessage).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('pinMessage', () => {
+    it('allows the owner to pin a message', async () => {
+      groupsRepository.findActiveMember.mockResolvedValue(
+        makeMember({ id: 'm-owner', userId, role: 'OWNER' }),
+      );
+      groupsRepository.findMessageByIdWithRelations.mockResolvedValue(
+        makeMessage(),
+      );
+      groupsRepository.pinMessage.mockResolvedValue(makePin());
+
+      const result = await service.pinMessage(groupId, messageId, userId);
+
+      expect(result.id).toBe('pin-id');
+      expect(result.pinnedBy.id).toBe(userId);
+      expect(result.message.id).toBe(messageId);
+      expect(groupsRepository.pinMessage).toHaveBeenCalledWith(
+        groupId,
+        messageId,
+        userId,
+      );
+      expect(websocketEvents.broadcastGroupMessagePinned).toHaveBeenCalledWith(
+        groupId,
+        objectContaining({ id: messageId, groupId, pinnedByUserId: userId }),
+      );
+    });
+
+    it('is idempotent when pinning an already pinned message', async () => {
+      groupsRepository.findActiveMember.mockResolvedValue(
+        makeMember({ id: 'm-owner', userId, role: 'OWNER' }),
+      );
+      groupsRepository.findMessageByIdWithRelations.mockResolvedValue(
+        makeMessage(),
+      );
+      groupsRepository.pinMessage.mockResolvedValue(makePin());
+
+      await service.pinMessage(groupId, messageId, userId);
+      await service.pinMessage(groupId, messageId, userId);
+
+      expect(groupsRepository.pinMessage).toHaveBeenCalledTimes(2);
+      expect(websocketEvents.broadcastGroupMessagePinned).toHaveBeenCalledTimes(
+        2,
+      );
+    });
+
+    it('rejects pinning by a non-owner', async () => {
+      groupsRepository.findActiveMember.mockResolvedValue(
+        makeMember({ id: 'm-other', userId: otherUserId }),
+      );
+
+      await expect(
+        service.pinMessage(groupId, messageId, otherUserId),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(groupsRepository.pinMessage).not.toHaveBeenCalled();
+      expect(
+        websocketEvents.broadcastGroupMessagePinned,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('rejects pinning a message from another group', async () => {
+      groupsRepository.findActiveMember.mockResolvedValue(
+        makeMember({ id: 'm-owner', userId, role: 'OWNER' }),
+      );
+      groupsRepository.findMessageByIdWithRelations.mockResolvedValue(
+        makeMessage({ groupId: 'other-group-id' }),
+      );
+
+      await expect(
+        service.pinMessage(groupId, messageId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(groupsRepository.pinMessage).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('unpinMessage', () => {
+    it('allows the owner to unpin a message', async () => {
+      groupsRepository.findActiveMember.mockResolvedValue(
+        makeMember({ id: 'm-owner', userId, role: 'OWNER' }),
+      );
+      groupsRepository.findMessageByIdWithRelations.mockResolvedValue(
+        makeMessage(),
+      );
+      groupsRepository.unpinMessage.mockResolvedValue({ count: 1 });
+
+      await service.unpinMessage(groupId, messageId, userId);
+
+      expect(groupsRepository.unpinMessage).toHaveBeenCalledWith(messageId);
+      expect(
+        websocketEvents.broadcastGroupMessageUnpinned,
+      ).toHaveBeenCalledWith(groupId, { id: messageId, groupId });
+    });
+  });
+
+  describe('listPinnedMessages', () => {
+    it('allows any member to list pins', async () => {
+      groupsRepository.findById.mockResolvedValue(makeGroup());
+      groupsRepository.findPinnedMessages.mockResolvedValue([makePin()]);
+
+      const result = await service.listPinnedMessages(groupId, otherUserId, {});
+
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].message.id).toBe(messageId);
+      expect(result.hasMore).toBe(false);
+      expect(groupsRepository.findPinnedMessages).toHaveBeenCalledWith(
+        groupId,
+        20,
+        undefined,
+      );
+    });
+
+    it('rejects listing pins for a non-member', async () => {
+      groupsRepository.findById.mockResolvedValue(makeGroup());
+
+      await expect(
+        service.listPinnedMessages(groupId, thirdUserId, {}),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(groupsRepository.findPinnedMessages).not.toHaveBeenCalled();
+    });
+
+    it('paginates pins newest-first and returns a nextCursor', async () => {
+      groupsRepository.findById.mockResolvedValue(makeGroup());
+      groupsRepository.findPinnedMessages.mockResolvedValue([
+        makePin({
+          id: 'pin-2',
+          pinnedAt: new Date('2026-07-01T12:00:02.000Z'),
+        }),
+        makePin({
+          id: 'pin-1',
+          pinnedAt: new Date('2026-07-01T12:00:01.000Z'),
+        }),
+      ]);
+
+      const result = await service.listPinnedMessages(groupId, otherUserId, {
+        limit: 1,
+      });
+
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].id).toBe('pin-2');
+      expect(result.hasMore).toBe(true);
+      expect(result.nextCursor).toBe('2026-07-01T12:00:02.000Z:pin-2');
+    });
+
+    it('throws BadRequestException for an invalid cursor', async () => {
+      groupsRepository.findById.mockResolvedValue(makeGroup());
+
+      await expect(
+        service.listPinnedMessages(groupId, otherUserId, {
+          cursor: 'not-a-cursor',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 });

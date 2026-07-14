@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import ChannelDetailPage from "./page";
 import { getChannel, getChannelMembers, addChannelMember, removeChannelMember, leaveChannel, archiveChannel, markChannelRead, type ChannelMember } from "@/lib/channels-api";
 import { createChannelInvite } from "@/lib/channel-invites-api";
-import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, uploadAttachmentViaProxyWithProgress, fetchAttachmentFile, getAttachmentFileObjectUrl, getMessageContext, searchChannelMessages, Message } from "@/lib/messages-api";
+import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, pinMessage, unpinMessage, getPinnedMessages, uploadAttachmentViaProxyWithProgress, fetchAttachmentFile, getAttachmentFileObjectUrl, getMessageContext, searchChannelMessages, Message } from "@/lib/messages-api";
 import { sendDirectMessage, listDirectConversations } from "@/lib/direct-conversations-api";
 
 const socketHandlers: Record<string, (...args: unknown[]) => void> = {};
@@ -53,6 +53,9 @@ vi.mock("@/lib/messages-api", () => ({
   deleteMessage: vi.fn(),
   addMessageReaction: vi.fn(),
   removeMessageReaction: vi.fn(),
+  pinMessage: vi.fn(),
+  unpinMessage: vi.fn(),
+  getPinnedMessages: vi.fn(() => Promise.resolve({ items: [], nextCursor: null, hasMore: false })),
   uploadAttachmentViaProxyWithProgress: vi.fn((_token, _ws, _ch, file, onProgress) => {
     onProgress?.(100);
     return Promise.resolve({
@@ -5093,5 +5096,200 @@ describe("ChannelDetailPage — scroll behavior", () => {
     });
 
     expect(scrollEl.scrollTop).toBe(0);
+  });
+});
+
+
+describe("ChannelDetailPage — pinned messages", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.setItem("accessToken", "token");
+    vi.clearAllMocks();
+    socketOnMock.mockReset();
+    socketEmitMock.mockReset();
+    socketDisconnectMock.mockReset();
+    Object.keys(socketHandlers).forEach((k) => delete socketHandlers[k]);
+    window.alert = vi.fn();
+  });
+
+  const ownerMember: ChannelMember = {
+    id: "cm1",
+    channelId: "ch1",
+    role: "OWNER",
+    joinedAt: "2024-01-01T00:00:00Z",
+    user: { id: "u1", username: "alice", displayName: "Alice" },
+  };
+
+  const regularMember: ChannelMember = {
+    id: "cm2",
+    channelId: "ch1",
+    role: "MEMBER",
+    joinedAt: "2024-01-01T00:00:00Z",
+    user: { id: "u1", username: "alice", displayName: "Alice" },
+  };
+
+  const otherMessage = {
+    id: "m2",
+    channelId: "ch1",
+    content: "Hi",
+    parentId: null,
+    replyToMessageId: null,
+    replyTo: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    editedAt: null,
+    author: { id: "u2", username: "bob", displayName: null, avatarUrl: null },
+    reactions: [],
+  };
+
+  it("shows Pin action for owner and pins message", async () => {
+    mockChannelAndMessages([otherMessage], [ownerMember]);
+    vi.mocked(pinMessage).mockResolvedValueOnce({
+      id: "pin1",
+      pinnedAt: new Date().toISOString(),
+      pinnedBy: { id: "u1", username: "alice", displayName: "Alice" },
+      message: {
+        id: "m2",
+        content: "Hi",
+        createdAt: otherMessage.createdAt,
+        author: otherMessage.author,
+        attachmentCount: 0,
+        replyTo: null,
+      },
+    });
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hi")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m2"));
+    expect(screen.getByTestId("channel-pin-action-m2")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByTestId("channel-pin-action-m2"));
+
+    await waitFor(() => {
+      expect(pinMessage).toHaveBeenCalledWith("token", "ws1", "ch1", "m2");
+    });
+    expect(screen.getByTestId("message-pinned-indicator-m2")).toBeInTheDocument();
+    expect(screen.getByTestId("channel-pinned-header")).toBeInTheDocument();
+  });
+
+  it("shows Unpin action for pinned message", async () => {
+    const pinnedMessage = { ...otherMessage, isPinned: true };
+    mockChannelAndMessages([pinnedMessage], [ownerMember]);
+    vi.mocked(unpinMessage).mockResolvedValueOnce(undefined);
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hi")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m2"));
+    expect(screen.getByTestId("channel-unpin-action-m2")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByTestId("channel-unpin-action-m2"));
+
+    await waitFor(() => {
+      expect(unpinMessage).toHaveBeenCalledWith("token", "ws1", "ch1", "m2");
+    });
+    expect(screen.queryByTestId("message-pinned-indicator-m2")).not.toBeInTheDocument();
+  });
+
+  it("hides Pin/Unpin actions for regular member", async () => {
+    mockChannelAndMessages([otherMessage], [regularMember]);
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hi")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m2"));
+    expect(screen.queryByTestId("channel-pin-action-m2")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("channel-unpin-action-m2")).not.toBeInTheDocument();
+  });
+
+  it("renders pinned header with latest pin and opens panel", async () => {
+    const pinnedMessage = { ...otherMessage, isPinned: true };
+    mockChannelAndMessages([pinnedMessage], [ownerMember]);
+    vi.mocked(getPinnedMessages).mockResolvedValueOnce({
+      items: [
+        {
+          id: "pin1",
+          pinnedAt: new Date().toISOString(),
+          pinnedBy: { id: "u1", username: "alice", displayName: "Alice" },
+          message: {
+            id: "m2",
+            content: "Hi",
+            createdAt: pinnedMessage.createdAt,
+            author: pinnedMessage.author,
+            attachmentCount: 0,
+            replyTo: null,
+          },
+        },
+      ],
+      nextCursor: null,
+      hasMore: false,
+    });
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("channel-pinned-header")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("channel-pins-toggle"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("channel-pins-panel")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("channel-pinned-item-m2")).toBeInTheDocument();
+  });
+
+  it("updates message pin state on message:pinned websocket event", async () => {
+    mockChannelAndMessages([otherMessage], [ownerMember]);
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hi")).toBeInTheDocument();
+    });
+
+    expect(socketHandlers["message:pinned"]).toBeDefined();
+    act(() => {
+      socketHandlers["message:pinned"]({
+        id: "m2",
+        channelId: "ch1",
+        pinnedAt: new Date().toISOString(),
+        pinnedByUserId: "u1",
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("message-pinned-indicator-m2")).toBeInTheDocument();
+    });
+  });
+
+  it("removes message pin state on message:unpinned websocket event", async () => {
+    const pinnedMessage = { ...otherMessage, isPinned: true };
+    mockChannelAndMessages([pinnedMessage], [ownerMember]);
+
+    render(<ChannelDetailPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("message-pinned-indicator-m2")).toBeInTheDocument();
+    });
+
+    expect(socketHandlers["message:unpinned"]).toBeDefined();
+    act(() => {
+      socketHandlers["message:unpinned"]({ id: "m2", channelId: "ch1" });
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("message-pinned-indicator-m2")).not.toBeInTheDocument();
+    });
   });
 });

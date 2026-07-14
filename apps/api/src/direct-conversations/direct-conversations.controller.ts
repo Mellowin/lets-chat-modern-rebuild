@@ -13,6 +13,8 @@ import {
   UseInterceptors,
   Res,
   StreamableFile,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
@@ -22,6 +24,7 @@ import {
   ApiBearerAuth,
   ApiCreatedResponse,
   ApiOkResponse,
+  ApiNoContentResponse,
   ApiBadRequestResponse,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
@@ -34,6 +37,7 @@ import { CreateDirectReactionDto } from './dto/create-direct-reaction.dto';
 import { UpdateDirectMessageDto } from './dto/update-direct-message.dto';
 import { ListDirectMessagesQueryDto } from './dto/list-direct-messages-query.dto';
 import { DirectMessageContextQueryDto } from './dto/message-context-query.dto';
+import { ListPinsQueryDto } from '../messages/dto/list-pins-query.dto';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUserResponse } from '../auth/auth.service';
@@ -279,5 +283,62 @@ export class DirectConversationsController {
     return new StreamableFile(file.body, {
       type: file.mimeType,
     });
+  }
+
+  @Post(':conversationId/messages/:messageId/pin')
+  @ApiOperation({ summary: 'Pin a direct message' })
+  @ApiCreatedResponse({ description: 'Message pinned' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiForbiddenResponse({ description: 'Access denied' })
+  @ApiNotFoundResponse({ description: 'Message or conversation not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async pinMessage(
+    @Param('conversationId', ParseUUIDPipe) conversationId: string,
+    @Param('messageId', ParseUUIDPipe) messageId: string,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.directConversations.pinMessage(
+      conversationId,
+      messageId,
+      user.id,
+    );
+  }
+
+  @Delete(':conversationId/messages/:messageId/pin')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Unpin a direct message' })
+  @ApiNoContentResponse({ description: 'Message unpinned' })
+  @ApiForbiddenResponse({ description: 'Access denied' })
+  @ApiNotFoundResponse({ description: 'Message or conversation not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async unpinMessage(
+    @Param('conversationId', ParseUUIDPipe) conversationId: string,
+    @Param('messageId', ParseUUIDPipe) messageId: string,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    await this.directConversations.unpinMessage(
+      conversationId,
+      messageId,
+      user.id,
+    );
+  }
+
+  @Get(':conversationId/pins')
+  @ApiOperation({ summary: 'List pinned direct messages' })
+  @ApiOkResponse({ description: 'Pinned messages list' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiForbiddenResponse({ description: 'Access denied' })
+  @ApiNotFoundResponse({ description: 'Conversation not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async listPins(
+    @Param('conversationId', ParseUUIDPipe) conversationId: string,
+    @Query() query: ListPinsQueryDto,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.directConversations.listPinnedMessages(
+      conversationId,
+      user.id,
+      query,
+    );
   }
 }

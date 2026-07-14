@@ -90,7 +90,31 @@ function makeMessage(
     parent: null,
     replyToMessage: null,
     attachments: [],
+    pin: null,
   };
+  return { ...base, ...overrides };
+}
+
+function makePin(
+  overrides: Partial<
+    Awaited<ReturnType<DirectConversationsRepository['pinMessage']>>
+  > = {},
+): Awaited<ReturnType<DirectConversationsRepository['pinMessage']>> {
+  const base: Awaited<ReturnType<DirectConversationsRepository['pinMessage']>> =
+    {
+      id: '55555555-5555-5555-5555-555555555555',
+      messageId,
+      conversationId,
+      pinnedByUserId: userId,
+      pinnedAt: new Date(),
+      pinnedBy: {
+        id: userId,
+        username: 'alice',
+        displayName: null,
+        avatarUrl: null,
+      },
+      message: makeMessage(),
+    };
   return { ...base, ...overrides };
 }
 
@@ -132,6 +156,9 @@ describe('DirectConversationsService', () => {
             deleteDirectReactionsForUser: jest.fn(),
             getDirectMessageReactions: jest.fn(),
             findMentionableUserIds: jest.fn().mockResolvedValue([]),
+            pinMessage: jest.fn(),
+            unpinMessage: jest.fn(),
+            findPinnedMessages: jest.fn(),
           },
         },
         {
@@ -152,6 +179,8 @@ describe('DirectConversationsService', () => {
             broadcastDirectReactionAdded: jest.fn(),
             broadcastDirectReactionRemoved: jest.fn(),
             broadcastDirectConversationRead: jest.fn(),
+            broadcastDirectMessagePinned: jest.fn(),
+            broadcastDirectMessageUnpinned: jest.fn(),
           },
         },
         {
@@ -2811,6 +2840,128 @@ describe('DirectConversationsService', () => {
           lastMessage: null,
         }),
         [userId, otherUserId],
+      );
+    });
+  });
+
+  describe('pinMessage', () => {
+    it('pins a message for any participant', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p-current',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue(makeMessage());
+      const pin = makePin();
+      repository.pinMessage.mockResolvedValue(pin);
+
+      const result = await service.pinMessage(
+        conversationId,
+        messageId,
+        userId,
+      );
+
+      expect(result.id).toBe(pin.id);
+      expect(result.pinnedBy.id).toBe(userId);
+      expect(result.message.id).toBe(messageId);
+      expect(websocketEvents.broadcastDirectMessagePinned).toHaveBeenCalledWith(
+        conversationId,
+        expect.objectContaining({
+          id: messageId,
+          conversationId,
+          pinnedByUserId: userId,
+        }),
+      );
+    });
+
+    it('is idempotent when message is already pinned', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p-current',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue(makeMessage());
+      repository.pinMessage.mockResolvedValue(makePin());
+
+      await service.pinMessage(conversationId, messageId, userId);
+      await service.pinMessage(conversationId, messageId, userId);
+
+      expect(repository.pinMessage).toHaveBeenCalledTimes(2);
+      expect(
+        websocketEvents.broadcastDirectMessagePinned,
+      ).toHaveBeenCalledTimes(2);
+    });
+
+    it('throws ForbiddenException for non-participant', async () => {
+      repository.findParticipant.mockResolvedValue(null);
+
+      await expect(
+        service.pinMessage(conversationId, messageId, userId),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(repository.pinMessage).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException for message from another conversation', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p-current',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue(
+        makeMessage({ conversationId: 'other-conv-id' }),
+      );
+
+      await expect(
+        service.pinMessage(conversationId, messageId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(repository.pinMessage).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException when pinning a deleted message', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p-current',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue(
+        makeMessage({ deletedAt: new Date() }),
+      );
+
+      await expect(
+        service.pinMessage(conversationId, messageId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(repository.pinMessage).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('unpinMessage', () => {
+    it('unpins a message for any participant', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p-current',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue(makeMessage());
+      repository.unpinMessage.mockResolvedValue({ count: 1 });
+
+      await service.unpinMessage(conversationId, messageId, userId);
+
+      expect(repository.unpinMessage).toHaveBeenCalledWith(messageId);
+      expect(
+        websocketEvents.broadcastDirectMessageUnpinned,
+      ).toHaveBeenCalledWith(
+        conversationId,
+        expect.objectContaining({ id: messageId, conversationId }),
       );
     });
   });

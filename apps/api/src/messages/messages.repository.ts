@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService, StorageBackend } from '@lets-chat/database';
-import { buildMessageCursorWhereClause } from '../common/cursor-pagination';
+import {
+  buildMessageCursorWhereClause,
+  buildPinCursorWhereClause,
+} from '../common/cursor-pagination';
 
 interface CreateMessageInput {
   channelId: string;
@@ -90,6 +93,12 @@ export class MessagesRepository {
               },
             },
           },
+          pin: {
+            select: {
+              pinnedAt: true,
+              pinnedByUserId: true,
+            },
+          },
         },
       });
 
@@ -158,6 +167,12 @@ export class MessagesRepository {
             },
           },
         },
+        pin: {
+          select: {
+            pinnedAt: true,
+            pinnedByUserId: true,
+          },
+        },
       },
     });
   }
@@ -213,6 +228,12 @@ export class MessagesRepository {
               },
             },
           },
+          pin: {
+            select: {
+              pinnedAt: true,
+              pinnedByUserId: true,
+            },
+          },
         },
       }),
     ]);
@@ -220,9 +241,145 @@ export class MessagesRepository {
   }
 
   async softDeleteMessage(id: string) {
-    return this.prisma.message.update({
-      where: { id },
-      data: { deletedAt: new Date() },
+    return this.prisma.$transaction(async (tx) => {
+      await tx.pinnedChannelMessage.deleteMany({
+        where: { messageId: id },
+      });
+      return tx.message.update({
+        where: { id },
+        data: { deletedAt: new Date() },
+      });
+    });
+  }
+
+  async pinMessage(
+    channelId: string,
+    messageId: string,
+    pinnedByUserId: string,
+  ) {
+    return this.prisma.pinnedChannelMessage.upsert({
+      where: { messageId },
+      create: {
+        messageId,
+        channelId,
+        pinnedByUserId,
+      },
+      update: {},
+      include: {
+        pinnedBy: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+        message: {
+          include: {
+            author: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true,
+              },
+            },
+            attachments: {
+              where: { deletedAt: null },
+              select: {
+                id: true,
+                filename: true,
+                mimeType: true,
+                size: true,
+                createdAt: true,
+              },
+            },
+            replyToMessage: {
+              select: {
+                id: true,
+                content: true,
+                deletedAt: true,
+                author: {
+                  select: {
+                    id: true,
+                    username: true,
+                    displayName: true,
+                    avatarUrl: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  async unpinMessage(messageId: string) {
+    return this.prisma.pinnedChannelMessage.deleteMany({
+      where: { messageId },
+    });
+  }
+
+  async findPinnedMessages(
+    channelId: string,
+    limit: number,
+    cursor?: { pinnedAt: Date; id: string },
+  ) {
+    return this.prisma.pinnedChannelMessage.findMany({
+      where: {
+        channelId,
+        ...(cursor ? { OR: buildPinCursorWhereClause(cursor) } : {}),
+      },
+      orderBy: [{ pinnedAt: 'desc' }, { id: 'desc' }],
+      take: limit + 1,
+      include: {
+        pinnedBy: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+        message: {
+          include: {
+            author: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true,
+              },
+            },
+            attachments: {
+              where: { deletedAt: null },
+              select: {
+                id: true,
+                filename: true,
+                mimeType: true,
+                size: true,
+                createdAt: true,
+              },
+            },
+            replyToMessage: {
+              select: {
+                id: true,
+                content: true,
+                deletedAt: true,
+                author: {
+                  select: {
+                    id: true,
+                    username: true,
+                    displayName: true,
+                    avatarUrl: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
   }
 
@@ -280,6 +437,12 @@ export class MessagesRepository {
             },
           },
         },
+        pin: {
+          select: {
+            pinnedAt: true,
+            pinnedByUserId: true,
+          },
+        },
       },
     });
   }
@@ -323,6 +486,12 @@ export class MessagesRepository {
                 avatarUrl: true,
               },
             },
+          },
+        },
+        pin: {
+          select: {
+            pinnedAt: true,
+            pinnedByUserId: true,
           },
         },
       },
@@ -380,6 +549,12 @@ export class MessagesRepository {
             },
           },
         },
+        pin: {
+          select: {
+            pinnedAt: true,
+            pinnedByUserId: true,
+          },
+        },
       },
     });
   }
@@ -433,6 +608,12 @@ export class MessagesRepository {
                 avatarUrl: true,
               },
             },
+          },
+        },
+        pin: {
+          select: {
+            pinnedAt: true,
+            pinnedByUserId: true,
           },
         },
       },

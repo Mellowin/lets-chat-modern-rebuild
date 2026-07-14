@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@lets-chat/database';
-import { buildMessageCursorWhereClause } from '../common/cursor-pagination';
+import {
+  buildMessageCursorWhereClause,
+  buildPinCursorWhereClause,
+} from '../common/cursor-pagination';
 
 interface CreateGroupInput {
   name: string;
@@ -43,6 +46,12 @@ const groupMessageInclude = {
       id: true,
       content: true,
       author: { select: authorSelect },
+    },
+  },
+  pin: {
+    select: {
+      pinnedAt: true,
+      pinnedByUserId: true,
     },
   },
 } as const;
@@ -469,6 +478,112 @@ export class GroupsRepository {
     return this.prisma.groupConversation.update({
       where: { id: groupId },
       data: { updatedAt: new Date() },
+    });
+  }
+
+  async pinMessage(groupId: string, messageId: string, pinnedByUserId: string) {
+    return this.prisma.pinnedGroupMessage.upsert({
+      where: { messageId },
+      create: {
+        messageId,
+        groupId,
+        pinnedByUserId,
+      },
+      update: {},
+      include: {
+        pinnedBy: {
+          select: authorSelect,
+        },
+        message: {
+          include: {
+            author: {
+              select: authorSelect,
+            },
+            attachments: {
+              where: { deletedAt: null },
+              select: {
+                id: true,
+                filename: true,
+                mimeType: true,
+                size: true,
+                createdAt: true,
+              },
+            },
+            replyToMessage: {
+              select: {
+                id: true,
+                content: true,
+                author: { select: authorSelect },
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  async unpinMessage(messageId: string) {
+    return this.prisma.pinnedGroupMessage.deleteMany({
+      where: { messageId },
+    });
+  }
+
+  async findPinnedMessages(
+    groupId: string,
+    limit: number,
+    cursor?: { pinnedAt: Date; id: string },
+  ) {
+    return this.prisma.pinnedGroupMessage.findMany({
+      where: {
+        groupId,
+        ...(cursor ? { OR: buildPinCursorWhereClause(cursor) } : {}),
+      },
+      orderBy: [{ pinnedAt: 'desc' }, { id: 'desc' }],
+      take: limit + 1,
+      include: {
+        pinnedBy: {
+          select: authorSelect,
+        },
+        message: {
+          include: {
+            author: {
+              select: authorSelect,
+            },
+            attachments: {
+              where: { deletedAt: null },
+              select: {
+                id: true,
+                filename: true,
+                mimeType: true,
+                size: true,
+                createdAt: true,
+              },
+            },
+            replyToMessage: {
+              select: {
+                id: true,
+                content: true,
+                author: { select: authorSelect },
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  async softDeleteGroupMessage(id: string) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.pinnedGroupMessage.deleteMany({
+        where: { messageId: id },
+      });
+      return tx.groupMessage.update({
+        where: { id },
+        // GroupMessage currently has no deletedAt column in the Prisma schema;
+        // this method is kept for parity with the channel implementation.
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        data: { deletedAt: new Date() } as any,
+      });
     });
   }
 }

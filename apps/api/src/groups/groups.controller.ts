@@ -9,6 +9,8 @@ import {
   Query,
   UseGuards,
   ParseUUIDPipe,
+  HttpCode,
+  HttpStatus,
   UploadedFile,
   UseInterceptors,
   Res,
@@ -22,6 +24,7 @@ import {
   ApiBearerAuth,
   ApiCreatedResponse,
   ApiOkResponse,
+  ApiNoContentResponse,
   ApiBadRequestResponse,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
@@ -34,6 +37,7 @@ import { AddGroupMemberDto } from './dto/add-group-member.dto';
 import { CreateGroupMessageDto } from './dto/create-group-message.dto';
 import { ListGroupMessagesQueryDto } from './dto/list-group-messages-query.dto';
 import { GroupMessageContextQueryDto } from './dto/message-context-query.dto';
+import { ListPinsQueryDto } from '../messages/dto/list-pins-query.dto';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUserResponse } from '../auth/auth.service';
@@ -200,6 +204,54 @@ export class GroupsController {
     @CurrentUser() user: AuthUserResponse,
   ) {
     return this.groups.markAsRead(groupId, user.id);
+  }
+
+  @Post(':groupId/messages/:messageId/pin')
+  @ApiOperation({ summary: 'Pin a group message (owner only)' })
+  @ApiCreatedResponse({ description: 'Message pinned' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiForbiddenResponse({
+    description: 'Only the group owner can pin messages',
+  })
+  @ApiNotFoundResponse({ description: 'Group or message not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async pinMessage(
+    @Param('groupId', ParseUUIDPipe) groupId: string,
+    @Param('messageId', ParseUUIDPipe) messageId: string,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.groups.pinMessage(groupId, messageId, user.id);
+  }
+
+  @Delete(':groupId/messages/:messageId/pin')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Unpin a group message (owner only)' })
+  @ApiNoContentResponse({ description: 'Message unpinned' })
+  @ApiForbiddenResponse({
+    description: 'Only the group owner can unpin messages',
+  })
+  @ApiNotFoundResponse({ description: 'Group or message not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async unpinMessage(
+    @Param('groupId', ParseUUIDPipe) groupId: string,
+    @Param('messageId', ParseUUIDPipe) messageId: string,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    await this.groups.unpinMessage(groupId, messageId, user.id);
+  }
+
+  @Get(':groupId/pins')
+  @ApiOperation({ summary: 'List pinned group messages' })
+  @ApiOkResponse({ description: 'Pinned messages list' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiNotFoundResponse({ description: 'Group not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async listPins(
+    @Param('groupId', ParseUUIDPipe) groupId: string,
+    @Query() query: ListPinsQueryDto,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.groups.listPinnedMessages(groupId, user.id, query);
   }
 
   @Post(':groupId/messages/attachments/upload')

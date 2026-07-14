@@ -7,6 +7,8 @@ import {
 import {
   decodeMessageCursor,
   encodeMessageCursor,
+  decodePinCursor,
+  encodePinCursor,
 } from '../common/cursor-pagination';
 import { UsersRepository } from '../users/users.repository';
 import { WebsocketEventsService } from '../websocket/websocket-events.service';
@@ -154,6 +156,13 @@ export class DirectConversationsService {
           ? false
           : myLastReadAt === null || message.createdAt > myLastReadAt,
       mentions: this.normalizeMentions(message.mentions),
+      isPinned: !!message.pin,
+      pin: message.pin
+        ? {
+            pinnedAt: message.pin.pinnedAt,
+            pinnedByUserId: message.pin.pinnedByUserId,
+          }
+        : undefined,
     };
   }
 
@@ -170,6 +179,94 @@ export class DirectConversationsService {
         typeof (item as { userId: unknown }).userId === 'string' &&
         typeof (item as { username: unknown }).username === 'string',
     );
+  }
+
+  private async requireParticipant(conversationId: string, userId: string) {
+    const participant = await this.directConversations.findParticipant(
+      conversationId,
+      userId,
+    );
+    if (!participant) {
+      throw new ForbiddenException('Access denied');
+    }
+    return participant;
+  }
+
+  private mapPinResponse(pin: {
+    id: string;
+    pinnedAt: Date;
+    pinnedBy: {
+      id: string;
+      username: string;
+      displayName: string | null;
+      avatarUrl: string | null;
+    } | null;
+    message: {
+      id: string;
+      content: string;
+      createdAt: Date;
+      author: {
+        id: string;
+        username: string;
+        displayName: string | null;
+        avatarUrl: string | null;
+      } | null;
+      attachments: Array<{ id: string }>;
+      replyToMessage?: {
+        id: string;
+        content: string;
+        deletedAt: Date | null;
+        author: {
+          id: string;
+          username: string;
+          displayName: string | null;
+          avatarUrl: string | null;
+        } | null;
+      } | null;
+    };
+  }) {
+    return {
+      id: pin.id,
+      pinnedAt: pin.pinnedAt,
+      pinnedBy: pin.pinnedBy
+        ? {
+            id: pin.pinnedBy.id,
+            username: pin.pinnedBy.username,
+            displayName: pin.pinnedBy.displayName,
+          }
+        : { id: '', username: '', displayName: null },
+      message: {
+        id: pin.message.id,
+        content: pin.message.content,
+        createdAt: pin.message.createdAt,
+        author: pin.message.author
+          ? {
+              id: pin.message.author.id,
+              username: pin.message.author.username,
+              displayName: pin.message.author.displayName,
+            }
+          : { id: '', username: '', displayName: null },
+        attachmentCount: pin.message.attachments?.length ?? 0,
+        replyTo: pin.message.replyToMessage
+          ? {
+              id: pin.message.replyToMessage.id,
+              content: pin.message.replyToMessage.deletedAt
+                ? null
+                : pin.message.replyToMessage.content,
+              author: pin.message.replyToMessage.deletedAt
+                ? null
+                : pin.message.replyToMessage.author
+                  ? {
+                      id: pin.message.replyToMessage.author.id,
+                      username: pin.message.replyToMessage.author.username,
+                      displayName:
+                        pin.message.replyToMessage.author.displayName,
+                    }
+                  : null,
+            }
+          : null,
+      },
+    };
   }
 
   async create(dto: CreateDirectConversationDto, currentUserId: string) {
@@ -943,6 +1040,100 @@ export class DirectConversationsService {
       filename: attachment.filename,
       mimeType: attachment.mimeType,
       sizeBytes: attachment.size,
+    };
+  }
+
+  async pinMessage(conversationId: string, messageId: string, userId: string) {
+    await this.requireParticipant(conversationId, userId);
+
+    const message = await this.directConversations.findMessageById(messageId);
+    if (
+      !message ||
+      message.conversationId !== conversationId ||
+      message.deletedAt !== null
+    ) {
+      throw new NotFoundException('Message not found');
+    }
+
+    const pin = await this.directConversations.pinMessage(
+      conversationId,
+      messageId,
+      userId,
+    );
+
+    this.websocketEvents.broadcastDirectMessagePinned(conversationId, {
+      id: message.id,
+      conversationId,
+      pinnedAt: pin.pinnedAt,
+      pinnedByUserId: userId,
+      pinnedBy: pin.pinnedBy
+        ? {
+            id: pin.pinnedBy.id,
+            username: pin.pinnedBy.username,
+            displayName: pin.pinnedBy.displayName,
+            avatarUrl: pin.pinnedBy.avatarUrl,
+          }
+        : { id: userId, username: '', displayName: null, avatarUrl: null },
+    });
+
+    return this.mapPinResponse(pin);
+  }
+
+  async unpinMessage(
+    conversationId: string,
+    messageId: string,
+    userId: string,
+  ) {
+    await this.requireParticipant(conversationId, userId);
+
+    const message = await this.directConversations.findMessageById(messageId);
+    if (
+      !message ||
+      message.conversationId !== conversationId ||
+      message.deletedAt !== null
+    ) {
+      throw new NotFoundException('Message not found');
+    }
+
+    await this.directConversations.unpinMessage(messageId);
+
+    this.websocketEvents.broadcastDirectMessageUnpinned(conversationId, {
+      id: message.id,
+      conversationId,
+    });
+  }
+
+  async listPinnedMessages(
+    conversationId: string,
+    userId: string,
+    query: { limit?: number; cursor?: string },
+  ) {
+    await this.requireParticipant(conversationId, userId);
+
+    const limit = Math.min(query.limit ?? 20, 50);
+    const cursor = query.cursor ? decodePinCursor(query.cursor) : undefined;
+    if (query.cursor && !cursor) {
+      throw new BadRequestException('Invalid cursor format');
+    }
+
+    const rows = await this.directConversations.findPinnedMessages(
+      conversationId,
+      limit,
+      cursor,
+    );
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+
+    return {
+      items: page.map((p) => this.mapPinResponse(p)),
+      nextCursor:
+        hasMore && page.length > 0
+          ? encodePinCursor({
+              pinnedAt: page[page.length - 1].pinnedAt,
+              id: page[page.length - 1].id,
+            })
+          : null,
+      hasMore,
     };
   }
 }

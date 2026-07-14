@@ -15,7 +15,9 @@ import {
   ImageIcon,
   Loader2,
   MessageSquare,
+  MoreHorizontal,
   Paperclip,
+  Pin,
   Presentation,
   Reply,
   Send,
@@ -29,6 +31,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useLocale } from "@/lib/locale";
 import { localizeApiError } from "@/lib/api-errors";
 import { Avatar } from "@/components/ui/Avatar";
+import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { MessageContent } from "@/components/MessageContent";
@@ -41,8 +44,12 @@ import {
   uploadGroupAttachmentViaProxyWithProgress,
   getGroupAttachmentFileObjectUrl,
   fetchGroupAttachmentFile,
+  pinGroupMessage,
+  unpinGroupMessage,
+  getPinnedGroupMessages,
   type GroupSummary,
   type GroupMessage,
+  type PinnedGroupMessageSummary,
   type GroupMessageContextResult,
   type GroupMessageAttachment,
   type CreateGroupMessageInput,
@@ -322,6 +329,11 @@ export default function GroupConversationPage() {
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [messageMenuId, setMessageMenuId] = useState<string | null>(null);
+  const [messageMenuPosition, setMessageMenuPosition] = useState<{ top: number; left: number } | null>(null);
+  const [pinnedMessages, setPinnedMessages] = useState<PinnedGroupMessageSummary[]>([]);
+  const [pinsPanelOpen, setPinsPanelOpen] = useState(false);
+  const [pinsState, setPinsState] = useState<{ kind: "idle" | "loading" | "error"; message?: string }>({ kind: "idle" });
   const dragCounterRef = useRef(0);
   const composerAttachmentsRef = useRef<ComposerAttachment[]>([]);
   useEffect(() => {
@@ -346,6 +358,92 @@ export default function GroupConversationPage() {
     },
     [hookScrollRef],
   );
+
+  function getMenuPosition(rect: DOMRect): { top: number; left: number } {
+    const menuWidth = 180;
+    const menuHeight = 120;
+    const gap = 8;
+    const padding = 12;
+
+    let left = rect.right + gap;
+    if (left + menuWidth > window.innerWidth - padding) {
+      left = rect.left - menuWidth - gap;
+    }
+    left = Math.max(padding, Math.min(left, window.innerWidth - menuWidth - padding));
+
+    let top = rect.top;
+    if (top + menuHeight > window.innerHeight - padding) {
+      top = window.innerHeight - menuHeight - padding;
+    }
+    top = Math.max(padding, top);
+
+    return { top, left };
+  }
+
+  function openMenuForElement(messageId: string, element: HTMLElement) {
+    const rect = element.getBoundingClientRect();
+    setMessageMenuPosition(getMenuPosition(rect));
+    setMessageMenuId(messageId);
+  }
+
+  function closeMenu() {
+    setMessageMenuId(null);
+    setMessageMenuPosition(null);
+  }
+
+  async function loadPins(token: string, id: string) {
+    setPinsState({ kind: "loading" });
+    try {
+      const result = await getPinnedGroupMessages(token, id, { limit: 50 });
+      setPinnedMessages(result.items);
+      setPinsState({ kind: "idle" });
+    } catch {
+      setPinsState({ kind: "error", message: t("groups.pinFailed") });
+    }
+  }
+
+  function updateMessagePinState(messageId: string, isPinned: boolean, pin?: GroupMessage["pin"]) {
+    setMessages((prev) => {
+      if (prev.kind !== "success") return prev;
+      return {
+        kind: "success",
+        data: prev.data.map((m) => (m.id === messageId ? { ...m, isPinned, pin } : m)),
+      };
+    });
+  }
+
+  function removePinFromState(messageId: string) {
+    setPinnedMessages((prev) => prev.filter((p) => p.message.id !== messageId));
+  }
+
+  async function handlePinMessage(message: GroupMessage) {
+    closeMenu();
+    if (!accessToken || !groupId) return;
+    try {
+      const pin = await pinGroupMessage(accessToken, groupId, message.id);
+      updateMessagePinState(message.id, true, { pinnedAt: pin.pinnedAt, pinnedByUserId: pin.pinnedBy?.id });
+      setPinnedMessages((prev) => {
+        const filtered = prev.filter((p) => p.message.id !== message.id);
+        return [pin, ...filtered];
+      });
+    } catch (err) {
+      const messageText = localizeApiError(err, "groups.pinFailed", t);
+      alert(messageText);
+    }
+  }
+
+  async function handleUnpinMessage(message: GroupMessage) {
+    closeMenu();
+    if (!accessToken || !groupId) return;
+    try {
+      await unpinGroupMessage(accessToken, groupId, message.id);
+      updateMessagePinState(message.id, false, null);
+      removePinFromState(message.id);
+    } catch (err) {
+      const messageText = localizeApiError(err, "groups.unpinFailed", t);
+      alert(messageText);
+    }
+  }
 
   const loadGroup = useCallback(
     async (token: string, id: string) => {
@@ -394,6 +492,7 @@ export default function GroupConversationPage() {
           setNextCursor(msgData.nextCursor);
           setHasMoreMessages(msgData.hasMore);
           setGroup({ kind: "success", data: groupData });
+          loadPins(token, id);
         }
       } catch (err) {
         const message = localizeApiError(err, "groups.failedLoadMessages", t);
@@ -412,6 +511,7 @@ export default function GroupConversationPage() {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, groupId, accessToken, t, safeMarkGroupRead]);
 
   useEffect(() => {
@@ -468,7 +568,34 @@ export default function GroupConversationPage() {
       joinRoom();
     }
 
+    function handleMessageDeleted(payload: { messageId: string; groupId: string }) {
+      if (payload.groupId !== groupId) return;
+      removePinFromState(payload.messageId);
+    }
+
+    function handleMessagePinned(payload: {
+      messageId: string;
+      groupId: string;
+      pinnedAt: string;
+      pinnedByUserId: string;
+    }) {
+      if (payload.groupId !== groupId) return;
+      updateMessagePinState(payload.messageId, true, { pinnedAt: payload.pinnedAt, pinnedByUserId: payload.pinnedByUserId });
+      if (accessToken) {
+        loadPins(accessToken, groupId);
+      }
+    }
+
+    function handleMessageUnpinned(payload: { messageId: string; groupId: string }) {
+      if (payload.groupId !== groupId) return;
+      updateMessagePinState(payload.messageId, false, null);
+      removePinFromState(payload.messageId);
+    }
+
     socket.on("group:message:created", handleMessageCreated);
+    socket.on("group:message:deleted", handleMessageDeleted);
+    socket.on("group:message:pinned", handleMessagePinned);
+    socket.on("group:message:unpinned", handleMessageUnpinned);
     socket.on("group:conversation:updated", handleConversationUpdated);
     socket.on("group:member:removed", handleMemberRemoved);
     socket.on("connected", handleServerConnected);
@@ -479,6 +606,9 @@ export default function GroupConversationPage() {
 
     return () => {
       socket.off("group:message:created", handleMessageCreated);
+      socket.off("group:message:deleted", handleMessageDeleted);
+      socket.off("group:message:pinned", handleMessagePinned);
+      socket.off("group:message:unpinned", handleMessageUnpinned);
       socket.off("group:conversation:updated", handleConversationUpdated);
       socket.off("group:member:removed", handleMemberRemoved);
       socket.off("connected", handleServerConnected);
@@ -486,7 +616,33 @@ export default function GroupConversationPage() {
       socket.disconnect();
       socketRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, groupId, accessToken, user?.id, router, loadGroup, safeMarkGroupRead, isNearBottom, scrollMessagesToBottom]);
+
+  useEffect(() => {
+    function handleDocumentClick(e: MouseEvent) {
+      const target = e.target as HTMLElement;
+      if (
+        target.closest('[data-testid^="group-message-menu-"]') ||
+        target.closest('[data-testid^="group-message-menu-trigger-"]')
+      ) {
+        return;
+      }
+      closeMenu();
+    }
+    document.addEventListener("mousedown", handleDocumentClick);
+    return () => document.removeEventListener("mousedown", handleDocumentClick);
+  }, []);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        closeMenu();
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   useEffect(() => {
     if (!isAuthenticated || !groupId || !accessToken) return;
@@ -915,6 +1071,16 @@ export default function GroupConversationPage() {
     return `${singleLine.slice(0, 117)}...`;
   }
 
+  function getPinnedMessageSnippet(pin: PinnedGroupMessageSummary) {
+    const content = pin.message.content ?? "";
+    const singleLine = content.replace(/\s+/g, " ").trim();
+    if (singleLine.length === 0 && pin.message.attachmentCount > 0) {
+      return t("groups.attachmentOnly");
+    }
+    if (singleLine.length <= 120) return singleLine;
+    return `${singleLine.slice(0, 117)}...`;
+  }
+
   function renderReplyContent(content: string | null) {
     if (content === null) return null;
     const singleLine = content.replace(/\s+/g, " ").trim();
@@ -998,6 +1164,7 @@ export default function GroupConversationPage() {
   }
 
   const groupData = group.kind === "success" ? group.data : null;
+  const canPinMessage = groupData?.myRole === "OWNER";
 
   return (
     <div className="flex h-[calc(100vh-4rem)] min-w-0 w-full max-w-none flex-col gap-4 overflow-hidden p-4 sm:p-6">
@@ -1033,6 +1200,91 @@ export default function GroupConversationPage() {
             </Button>
           </div>
         </header>
+
+        {pinnedMessages.length > 0 && (
+          <div data-testid="group-pinned-header" className="mt-3 rounded-lg border border-border bg-card p-3 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-2 text-sm text-foreground">
+                <Pin size={16} className="shrink-0 text-primary" />
+                <span className="font-medium">{t("groups.pinnedMessages")}</span>
+                <span className="text-muted-foreground">({pinnedMessages.length})</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => scrollToMessage(pinnedMessages[0].message.id)}
+                  data-testid="group-pinned-jump-latest"
+                >
+                  {t("channel.jumpToMessage")}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setPinsPanelOpen((prev) => !prev)}
+                  data-testid="group-pins-toggle"
+                >
+                  {pinsPanelOpen ? t("channel.cancel") : t("groups.pinnedMessages")}
+                </Button>
+              </div>
+            </div>
+            <div className="mt-1.5 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+              <span className="truncate">{getPinnedMessageSnippet(pinnedMessages[0])}</span>
+              <span className="shrink-0">— {pinnedMessages[0].message.author.displayName || pinnedMessages[0].message.author.username}</span>
+            </div>
+            {pinsPanelOpen && (
+              <div data-testid="group-pins-panel" className="mt-3 space-y-2 border-t border-border/50 pt-3">
+                {pinsState.kind === "loading" && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 size={14} className="animate-spin" />
+                    {t("groups.loadingMessages")}
+                  </div>
+                )}
+                {pinsState.kind === "error" && (
+                  <div className="text-sm text-destructive">{pinsState.message}</div>
+                )}
+                {pinnedMessages.map((pin) => (
+                  <div
+                    key={pin.id}
+                    data-testid={`group-pinned-item-${pin.message.id}`}
+                    className="flex items-start justify-between gap-2 rounded-md bg-muted/50 p-2"
+                  >
+                    <button
+                      onClick={() => {
+                        setPinsPanelOpen(false);
+                        scrollToMessage(pin.message.id);
+                      }}
+                      className="min-w-0 text-left text-sm"
+                    >
+                      <p className="truncate text-foreground">{getPinnedMessageSnippet(pin)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {pin.message.author.displayName || pin.message.author.username}
+                        {" "}•{" "}
+                        {new Date(pin.pinnedAt).toLocaleString()}
+                        {pin.pinnedBy && (
+                          <span className="ml-1">
+                            • {t("groups.pinnedBy")} {pin.pinnedBy.displayName || pin.pinnedBy.username}
+                          </span>
+                        )}
+                      </p>
+                    </button>
+                    {canPinMessage && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleUnpinMessage({ id: pin.message.id, isPinned: true } as GroupMessage)}
+                        data-testid={`group-pinned-unpin-${pin.message.id}`}
+                        className="shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        {t("groups.unpinMessage")}
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <div
           data-testid="group-chat-panel"
@@ -1128,7 +1380,7 @@ export default function GroupConversationPage() {
                           />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-baseline gap-2">
+                          <div className="flex items-center gap-2">
                             <span
                               data-testid={`group-message-author-${msg.id}`}
                               className={`text-sm font-semibold ${
@@ -1140,16 +1392,40 @@ export default function GroupConversationPage() {
                             <span className="text-[10px] text-muted-foreground">
                               {formatTime(msg.createdAt)}
                             </span>
-                            <button
-                              type="button"
-                              onClick={() => handleReply(msg)}
-                              data-testid={`group-reply-action-${msg.id}`}
-                              className="ml-auto inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-                              aria-label={t("groups.reply")}
-                            >
-                              <Reply size={12} />
-                              {t("groups.reply")}
-                            </button>
+                            {msg.isPinned && (
+                              <Badge
+                                variant="info"
+                                className="text-[10px]"
+                                data-testid={`message-pinned-indicator-${msg.id}`}
+                              >
+                                <Pin size={10} className="mr-0.5" />
+                                {t("groups.pinnedMessage")}
+                              </Badge>
+                            )}
+                            <div className="ml-auto inline-flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handleReply(msg)}
+                                data-testid={`group-reply-action-${msg.id}`}
+                                className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                                aria-label={t("groups.reply")}
+                              >
+                                <Reply size={12} />
+                                {t("groups.reply")}
+                              </button>
+                              <Button
+                                variant="icon"
+                                size="sm"
+                                onClick={(e) => openMenuForElement(msg.id, e.currentTarget)}
+                                data-testid={`group-message-menu-trigger-${msg.id}`}
+                                className="h-6 w-6"
+                                aria-label={t("channel.messageMenu")}
+                                aria-haspopup="menu"
+                                aria-expanded={messageMenuId === msg.id}
+                              >
+                                <MoreHorizontal size={14} />
+                              </Button>
+                            </div>
                           </div>
                           {msg.replyTo && (
                             <div className="mb-1.5" data-testid={`group-reply-to-preview-${msg.id}`}>
@@ -1478,6 +1754,46 @@ export default function GroupConversationPage() {
           </div>
         </div>
       </main>
+
+      {messageMenuId && messageMenuPosition && (
+        <div
+          data-testid={`group-message-menu-${messageMenuId}`}
+          style={{ top: messageMenuPosition.top, left: messageMenuPosition.left }}
+          className="fixed z-50 w-44 rounded-lg border border-border bg-popover p-1 shadow-lg"
+          role="menu"
+        >
+          {(() => {
+            const activeMenuMessage = displayMessages.find((m) => m.id === messageMenuId) ?? null;
+            if (!activeMenuMessage) return null;
+            return (
+              <>
+                {canPinMessage && !activeMenuMessage.isPinned && (
+                  <button
+                    onClick={() => handlePinMessage(activeMenuMessage)}
+                    data-testid={`group-pin-action-${activeMenuMessage.id}`}
+                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground"
+                    role="menuitem"
+                  >
+                    <Pin size={16} />
+                    <span>{t("groups.pinMessage")}</span>
+                  </button>
+                )}
+                {canPinMessage && activeMenuMessage.isPinned && (
+                  <button
+                    onClick={() => handleUnpinMessage(activeMenuMessage)}
+                    data-testid={`group-unpin-action-${activeMenuMessage.id}`}
+                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground"
+                    role="menuitem"
+                  >
+                    <Pin size={16} />
+                    <span>{t("groups.unpinMessage")}</span>
+                  </button>
+                )}
+              </>
+            );
+          })()}
+        </div>
+      )}
 
       {settingsOpen && groupData && (
         <GroupSettingsModal

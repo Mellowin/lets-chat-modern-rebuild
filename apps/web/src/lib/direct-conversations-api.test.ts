@@ -9,9 +9,13 @@ import {
   removeDirectMessageReaction,
   updateDirectMessage,
   deleteDirectMessage,
+  pinDirectMessage,
+  unpinDirectMessage,
+  getPinnedDirectMessages,
 } from "./direct-conversations-api";
 
 const API_BASE = "http://localhost:3001/api/v1";
+const author = { id: "u1", username: "alice", displayName: null, avatarUrl: null };
 
 describe("direct-conversations-api", () => {
   beforeEach(() => {
@@ -313,5 +317,82 @@ describe("direct-conversations-api", () => {
       vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ message: "Not found" }), { status: 404 }));
       await expect(deleteDirectMessage("token", "dc1", "dm1")).rejects.toThrow("Not found");
     });
+  });
+});
+
+beforeEach(() => {
+  vi.stubGlobal("fetch", vi.fn());
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe("pinDirectMessage", () => {
+  it("sends POST to pin endpoint", async () => {
+    const mock = {
+      id: "pin1",
+      pinnedAt: "2024-01-01T00:00:00Z",
+      pinnedBy: author,
+      message: { id: "dm1", content: "hello", createdAt: "2024-01-01T00:00:00Z", author, attachmentCount: 0, replyTo: null },
+    };
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(mock), { status: 201 }));
+
+    const result = await pinDirectMessage("token", "dc1", "dm1");
+
+    expect(fetch).toHaveBeenCalledWith(
+      `${API_BASE}/direct-conversations/dc1/messages/dm1/pin`,
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(result).toEqual(mock);
+  });
+
+  it("throws with backend error message", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ message: "Forbidden" }), { status: 403 }));
+    await expect(pinDirectMessage("token", "dc1", "dm1")).rejects.toThrow("Forbidden");
+  });
+});
+
+describe("unpinDirectMessage", () => {
+  it("sends DELETE to pin endpoint", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(null, { status: 204 }));
+
+    await unpinDirectMessage("token", "dc1", "dm1");
+
+    expect(fetch).toHaveBeenCalledWith(
+      `${API_BASE}/direct-conversations/dc1/messages/dm1/pin`,
+      expect.objectContaining({ method: "DELETE" }),
+    );
+  });
+
+  it("throws with backend error message", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ message: "Not found" }), { status: 404 }));
+    await expect(unpinDirectMessage("token", "dc1", "dm1")).rejects.toThrow("Not found");
+  });
+});
+
+describe("getPinnedDirectMessages", () => {
+  it("sends GET to pins endpoint", async () => {
+    const mock = {
+      items: [
+        {
+          id: "pin1",
+          pinnedAt: "2024-01-01T00:00:00Z",
+          pinnedBy: author,
+          message: { id: "dm1", content: "hello", createdAt: "2024-01-01T00:00:00Z", author, attachmentCount: 0, replyTo: null },
+        },
+      ],
+      nextCursor: null,
+      hasMore: false,
+    };
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(mock), { status: 200 }));
+
+    const result = await getPinnedDirectMessages("token", "dc1");
+
+    expect(fetch).toHaveBeenCalledWith(
+      `${API_BASE}/direct-conversations/dc1/pins?limit=20`,
+      expect.objectContaining({ method: "GET" }),
+    );
+    expect(result).toEqual(mock);
   });
 });

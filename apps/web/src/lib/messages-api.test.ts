@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { getMessages, createMessage, updateMessage, deleteMessage, presignAttachmentUpload, uploadAttachmentToPresignedUrl, getAttachmentDownloadUrl, fetchAttachmentFile, getAttachmentFileObjectUrl, getMessageContext } from "./messages-api";
+import { getMessages, createMessage, updateMessage, deleteMessage, presignAttachmentUpload, uploadAttachmentToPresignedUrl, getAttachmentDownloadUrl, fetchAttachmentFile, getAttachmentFileObjectUrl, getMessageContext, pinMessage, unpinMessage, getPinnedMessages } from "./messages-api";
 
 const API_BASE = "http://localhost:3001/api/v1";
+const author = { id: "u1", username: "alice", displayName: null, avatarUrl: null };
 
 describe("messages-api", () => {
   beforeEach(() => {
@@ -280,5 +281,94 @@ describe("messages-api", () => {
       vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ message: "Not found" }), { status: 404 }));
       await expect(getMessageContext("token", "ws1", "ch1", "m2")).rejects.toThrow("Not found");
     });
+  });
+});
+
+beforeEach(() => {
+  vi.stubGlobal("fetch", vi.fn());
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe("pinMessage", () => {
+  it("sends POST to pin endpoint", async () => {
+    const mock = {
+      id: "pin1",
+      pinnedAt: "2024-01-01T00:00:00Z",
+      pinnedBy: { id: "u1", username: "alice", displayName: null },
+      message: { id: "m1", content: "hello", createdAt: "2024-01-01T00:00:00Z", author, attachmentCount: 0, replyTo: null },
+    };
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(mock), { status: 201 }));
+
+    const result = await pinMessage("token", "ws1", "ch1", "m1");
+
+    expect(fetch).toHaveBeenCalledWith(
+      `${API_BASE}/workspaces/ws1/channels/ch1/messages/m1/pin`,
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(result).toEqual(mock);
+  });
+
+  it("throws with backend error message", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ message: "Forbidden" }), { status: 403 }));
+    await expect(pinMessage("token", "ws1", "ch1", "m1")).rejects.toThrow("Forbidden");
+  });
+});
+
+describe("unpinMessage", () => {
+  it("sends DELETE to pin endpoint", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(null, { status: 204 }));
+
+    await unpinMessage("token", "ws1", "ch1", "m1");
+
+    expect(fetch).toHaveBeenCalledWith(
+      `${API_BASE}/workspaces/ws1/channels/ch1/messages/m1/pin`,
+      expect.objectContaining({ method: "DELETE" }),
+    );
+  });
+
+  it("throws with backend error message", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ message: "Not found" }), { status: 404 }));
+    await expect(unpinMessage("token", "ws1", "ch1", "m1")).rejects.toThrow("Not found");
+  });
+});
+
+describe("getPinnedMessages", () => {
+  it("sends GET to pins endpoint", async () => {
+    const mock = {
+      items: [
+        {
+          id: "pin1",
+          pinnedAt: "2024-01-01T00:00:00Z",
+          pinnedBy: { id: "u1", username: "alice", displayName: null },
+          message: { id: "m1", content: "hello", createdAt: "2024-01-01T00:00:00Z", author, attachmentCount: 0, replyTo: null },
+        },
+      ],
+      nextCursor: null,
+      hasMore: false,
+    };
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(mock), { status: 200 }));
+
+    const result = await getPinnedMessages("token", "ws1", "ch1");
+
+    expect(fetch).toHaveBeenCalledWith(
+      `${API_BASE}/workspaces/ws1/channels/ch1/pins?limit=20`,
+      expect.objectContaining({ method: "GET" }),
+    );
+    expect(result).toEqual(mock);
+  });
+
+  it("passes cursor and custom limit", async () => {
+    const mock = { items: [], nextCursor: null, hasMore: false };
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify(mock), { status: 200 }));
+
+    await getPinnedMessages("token", "ws1", "ch1", { limit: 10, cursor: "abc" });
+
+    expect(fetch).toHaveBeenCalledWith(
+      `${API_BASE}/workspaces/ws1/channels/ch1/pins?limit=10&cursor=abc`,
+      expect.objectContaining({ method: "GET" }),
+    );
   });
 });

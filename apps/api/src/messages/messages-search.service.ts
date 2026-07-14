@@ -21,6 +21,7 @@ export interface SearchResult {
     name: string;
     slug: string;
   };
+  isPinned: boolean;
 }
 
 export interface GlobalSearchAuthor {
@@ -64,6 +65,7 @@ export interface GlobalSearchResult {
   createdAt: Date;
   author: GlobalSearchAuthor;
   source: GlobalSearchSource;
+  isPinned: boolean;
 }
 
 export interface GlobalSearchResponse {
@@ -113,7 +115,11 @@ export class MessagesSearchService {
           'id', c.id,
           'name', c.name,
           'slug', c.slug
-        ) as channel
+        ) as channel,
+        EXISTS (
+          SELECT 1 FROM "PinnedChannelMessage" pcm
+          WHERE pcm."messageId" = m.id
+        ) AS "isPinned"
       FROM "Message" m
       JOIN "User" u ON u.id = m."authorId"
       JOIN "Channel" c ON c.id = m."channelId"
@@ -285,7 +291,11 @@ export class MessagesSearchService {
           'channelName', ac.name,
           'channelSlug', ac.slug,
           'channelType', ac.channel_type
-        ) AS source
+        ) AS source,
+        EXISTS (
+          SELECT 1 FROM "PinnedChannelMessage" pcm
+          WHERE pcm."messageId" = m.id
+        ) AS "isPinned"
       FROM "Message" m
       JOIN "User" u ON u.id = m."authorId"
       JOIN accessible_channels ac ON ac.channel_id = m."channelId"
@@ -322,7 +332,11 @@ export class MessagesSearchService {
               AND dcp2."userId" != ${userId}::uuid
             LIMIT 1
           )
-        ) AS source
+        ) AS source,
+        EXISTS (
+          SELECT 1 FROM "PinnedDirectMessage" pdm
+          WHERE pdm."messageId" = dm.id
+        ) AS "isPinned"
       FROM "DirectMessage" dm
       JOIN "User" u ON u.id = dm."authorId"
       JOIN accessible_conversations aconv ON aconv.conversation_id = dm."conversationId"
@@ -354,7 +368,11 @@ export class MessagesSearchService {
           'type', 'GROUP',
           'groupId', ag.group_id,
           'groupName', ag.group_name
-        ) AS source
+        ) AS source,
+        EXISTS (
+          SELECT 1 FROM "PinnedGroupMessage" pgm
+          WHERE pgm."messageId" = gm.id
+        ) AS "isPinned"
       FROM "GroupMessage" gm
       JOIN "User" u ON u.id = gm."authorId"
       JOIN accessible_groups ag ON ag.group_id = gm."groupId"

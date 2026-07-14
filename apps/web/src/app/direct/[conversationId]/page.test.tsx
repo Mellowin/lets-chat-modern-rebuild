@@ -9,6 +9,9 @@ import {
   listDirectConversations,
   updateDirectMessage,
   deleteDirectMessage,
+  pinDirectMessage,
+  unpinDirectMessage,
+  getPinnedDirectMessages,
 } from "@/lib/direct-conversations-api";
 import type { DirectMessage } from "@/lib/direct-conversations-api";
 import { createSocketMock } from "@/test/socket-mock";
@@ -57,6 +60,9 @@ vi.mock("@/lib/direct-conversations-api", () => ({
   removeDirectMessageReaction: vi.fn(),
   updateDirectMessage: vi.fn(),
   deleteDirectMessage: vi.fn(),
+  pinDirectMessage: vi.fn(),
+  unpinDirectMessage: vi.fn(),
+  getPinnedDirectMessages: vi.fn(() => Promise.resolve({ items: [], nextCursor: null, hasMore: false })),
   uploadDirectAttachmentViaProxyWithProgress: vi.fn(),
   fetchDirectAttachmentFile: vi.fn(),
   getDirectAttachmentFileObjectUrl: vi.fn(),
@@ -8198,6 +8204,183 @@ describe("DirectConversationPage — B105 regression", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("direct-read-receipt-dm1")).toHaveTextContent("Seen");
+    });
+  });
+});
+
+
+describe("DirectConversationPage — pinned messages", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.setItem("accessToken", "token");
+    vi.clearAllMocks();
+    clearSocketHandlers();
+    mockSocketConnected = false;
+    routerPushMock.mockClear();
+    vi.mocked(deleteDirectMessage).mockReset();
+    vi.mocked(listDirectConversations).mockResolvedValue([
+      {
+        id: "dc1",
+        createdAt: "2024-01-01T00:00:00Z",
+        updatedAt: "2024-01-01T00:00:00Z",
+        otherParticipant: { id: "u3", username: "charlie", displayName: "Charlie", avatarUrl: null },
+        lastMessage: null,
+        unreadCount: 0,
+        isOnline: false,
+      },
+    ]);
+  });
+
+  const otherMessage = {
+    id: "dm2",
+    conversationId: "dc1",
+    content: "Hi",
+    parentId: null,
+    replyToMessageId: null,
+    replyTo: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    editedAt: null,
+    author: { id: "u3", username: "charlie", displayName: null, avatarUrl: null },
+    reactions: [],
+    readByOtherParticipant: true,
+    isUnreadForMe: false,
+  };
+
+  it("shows Pin action and pins message", async () => {
+    mockMessages([otherMessage]);
+    vi.mocked(pinDirectMessage).mockResolvedValueOnce({
+      id: "pin1",
+      pinnedAt: new Date().toISOString(),
+      pinnedBy: { id: "u1", username: "alice", displayName: "Alice" },
+      message: {
+        id: "dm2",
+        content: "Hi",
+        createdAt: otherMessage.createdAt,
+        author: otherMessage.author,
+        attachmentCount: 0,
+        replyTo: null,
+      },
+    });
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hi")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm2"));
+    expect(screen.getByTestId("direct-pin-action-dm2")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByTestId("direct-pin-action-dm2"));
+
+    await waitFor(() => {
+      expect(pinDirectMessage).toHaveBeenCalledWith("token", "dc1", "dm2");
+    });
+    expect(screen.getByTestId("message-pinned-indicator-dm2")).toBeInTheDocument();
+    expect(screen.getByTestId("direct-pinned-header")).toBeInTheDocument();
+  });
+
+  it("shows Unpin action for pinned message", async () => {
+    const pinnedMessage = { ...otherMessage, isPinned: true };
+    mockMessages([pinnedMessage]);
+    vi.mocked(unpinDirectMessage).mockResolvedValueOnce(undefined);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hi")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-message-menu-trigger-dm2"));
+    expect(screen.getByTestId("direct-unpin-action-dm2")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByTestId("direct-unpin-action-dm2"));
+
+    await waitFor(() => {
+      expect(unpinDirectMessage).toHaveBeenCalledWith("token", "dc1", "dm2");
+    });
+    expect(screen.queryByTestId("message-pinned-indicator-dm2")).not.toBeInTheDocument();
+  });
+
+  it("renders pinned header with latest pin and opens panel", async () => {
+    const pinnedMessage = { ...otherMessage, isPinned: true };
+    mockMessages([pinnedMessage]);
+    vi.mocked(getPinnedDirectMessages).mockResolvedValueOnce({
+      items: [
+        {
+          id: "pin1",
+          pinnedAt: new Date().toISOString(),
+          pinnedBy: { id: "u1", username: "alice", displayName: "Alice" },
+          message: {
+            id: "dm2",
+            content: "Hi",
+            createdAt: pinnedMessage.createdAt,
+            author: pinnedMessage.author,
+            attachmentCount: 0,
+            replyTo: null,
+          },
+        },
+      ],
+      nextCursor: null,
+      hasMore: false,
+    });
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-pinned-header")).toBeInTheDocument();
+    });
+
+    await userEvent.click(screen.getByTestId("direct-pins-toggle"));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("direct-pins-panel")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("direct-pinned-item-dm2")).toBeInTheDocument();
+  });
+
+  it("updates message pin state on direct:message:pinned websocket event", async () => {
+    mockMessages([otherMessage]);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Hi")).toBeInTheDocument();
+    });
+
+    expect(socketHandlers["direct:message:pinned"]).toBeDefined();
+    act(() => {
+      socketHandlers["direct:message:pinned"]({
+        messageId: "dm2",
+        conversationId: "dc1",
+        pinnedAt: new Date().toISOString(),
+        pinnedByUserId: "u1",
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("message-pinned-indicator-dm2")).toBeInTheDocument();
+    });
+  });
+
+  it("removes message pin state on direct:message:unpinned websocket event", async () => {
+    const pinnedMessage = { ...otherMessage, isPinned: true };
+    mockMessages([pinnedMessage]);
+
+    render(<DirectConversationPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("message-pinned-indicator-dm2")).toBeInTheDocument();
+    });
+
+    expect(socketHandlers["direct:message:unpinned"]).toBeDefined();
+    act(() => {
+      socketHandlers["direct:message:unpinned"]({ messageId: "dm2", conversationId: "dc1" });
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("message-pinned-indicator-dm2")).not.toBeInTheDocument();
     });
   });
 });

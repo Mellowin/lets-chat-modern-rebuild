@@ -23,6 +23,8 @@ import {
 import {
   decodeMessageCursor,
   encodeMessageCursor,
+  decodePinCursor,
+  encodePinCursor,
 } from '../common/cursor-pagination';
 
 export type AttachmentKind = 'image' | 'file';
@@ -96,6 +98,10 @@ export class MessagesService {
           avatarUrl: string | null;
         };
       } | null;
+      pin?: {
+        pinnedAt: Date;
+        pinnedByUserId: string | null;
+      } | null;
     },
     userId: string,
   ) {
@@ -116,6 +122,14 @@ export class MessagesService {
       .sort((a, b) => a.emoji.localeCompare(b.emoji));
 
     const attachments = (message.attachments ?? []).map(mapAttachmentResponse);
+
+    const isPinned = !!message.pin;
+    const pin = isPinned
+      ? {
+          pinnedAt: message.pin!.pinnedAt,
+          pinnedByUserId: message.pin!.pinnedByUserId,
+        }
+      : undefined;
 
     return {
       id: message.id,
@@ -141,6 +155,8 @@ export class MessagesService {
       reactions,
       attachments,
       mentions: this.normalizeMentions(message.mentions),
+      isPinned,
+      pin,
     };
   }
 
@@ -178,6 +194,102 @@ export class MessagesService {
     if (!chRole) {
       throw new NotFoundException('Channel not found');
     }
+
+    return { wsRole, chRole };
+  }
+
+  private async requirePinPermission(
+    workspaceId: string,
+    channelId: string,
+    userId: string,
+  ) {
+    const { wsRole, chRole } = await this.validateChannelAccess(
+      workspaceId,
+      channelId,
+      userId,
+    );
+
+    const canPin =
+      wsRole === 'OWNER' ||
+      wsRole === 'ADMIN' ||
+      chRole === 'OWNER' ||
+      chRole === 'ADMIN';
+
+    if (!canPin) {
+      throw new ForbiddenException('Insufficient permissions');
+    }
+  }
+
+  private mapPinResponse(pin: {
+    id: string;
+    pinnedAt: Date;
+    pinnedBy: {
+      id: string;
+      username: string;
+      displayName: string | null;
+      avatarUrl: string | null;
+    } | null;
+    message: {
+      id: string;
+      content: string;
+      createdAt: Date;
+      author: {
+        id: string;
+        username: string;
+        displayName: string | null;
+        avatarUrl: string | null;
+      };
+      attachments: Array<{ id: string }>;
+      replyToMessage?: {
+        id: string;
+        content: string;
+        deletedAt: Date | null;
+        author: {
+          id: string;
+          username: string;
+          displayName: string | null;
+          avatarUrl: string | null;
+        };
+      } | null;
+    };
+  }) {
+    return {
+      id: pin.id,
+      pinnedAt: pin.pinnedAt,
+      pinnedBy: pin.pinnedBy
+        ? {
+            id: pin.pinnedBy.id,
+            username: pin.pinnedBy.username,
+            displayName: pin.pinnedBy.displayName,
+          }
+        : { id: '', username: '', displayName: null },
+      message: {
+        id: pin.message.id,
+        content: pin.message.content,
+        createdAt: pin.message.createdAt,
+        author: {
+          id: pin.message.author.id,
+          username: pin.message.author.username,
+          displayName: pin.message.author.displayName,
+        },
+        attachmentCount: pin.message.attachments?.length ?? 0,
+        replyTo: pin.message.replyToMessage
+          ? {
+              id: pin.message.replyToMessage.id,
+              content: pin.message.replyToMessage.deletedAt
+                ? null
+                : pin.message.replyToMessage.content,
+              author: pin.message.replyToMessage.deletedAt
+                ? null
+                : {
+                    id: pin.message.replyToMessage.author.id,
+                    username: pin.message.replyToMessage.author.username,
+                    displayName: pin.message.replyToMessage.author.displayName,
+                  },
+            }
+          : null,
+      },
+    };
   }
 
   async create(
@@ -463,5 +575,94 @@ export class MessagesService {
       channelId: deleted.channelId,
       deletedAt: deleted.deletedAt!,
     });
+  }
+
+  async pinMessage(
+    workspaceId: string,
+    channelId: string,
+    messageId: string,
+    userId: string,
+  ) {
+    await this.requirePinPermission(workspaceId, channelId, userId);
+
+    const message = await this.messages.findByIdWithRelations(messageId);
+    if (!message || message.channelId !== channelId) {
+      throw new NotFoundException('Message not found');
+    }
+
+    const pin = await this.messages.pinMessage(channelId, messageId, userId);
+
+    this.websocketEvents.broadcastMessagePinned(channelId, {
+      id: message.id,
+      channelId,
+      pinnedAt: pin.pinnedAt,
+      pinnedByUserId: userId,
+      pinnedBy: pin.pinnedBy
+        ? {
+            id: pin.pinnedBy.id,
+            username: pin.pinnedBy.username,
+            displayName: pin.pinnedBy.displayName,
+            avatarUrl: pin.pinnedBy.avatarUrl,
+          }
+        : { id: userId, username: '', displayName: null, avatarUrl: null },
+    });
+
+    return this.mapPinResponse(pin);
+  }
+
+  async unpinMessage(
+    workspaceId: string,
+    channelId: string,
+    messageId: string,
+    userId: string,
+  ) {
+    await this.requirePinPermission(workspaceId, channelId, userId);
+
+    const message = await this.messages.findByIdWithRelations(messageId);
+    if (!message || message.channelId !== channelId) {
+      throw new NotFoundException('Message not found');
+    }
+
+    await this.messages.unpinMessage(messageId);
+
+    this.websocketEvents.broadcastMessageUnpinned(channelId, {
+      id: message.id,
+      channelId,
+    });
+  }
+
+  async listPinnedMessages(
+    workspaceId: string,
+    channelId: string,
+    userId: string,
+    query: { limit?: number; cursor?: string },
+  ) {
+    await this.validateChannelAccess(workspaceId, channelId, userId);
+
+    const limit = Math.min(query.limit ?? 20, 50);
+    const cursor = query.cursor ? decodePinCursor(query.cursor) : undefined;
+    if (query.cursor && !cursor) {
+      throw new BadRequestException('Invalid cursor format');
+    }
+
+    const rows = await this.messages.findPinnedMessages(
+      channelId,
+      limit,
+      cursor,
+    );
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+
+    return {
+      items: page.map((p) => this.mapPinResponse(p)),
+      nextCursor:
+        hasMore && page.length > 0
+          ? encodePinCursor({
+              pinnedAt: page[page.length - 1].pinnedAt,
+              id: page[page.length - 1].id,
+            })
+          : null,
+      hasMore,
+    };
   }
 }

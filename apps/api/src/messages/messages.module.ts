@@ -6,6 +6,7 @@ import { ChannelsModule } from '../channels/channels.module';
 import { MessagesService } from './messages.service';
 import { MessagesRepository } from './messages.repository';
 import { MessagesController } from './messages.controller';
+import { ChannelPinsController } from './pins.controller';
 import { ReactionsService } from './reactions.service';
 import { ReactionsRepository } from './reactions.repository';
 import { ReactionsController } from './reactions.controller';
@@ -43,6 +44,7 @@ import { AttachmentsController } from './attachments.controller';
     UserSearchController,
     GlobalSearchController,
     AttachmentsController,
+    ChannelPinsController,
   ],
   providers: [
     MessagesService,

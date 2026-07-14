@@ -59,6 +59,9 @@ describe('MessagesService', () => {
             findByIdWithRelations: jest.fn(),
             findContextBefore: jest.fn(),
             findContextAfter: jest.fn(),
+            pinMessage: jest.fn(),
+            unpinMessage: jest.fn(),
+            findPinnedMessages: jest.fn(),
           },
         },
         {
@@ -81,6 +84,8 @@ describe('MessagesService', () => {
             broadcastMessageCreated: jest.fn(),
             broadcastMessageUpdated: jest.fn(),
             broadcastMessageDeleted: jest.fn(),
+            broadcastMessagePinned: jest.fn(),
+            broadcastMessageUnpinned: jest.fn(),
           },
         },
         {
@@ -1655,6 +1660,203 @@ describe('MessagesService', () => {
         kind: 'file',
       });
       expect(result.attachments[0]).not.toHaveProperty('storageKey');
+    });
+  });
+
+  describe('pinMessage', () => {
+    it('pins a message when user is channel OWNER', async () => {
+      const message = {
+        id: messageId,
+        channelId,
+        content: 'hello',
+        parentId: null,
+        replyToMessageId: null,
+        replyToMessage: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        editedAt: null,
+        author: {
+          id: userId,
+          username: 'user',
+          displayName: null,
+          avatarUrl: null,
+        },
+        reactions: [],
+        attachments: [],
+        pin: null,
+      } as unknown as FoundMessage;
+
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
+      messagesRepository.findByIdWithRelations.mockResolvedValue(
+        message as never,
+      );
+      messagesRepository.pinMessage.mockResolvedValue({
+        id: 'pin-1',
+        pinnedAt: new Date(),
+        pinnedBy: {
+          id: userId,
+          username: 'user',
+          displayName: null,
+          avatarUrl: null,
+        },
+        message: {
+          id: messageId,
+          content: 'hello',
+          createdAt: new Date(),
+          author: {
+            id: userId,
+            username: 'user',
+            displayName: null,
+            avatarUrl: null,
+          },
+          attachments: [],
+          replyToMessage: null,
+        },
+      } as never);
+
+      const result = await service.pinMessage(
+        workspaceId,
+        channelId,
+        messageId,
+        userId,
+      );
+
+      expect(result.message.id).toBe(messageId);
+      expect(result.pinnedBy.id).toBe(userId);
+      expect(messagesRepository.pinMessage).toHaveBeenCalledWith(
+        channelId,
+        messageId,
+        userId,
+      );
+    });
+
+    it('rejects pin when user is a regular MEMBER', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+
+      await expect(
+        service.pinMessage(workspaceId, channelId, messageId, userId),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('rejects pin for message from another channel', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
+      messagesRepository.findByIdWithRelations.mockResolvedValue({
+        id: messageId,
+        channelId: 'other-channel',
+      } as never);
+
+      await expect(
+        service.pinMessage(workspaceId, channelId, messageId, userId),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('unpinMessage', () => {
+    it('unpins a message when user is channel OWNER', async () => {
+      const message = {
+        id: messageId,
+        channelId,
+        content: 'hello',
+        parentId: null,
+        replyToMessageId: null,
+        replyToMessage: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        editedAt: null,
+        author: {
+          id: userId,
+          username: 'user',
+          displayName: null,
+          avatarUrl: null,
+        },
+        reactions: [],
+        attachments: [],
+        pin: {
+          pinnedAt: new Date(),
+          pinnedByUserId: userId,
+        },
+      } as unknown as FoundMessage;
+
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
+      messagesRepository.findByIdWithRelations.mockResolvedValue(
+        message as never,
+      );
+      messagesRepository.unpinMessage.mockResolvedValue({ count: 1 });
+
+      await service.unpinMessage(workspaceId, channelId, messageId, userId);
+
+      expect(messagesRepository.unpinMessage).toHaveBeenCalledWith(messageId);
+    });
+  });
+
+  describe('listPinnedMessages', () => {
+    it('returns pinned messages newest first', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      messagesRepository.findPinnedMessages.mockResolvedValue([
+        {
+          id: 'pin-1',
+          pinnedAt: new Date('2026-06-30T12:00:02.000Z'),
+          pinnedBy: {
+            id: userId,
+            username: 'user',
+            displayName: null,
+            avatarUrl: null,
+          },
+          message: {
+            id: 'msg-1',
+            content: 'newest',
+            createdAt: new Date(),
+            author: {
+              id: userId,
+              username: 'user',
+              displayName: null,
+              avatarUrl: null,
+            },
+            attachments: [],
+            replyToMessage: null,
+          },
+        },
+      ] as never);
+
+      const result = await service.listPinnedMessages(
+        workspaceId,
+        channelId,
+        userId,
+        { limit: 20 },
+      );
+
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].message.id).toBe('msg-1');
     });
   });
 });

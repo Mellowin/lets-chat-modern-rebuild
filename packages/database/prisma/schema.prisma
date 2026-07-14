@@ -141,6 +141,9 @@ model User {
   reportsMade                    UserReport[]                  @relation("ReportReporter")
   reportsReceived                UserReport[]                  @relation("ReportedUser")
   reportsReviewed                UserReport[]                  @relation("ReportReviewer")
+  pinnedChannelMessages          PinnedChannelMessage[]
+  pinnedDirectMessages           PinnedDirectMessage[]
+  pinnedGroupMessages            PinnedGroupMessage[]
 
   @@index([email])
   @@index([username])
@@ -263,11 +266,26 @@ model Message {
   edits           MessageEdit[]
   readReceipts    ReadReceipt[]
   mentions        Json?
+  pin             PinnedChannelMessage?
   // Note: GIN index on searchVector is added via raw migration (see database-schema.md §7.2)
 
   @@index([channelId, createdAt, id])
   @@index([parentId, createdAt])
   @@index([replyToMessageId])
+}
+
+model PinnedChannelMessage {
+  id             String   @id @default(uuid()) @db.Uuid
+  messageId      String   @unique @db.Uuid
+  channelId      String   @db.Uuid
+  pinnedByUserId String?  @db.Uuid
+  pinnedAt       DateTime @default(now())
+
+  message  Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  pinnedBy User?   @relation(fields: [pinnedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([channelId, pinnedAt, id])
+  @@index([pinnedAt])
 }
 
 model MessageEdit {
@@ -535,11 +553,26 @@ model DirectMessage {
   reactions        DirectMessageReaction[]
   attachments      Attachment[]
   mentions         Json?
+  pin              PinnedDirectMessage?
 
   @@index([conversationId, createdAt, id])
   @@index([authorId])
   @@index([parentId])
   @@index([replyToMessageId])
+}
+
+model PinnedDirectMessage {
+  id             String   @id @default(uuid()) @db.Uuid
+  messageId      String   @unique @db.Uuid
+  conversationId String   @db.Uuid
+  pinnedByUserId String?  @db.Uuid
+  pinnedAt       DateTime @default(now())
+
+  message  DirectMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  pinnedBy User?         @relation(fields: [pinnedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([conversationId, pinnedAt, id])
+  @@index([pinnedAt])
 }
 
 model DirectMessageReaction {
@@ -705,10 +738,25 @@ model GroupMessage {
   repliesToThis   GroupMessage[]    @relation("GroupMessageReplyTo")
   attachments     Attachment[]
   mentions        Json?
+  pin             PinnedGroupMessage?
 
   @@index([groupId, createdAt, id])
   @@index([authorId])
   @@index([replyToMessageId])
+}
+
+model PinnedGroupMessage {
+  id             String   @id @default(uuid()) @db.Uuid
+  messageId      String   @unique @db.Uuid
+  groupId        String   @db.Uuid
+  pinnedByUserId String?  @db.Uuid
+  pinnedAt       DateTime @default(now())
+
+  message  GroupMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  pinnedBy User?        @relation(fields: [pinnedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([groupId, pinnedAt, id])
+  @@index([pinnedAt])
 }
 
 model PushSubscription {

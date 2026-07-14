@@ -48,6 +48,39 @@ export interface Message {
   reactions: ReactionSummary[];
   attachments?: Attachment[];
   mentions?: MessageMention[];
+  isPinned?: boolean;
+  pin?: {
+    pinnedAt: string;
+    pinnedByUserId?: string | null;
+  } | null;
+}
+
+export interface PinnedMessageSummary {
+  id: string;
+  pinnedAt: string;
+  pinnedBy: {
+    id: string;
+    username: string;
+    displayName: string | null;
+  } | null;
+  message: {
+    id: string;
+    content: string | null;
+    createdAt: string;
+    author: MessageAuthor;
+    attachmentCount: number;
+    replyTo: {
+      id: string;
+      content: string | null;
+      author: MessageAuthor | null;
+    } | null;
+  };
+}
+
+export interface PaginatedPinnedMessages {
+  items: PinnedMessageSummary[];
+  nextCursor: string | null;
+  hasMore: boolean;
 }
 
 export interface CreateMessageAttachmentInput {
@@ -775,4 +808,103 @@ export async function searchGlobalMessages(
   }
 
   return res.json() as Promise<GlobalSearchResponse>;
+}
+
+export async function pinMessage(
+  accessToken: string,
+  workspaceId: string,
+  channelId: string,
+  messageId: string,
+): Promise<PinnedMessageSummary> {
+  const res = await authFetch(
+    `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(messageId)}/pin`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
+
+  if (!res.ok) {
+    let message = `Failed to pin message: ${res.status} ${res.statusText}`;
+    try {
+      const body = await res.json();
+      if (body?.message) message = body.message;
+      else if (body?.error) message = body.error;
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+
+  return res.json() as Promise<PinnedMessageSummary>;
+}
+
+export async function unpinMessage(
+  accessToken: string,
+  workspaceId: string,
+  channelId: string,
+  messageId: string,
+): Promise<void> {
+  const res = await authFetch(
+    `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/messages/${encodeURIComponent(messageId)}/pin`,
+    {
+      method: "DELETE",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
+
+  if (!res.ok) {
+    let message = `Failed to unpin message: ${res.status} ${res.statusText}`;
+    try {
+      const body = await res.json();
+      if (body?.message) message = body.message;
+      else if (body?.error) message = body.error;
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+}
+
+export async function getPinnedMessages(
+  accessToken: string,
+  workspaceId: string,
+  channelId: string,
+  options?: { limit?: number; cursor?: string },
+): Promise<PaginatedPinnedMessages> {
+  const params = new URLSearchParams();
+  params.set("limit", String(options?.limit ?? 20));
+  if (options?.cursor) params.set("cursor", options.cursor);
+
+  const res = await authFetch(
+    `${API_BASE}/workspaces/${encodeURIComponent(workspaceId)}/channels/${encodeURIComponent(channelId)}/pins?${params.toString()}`,
+    {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  );
+
+  if (!res.ok) {
+    let message = `Failed to load pinned messages: ${res.status} ${res.statusText}`;
+    try {
+      const body = await res.json();
+      if (body?.message) message = body.message;
+      else if (body?.error) message = body.error;
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
+  }
+
+  return res.json() as Promise<PaginatedPinnedMessages>;
 }

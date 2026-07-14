@@ -576,4 +576,153 @@ export class WebsocketEventsService {
       );
     }
   }
+
+  broadcastMessagePinned(
+    channelId: string,
+    payload: {
+      id: string;
+      channelId: string;
+      pinnedAt: Date;
+      pinnedByUserId: string;
+      pinnedBy: {
+        id: string;
+        username: string;
+        displayName: string | null;
+        avatarUrl: string | null;
+      };
+    },
+  ) {
+    try {
+      this.gateway.broadcastToRoom(
+        `channel:${channelId}`,
+        'message:pinned',
+        payload,
+      );
+    } catch (error) {
+      this.logger.error(
+        { channelId, messageId: payload.id, error: (error as Error).message },
+        'Failed to broadcast message:pinned',
+      );
+    }
+  }
+
+  broadcastMessageUnpinned(
+    channelId: string,
+    payload: { id: string; channelId: string },
+  ) {
+    try {
+      this.gateway.broadcastToRoom(
+        `channel:${channelId}`,
+        'message:unpinned',
+        payload,
+      );
+    } catch (error) {
+      this.logger.error(
+        { channelId, messageId: payload.id, error: (error as Error).message },
+        'Failed to broadcast message:unpinned',
+      );
+    }
+  }
+
+  broadcastDirectMessagePinned(
+    conversationId: string,
+    payload: {
+      id: string;
+      conversationId: string;
+      pinnedAt: Date;
+      pinnedByUserId: string;
+      pinnedBy: {
+        id: string;
+        username: string;
+        displayName: string | null;
+        avatarUrl: string | null;
+      };
+    },
+  ) {
+    try {
+      this.gateway.broadcastToRoom(
+        `direct-conversation:${conversationId}`,
+        'direct:message:pinned',
+        payload,
+      );
+    } catch (error) {
+      this.logger.error(
+        {
+          conversationId,
+          messageId: payload.id,
+          error: (error as Error).message,
+        },
+        'Failed to broadcast direct:message:pinned',
+      );
+    }
+  }
+
+  broadcastDirectMessageUnpinned(
+    conversationId: string,
+    payload: { id: string; conversationId: string },
+  ) {
+    try {
+      this.gateway.broadcastToRoom(
+        `direct-conversation:${conversationId}`,
+        'direct:message:unpinned',
+        payload,
+      );
+    } catch (error) {
+      this.logger.error(
+        {
+          conversationId,
+          messageId: payload.id,
+          error: (error as Error).message,
+        },
+        'Failed to broadcast direct:message:unpinned',
+      );
+    }
+  }
+
+  broadcastGroupMessagePinned(
+    groupId: string,
+    payload: {
+      id: string;
+      groupId: string;
+      pinnedAt: Date;
+      pinnedByUserId: string;
+      pinnedBy: {
+        id: string;
+        username: string;
+        displayName: string | null;
+        avatarUrl: string | null;
+      };
+    },
+  ) {
+    try {
+      this.gateway.broadcastToRoom(
+        `group-conversation:${groupId}`,
+        'group:message:pinned',
+        payload,
+      );
+    } catch (error) {
+      this.logger.error(
+        { groupId, messageId: payload.id, error: (error as Error).message },
+        'Failed to broadcast group:message:pinned',
+      );
+    }
+  }
+
+  broadcastGroupMessageUnpinned(
+    groupId: string,
+    payload: { id: string; groupId: string },
+  ) {
+    try {
+      this.gateway.broadcastToRoom(
+        `group-conversation:${groupId}`,
+        'group:message:unpinned',
+        payload,
+      );
+    } catch (error) {
+      this.logger.error(
+        { groupId, messageId: payload.id, error: (error as Error).message },
+        'Failed to broadcast group:message:unpinned',
+      );
+    }
+  }
 }

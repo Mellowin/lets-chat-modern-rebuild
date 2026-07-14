@@ -81,6 +81,7 @@ describe('MessagesSearchService', () => {
         channelSlug: 'general',
         channelType,
       },
+      isPinned: false,
       ...overrides,
     };
   }
@@ -108,6 +109,7 @@ describe('MessagesSearchService', () => {
           avatarUrl: null,
         },
       },
+      isPinned: false,
       ...overrides,
     };
   }
@@ -130,6 +132,7 @@ describe('MessagesSearchService', () => {
         groupId: 'group-1',
         groupName: 'Project A',
       },
+      isPinned: false,
       ...overrides,
     };
   }

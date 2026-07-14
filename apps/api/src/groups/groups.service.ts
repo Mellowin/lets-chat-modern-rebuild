@@ -9,6 +9,8 @@ import {
 import {
   decodeMessageCursor,
   encodeMessageCursor,
+  decodePinCursor,
+  encodePinCursor,
 } from '../common/cursor-pagination';
 import { UsersRepository } from '../users/users.repository';
 import { WebsocketEventsService } from '../websocket/websocket-events.service';
@@ -142,6 +144,73 @@ export class GroupsService {
       throw new NotFoundException('Group not found');
     }
     return group;
+  }
+
+  private mapPinResponse(pin: {
+    id: string;
+    pinnedAt: Date;
+    pinnedBy: {
+      id: string;
+      username: string;
+      displayName: string | null;
+      avatarUrl: string | null;
+    } | null;
+    message: {
+      id: string;
+      content: string;
+      createdAt: Date;
+      author: {
+        id: string;
+        username: string;
+        displayName: string | null;
+        avatarUrl: string | null;
+      };
+      attachments: Array<{ id: string }>;
+      replyToMessage?: {
+        id: string;
+        content: string;
+        author: {
+          id: string;
+          username: string;
+          displayName: string | null;
+          avatarUrl: string | null;
+        };
+      } | null;
+    };
+  }) {
+    return {
+      id: pin.id,
+      pinnedAt: pin.pinnedAt,
+      pinnedBy: pin.pinnedBy
+        ? {
+            id: pin.pinnedBy.id,
+            username: pin.pinnedBy.username,
+            displayName: pin.pinnedBy.displayName,
+          }
+        : { id: '', username: '', displayName: null },
+      message: {
+        id: pin.message.id,
+        content: pin.message.content,
+        createdAt: pin.message.createdAt,
+        author: {
+          id: pin.message.author.id,
+          username: pin.message.author.username,
+          displayName: pin.message.author.displayName,
+        },
+        attachmentCount: pin.message.attachments?.length ?? 0,
+        replyTo: pin.message.replyToMessage
+          ? {
+              id: pin.message.replyToMessage.id,
+              content: pin.message.replyToMessage.content,
+              author: {
+                id: pin.message.replyToMessage.author.id,
+                username: pin.message.replyToMessage.author.username,
+                displayName: pin.message.replyToMessage.author.displayName,
+              },
+            }
+          : null,
+      },
+    };
   }
 
   async create(dto: CreateGroupDto, currentUserId: string) {
@@ -421,6 +490,13 @@ export class GroupsService {
               author: m.replyToMessage.author,
             }
           : null,
+        isPinned: !!m.pin,
+        pin: m.pin
+          ? {
+              pinnedAt: m.pin.pinnedAt,
+              pinnedByUserId: m.pin.pinnedByUserId,
+            }
+          : undefined,
       }));
 
     const after = (hasMoreAfter ? afterRaw.slice(0, afterLimit) : afterRaw).map(
@@ -441,6 +517,13 @@ export class GroupsService {
               author: m.replyToMessage.author,
             }
           : null,
+        isPinned: !!m.pin,
+        pin: m.pin
+          ? {
+              pinnedAt: m.pin.pinnedAt,
+              pinnedByUserId: m.pin.pinnedByUserId,
+            }
+          : undefined,
       }),
     );
 
@@ -462,6 +545,13 @@ export class GroupsService {
               author: target.replyToMessage.author,
             }
           : null,
+        isPinned: !!target.pin,
+        pin: target.pin
+          ? {
+              pinnedAt: target.pin.pinnedAt,
+              pinnedByUserId: target.pin.pinnedByUserId,
+            }
+          : undefined,
       },
       before,
       after,
@@ -506,6 +596,13 @@ export class GroupsService {
             author: m.replyToMessage.author,
           }
         : null,
+      isPinned: !!m.pin,
+      pin: m.pin
+        ? {
+            pinnedAt: m.pin.pinnedAt,
+            pinnedByUserId: m.pin.pinnedByUserId,
+          }
+        : undefined,
     }));
 
     return {
@@ -648,6 +745,80 @@ export class GroupsService {
       readAt: new Date().toISOString(),
     });
     return { success: true, lastReadAt: new Date().toISOString() };
+  }
+
+  async pinMessage(groupId: string, messageId: string, userId: string) {
+    await this.requireOwner(groupId, userId);
+
+    const message = await this.groups.findMessageByIdWithRelations(messageId);
+    if (!message || message.groupId !== groupId) {
+      throw new NotFoundException('Message not found');
+    }
+
+    const pin = await this.groups.pinMessage(groupId, messageId, userId);
+
+    this.websocketEvents.broadcastGroupMessagePinned(groupId, {
+      id: message.id,
+      groupId,
+      pinnedAt: pin.pinnedAt,
+      pinnedByUserId: userId,
+      pinnedBy: pin.pinnedBy
+        ? {
+            id: pin.pinnedBy.id,
+            username: pin.pinnedBy.username,
+            displayName: pin.pinnedBy.displayName,
+            avatarUrl: pin.pinnedBy.avatarUrl,
+          }
+        : { id: userId, username: '', displayName: null, avatarUrl: null },
+    });
+
+    return this.mapPinResponse(pin);
+  }
+
+  async unpinMessage(groupId: string, messageId: string, userId: string) {
+    await this.requireOwner(groupId, userId);
+
+    const message = await this.groups.findMessageByIdWithRelations(messageId);
+    if (!message || message.groupId !== groupId) {
+      throw new NotFoundException('Message not found');
+    }
+
+    await this.groups.unpinMessage(messageId);
+
+    this.websocketEvents.broadcastGroupMessageUnpinned(groupId, {
+      id: message.id,
+      groupId,
+    });
+  }
+
+  async listPinnedMessages(
+    groupId: string,
+    userId: string,
+    query: { limit?: number; cursor?: string },
+  ) {
+    await this.requireGroupAccessible(groupId, userId);
+
+    const limit = Math.min(query.limit ?? 20, 50);
+    const cursor = query.cursor ? decodePinCursor(query.cursor) : undefined;
+    if (query.cursor && !cursor) {
+      throw new BadRequestException('Invalid cursor format');
+    }
+
+    const rows = await this.groups.findPinnedMessages(groupId, limit, cursor);
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+
+    return {
+      items: page.map((p) => this.mapPinResponse(p)),
+      nextCursor:
+        hasMore && page.length > 0
+          ? encodePinCursor({
+              pinnedAt: page[page.length - 1].pinnedAt,
+              id: page[page.length - 1].id,
+            })
+          : null,
+      hasMore,
+    };
   }
 
   async uploadAttachment(

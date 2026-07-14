@@ -491,6 +491,15 @@ export type TranslationKey =
   | "direct.typing"
   | "direct.typingFallback"
   | "direct.unreadMessages"
+  | "direct.pinMessage"
+  | "direct.unpinMessage"
+  | "direct.pinnedMessages"
+  | "direct.pinnedMessage"
+  | "direct.unpinnedMessage"
+  | "direct.pinFailed"
+  | "direct.unpinFailed"
+  | "direct.pinnedBy"
+  | "direct.attachmentOnly"
   | "groups.title"
   | "groups.subtitle"
   | "groups.createGroup"
@@ -614,6 +623,15 @@ export type TranslationKey =
   | "channel.attachmentTypeVideo"
   | "channel.attachmentTypeAudio"
   | "channel.attachmentTypeFile"
+  | "channel.pinMessage"
+  | "channel.unpinMessage"
+  | "channel.pinnedMessages"
+  | "channel.pinnedMessage"
+  | "channel.unpinnedMessage"
+  | "channel.pinFailed"
+  | "channel.unpinFailed"
+  | "channel.pinnedBy"
+  | "channel.attachmentOnly"
   | "workspace.inviteStatusPending"
   | "workspace.inviteStatusRevoked"
   | "workspace.inviteStatusExpired"
@@ -822,6 +840,15 @@ export type TranslationKey =
   | "groups.cancelReply"
   | "groups.originalMessageMissing"
   | "groups.replyAttachmentIndicator"
+  | "groups.pinMessage"
+  | "groups.unpinMessage"
+  | "groups.pinnedMessages"
+  | "groups.pinnedMessage"
+  | "groups.unpinnedMessage"
+  | "groups.pinFailed"
+  | "groups.unpinFailed"
+  | "groups.pinnedBy"
+  | "groups.attachmentOnly"
   | "groups.report";
 
 const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string) => string)>> = {
@@ -1190,6 +1217,15 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "direct.typing": "{arg0} is typing…",
     "direct.typingFallback": "Someone is typing…",
     "direct.unreadMessages": "Unread messages",
+    "direct.pinMessage": "Pin message",
+    "direct.unpinMessage": "Unpin message",
+    "direct.pinnedMessages": "Pinned messages",
+    "direct.pinnedMessage": "Message pinned",
+    "direct.unpinnedMessage": "Message unpinned",
+    "direct.pinFailed": "Failed to pin message",
+    "direct.unpinFailed": "Failed to unpin message",
+    "direct.pinnedBy": "Pinned by",
+    "direct.attachmentOnly": "Attachment",
     "groups.title": "Groups",
     "groups.subtitle": "Chat with multiple people in simple groups.",
     "groups.createGroup": "Create group",
@@ -1236,6 +1272,15 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "groups.cancelReply": "Cancel reply",
     "groups.originalMessageMissing": "Original message unavailable",
     "groups.replyAttachmentIndicator": "Attachment",
+    "groups.pinMessage": "Pin message",
+    "groups.unpinMessage": "Unpin message",
+    "groups.pinnedMessages": "Pinned messages",
+    "groups.pinnedMessage": "Message pinned",
+    "groups.unpinnedMessage": "Message unpinned",
+    "groups.pinFailed": "Failed to pin message",
+    "groups.unpinFailed": "Failed to unpin message",
+    "groups.pinnedBy": "Pinned by",
+    "groups.attachmentOnly": "Attachment",
     "groups.failedRenameGroup": "Failed to rename group",
     "groups.failedAddMember": "Failed to add member",
     "groups.failedRemoveMember": "Failed to remove member",
@@ -1427,6 +1472,15 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.attachmentTypeVideo": "Video",
     "channel.attachmentTypeAudio": "Audio",
     "channel.attachmentTypeFile": "File",
+    "channel.pinMessage": "Pin message",
+    "channel.unpinMessage": "Unpin message",
+    "channel.pinnedMessages": "Pinned messages",
+    "channel.pinnedMessage": "Message pinned",
+    "channel.unpinnedMessage": "Message unpinned",
+    "channel.pinFailed": "Failed to pin message",
+    "channel.unpinFailed": "Failed to unpin message",
+    "channel.pinnedBy": "Pinned by",
+    "channel.attachmentOnly": "Attachment",
     "workspace.inviteStatusPending": "Pending",
     "workspace.inviteStatusRevoked": "Revoked",
     "workspace.inviteStatusExpired": "Expired",
@@ -1997,6 +2051,15 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "direct.typing": "{arg0} друкує…",
     "direct.typingFallback": "Хтось друкує…",
     "direct.unreadMessages": "Непрочитані повідомлення",
+    "direct.pinMessage": "Закріпити повідомлення",
+    "direct.unpinMessage": "Відкріпити повідомлення",
+    "direct.pinnedMessages": "Закріплені повідомлення",
+    "direct.pinnedMessage": "Повідомлення закріплено",
+    "direct.unpinnedMessage": "Повідомлення відкріплено",
+    "direct.pinFailed": "Не вдалося закріпити повідомлення",
+    "direct.unpinFailed": "Не вдалося відкріпити повідомлення",
+    "direct.pinnedBy": "Закріпив",
+    "direct.attachmentOnly": "Вкладення",
     "groups.title": "Групи",
     "groups.subtitle": "Спілкуйтеся з кількома людьми у простих групах.",
     "groups.createGroup": "Створити групу",
@@ -2043,6 +2106,15 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "groups.cancelReply": "Скасувати відповідь",
     "groups.originalMessageMissing": "Оригінальне повідомлення недоступне",
     "groups.replyAttachmentIndicator": "Вкладення",
+    "groups.pinMessage": "Закріпити повідомлення",
+    "groups.unpinMessage": "Відкріпити повідомлення",
+    "groups.pinnedMessages": "Закріплені повідомлення",
+    "groups.pinnedMessage": "Повідомлення закріплено",
+    "groups.unpinnedMessage": "Повідомлення відкріплено",
+    "groups.pinFailed": "Не вдалося закріпити повідомлення",
+    "groups.unpinFailed": "Не вдалося відкріпити повідомлення",
+    "groups.pinnedBy": "Закріпив",
+    "groups.attachmentOnly": "Вкладення",
     "groups.failedRenameGroup": "Не вдалося перейменувати групу",
     "groups.failedAddMember": "Не вдалося додати учасника",
     "groups.failedRemoveMember": "Не вдалося вилучити учасника",
@@ -2234,6 +2306,15 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.attachmentTypeVideo": "Відео",
     "channel.attachmentTypeAudio": "Аудіо",
     "channel.attachmentTypeFile": "Файл",
+    "channel.pinMessage": "Закріпити повідомлення",
+    "channel.unpinMessage": "Відкріпити повідомлення",
+    "channel.pinnedMessages": "Закріплені повідомлення",
+    "channel.pinnedMessage": "Повідомлення закріплено",
+    "channel.unpinnedMessage": "Повідомлення відкріплено",
+    "channel.pinFailed": "Не вдалося закріпити повідомлення",
+    "channel.unpinFailed": "Не вдалося відкріпити повідомлення",
+    "channel.pinnedBy": "Закріпив",
+    "channel.attachmentOnly": "Вкладення",
     "workspace.inviteStatusPending": "Очікує",
     "workspace.inviteStatusRevoked": "Скасовано",
     "workspace.inviteStatusExpired": "Термін дії минув",
@@ -2804,6 +2885,15 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "direct.typing": "{arg0} печатает…",
     "direct.typingFallback": "Кто-то печатает…",
     "direct.unreadMessages": "Непрочитанные сообщения",
+    "direct.pinMessage": "Закрепить сообщение",
+    "direct.unpinMessage": "Открепить сообщение",
+    "direct.pinnedMessages": "Закреплённые сообщения",
+    "direct.pinnedMessage": "Сообщение закреплено",
+    "direct.unpinnedMessage": "Сообщение откреплено",
+    "direct.pinFailed": "Не удалось закрепить сообщение",
+    "direct.unpinFailed": "Не удалось открепить сообщение",
+    "direct.pinnedBy": "Закрепил",
+    "direct.attachmentOnly": "Вложение",
     "groups.title": "Группы",
     "groups.subtitle": "Общайтесь с несколькими людьми в простых группах.",
     "groups.createGroup": "Создать группу",
@@ -2850,6 +2940,15 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "groups.cancelReply": "Отменить ответ",
     "groups.originalMessageMissing": "Оригинальное сообщение недоступно",
     "groups.replyAttachmentIndicator": "Вложение",
+    "groups.pinMessage": "Закрепить сообщение",
+    "groups.unpinMessage": "Открепить сообщение",
+    "groups.pinnedMessages": "Закреплённые сообщения",
+    "groups.pinnedMessage": "Сообщение закреплено",
+    "groups.unpinnedMessage": "Сообщение откреплено",
+    "groups.pinFailed": "Не удалось закрепить сообщение",
+    "groups.unpinFailed": "Не удалось открепить сообщение",
+    "groups.pinnedBy": "Закрепил",
+    "groups.attachmentOnly": "Вложение",
     "groups.failedRenameGroup": "Не удалось переименовать группу",
     "groups.failedAddMember": "Не удалось добавить участника",
     "groups.failedRemoveMember": "Не удалось удалить участника",
@@ -3041,6 +3140,15 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.attachmentTypeVideo": "Видео",
     "channel.attachmentTypeAudio": "Аудио",
     "channel.attachmentTypeFile": "Файл",
+    "channel.pinMessage": "Закрепить сообщение",
+    "channel.unpinMessage": "Открепить сообщение",
+    "channel.pinnedMessages": "Закреплённые сообщения",
+    "channel.pinnedMessage": "Сообщение закреплено",
+    "channel.unpinnedMessage": "Сообщение откреплено",
+    "channel.pinFailed": "Не удалось закрепить сообщение",
+    "channel.unpinFailed": "Не удалось открепить сообщение",
+    "channel.pinnedBy": "Закрепил",
+    "channel.attachmentOnly": "Вложение",
     "workspace.inviteStatusPending": "Ожидает",
     "workspace.inviteStatusRevoked": "Отозвано",
     "workspace.inviteStatusExpired": "Срок действия истёк",

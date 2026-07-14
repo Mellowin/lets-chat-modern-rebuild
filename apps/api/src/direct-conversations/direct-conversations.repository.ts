@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@lets-chat/database';
-import { buildMessageCursorWhereClause } from '../common/cursor-pagination';
+import {
+  buildMessageCursorWhereClause,
+  buildPinCursorWhereClause,
+} from '../common/cursor-pagination';
 
 interface CreateConversationInput {
   key: string;
@@ -51,6 +54,12 @@ const directMessageInclude = {
       content: true,
       deletedAt: true,
       author: { select: authorSelect },
+    },
+  },
+  pin: {
+    select: {
+      pinnedAt: true,
+      pinnedByUserId: true,
     },
   },
 } as const;
@@ -402,9 +411,15 @@ export class DirectConversationsRepository {
   }
 
   async softDeleteDirectMessage(id: string) {
-    return this.prisma.directMessage.update({
-      where: { id },
-      data: { deletedAt: new Date() },
+    return this.prisma.$transaction(async (tx) => {
+      await tx.pinnedDirectMessage.deleteMany({
+        where: { messageId: id },
+      });
+
+      return tx.directMessage.update({
+        where: { id },
+        data: { deletedAt: new Date() },
+      });
     });
   }
 
@@ -436,5 +451,58 @@ export class DirectConversationsRepository {
       count: g._count.emoji,
       reactedByMe: userEmojiSet.has(g.emoji),
     }));
+  }
+
+  async pinMessage(
+    conversationId: string,
+    messageId: string,
+    pinnedByUserId: string,
+  ) {
+    return this.prisma.pinnedDirectMessage.upsert({
+      where: { messageId },
+      create: {
+        messageId,
+        conversationId,
+        pinnedByUserId,
+      },
+      update: {},
+      include: {
+        pinnedBy: {
+          select: authorSelect,
+        },
+        message: {
+          include: directMessageInclude,
+        },
+      },
+    });
+  }
+
+  async unpinMessage(messageId: string) {
+    return this.prisma.pinnedDirectMessage.deleteMany({
+      where: { messageId },
+    });
+  }
+
+  async findPinnedMessages(
+    conversationId: string,
+    limit: number,
+    cursor?: { pinnedAt: Date; id: string },
+  ) {
+    return this.prisma.pinnedDirectMessage.findMany({
+      where: {
+        conversationId,
+        ...(cursor ? { OR: buildPinCursorWhereClause(cursor) } : {}),
+      },
+      orderBy: [{ pinnedAt: 'desc' }, { id: 'desc' }],
+      take: limit + 1,
+      include: {
+        pinnedBy: {
+          select: authorSelect,
+        },
+        message: {
+          include: directMessageInclude,
+        },
+      },
+    });
   }
 }
