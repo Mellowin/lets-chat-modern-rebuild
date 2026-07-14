@@ -30,7 +30,7 @@ export type ForwardableMessage = {
   groupId?: string;
   content: string;
   createdAt: Date;
-  deletedAt: Date | null;
+  deletedAt?: Date | null;
   author: {
     id: string;
     username: string;
@@ -88,7 +88,7 @@ export class ForwardService {
       dto.sourceType,
       dto.sourceMessageId,
     );
-    if (!source || source.deletedAt !== null) {
+    if (!source || source.deletedAt != null) {
       throw new NotFoundException('Source message not found');
     }
 

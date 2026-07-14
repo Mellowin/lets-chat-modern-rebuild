@@ -427,4 +427,145 @@ describe('ForwardService', () => {
       );
     });
   });
+
+  describe('group source deletion handling', () => {
+    const groupId = '88888888-8888-8888-8888-888888888888';
+    const dmId = '77777777-7777-7777-7777-777777777777';
+
+    const groupSourceMessage = {
+      id: messageId,
+      groupId,
+      content: 'group source content',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      author: {
+        id: userId,
+        username: 'alice',
+        displayName: 'Alice',
+        avatarUrl: null,
+      },
+      replyToMessage: null,
+      forwardedFrom: null,
+      // GroupMessage has no deletedAt field, so it is undefined here.
+    };
+
+    it('forwards group -> channel when deletedAt is undefined', async () => {
+      groupsRepository.findMessageByIdWithRelations.mockResolvedValue(
+        groupSourceMessage as any,
+      );
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+      } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+
+      const dto: ForwardMessageDto = {
+        sourceType: 'group',
+        sourceMessageId: messageId,
+        destinationType: 'channel',
+        destinationId: channelId,
+      };
+
+      await service.forward(dto, userId);
+
+      expect(messagesService.create).toHaveBeenCalledWith(
+        workspaceId,
+        channelId,
+        expect.objectContaining({ content: groupSourceMessage.content }),
+        userId,
+        expect.objectContaining({ sourceType: 'group', sourceChatId: groupId }),
+      );
+    });
+
+    it('forwards group -> direct', async () => {
+      groupsRepository.findMessageByIdWithRelations.mockResolvedValue(
+        groupSourceMessage as any,
+      );
+      directConversationsRepository.findParticipant.mockResolvedValue({
+        id: 'p1',
+      } as any);
+      directConversationsRepository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+      ]);
+
+      const dto: ForwardMessageDto = {
+        sourceType: 'group',
+        sourceMessageId: messageId,
+        destinationType: 'direct',
+        destinationId: dmId,
+      };
+
+      await service.forward(dto, userId);
+
+      expect(directConversationsService.createMessage).toHaveBeenCalledWith(
+        dmId,
+        expect.objectContaining({ content: groupSourceMessage.content }),
+        userId,
+        expect.objectContaining({ sourceType: 'group', sourceChatId: groupId }),
+      );
+    });
+
+    it('forwards group -> group', async () => {
+      const destinationGroupId = '99999999-9999-9999-9999-999999999999';
+      groupsRepository.findMessageByIdWithRelations.mockResolvedValue(
+        groupSourceMessage as any,
+      );
+      groupsRepository.findActiveMember.mockResolvedValue({ id: 'm1' } as any);
+
+      const dto: ForwardMessageDto = {
+        sourceType: 'group',
+        sourceMessageId: messageId,
+        destinationType: 'group',
+        destinationId: destinationGroupId,
+      };
+
+      await service.forward(dto, userId);
+
+      expect(groupsService.createMessage).toHaveBeenCalledWith(
+        destinationGroupId,
+        expect.objectContaining({ content: groupSourceMessage.content }),
+        userId,
+        expect.objectContaining({ sourceType: 'group', sourceChatId: groupId }),
+      );
+    });
+
+    it('still rejects a deleted channel source', async () => {
+      messagesRepository.findByIdWithRelations.mockResolvedValue({
+        ...baseMessage,
+        deletedAt: new Date(),
+      } as any);
+
+      const dto: ForwardMessageDto = {
+        sourceType: 'channel',
+        sourceMessageId: messageId,
+        destinationType: 'channel',
+        destinationId: channelId,
+      };
+
+      await expect(service.forward(dto, userId)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+
+    it('still rejects a deleted direct source', async () => {
+      directConversationsRepository.findMessageByIdWithRelations.mockResolvedValue(
+        {
+          ...baseMessage,
+          conversationId: dmId,
+          deletedAt: new Date(),
+        } as any,
+      );
+
+      const dto: ForwardMessageDto = {
+        sourceType: 'direct',
+        sourceMessageId: messageId,
+        destinationType: 'channel',
+        destinationId: channelId,
+      };
+
+      await expect(service.forward(dto, userId)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+  });
 });
