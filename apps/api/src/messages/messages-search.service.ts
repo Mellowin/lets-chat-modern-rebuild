@@ -279,6 +279,7 @@ export class MessagesSearchService {
         m.content,
         LEFT(m.content, 300) AS "contentSnippet",
         m."createdAt",
+        m."forwardedFrom" AS "forwardedFrom",
         jsonb_build_object(
           'id', u.id,
           'username', u.username,
