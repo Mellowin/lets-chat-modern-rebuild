@@ -1,5 +1,6 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
+import { MessagesModule } from '../messages/messages.module';
 import { UsersModule } from '../users/users.module';
 import { WebsocketModule } from '../websocket/websocket.module';
 import { PushModule } from '../push/push.module';
@@ -23,6 +24,7 @@ import { GroupInvitesRepository } from './group-invites.repository';
     SafetyModule,
     AttachmentsModule,
     StorageModule,
+    forwardRef(() => MessagesModule),
   ],
   controllers: [GroupsController, GroupInvitesController],
   providers: [

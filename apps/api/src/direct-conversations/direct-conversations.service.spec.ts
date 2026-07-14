@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { DirectConversationsService } from './direct-conversations.service';
+import { ForwardPermissionsHelper } from '../messages/forward-permissions.helper';
 import { StorageService } from '../storage/storage.service';
 import { AttachmentsRepository } from '../messages/attachments.repository';
 import {
@@ -18,7 +19,11 @@ import { PresenceService } from '../websocket/presence.service';
 import { PushService } from '../push/push.service';
 import { BlocksService } from '../safety/blocks.service';
 import { MentionsService } from '../common/mentions.service';
-import { UserRole, ContactPrivacySetting } from '@lets-chat/database';
+import {
+  UserRole,
+  ContactPrivacySetting,
+  StorageBackend,
+} from '@lets-chat/database';
 
 const userId = '11111111-1111-1111-1111-111111111111';
 const otherUserId = '22222222-2222-2222-2222-222222222222';
@@ -81,6 +86,7 @@ function makeMessage(
     editedAt: null,
     deletedAt: null,
     mentions: [],
+    forwardedFrom: null,
     author: {
       id: userId,
       username: 'alice',
@@ -225,6 +231,14 @@ describe('DirectConversationsService', () => {
           useValue: {
             findById: jest.fn(),
             createUnattachedAttachment: jest.fn(),
+          },
+        },
+        {
+          provide: ForwardPermissionsHelper,
+          useValue: {
+            canViewSource: jest.fn().mockResolvedValue(true),
+            toResponse: jest.fn().mockResolvedValue(undefined),
+            maskResponse: jest.fn().mockReturnValue(undefined),
           },
         },
       ],
@@ -1054,6 +1068,8 @@ describe('DirectConversationsService', () => {
               filename: 'doc.pdf',
               mimeType: 'application/pdf',
               size: 1234,
+              storageKey: 'attachments/user/doc.pdf',
+              storageBackend: StorageBackend.MINIO,
               createdAt: new Date(),
             },
           ],
@@ -1127,6 +1143,8 @@ describe('DirectConversationsService', () => {
               filename: 'doc.pdf',
               mimeType: 'application/pdf',
               size: 1234,
+              storageKey: 'attachments/user/doc.pdf',
+              storageBackend: StorageBackend.MINIO,
               createdAt: new Date(),
             },
           ],
@@ -1185,6 +1203,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: null,
         mentions: [],
+        forwardedFrom: null,
       });
       repository.findParticipants.mockResolvedValue([
         { userId, lastReadAt: null },
@@ -1205,6 +1224,7 @@ describe('DirectConversationsService', () => {
             editedAt: null,
             deletedAt: null,
             mentions: [],
+            forwardedFrom: null,
             author: {
               id: otherUserId,
               username: 'bob',
@@ -1249,6 +1269,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: null,
         mentions: [],
+        forwardedFrom: null,
       });
 
       await expect(
@@ -1285,6 +1306,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: null,
         mentions: [],
+        forwardedFrom: null,
       });
 
       await expect(
@@ -1321,6 +1343,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: new Date(),
         mentions: [],
+        forwardedFrom: null,
       });
 
       await expect(
@@ -1756,6 +1779,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: null,
         mentions: [],
+        forwardedFrom: null,
       });
       repository.findDirectReaction.mockResolvedValue(null);
       repository.createDirectReaction.mockResolvedValue({
@@ -1835,6 +1859,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: new Date(),
         mentions: [],
+        forwardedFrom: null,
       });
 
       await expect(
@@ -1863,6 +1888,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: null,
         mentions: [],
+        forwardedFrom: null,
       });
       repository.findDirectReaction.mockResolvedValue(null);
       const raceError = new Error('Unique constraint failed') as Error & {
@@ -1903,6 +1929,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: null,
         mentions: [],
+        forwardedFrom: null,
       });
       repository.findDirectReaction.mockResolvedValue({
         id: 'r1',
@@ -1983,6 +2010,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: null,
         mentions: [],
+        forwardedFrom: null,
       });
       repository.findDirectReaction.mockResolvedValue(null);
       repository.deleteDirectReactionsForUser.mockResolvedValue({ count: 1 });
@@ -2067,6 +2095,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: null,
         mentions: [],
+        forwardedFrom: null,
       });
       repository.findDirectReaction.mockResolvedValue(null);
       repository.deleteDirectReactionsForUser.mockResolvedValue({ count: 1 });
@@ -2151,6 +2180,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: null,
         mentions: [],
+        forwardedFrom: null,
       });
       repository.findDirectReaction.mockResolvedValue(null);
       repository.deleteDirectReactionsForUser.mockResolvedValue({ count: 1 });
@@ -2230,6 +2260,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: null,
         mentions: [],
+        forwardedFrom: null,
       });
       repository.findDirectReaction.mockResolvedValue({
         id: 'r1',
@@ -2318,6 +2349,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: null,
         mentions: [],
+        forwardedFrom: null,
       });
       repository.findDirectReaction.mockResolvedValue(null);
       repository.deleteDirectReactionsForUser.mockResolvedValue({ count: 1 });
@@ -2409,6 +2441,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: null,
         mentions: [],
+        forwardedFrom: null,
       });
 
       await expect(
@@ -2438,6 +2471,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: null,
         mentions: [],
+        forwardedFrom: null,
       });
       repository.findDirectReaction.mockResolvedValue({
         id: 'r1',
@@ -2511,6 +2545,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: new Date(),
         mentions: [],
+        forwardedFrom: null,
       });
 
       await expect(
@@ -2539,6 +2574,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: null,
         mentions: [],
+        forwardedFrom: null,
       });
       repository.findDirectReaction.mockResolvedValue(null);
       repository.getDirectMessageReactions.mockResolvedValue([]);
@@ -2610,6 +2646,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: new Date(),
         mentions: [],
+        forwardedFrom: null,
       });
 
       const result = await service.deleteMessage(

@@ -1,8 +1,10 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { UsersModule } from '../users/users.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { ChannelsModule } from '../channels/channels.module';
+import { DirectConversationsModule } from '../direct-conversations/direct-conversations.module';
+import { GroupsModule } from '../groups/groups.module';
 import { MessagesService } from './messages.service';
 import { MessagesRepository } from './messages.repository';
 import { MessagesController } from './messages.controller';
@@ -24,6 +26,9 @@ import { PushModule } from '../push/push.module';
 import { MentionsService } from '../common/mentions.service';
 import { AttachmentsService } from './attachments.service';
 import { AttachmentsController } from './attachments.controller';
+import { ForwardService } from './forward.service';
+import { ForwardPermissionsHelper } from './forward-permissions.helper';
+import { ForwardController } from './forward.controller';
 
 @Module({
   imports: [
@@ -35,6 +40,8 @@ import { AttachmentsController } from './attachments.controller';
     WebsocketModule,
     PushModule,
     AttachmentsModule,
+    forwardRef(() => DirectConversationsModule),
+    forwardRef(() => GroupsModule),
   ],
   controllers: [
     MessagesController,
@@ -45,6 +52,7 @@ import { AttachmentsController } from './attachments.controller';
     GlobalSearchController,
     AttachmentsController,
     ChannelPinsController,
+    ForwardController,
   ],
   providers: [
     MessagesService,
@@ -56,6 +64,8 @@ import { AttachmentsController } from './attachments.controller';
     MessagesSearchService,
     AttachmentsService,
     MentionsService,
+    ForwardService,
+    ForwardPermissionsHelper,
   ],
   exports: [
     MessagesService,
@@ -66,6 +76,8 @@ import { AttachmentsController } from './attachments.controller';
     ReadReceiptsRepository,
     MessagesSearchService,
     AttachmentsService,
+    ForwardService,
+    ForwardPermissionsHelper,
   ],
 })
 export class MessagesModule {}

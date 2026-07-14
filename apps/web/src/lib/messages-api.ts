@@ -30,6 +30,25 @@ export interface MessageMention {
   username: string;
 }
 
+export interface ForwardedFromResponse {
+  sourceType: "channel" | "direct" | "group";
+  sourceMessageId: string;
+  sourceChatId: string;
+  originalAuthorId?: string;
+  originalAuthorName?: string;
+  originalCreatedAt: string;
+  replySnapshot?: { id: string; content: string; authorName: string };
+  isAnonymous?: false;
+}
+
+export interface ForwardedFromAnonymous {
+  sourceType: "channel" | "direct" | "group";
+  originalCreatedAt: string;
+  isAnonymous: true;
+}
+
+export type ForwardedFrom = ForwardedFromResponse | ForwardedFromAnonymous;
+
 export interface Message {
   id: string;
   channelId: string;
@@ -48,6 +67,7 @@ export interface Message {
   reactions: ReactionSummary[];
   attachments?: Attachment[];
   mentions?: MessageMention[];
+  forwardedFrom?: ForwardedFrom;
   isPinned?: boolean;
   pin?: {
     pinnedAt: string;
@@ -74,6 +94,7 @@ export interface PinnedMessageSummary {
       content: string | null;
       author: MessageAuthor | null;
     } | null;
+    forwardedFrom?: ForwardedFrom;
   };
 }
 

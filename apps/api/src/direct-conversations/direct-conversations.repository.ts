@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@lets-chat/database';
+import { PrismaService, StorageBackend, Prisma } from '@lets-chat/database';
 import {
   buildMessageCursorWhereClause,
   buildPinCursorWhereClause,
@@ -18,6 +18,14 @@ interface CreateMessageInput {
   replyToMessageId?: string;
   mentions?: { userId: string; username: string }[];
   attachmentIds?: string[];
+  forwardedFrom?: Prisma.InputJsonValue;
+  attachments?: Array<{
+    storageKey: string;
+    filename: string;
+    mimeType: string;
+    size: number;
+    createdById: string;
+  }>;
 }
 
 const authorSelect = {
@@ -45,6 +53,8 @@ const directMessageInclude = {
       filename: true,
       mimeType: true,
       size: true,
+      storageKey: true,
+      storageBackend: true,
       createdAt: true,
     },
   },
@@ -292,6 +302,7 @@ export class DirectConversationsRepository {
           parentId: data.parentId,
           replyToMessageId: data.replyToMessageId,
           mentions: data.mentions as never,
+          forwardedFrom: data.forwardedFrom as never,
         },
       });
 
@@ -299,6 +310,21 @@ export class DirectConversationsRepository {
         await tx.attachment.updateMany({
           where: { id: { in: data.attachmentIds } },
           data: { directMessageId: message.id },
+        });
+      }
+
+      if (data.attachments?.length) {
+        await tx.attachment.createMany({
+          data: data.attachments.map((a) => ({
+            directMessageId: message.id,
+            createdById: a.createdById,
+            filename: a.filename,
+            originalName: a.filename,
+            mimeType: a.mimeType,
+            size: a.size,
+            storageKey: a.storageKey,
+            storageBackend: StorageBackend.MINIO,
+          })),
         });
       }
 

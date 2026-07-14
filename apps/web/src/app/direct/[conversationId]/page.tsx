@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   Check,
@@ -43,6 +43,8 @@ import { MessageContent } from "@/components/MessageContent";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { useMessageListScroll } from "@/lib/use-message-list-scroll";
+import { ForwardDialog } from "@/components/ForwardDialog";
+import { ForwardedIndicator } from "@/components/ForwardedIndicator";
 import { EmptyState } from "@/components/ui/EmptyState";
 import {
   listDirectMessages,
@@ -317,7 +319,6 @@ export default function DirectConversationPage() {
     typeof params.conversationId === "string" ? params.conversationId : "";
   const { isLoading: authLoading, isAuthenticated, user, accessToken } = useAuth();
   const { t } = useLocale();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const handledQueryMessageIdRef = useRef<string | null>(null);
   const [messages, setMessages] = useState<MessagesState>({ kind: "idle" });
@@ -349,12 +350,7 @@ export default function DirectConversationPage() {
   const [reactionPickerMessageId, setReactionPickerMessageId] = useState<string | null>(null);
   const [reactionPickerPosition, setReactionPickerPosition] = useState<MenuPosition | null>(null);
   const quickEmojis = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
-  const [forwardConversations, setForwardConversations] = useState<DirectConversation[]>([]);
-  const [forwardState, setForwardState] = useState<
-    | { kind: "idle" }
-    | { kind: "loading" }
-    | { kind: "error"; message: string }
-  >({ kind: "idle" });
+
   const [editingMessage, setEditingMessage] = useState<DirectMessage | null>(null);
   const [editState, setEditState] = useState<
     | { kind: "idle" }
@@ -879,7 +875,6 @@ export default function DirectConversationPage() {
           loadPins(token, id);
           const conv = convsData.find((c) => c.id === id) ?? null;
           setConversation({ kind: "success", data: conv });
-          setForwardConversations(convsData);
           if (conv?.isOnline) {
             setPresenceStatus("online");
           } else {
@@ -1563,34 +1558,6 @@ export default function DirectConversationPage() {
     submitMessage();
   }
 
-  async function handleForwardSend(targetConversationId: string) {
-    if (!forwardMessage || !accessToken) return;
-    const forwardedContent = `↪ ${forwardMessage.content}`;
-    if (forwardedContent.length > 4000) {
-      setForwardState({ kind: "error", message: t("channel.errorMessageTooLong") });
-      return;
-    }
-    setForwardState({ kind: "loading" });
-    try {
-      await sendDirectMessage(accessToken, targetConversationId, { content: forwardedContent });
-      setForwardState({ kind: "idle" });
-      setForwardMessage(null);
-      notifyDirectConversationsChanged();
-      if (targetConversationId !== conversationId) {
-        router.push(`/direct/${targetConversationId}`);
-        return;
-      }
-      // If forwarded to current conversation, reload messages to show it
-      const refreshed = await listDirectMessages(accessToken, conversationId);
-      setMessages({ kind: "success", data: refreshed.items });
-      setNextCursor(refreshed.nextCursor);
-      setHasMoreMessages(refreshed.hasMore);
-    } catch (err) {
-      const message = localizeApiError(err, "direct.failedForwardMessage", t);
-      setForwardState({ kind: "error", message });
-    }
-  }
-
   const isUploadingAttachments = composerAttachments.some((a) => a.status === "uploading");
   const filePreviews = useMemo(() => {
     const map = new Map<string, string>();
@@ -1607,8 +1574,6 @@ export default function DirectConversationPage() {
       filePreviews.forEach((url: string) => URL.revokeObjectURL(url));
     };
   }, [filePreviews]);
-
-  const forwardTargets = forwardConversations.filter((c) => c.id !== conversationId);
 
   if (authLoading) {
     return (
@@ -1942,6 +1907,7 @@ export default function DirectConversationPage() {
                                 {t("direct.pinnedMessage")}
                               </Badge>
                             )}
+                            <ForwardedIndicator forwardedFrom={msg.forwardedFrom} />
                             {isOwnMessage && (
                               <span
                                 data-testid={`direct-read-receipt-${msg.id}`}
@@ -2570,82 +2536,16 @@ export default function DirectConversationPage() {
         </div>
       )}
 
-      {forwardMessage && (
-        <div
+      {forwardMessage && accessToken && (
+        <ForwardDialog
+          accessToken={accessToken}
+          sourceType="direct"
+          sourceMessageId={forwardMessage.id}
+          sourceChatId={conversationId}
+          onClose={() => setForwardMessage(null)}
+          titleKey="direct.forwardMessage"
           data-testid="direct-forward-picker"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setForwardMessage(null);
-          }}
-        >
-          <div className="w-full max-w-sm rounded-xl border border-border bg-card p-5 shadow-xl">
-            <div className="flex items-center justify-between gap-2 mb-4">
-              <h2 className="text-sm font-semibold text-card-foreground">
-                {t("direct.forwardMessage")}
-              </h2>
-              <Button
-                type="button"
-                variant="icon"
-                size="sm"
-                onClick={() => setForwardMessage(null)}
-                data-testid="direct-cancel-forward"
-                className="h-6 w-6"
-                aria-label={t("direct.cancelForward")}
-              >
-                <X size={14} />
-              </Button>
-            </div>
-
-            <div className="mb-4 rounded-lg border border-border bg-muted/50 px-3 py-2">
-              <p className="text-[11px] font-medium text-muted-foreground">
-                {getMessageAuthorName(forwardMessage)}
-              </p>
-              <p className="mt-0.5 text-xs text-foreground line-clamp-3">
-                {getMessageSnippet(forwardMessage)}
-              </p>
-            </div>
-
-            <p className="mb-2 text-xs font-medium text-muted-foreground">
-              {t("direct.forwardTo")}
-            </p>
-
-            {forwardTargets.length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                {t("direct.noForwardTargets")}
-              </p>
-            )}
-
-            <ul className="max-h-60 overflow-y-auto space-y-1">
-              {forwardTargets.map((conv) => (
-                <li key={conv.id}>
-                  <button
-                    type="button"
-                    onClick={() => handleForwardSend(conv.id)}
-                    disabled={forwardState.kind === "loading"}
-                    data-testid={`direct-forward-target-${conv.id}`}
-                    className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left hover:bg-accent hover:text-accent-foreground transition-colors disabled:opacity-60"
-                  >
-                    <Avatar
-                      src={conv.otherParticipant?.avatarUrl}
-                      name={conv.otherParticipant?.displayName || conv.otherParticipant?.username}
-                      size="md"
-                      alt=""
-                    />
-                    <span className="text-sm text-foreground truncate">
-                      {conv.otherParticipant?.displayName || conv.otherParticipant?.username || t("messageAuthor.unknownUser")}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-
-            {forwardState.kind === "error" && (
-              <div className="mt-3 rounded-lg border border-destructive/20 bg-destructive/10 p-2.5 text-xs text-destructive">
-                {forwardState.message}
-              </div>
-            )}
-          </div>
-        </div>
+        />
       )}
 
       <ReportModal

@@ -39,6 +39,7 @@ export class WebsocketEventsService {
           avatarUrl: string | null;
         } | null;
       } | null;
+      forwardedFrom?: unknown;
     },
   ) {
     try {
@@ -251,6 +252,7 @@ export class WebsocketEventsService {
           avatarUrl: string | null;
         } | null;
       } | null;
+      forwardedFrom?: unknown;
     },
   ) {
     try {
@@ -478,6 +480,7 @@ export class WebsocketEventsService {
           avatarUrl: string | null;
         } | null;
       } | null;
+      forwardedFrom?: unknown;
     },
   ) {
     try {

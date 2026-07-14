@@ -22,6 +22,7 @@ export interface SearchResult {
     slug: string;
   };
   isPinned: boolean;
+  forwardedFrom: unknown;
 }
 
 export interface GlobalSearchAuthor {
@@ -66,6 +67,7 @@ export interface GlobalSearchResult {
   author: GlobalSearchAuthor;
   source: GlobalSearchSource;
   isPinned: boolean;
+  forwardedFrom: unknown;
 }
 
 export interface GlobalSearchResponse {
@@ -105,6 +107,7 @@ export class MessagesSearchService {
         m.content,
         LEFT(m.content, 300) AS "contentSnippet",
         m."createdAt",
+        m."forwardedFrom" AS "forwardedFrom",
         jsonb_build_object(
           'id', u.id,
           'username', u.username,
@@ -309,6 +312,7 @@ export class MessagesSearchService {
         dm.content,
         LEFT(dm.content, 300) AS "contentSnippet",
         dm."createdAt",
+        dm."forwardedFrom" AS "forwardedFrom",
         jsonb_build_object(
           'id', u.id,
           'username', u.username,
@@ -357,6 +361,7 @@ export class MessagesSearchService {
         gm.content,
         LEFT(gm.content, 300) AS "contentSnippet",
         gm."createdAt",
+        gm."forwardedFrom" AS "forwardedFrom",
         jsonb_build_object(
           'id', u.id,
           'username', u.username,
