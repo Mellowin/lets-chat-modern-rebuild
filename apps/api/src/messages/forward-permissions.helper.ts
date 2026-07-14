@@ -1,8 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { ChannelsRepository } from '../channels/channels.repository';
-import { WorkspacesRepository } from '../workspaces/workspaces.repository';
-import { DirectConversationsRepository } from '../direct-conversations/direct-conversations.repository';
-import { GroupsRepository } from '../groups/groups.repository';
+import { PrismaService } from '@lets-chat/database';
 
 export interface ForwardedFromMetadata {
   sourceType: 'channel' | 'direct' | 'group';
@@ -32,14 +29,14 @@ export type ForwardedFromPayload =
   | ForwardedFromResponse
   | ForwardedFromAnonymous;
 
+export type ForwardSourceKey = {
+  sourceType: 'channel' | 'direct' | 'group';
+  sourceChatId: string;
+};
+
 @Injectable()
 export class ForwardPermissionsHelper {
-  constructor(
-    private readonly channels: ChannelsRepository,
-    private readonly workspaces: WorkspacesRepository,
-    private readonly directConversations: DirectConversationsRepository,
-    private readonly groups: GroupsRepository,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async canViewSource(
     userId: string,
@@ -58,47 +55,192 @@ export class ForwardPermissionsHelper {
     }
   }
 
+  async canViewSources(
+    userId: string,
+    sources: ForwardSourceKey[],
+  ): Promise<Set<string>> {
+    const channelIds = unique(
+      sources
+        .filter((s) => s.sourceType === 'channel')
+        .map((s) => s.sourceChatId),
+    );
+    const directIds = unique(
+      sources
+        .filter((s) => s.sourceType === 'direct')
+        .map((s) => s.sourceChatId),
+    );
+    const groupIds = unique(
+      sources
+        .filter((s) => s.sourceType === 'group')
+        .map((s) => s.sourceChatId),
+    );
+
+    const [channelAccessible, directAccessible, groupAccessible] =
+      await Promise.all([
+        this.canViewChannelSources(userId, channelIds),
+        this.canViewDirectSources(userId, directIds),
+        this.canViewGroupSources(userId, groupIds),
+      ]);
+
+    const accessible = new Set<string>();
+    channelAccessible.forEach((id) => accessible.add(`channel:${id}`));
+    directAccessible.forEach((id) => accessible.add(`direct:${id}`));
+    groupAccessible.forEach((id) => accessible.add(`group:${id}`));
+    return accessible;
+  }
+
   private async canViewChannelSource(
     userId: string,
     channelId: string,
   ): Promise<boolean> {
-    const channel = await this.channels.findActiveById(channelId);
+    const channel = await this.prisma.channel.findFirst({
+      where: {
+        id: channelId,
+        deletedAt: null,
+        permanentlyDeletedAt: null,
+        workspace: { permanentlyDeletedAt: null },
+      },
+      select: { id: true, type: true, workspaceId: true },
+    });
     if (!channel) return false;
 
-    const wsRole = await this.workspaces.findMemberRole(
-      channel.workspaceId,
-      userId,
-    );
-    if (!wsRole) return false;
+    const wsMember = await this.prisma.workspaceMember.findFirst({
+      where: {
+        workspaceId: channel.workspaceId,
+        userId,
+        deletedAt: null,
+      },
+      select: { id: true },
+    });
+    if (!wsMember) return false;
 
     if (channel.type === 'PRIVATE') {
-      const chRole = await this.channels.findChannelMemberRole(
-        channelId,
-        userId,
-      );
-      if (!chRole) return false;
+      const chMember = await this.prisma.channelMember.findFirst({
+        where: { channelId, userId, deletedAt: null },
+        select: { id: true },
+      });
+      if (!chMember) return false;
     }
 
     return true;
+  }
+
+  private async canViewChannelSources(
+    userId: string,
+    channelIds: string[],
+  ): Promise<string[]> {
+    if (channelIds.length === 0) return [];
+
+    const channels = await this.prisma.channel.findMany({
+      where: {
+        id: { in: channelIds },
+        deletedAt: null,
+        permanentlyDeletedAt: null,
+        workspace: { permanentlyDeletedAt: null },
+      },
+      select: { id: true, type: true, workspaceId: true },
+    });
+
+    const publicChannels = channels.filter((c) => c.type === 'PUBLIC');
+    const privateChannels = channels.filter((c) => c.type === 'PRIVATE');
+
+    const [memberWorkspaceRows, memberChannelRows] = await Promise.all([
+      this.prisma.workspaceMember.findMany({
+        where: {
+          userId,
+          deletedAt: null,
+          workspaceId: { in: publicChannels.map((c) => c.workspaceId) },
+        },
+        select: { workspaceId: true },
+      }),
+      this.prisma.channelMember.findMany({
+        where: {
+          userId,
+          deletedAt: null,
+          channelId: { in: privateChannels.map((c) => c.id) },
+        },
+        select: { channelId: true },
+      }),
+    ]);
+
+    const memberWorkspaces = new Set(
+      memberWorkspaceRows.map((r) => r.workspaceId),
+    );
+    const accessible = new Set(memberChannelRows.map((r) => r.channelId));
+
+    for (const channel of publicChannels) {
+      if (memberWorkspaces.has(channel.workspaceId)) {
+        accessible.add(channel.id);
+      }
+    }
+
+    return Array.from(accessible);
   }
 
   private async canViewDirectSource(
     userId: string,
     conversationId: string,
   ): Promise<boolean> {
-    const participant = await this.directConversations.findParticipant(
-      conversationId,
-      userId,
-    );
+    const participant =
+      await this.prisma.directConversationParticipant.findUnique({
+        where: {
+          conversationId_userId: {
+            conversationId,
+            userId,
+          },
+        },
+      });
     return !!participant;
+  }
+
+  private async canViewDirectSources(
+    userId: string,
+    conversationIds: string[],
+  ): Promise<string[]> {
+    if (conversationIds.length === 0) return [];
+
+    const participants =
+      await this.prisma.directConversationParticipant.findMany({
+        where: {
+          userId,
+          conversationId: { in: conversationIds },
+        },
+        select: { conversationId: true },
+      });
+
+    return participants.map((p) => p.conversationId);
   }
 
   private async canViewGroupSource(
     userId: string,
     groupId: string,
   ): Promise<boolean> {
-    const member = await this.groups.findActiveMember(groupId, userId);
+    const member = await this.prisma.groupMember.findFirst({
+      where: {
+        groupId,
+        userId,
+        leftAt: null,
+      },
+    });
     return !!member;
+  }
+
+  private async canViewGroupSources(
+    userId: string,
+    groupIds: string[],
+  ): Promise<string[]> {
+    if (groupIds.length === 0) return [];
+
+    const members = await this.prisma.groupMember.findMany({
+      where: {
+        userId,
+        groupId: { in: groupIds },
+        leftAt: null,
+      },
+      select: { groupId: true },
+    });
+
+    return members.map((m) => m.groupId);
   }
 
   async toResponse(
@@ -152,4 +294,8 @@ export class ForwardPermissionsHelper {
       isAnonymous: true,
     };
   }
+}
+
+function unique<T>(values: T[]): T[] {
+  return Array.from(new Set(values));
 }

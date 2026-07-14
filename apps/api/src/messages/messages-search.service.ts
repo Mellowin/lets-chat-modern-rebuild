@@ -4,6 +4,11 @@ import { ChannelsService } from '../channels/channels.service';
 import { WorkspacesRepository } from '../workspaces/workspaces.repository';
 import { SearchMessagesQueryDto } from './dto/search-messages-query.dto';
 import { SearchGlobalMessagesQueryDto } from './dto/search-global-messages-query.dto';
+import {
+  ForwardPermissionsHelper,
+  ForwardedFromMetadata,
+  ForwardedFromPayload,
+} from './forward-permissions.helper';
 
 export interface SearchResult {
   id: string;
@@ -22,7 +27,7 @@ export interface SearchResult {
     slug: string;
   };
   isPinned: boolean;
-  forwardedFrom: unknown;
+  forwardedFrom?: ForwardedFromPayload;
 }
 
 export interface GlobalSearchAuthor {
@@ -67,7 +72,7 @@ export interface GlobalSearchResult {
   author: GlobalSearchAuthor;
   source: GlobalSearchSource;
   isPinned: boolean;
-  forwardedFrom: unknown;
+  forwardedFrom?: ForwardedFromPayload;
 }
 
 export interface GlobalSearchResponse {
@@ -81,6 +86,7 @@ export class MessagesSearchService {
     private readonly prisma: PrismaService,
     private readonly channels: ChannelsService,
     private readonly workspaces: WorkspacesRepository,
+    private readonly forwardPermissions: ForwardPermissionsHelper,
   ) {}
 
   async search(
@@ -101,7 +107,7 @@ export class MessagesSearchService {
     const q = query.q;
     const channelId = query.channelId ?? null;
 
-    return this.prisma.$queryRaw<SearchResult[]>`
+    const rows = await this.prisma.$queryRaw<SearchResult[]>`
       SELECT
         m.id,
         m.content,
@@ -148,6 +154,8 @@ export class MessagesSearchService {
                m."createdAt" DESC
       LIMIT ${limit}
     `;
+
+    return this.maskForwardedFrom(userId, rows);
   }
 
   async searchGlobal(
@@ -394,7 +402,68 @@ export class MessagesSearchService {
     const items = hasMore ? rows.slice(0, limit) : rows;
     const nextCursor = hasMore ? items[items.length - 1].id : null;
 
-    return { items, nextCursor };
+    return { items: await this.maskForwardedFrom(userId, items), nextCursor };
+  }
+
+  private async maskForwardedFrom<T extends { forwardedFrom?: unknown }>(
+    userId: string,
+    items: T[],
+  ): Promise<T[]> {
+    const forwardedItems = items
+      .map((item, index) => ({ index, forwardedFrom: item.forwardedFrom }))
+      .filter(
+        (
+          entry,
+        ): entry is {
+          index: number;
+          forwardedFrom: Record<string, unknown>;
+        } =>
+          !!entry.forwardedFrom &&
+          typeof entry.forwardedFrom === 'object' &&
+          'sourceType' in entry.forwardedFrom &&
+          'sourceChatId' in entry.forwardedFrom &&
+          'originalCreatedAt' in entry.forwardedFrom,
+      );
+
+    if (forwardedItems.length === 0) {
+      return items;
+    }
+
+    const sources = forwardedItems.map((entry) => ({
+      sourceType: String(entry.forwardedFrom.sourceType) as
+        | 'channel'
+        | 'direct'
+        | 'group',
+      sourceChatId: String(entry.forwardedFrom.sourceChatId),
+    }));
+
+    const accessible = await this.forwardPermissions.canViewSources(
+      userId,
+      sources,
+    );
+
+    const result = [...items];
+    for (const entry of forwardedItems) {
+      const meta = entry.forwardedFrom as Partial<ForwardedFromMetadata>;
+      const key = `${meta.sourceType}:${meta.sourceChatId}`;
+      if (accessible.has(key)) {
+        result[entry.index] = {
+          ...result[entry.index],
+          forwardedFrom: meta,
+        };
+      } else {
+        result[entry.index] = {
+          ...result[entry.index],
+          forwardedFrom: {
+            sourceType: meta.sourceType,
+            originalCreatedAt: meta.originalCreatedAt,
+            isAnonymous: true,
+          },
+        };
+      }
+    }
+
+    return result;
   }
 
   private async resolveCursor(
