@@ -2737,8 +2737,10 @@ describe("ChannelDetailPage — replies", () => {
     });
     await userEvent.click(screen.getByTestId("channel-message-menu-trigger-m1"));
     await userEvent.click(screen.getByTestId("channel-reply-action-m1"));
-    expect(screen.getByText(/Attachment/i)).toBeInTheDocument();
-    expect(screen.getByTestId("channel-reply-to-preview-m2")).toHaveTextContent("Attachment");
+    const replyPreview = screen.getByTestId("channel-reply-to-preview-m2");
+    expect(replyPreview).toHaveTextContent("Attachment");
+    const composerBanner = screen.getByText(/Replying to/i).closest("div");
+    expect(composerBanner).toHaveTextContent("Attachment");
   });
 });
 
