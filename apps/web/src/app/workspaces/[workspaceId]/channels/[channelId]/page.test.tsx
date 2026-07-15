@@ -5053,12 +5053,18 @@ describe("ChannelDetailPage — scroll behavior", () => {
     const scrollEl = screen.getByTestId("channel-messages-scroll") as HTMLDivElement;
     setScrollMetrics(scrollEl, { scrollHeight: 1000, clientHeight: 300 });
 
-    act(() => {
-      vi.advanceTimersByTime(1600);
-    });
-
     await waitFor(() => {
       expect(screen.getByText("Earlier message")).toBeInTheDocument();
+    });
+
+    // Wait for the initial scroll effect to settle so the scroll handler is
+    // not re-attached/rerun mid-test and accidentally pulls the user back down.
+    await waitFor(() => {
+      expect(scrollEl.scrollTop).toBe(scrollEl.scrollHeight);
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(1600);
     });
 
     act(() => {
