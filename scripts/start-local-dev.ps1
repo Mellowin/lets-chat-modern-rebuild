@@ -38,27 +38,18 @@ function Write-Ok($msg) { Write-Host $msg -ForegroundColor Green }
 function Write-Warn($msg) { Write-Host $msg -ForegroundColor Yellow }
 function Write-Err($msg) { Write-Host $msg -ForegroundColor Red }
 
-function Test-DockerVolumeExistsLocal($Name) {
-    $volumes = docker volume ls -q 2>$null
-    return $volumes -contains $Name
-}
-
-function Copy-DockerVolume($From, $To) {
-    Write-Warn "Copying data from legacy volume $From to stable volume $To..."
-    Invoke-Native docker @("run", "--rm", "-v", "${From}:/from", "-v", "${To}:/to", "alpine", "cp", "-a", "/from/.", "/to/.")
-}
-
 $script:FreshInstall = $false
 
 function Install-LocalDataGuardrails() {
     $markerStatus = Test-InstallMarker
     $expected = Get-LetsChatExpectedVolumes
-    $legacyPostgres = "secure-collab-platform_postgres-data"
-    $legacyMinio = "secure-collab-platform_minio-data"
+    $legacyCandidates = Find-LegacyLetsChatVolumes
 
-    # We cannot check DB contents here because the container may not be running yet.
     switch ($markerStatus) {
         "Valid" {
+            if ($legacyCandidates.Count -gt 0) {
+                Write-Warn "Installation marker is valid; ignoring $($legacyCandidates.Count) legacy installation(s)."
+            }
             Write-Ok "Local installation marker is valid. Using stable volumes."
             return
         }
@@ -66,6 +57,10 @@ function Install-LocalDataGuardrails() {
             $latest = Get-LatestBackup
             Write-Err "CRITICAL: Installation marker exists but expected volume is missing."
             Write-Err "Possible data loss. Do not start a fresh empty database."
+            if ($legacyCandidates.Count -gt 0) {
+                Write-Info "Legacy installations detected: $($legacyCandidates.Project -join ', ')"
+                Write-Info "You may recover by migrating a legacy installation manually."
+            }
             if ($latest) {
                 Write-Info "Newest backup: $($latest.FullName)"
                 Write-Info "Run: .\restore-letschat-local-data.bat -BackupPath `"$($latest.FullName)`" -ReplaceActive"
@@ -78,36 +73,67 @@ function Install-LocalDataGuardrails() {
         }
     }
 
-    # Marker missing
-    $stablePgExists = Test-DockerVolumeExistsLocal $expected.Postgres
-    $stableMinioExists = Test-DockerVolumeExistsLocal $expected.Minio
-    $legacyPgExists = Test-DockerVolumeExistsLocal $legacyPostgres
-    $legacyMinioExists = Test-DockerVolumeExistsLocal $legacyMinio
+    # Marker is missing or database is empty.
+    $stablePgExists = Test-DockerVolumeExists $expected.Postgres
+    $stableMinioExists = Test-DockerVolumeExists $expected.Minio
+    $stableRedisExists = Test-DockerVolumeExists $expected.Redis
+    $stableMailpitExists = Test-DockerVolumeExists $expected.Mailpit
 
-    if ($stablePgExists -and $stableMinioExists) {
+    if ($stablePgExists -and $stableMinioExists -and $stableRedisExists -and $stableMailpitExists) {
+        if ($markerStatus -eq "DatabaseEmpty") {
+            $latest = Get-LatestBackup
+            Write-Err "CRITICAL: Stable volumes exist but the database is unexpectedly empty."
+            Write-Err "Do not seed a replacement database silently."
+            if ($latest) {
+                Write-Info "Newest backup: $($latest.FullName)"
+                Write-Info "Run: .\restore-letschat-local-data.bat -BackupPath `"$($latest.FullName)`" -ReplaceActive"
+            }
+            throw "Aborting startup due to empty database."
+        }
         Write-Warn "Stable volumes exist but installation marker is missing. Marker will be recreated after the database is confirmed reachable."
         return
     }
 
-    if ($legacyPgExists -or $legacyMinioExists) {
-        Write-Warn "Legacy volumes found and stable volumes missing. Migrating data..."
-        if (-not $stablePgExists) { Invoke-Native docker @("volume", "create", $expected.Postgres) }
-        if (-not $stableMinioExists) { Invoke-Native docker @("volume", "create", $expected.Minio) }
-        if (-not (Test-DockerVolumeExistsLocal $expected.Redis)) { Invoke-Native docker @("volume", "create", $expected.Redis) }
-        if (-not (Test-DockerVolumeExistsLocal $expected.Mailpit)) { Invoke-Native docker @("volume", "create", $expected.Mailpit) }
-        if ($legacyPgExists) { Copy-DockerVolume $legacyPostgres $expected.Postgres }
-        if ($legacyMinioExists) { Copy-DockerVolume $legacyMinio $expected.Minio }
+    if ($legacyCandidates.Count -gt 1) {
+        Write-Err "Multiple verified legacy LetsChat installations found. Cannot guess which to migrate:"
+        foreach ($c in $legacyCandidates) {
+            Write-Err "  - Project $($c.Project): PG volume $($c.Volumes.Postgres), users=$($c.Counts.users), messages=$($c.Counts.messages)"
+        }
+        throw "Aborting startup. Please remove unwanted legacy volumes or migrate manually."
+    }
+
+    if ($legacyCandidates.Count -eq 1) {
+        $legacy = $legacyCandidates[0]
+        Write-Warn "Legacy installation found ($($legacy.Project)). Migrating to stable volumes..."
+        foreach ($key in $expected.Keys) {
+            $stable = $expected[$key]
+            $legacyVol = $legacy.Volumes[$key]
+            if (-not (Test-DockerVolumeExists $stable)) {
+                Invoke-Native docker @("volume", "create", $stable)
+            }
+            if ($legacyVol -and (Test-DockerVolumeExists $legacyVol)) {
+                Copy-DockerVolume -From $legacyVol -To $stable
+            }
+        }
         Write-Ok "Migration copy complete. Marker will be created after DB is reachable."
         return
     }
 
-    # Genuine first install
+    # No stable data and no verified legacy data. Check for backup before treating as first install.
+    $latest = Get-LatestBackup
+    if ($latest) {
+        Write-Warn "No local data found, but a backup exists: $($latest.FullName)"
+        Write-Warn "A fresh install will create empty volumes. To restore from backup, cancel and run:"
+        Write-Warn "  .\restore-letschat-local-data.bat -BackupPath `"$($latest.FullName)`" -ReplaceActive"
+    }
+
+    $anyStable = $stablePgExists -or $stableMinioExists -or $stableRedisExists -or $stableMailpitExists
     Write-Info "No existing data found. Initializing a new local installation."
     Invoke-Native docker @("volume", "create", $expected.Postgres)
     Invoke-Native docker @("volume", "create", $expected.Minio)
     Invoke-Native docker @("volume", "create", $expected.Redis)
     Invoke-Native docker @("volume", "create", $expected.Mailpit)
-    $script:FreshInstall = $true
+    $script:FreshInstall = -not $anyStable
     Write-Ok "New installation volumes created."
 }
 
@@ -142,8 +168,8 @@ function Confirm-LocalDatabaseState() {
     }
 
     # Marker missing
-    $stablePgExists = Test-DockerVolumeExistsLocal $expected.Postgres
-    $stableMinioExists = Test-DockerVolumeExistsLocal $expected.Minio
+    $stablePgExists = Test-DockerVolumeExists $expected.Postgres
+    $stableMinioExists = Test-DockerVolumeExists $expected.Minio
 
     if ($stablePgExists -and $stableMinioExists) {
         $counts = Get-DatabaseCounts

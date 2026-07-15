@@ -9,16 +9,43 @@
 
     Use -Drill to verify a backup without touching the active data.
     Use -ReplaceActive to overwrite the active volumes after validation.
+
+.PARAMETER ActivePostgresVolume
+    Override the active PostgreSQL volume name (default: letschat-postgres-data).
+
+.PARAMETER ActiveMinioVolume
+    Override the active MinIO volume name (default: letschat-minio-data).
+
+.PARAMETER ActiveRedisVolume
+    Override the active Redis volume name (default: letschat-redis-data).
+
+.PARAMETER ActiveMailpitVolume
+    Override the active Mailpit volume name (default: letschat-mailpit-data).
+
+.PARAMETER Force
+    Skip the interactive RESTORE confirmation prompt.
+
+.PARAMETER ForceValidationFailureAfterCopy
+    Test-only hook: force the post-replacement validation to fail so the
+    rollback path can be exercised.
 #>
 param(
     [string]$BackupRoot = "$env:LOCALAPPDATA\LetsChat\backups",
     [string]$BackupPath,
     [switch]$List,
     [switch]$Drill,
-    [switch]$ReplaceActive
+    [switch]$ReplaceActive,
+    [string]$ActivePostgresVolume = "letschat-postgres-data",
+    [string]$ActiveMinioVolume = "letschat-minio-data",
+    [string]$ActiveRedisVolume = "letschat-redis-data",
+    [string]$ActiveMailpitVolume = "letschat-mailpit-data",
+    [switch]$Force,
+    [switch]$ForceValidationFailureAfterCopy
 )
 
 $ErrorActionPreference = "Stop"
+
+Import-Module "$PSScriptRoot\lib\local-data-utils.psm1" -Force
 
 function Write-Info($msg) { Write-Host $msg -ForegroundColor Cyan }
 function Write-Ok($msg) { Write-Host $msg -ForegroundColor Green }
@@ -37,15 +64,6 @@ function Test-DockerReady() {
 
 function Get-Sha256($path) {
     return (Get-FileHash -Path $path -Algorithm SHA256).Hash
-}
-
-function Invoke-Native($cmd, $argsArray) {
-    $global:LASTEXITCODE = 0
-    & $cmd @argsArray
-    $exit = $global:LASTEXITCODE
-    if ($exit -ne 0) {
-        throw "Command '$cmd $argsArray' exited with code $exit"
-    }
 }
 
 function Get-Backups() {
@@ -84,62 +102,247 @@ function Validate-Backup($backupDir) {
     return $manifest
 }
 
+function Restore-TarArchive($backupDir, $archiveName, $volume) {
+    $path = Join-Path $backupDir $archiveName
+    if (-not (Test-Path $path)) {
+        throw "Archive missing: $archiveName"
+    }
+    Invoke-Native docker @(
+        "run", "--rm",
+        "-v", "${volume}:/data",
+        "-v", "${backupDir}:/backup:ro",
+        "alpine",
+        "tar", "xzf", "/backup/${archiveName}", "-C", "/data"
+    )
+}
+
+function Test-MinioVolume($Volume) {
+    $result = Invoke-DockerSilently -Arguments @("run", "--rm", "-v", "${Volume}:/data:ro", "alpine", "sh", "-c", "ls -A /data")
+    if ($result.ExitCode -ne 0) { return $false }
+    $items = @((($result.StdOut -split "`r?`n") | ForEach-Object { $_.Trim() } | Where-Object { $_ }))
+    return ($items.Count -gt 0)
+}
+
+function Validate-RestoredPostgres($Container, $Manifest) {
+    Write-Info "Verifying restored PostgreSQL data..."
+    if (-not (Wait-PostgresReady -Container $Container -User "letschat" -Database "postgres")) {
+        throw "Temporary PostgreSQL container $Container did not become ready"
+    }
+    $dbs = Get-DatabasesOnContainer -Container $Container
+    if (-not $dbs -or ($dbs -notcontains $Manifest.database)) {
+        throw "Expected database $($Manifest.database) not found in restored data"
+    }
+    if (-not (Test-HasRequiredTables -Container $Container -DatabaseName $Manifest.database)) {
+        throw "Required tables missing in restored database"
+    }
+    $counts = Get-DatabaseCountsFromContainer -Container $Container -DatabaseName $Manifest.database
+    Write-Info "Restored counts: users=$($counts.users) messages=$($counts.messages) attachments=$($counts.attachments) workspaces=$($counts.workspaces)"
+    foreach ($key in @("users", "messages", "attachments", "workspaces")) {
+        if ($counts[$key] -ne $Manifest.counts.$key) {
+            throw "Count mismatch for $key`: expected $($Manifest.counts.$key), got $($counts[$key])"
+        }
+    }
+}
+
 function Restore-ToTempVolumes($backupDir, $manifest, $suffix) {
     $pgVol = "letschat-restore-pg-$suffix"
     $minioVol = "letschat-restore-minio-$suffix"
+    $redisVol = "letschat-restore-redis-$suffix"
+    $mailpitVol = "letschat-restore-mailpit-$suffix"
+    $container = "letschat-restore-pg-$suffix"
+    $createdVolumes = @()
+    $containerStarted = $false
 
-    Write-Info "Creating temporary validation volumes..."
-    Invoke-Native docker @("volume", "create", $pgVol)
-    Invoke-Native docker @("volume", "create", $minioVol)
+    try {
+        foreach ($v in @($pgVol, $minioVol, $redisVol, $mailpitVol)) {
+            Invoke-Native docker @("volume", "create", $v) | Out-Null
+            $createdVolumes += $v
+        }
 
-    # Restore PostgreSQL dump into a temporary Postgres container.
-    Write-Info "Restoring PostgreSQL into temporary volume..."
-    $restoreContainer = "letschat-restore-pg-$suffix"
-    Invoke-Native docker @(
-        "run", "--rm", "--name", $restoreContainer,
-        "-e", "POSTGRES_USER=letschat",
-        "-e", "POSTGRES_PASSWORD=letschat",
-        "-e", "POSTGRES_DB=letschat_local",
-        "-v", "${pgVol}:/var/lib/postgresql/data",
-        "-v", "${backupDir}:/backup:ro",
-        "postgres:15-alpine"
-    )
-    # The container exits after init; start it briefly to restore the dump.
-    Invoke-Native docker @("run", "-d", "--name", "${restoreContainer}-running", "-v", "${pgVol}:/var/lib/postgresql/data", "-v", "${backupDir}:/backup:ro", "postgres:15-alpine")
-    Start-Sleep -Seconds 3
-    Invoke-Native docker @("exec", "${restoreContainer}-running", "pg_restore", "-U", "letschat", "-d", "letschat_local", "--no-owner", "--no-acl", "/backup/letschat_local.dump")
+        Write-Info "Starting temporary PostgreSQL container $container (detached)..."
+        Invoke-Native docker @(
+            "run", "-d", "--name", $container,
+            "-e", "POSTGRES_USER=letschat",
+            "-e", "POSTGRES_PASSWORD=letschat",
+            "-v", "${pgVol}:/var/lib/postgresql/data",
+            "-v", "${backupDir}:/backup:ro",
+            "postgres:15-alpine"
+        ) | Out-Null
+        $containerStarted = $true
 
-    # Verify required tables exist and counts match manifest.
-    Write-Info "Verifying restored PostgreSQL data..."
-    $verifySql = "SELECT count(*) FROM \"User\"; SELECT count(*) FROM \"Message\"; SELECT count(*) FROM \"Attachment\";"
-    $verifySql | Out-File -FilePath "$env:TEMP\verify-$suffix.sql" -Encoding utf8 -Force
-    Invoke-Native docker @("cp", "$env:TEMP\verify-$suffix.sql", "${restoreContainer}-running:/tmp/verify.sql")
-    $result = docker exec "${restoreContainer}-running" psql -U letschat -d letschat_local -t -A -f /tmp/verify.sql
-    $counts = $result.Trim() -split "`r?`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -match "^\d+$" }
-    Write-Info "Restored counts: User=$($counts[0]) Message=$($counts[1]) Attachment=$($counts[2])"
+        Write-Info "Waiting for temporary PostgreSQL to be ready (up to 60s)..."
+        if (-not (Wait-PostgresReady -Container $container -User "letschat" -Database "postgres")) {
+            Write-Err "Temporary PostgreSQL container failed readiness check. Container logs:"
+            docker logs $container 2>&1 | ForEach-Object { Write-Err $_ }
+            throw "Temporary PostgreSQL container did not become ready within timeout"
+        }
 
-    Invoke-Native docker @("stop", "${restoreContainer}-running")
-    Invoke-Native docker @("rm", "${restoreContainer}-running")
+        Write-Info "Creating target database and running pg_restore..."
+        Invoke-Native docker @("exec", $container, "psql", "-U", "letschat", "-d", "postgres", "-c", "CREATE DATABASE letschat_local;")
+        Invoke-Native docker @("exec", $container, "pg_restore", "-U", "letschat", "-d", "letschat_local", "--no-owner", "--no-acl", "/backup/letschat_local.dump")
 
-    # Restore MinIO archive into temp volume.
-    Write-Info "Restoring MinIO archive into temporary volume..."
-    Invoke-Native docker @(
-        "run", "--rm",
-        "-v", "${minioVol}:/data",
-        "-v", "${backupDir}:/backup:ro",
-        "alpine",
-        "tar", "xzf", "/backup/minio-data.tar.gz", "-C", "/data"
-    )
-    Write-Info "Verifying MinIO archive readability..."
-    Invoke-Native docker @(
-        "run", "--rm",
-        "-v", "${minioVol}:/data:ro",
-        "alpine",
-        "ls", "/data"
-    ) | Out-Null
+        Validate-RestoredPostgres -Container $container -Manifest $manifest
 
-    Write-Ok "Temporary restore validation passed"
-    return @{ pgVolume = $pgVol; minioVolume = $minioVol }
+        Invoke-Native docker @("stop", $container)
+        Invoke-Native docker @("rm", $container)
+        $containerStarted = $false
+
+        Restore-TarArchive -backupDir $backupDir -archiveName "minio-data.tar.gz" -volume $minioVol
+        Restore-TarArchive -backupDir $backupDir -archiveName "redis-data.tar.gz" -volume $redisVol
+        Restore-TarArchive -backupDir $backupDir -archiveName "mailpit-data.tar.gz" -volume $mailpitVol
+
+        if (-not (Test-MinioVolume $minioVol)) {
+            throw "MinIO validation volume appears empty or unreadable"
+        }
+
+        Write-Ok "Temporary restore validation passed"
+        return @{
+            pgVolume      = $pgVol
+            minioVolume   = $minioVol
+            redisVolume   = $redisVol
+            mailpitVolume = $mailpitVol
+        }
+    }
+    finally {
+        if ($containerStarted) {
+            Remove-DockerContainer $container
+        }
+    }
+}
+
+function Remove-TempVolumes($volumes) {
+    foreach ($v in @($volumes.pgVolume, $volumes.minioVolume, $volumes.redisVolume, $volumes.mailpitVolume)) {
+        if ($v) {
+            Remove-DockerVolume $v
+        }
+    }
+}
+
+function Test-VolumeNonEmpty($Volume) {
+    $result = Invoke-DockerSilently -Arguments @("run", "--rm", "-v", "${Volume}:/vol:ro", "alpine", "sh", "-c", "find /vol -mindepth 1 -print -quit")
+    return ($result.ExitCode -eq 0 -and $result.StdOut)
+}
+
+function Test-VolumeReadable($Volume) {
+    $result = Invoke-DockerSilently -Arguments @("run", "--rm", "-v", "${Volume}:/vol:ro", "alpine", "sh", "-c", "ls /vol >/dev/null 2>&1")
+    return ($result.ExitCode -eq 0)
+}
+
+function Reset-VolumeEmpty($Name) {
+    Invoke-Native docker @("volume", "rm", $Name)
+    Invoke-Native docker @("volume", "create", $Name)
+}
+
+function Invoke-EmergencyBackup($backupRoot, $pgVol, $minioVol, $redisVol, $mailpitVol) {
+    $container = "letschat-postgres"
+    $startedTemp = $false
+    $tempContainer = $null
+
+    try {
+        $runningId = (Invoke-DockerSilently -Arguments @("ps", "-q", "-f", "name=^${container}$")).StdOut
+        if ($runningId) {
+            $inspect = Invoke-DockerSilently -Arguments @("inspect", $container, "--format", "{{json .Mounts}}")
+            $pgMount = $null
+            if ($inspect.ExitCode -eq 0 -and $inspect.StdOut) {
+                $mounts = $inspect.StdOut | ConvertFrom-Json
+                $pgMount = $mounts | Where-Object { $_.Destination -eq "/var/lib/postgresql/data" } | Select-Object -ExpandProperty Name
+            }
+            if ($pgMount -ne $pgVol) {
+                Write-Warn "Running postgres container is mounted to $pgMount, not $pgVol. Stopping it for emergency backup."
+                Remove-DockerContainer $container
+                $runningId = $null
+            }
+        }
+
+        if (-not $runningId) {
+            $existing = (Invoke-DockerSilently -Arguments @("ps", "-aq", "-f", "name=^${container}$")).StdOut
+            if ($existing) {
+                Remove-DockerContainer $container
+            }
+            $startedTemp = $true
+            $tempContainer = $container
+            Invoke-Native docker @(
+                "run", "-d", "--name", $container,
+                "-e", "POSTGRES_USER=letschat",
+                "-e", "POSTGRES_PASSWORD=letschat",
+                "-v", "${pgVol}:/var/lib/postgresql/data",
+                "postgres:15-alpine"
+            )
+            if (-not (Wait-PostgresReady -Container $container)) {
+                throw "Emergency backup container did not become ready"
+            }
+        }
+
+        & "$PSScriptRoot\backup-letschat-local-data.ps1" `
+            -BackupRoot $backupRoot `
+            -PostgresVolume $pgVol `
+            -MinioVolume $minioVol `
+            -RedisVolume $redisVol `
+            -MailpitVolume $mailpitVol `
+            -SkipCounts
+    }
+    finally {
+        if ($startedTemp -and $tempContainer) {
+            Remove-DockerContainer $tempContainer
+        }
+    }
+}
+
+function Start-StackAndValidate($manifest, [switch]$RequireCountsMatch, [hashtable]$ActiveVolumes) {
+    $expected = Get-LetsChatExpectedVolumes
+    if (-not $ActiveVolumes) {
+        $ActiveVolumes = @{}
+        foreach ($key in $expected.Keys) { $ActiveVolumes[$key] = $expected[$key] }
+    }
+
+    $usingOverrides = $false
+    foreach ($key in $expected.Keys) {
+        if ($ActiveVolumes[$key] -ne $expected[$key]) { $usingOverrides = $true; break }
+    }
+
+    $pgContainer = "letschat-postgres"
+    $minioVol = $ActiveVolumes.Minio
+
+    if ($usingOverrides) {
+        $pgContainer = "letschat-validate-pg"
+        Remove-DockerContainer $pgContainer
+        Invoke-Native docker @(
+            "run", "-d", "--name", $pgContainer,
+            "-p", "5434:5432",
+            "-e", "POSTGRES_USER=letschat",
+            "-e", "POSTGRES_PASSWORD=letschat",
+            "-v", "$($ActiveVolumes.Postgres):/var/lib/postgresql/data",
+            "postgres:15-alpine"
+        ) | Out-Null
+    }
+    else {
+        Invoke-Native docker @("compose", "up", "-d")
+    }
+
+    try {
+        if (-not (Wait-PostgresReady -Container $pgContainer -User "letschat" -Database $manifest.database)) {
+            return $false
+        }
+        $dbs = Get-DatabasesOnContainer -Container $pgContainer
+        if (-not $dbs -or ($dbs -notcontains $manifest.database)) { return $false }
+        if (-not (Test-HasRequiredTables -Container $pgContainer -DatabaseName $manifest.database)) { return $false }
+        if ($RequireCountsMatch) {
+            $counts = Get-DatabaseCountsFromContainer -Container $pgContainer -DatabaseName $manifest.database
+            if (-not $counts) { return $false }
+            foreach ($key in @("users", "messages", "attachments", "workspaces")) {
+                if ($counts[$key] -ne $manifest.counts.$key) { return $false }
+            }
+        }
+        $minioResult = Invoke-DockerSilently -Arguments @("run", "--rm", "-v", "${minioVol}:/data:ro", "alpine", "sh", "-c", "ls -A /data")
+        if ($minioResult.ExitCode -ne 0) { return $false }
+        $items = @((($minioResult.StdOut -split "`r?`n") | ForEach-Object { $_.Trim() } | Where-Object { $_ }))
+        return ($items.Count -gt 0)
+    }
+    finally {
+        if ($usingOverrides) {
+            Remove-DockerContainer $pgContainer
+        }
+    }
 }
 
 try {
@@ -180,50 +383,134 @@ try {
     $tempVolumes = Restore-ToTempVolumes $BackupPath $manifest $suffix
 
     if ($ReplaceActive) {
-        Write-Warn "This will replace the active PostgreSQL and MinIO volumes."
-        $confirm = Read-Host -Prompt "Type RESTORE to continue"
-        if ($confirm -ne "RESTORE") {
-            Write-Err "Restore cancelled"
-            return
+        Write-Warn "This will replace the active volumes:"
+        Write-Warn "  PostgreSQL: $ActivePostgresVolume"
+        Write-Warn "  MinIO:      $ActiveMinioVolume"
+        Write-Warn "  Redis:      $ActiveRedisVolume"
+        Write-Warn "  Mailpit:    $ActiveMailpitVolume"
+
+        if (-not $Force) {
+            $confirm = Read-Host -Prompt "Type RESTORE to continue"
+            if ($confirm -ne "RESTORE") {
+                Write-Err "Restore cancelled"
+                return
+            }
         }
 
-        # Emergency backup of active data.
-        Write-Info "Creating emergency backup of active data..."
-        & "$PSScriptRoot\backup-letschat-local-data.ps1" -BackupRoot "$BackupRoot\emergency" -SkipCounts
+        $activeVolumes = [ordered]@{
+            Postgres = $ActivePostgresVolume
+            Minio    = $ActiveMinioVolume
+            Redis    = $ActiveRedisVolume
+            Mailpit  = $ActiveMailpitVolume
+        }
+        foreach ($v in $activeVolumes.Values) {
+            if (-not (Test-DockerVolumeExists $v)) {
+                throw "Active volume does not exist: $v"
+            }
+        }
 
-        # Stop active containers.
+        $emergencyRoot = Join-Path $BackupRoot "emergency"
+        Write-Info "Creating emergency backup of active data..."
+        Invoke-EmergencyBackup -backupRoot $emergencyRoot -pgVol $ActivePostgresVolume -minioVol $ActiveMinioVolume -redisVol $ActiveRedisVolume -mailpitVol $ActiveMailpitVolume
+
         Write-Info "Stopping active containers..."
         Invoke-Native docker @("compose", "down")
 
-        # Snapshot current active volumes as rollback.
         $rollbackSuffix = Get-Date -Format "yyyyMMdd-HHmmss"
-        $rollbackPg = "letschat-postgres-data-rollback-$rollbackSuffix"
-        $rollbackMinio = "letschat-minio-data-rollback-$rollbackSuffix"
-        Invoke-Native docker @("volume", "create", $rollbackPg)
-        Invoke-Native docker @("volume", "create", $rollbackMinio)
-        Invoke-Native docker @("run", "--rm", "-v", "letschat-postgres-data:/from", "-v", "${rollbackPg}:/to", "alpine", "cp", "-a", "/from/.", "/to/.")
-        Invoke-Native docker @("run", "--rm", "-v", "letschat-minio-data:/from", "-v", "${rollbackMinio}:/to", "alpine", "cp", "-a", "/from/.", "/to/.")
+        $rollbackVolumes = [ordered]@{
+            Postgres = "${ActivePostgresVolume}-rollback-${rollbackSuffix}"
+            Minio    = "${ActiveMinioVolume}-rollback-${rollbackSuffix}"
+            Redis    = "${ActiveRedisVolume}-rollback-${rollbackSuffix}"
+            Mailpit  = "${ActiveMailpitVolume}-rollback-${rollbackSuffix}"
+        }
 
-        # Copy validated temp volumes into active volumes.
-        Write-Info "Replacing active volumes with validated backup..."
-        Invoke-Native docker @("run", "--rm", "-v", "$($tempVolumes.pgVolume):/from", "-v", "letschat-postgres-data:/to", "alpine", "cp", "-a", "/from/.", "/to/.")
-        Invoke-Native docker @("run", "--rm", "-v", "$($tempVolumes.minioVolume):/from", "-v", "letschat-minio-data:/to", "alpine", "cp", "-a", "/from/.", "/to/.")
+        Write-Info "Creating rollback volumes..."
+        foreach ($v in $rollbackVolumes.Values) {
+            Invoke-Native docker @("volume", "create", $v)
+        }
 
-        # Clean up temp volumes.
-        Invoke-Native docker @("volume", "rm", $tempVolumes.pgVolume)
-        Invoke-Native docker @("volume", "rm", $tempVolumes.minioVolume)
+        Write-Info "Cloning active volumes to rollback volumes..."
+        Copy-DockerVolume -From $ActivePostgresVolume -To $rollbackVolumes.Postgres
+        Copy-DockerVolume -From $ActiveMinioVolume -To $rollbackVolumes.Minio
+        Copy-DockerVolume -From $ActiveRedisVolume -To $rollbackVolumes.Redis
+        Copy-DockerVolume -From $ActiveMailpitVolume -To $rollbackVolumes.Mailpit
 
-        Write-Ok "Active volumes restored. Rollback: $rollbackPg, $rollbackMinio"
+        Write-Info "Verifying rollback volumes..."
+        if (-not (Test-VolumeNonEmpty $rollbackVolumes.Postgres)) {
+            throw "Rollback Postgres volume appears empty"
+        }
+        if (-not (Test-VolumeNonEmpty $rollbackVolumes.Minio)) {
+            throw "Rollback MinIO volume appears empty"
+        }
+        foreach ($key in @("Redis", "Mailpit")) {
+            if (-not (Test-VolumeReadable $rollbackVolumes[$key])) {
+                throw "Rollback $key volume is not readable"
+            }
+        }
+
+        Write-Info "Recreating active volumes as empty..."
+        Reset-VolumeEmpty $ActivePostgresVolume
+        Reset-VolumeEmpty $ActiveMinioVolume
+        Reset-VolumeEmpty $ActiveRedisVolume
+        Reset-VolumeEmpty $ActiveMailpitVolume
+
+        Write-Info "Copying validated restored state into active volumes..."
+        Copy-DockerVolume -From $tempVolumes.pgVolume -To $ActivePostgresVolume
+        Copy-DockerVolume -From $tempVolumes.minioVolume -To $ActiveMinioVolume
+        Copy-DockerVolume -From $tempVolumes.redisVolume -To $ActiveRedisVolume
+        Copy-DockerVolume -From $tempVolumes.mailpitVolume -To $ActiveMailpitVolume
+
+        # Clean up temp volumes now that they have been copied.
+        Remove-TempVolumes $tempVolumes
+        $tempVolumes = $null
+
+        Write-Info "Starting local stack and validating replacement..."
+        if ($ForceValidationFailureAfterCopy) {
+            Write-Warn "ForceValidationFailureAfterCopy is set; simulating validation failure."
+            $validationOk = $false
+        }
+        else {
+            $validationOk = Start-StackAndValidate -manifest $manifest -RequireCountsMatch -ActiveVolumes $activeVolumes
+        }
+
+        if (-not $validationOk) {
+            Write-Err "Active volume replacement validation failed. Rolling back..."
+            Invoke-Native docker @("compose", "down")
+
+            Reset-VolumeEmpty $ActivePostgresVolume
+            Reset-VolumeEmpty $ActiveMinioVolume
+            Reset-VolumeEmpty $ActiveRedisVolume
+            Reset-VolumeEmpty $ActiveMailpitVolume
+
+            Copy-DockerVolume -From $rollbackVolumes.Postgres -To $ActivePostgresVolume
+            Copy-DockerVolume -From $rollbackVolumes.Minio -To $ActiveMinioVolume
+            Copy-DockerVolume -From $rollbackVolumes.Redis -To $ActiveRedisVolume
+            Copy-DockerVolume -From $rollbackVolumes.Mailpit -To $ActiveMailpitVolume
+
+            Write-Info "Starting stack and validating rollback..."
+            if (-not (Start-StackAndValidate -manifest $manifest -ActiveVolumes $activeVolumes)) {
+                throw "Rollback was applied but the stack could not be validated. Manual intervention required."
+            }
+
+            throw "Active volume replacement validation failed; rollback was applied. Rollback volumes: $($rollbackVolumes.Values -join ', ')"
+        }
+
+        Write-Ok "Active volumes replaced successfully. Rollback volumes: $($rollbackVolumes.Values -join ', ')"
     }
     else {
         Write-Info "Drill mode: active data was not modified."
         Write-Info "Cleaning up temporary validation volumes..."
-        Invoke-Native docker @("volume", "rm", $tempVolumes.pgVolume)
-        Invoke-Native docker @("volume", "rm", $tempVolumes.minioVolume)
+        Remove-TempVolumes $tempVolumes
+        $tempVolumes = $null
         Write-Ok "Restore drill completed successfully"
     }
 }
 catch {
     Write-Err "Restore failed: $_"
     exit 1
+}
+finally {
+    if ($tempVolumes) {
+        Remove-TempVolumes $tempVolumes
+    }
 }
