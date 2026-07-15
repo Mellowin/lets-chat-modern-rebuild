@@ -567,5 +567,96 @@ describe('ForwardService', () => {
         NotFoundException,
       );
     });
+
+    it('rejects archived group -> channel forwarding with NotFoundException', async () => {
+      groupsRepository.findMessageByIdWithRelations.mockResolvedValue(
+        groupSourceMessage as any,
+      );
+      forwardPermissions.canViewSource.mockResolvedValue(false);
+
+      const dto: ForwardMessageDto = {
+        sourceType: 'group',
+        sourceMessageId: messageId,
+        destinationType: 'channel',
+        destinationId: channelId,
+      };
+
+      await expect(service.forward(dto, userId)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(forwardPermissions.canViewSource).toHaveBeenCalledWith(
+        userId,
+        'group',
+        groupId,
+      );
+    });
+
+    it('rejects archived group -> direct forwarding with NotFoundException', async () => {
+      groupsRepository.findMessageByIdWithRelations.mockResolvedValue(
+        groupSourceMessage as any,
+      );
+      forwardPermissions.canViewSource.mockResolvedValue(false);
+
+      const dto: ForwardMessageDto = {
+        sourceType: 'group',
+        sourceMessageId: messageId,
+        destinationType: 'direct',
+        destinationId: dmId,
+      };
+
+      await expect(service.forward(dto, userId)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+
+    it('rejects archived group -> group forwarding with NotFoundException', async () => {
+      groupsRepository.findMessageByIdWithRelations.mockResolvedValue(
+        groupSourceMessage as any,
+      );
+      forwardPermissions.canViewSource.mockResolvedValue(false);
+
+      const dto: ForwardMessageDto = {
+        sourceType: 'group',
+        sourceMessageId: messageId,
+        destinationType: 'group',
+        destinationId: groupId,
+      };
+
+      await expect(service.forward(dto, userId)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+
+    it('does not copy attachments from an archived group source', async () => {
+      groupsRepository.findMessageByIdWithRelations.mockResolvedValue(
+        groupSourceMessage as any,
+      );
+      forwardPermissions.canViewSource.mockResolvedValue(false);
+      (prismaService.attachment.findMany as jest.Mock).mockResolvedValue([
+        {
+          id: attachmentId,
+          filename: 'doc.pdf',
+          mimeType: 'application/pdf',
+          size: 1234,
+          storageKey: 'original/key.pdf',
+          storageBackend: StorageBackend.MINIO,
+          createdAt: new Date(),
+          deletedAt: null,
+        },
+      ] as any);
+
+      const dto: ForwardMessageDto = {
+        sourceType: 'group',
+        sourceMessageId: messageId,
+        destinationType: 'channel',
+        destinationId: channelId,
+      };
+
+      await expect(service.forward(dto, userId)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(storageService.copyObject).not.toHaveBeenCalled();
+      expect(messagesService.create).not.toHaveBeenCalled();
+    });
   });
 });

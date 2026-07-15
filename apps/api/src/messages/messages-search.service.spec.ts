@@ -501,6 +501,47 @@ describe('MessagesSearchService', () => {
       );
     });
 
+    it('masks metadata for an archived group source in search', async () => {
+      const archivedGroupMeta = {
+        sourceType: 'group',
+        sourceChatId: 'archived-group-1',
+        sourceMessageId: 'orig-gm',
+        originalAuthorId: 'u3',
+        originalAuthorName: 'Carol',
+        originalCreatedAt: '2024-01-03T00:00:00Z',
+      };
+
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([
+        makeGroupResult({ forwardedFrom: archivedGroupMeta }),
+      ]);
+      forwardPermissions.canViewSources.mockResolvedValue(new Set<string>());
+
+      const result = await service.searchGlobal(userId, { q: 'к' });
+
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].forwardedFrom).toEqual({
+        sourceType: 'group',
+        originalCreatedAt: archivedGroupMeta.originalCreatedAt,
+        isAnonymous: true,
+      });
+      expect(result.items[0].forwardedFrom).not.toHaveProperty('sourceChatId');
+      expect(result.items[0].forwardedFrom).not.toHaveProperty(
+        'sourceMessageId',
+      );
+      expect(result.items[0].forwardedFrom).not.toHaveProperty(
+        'originalAuthorId',
+      );
+      expect(result.items[0].forwardedFrom).not.toHaveProperty(
+        'originalAuthorName',
+      );
+      expect(forwardPermissions.canViewSources).toHaveBeenCalledWith(
+        userId,
+        expect.arrayContaining([
+          { sourceType: 'group', sourceChatId: archivedGroupMeta.sourceChatId },
+        ]),
+      );
+    });
+
     it('masks metadata across all UNION branches', async () => {
       const dmMeta = {
         sourceType: 'direct',

@@ -220,6 +220,9 @@ export class ForwardPermissionsHelper {
         groupId,
         userId,
         leftAt: null,
+        group: {
+          archivedAt: null,
+        },
       },
     });
     return !!member;
@@ -236,6 +239,9 @@ export class ForwardPermissionsHelper {
         userId,
         groupId: { in: groupIds },
         leftAt: null,
+        group: {
+          archivedAt: null,
+        },
       },
       select: { groupId: true },
     });
