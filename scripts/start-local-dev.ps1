@@ -31,10 +31,136 @@ $ErrorActionPreference = "Continue"
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $RepoRoot
 
+Import-Module "$PSScriptRoot\lib\local-data-utils.psm1" -Force
+
 function Write-Info($msg) { Write-Host $msg -ForegroundColor Cyan }
 function Write-Ok($msg) { Write-Host $msg -ForegroundColor Green }
 function Write-Warn($msg) { Write-Host $msg -ForegroundColor Yellow }
 function Write-Err($msg) { Write-Host $msg -ForegroundColor Red }
+
+function Test-DockerVolumeExistsLocal($Name) {
+    $volumes = docker volume ls -q 2>$null
+    return $volumes -contains $Name
+}
+
+function Copy-DockerVolume($From, $To) {
+    Write-Warn "Copying data from legacy volume $From to stable volume $To..."
+    Invoke-Native docker @("run", "--rm", "-v", "${From}:/from", "-v", "${To}:/to", "alpine", "cp", "-a", "/from/.", "/to/.")
+}
+
+$script:FreshInstall = $false
+
+function Install-LocalDataGuardrails() {
+    $markerStatus = Test-InstallMarker
+    $expected = Get-LetsChatExpectedVolumes
+    $legacyPostgres = "secure-collab-platform_postgres-data"
+    $legacyMinio = "secure-collab-platform_minio-data"
+
+    # We cannot check DB contents here because the container may not be running yet.
+    switch ($markerStatus) {
+        "Valid" {
+            Write-Ok "Local installation marker is valid. Using stable volumes."
+            return
+        }
+        "VolumeMissing" {
+            $latest = Get-LatestBackup
+            Write-Err "CRITICAL: Installation marker exists but expected volume is missing."
+            Write-Err "Possible data loss. Do not start a fresh empty database."
+            if ($latest) {
+                Write-Info "Newest backup: $($latest.FullName)"
+                Write-Info "Run: .\restore-letschat-local-data.bat -BackupPath `"$($latest.FullName)`" -ReplaceActive"
+            }
+            throw "Aborting startup due to missing expected volume."
+        }
+        "MarkerCorrupt" {
+            Write-Err "Installation marker is corrupt: $(Get-LetsChatInstallMarkerPath)"
+            throw "Aborting startup. Please inspect or remove the marker file."
+        }
+    }
+
+    # Marker missing
+    $stablePgExists = Test-DockerVolumeExistsLocal $expected.Postgres
+    $stableMinioExists = Test-DockerVolumeExistsLocal $expected.Minio
+    $legacyPgExists = Test-DockerVolumeExistsLocal $legacyPostgres
+    $legacyMinioExists = Test-DockerVolumeExistsLocal $legacyMinio
+
+    if ($stablePgExists -and $stableMinioExists) {
+        Write-Warn "Stable volumes exist but installation marker is missing. Marker will be recreated after the database is confirmed reachable."
+        return
+    }
+
+    if ($legacyPgExists -or $legacyMinioExists) {
+        Write-Warn "Legacy volumes found and stable volumes missing. Migrating data..."
+        if (-not $stablePgExists) { Invoke-Native docker @("volume", "create", $expected.Postgres) }
+        if (-not $stableMinioExists) { Invoke-Native docker @("volume", "create", $expected.Minio) }
+        if (-not (Test-DockerVolumeExistsLocal $expected.Redis)) { Invoke-Native docker @("volume", "create", $expected.Redis) }
+        if (-not (Test-DockerVolumeExistsLocal $expected.Mailpit)) { Invoke-Native docker @("volume", "create", $expected.Mailpit) }
+        if ($legacyPgExists) { Copy-DockerVolume $legacyPostgres $expected.Postgres }
+        if ($legacyMinioExists) { Copy-DockerVolume $legacyMinio $expected.Minio }
+        Write-Ok "Migration copy complete. Marker will be created after DB is reachable."
+        return
+    }
+
+    # Genuine first install
+    Write-Info "No existing data found. Initializing a new local installation."
+    Invoke-Native docker @("volume", "create", $expected.Postgres)
+    Invoke-Native docker @("volume", "create", $expected.Minio)
+    Invoke-Native docker @("volume", "create", $expected.Redis)
+    Invoke-Native docker @("volume", "create", $expected.Mailpit)
+    $script:FreshInstall = $true
+    Write-Ok "New installation volumes created."
+}
+
+function Confirm-LocalDatabaseState() {
+    $markerStatus = Test-InstallMarker
+    $expected = Get-LetsChatExpectedVolumes
+
+    switch ($markerStatus) {
+        "Valid" {
+            $counts = Get-DatabaseCounts
+            if (-not $counts -or $counts.users -eq 0) {
+                $latest = Get-LatestBackup
+                Write-Err "CRITICAL: Installation marker exists but the database is unexpectedly empty."
+                Write-Err "Do not seed a replacement database silently."
+                if ($latest) {
+                    Write-Info "Newest backup: $($latest.FullName)"
+                    Write-Info "Run: .\restore-letschat-local-data.bat -BackupPath `"$($latest.FullName)`" -ReplaceActive"
+                }
+                throw "Aborting startup due to empty database."
+            }
+            Write-Ok "Existing database confirmed: $($counts.users) user(s), $($counts.messages) message(s)."
+            return
+        }
+        "VolumeMissing" {
+            Write-Err "CRITICAL: Installation marker exists but expected volume is missing."
+            throw "Aborting startup due to missing expected volume."
+        }
+        "MarkerCorrupt" {
+            Write-Err "Installation marker is corrupt: $(Get-LetsChatInstallMarkerPath)"
+            throw "Aborting startup. Please inspect or remove the marker file."
+        }
+    }
+
+    # Marker missing
+    $stablePgExists = Test-DockerVolumeExistsLocal $expected.Postgres
+    $stableMinioExists = Test-DockerVolumeExistsLocal $expected.Minio
+
+    if ($stablePgExists -and $stableMinioExists) {
+        $counts = Get-DatabaseCounts
+        if (-not $counts -or $counts.users -eq 0) {
+            Write-Warn "Stable volumes exist but database is empty. Treating as first install."
+            $script:FreshInstall = $true
+        }
+        else {
+            Write-Warn "Stable volumes exist but installation marker is missing. Recreating marker."
+            Write-InstallMarker | Out-Null
+            Write-Ok "Installation marker recreated."
+        }
+        return
+    }
+
+    throw "Unable to confirm local database state. Please inspect Docker volumes and installation marker."
+}
 
 function Assert-Command($Name) {
     if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
@@ -442,6 +568,9 @@ foreach ($p in $devPorts) {
 # 6. Ensure Docker and start infrastructure
 Ensure-Docker
 
+# 6a. Guardrails for permanent local data (container-independent)
+Install-LocalDataGuardrails
+
 Write-Info "Stopping any previous LetsChat containers..."
 docker compose down --remove-orphans --timeout 10 2>$null | Out-Null
 if ($LASTEXITCODE -ne 0) {
@@ -470,6 +599,9 @@ foreach ($svc in $infra) {
     Write-Ok "$($svc.Name) is ready"
 }
 
+# 6b. Confirm database state now that the container is running
+Confirm-LocalDatabaseState
+
 # 7. Dependencies
 Write-Info "Installing dependencies (pnpm install)..."
 Invoke-Native pnpm @("install")
@@ -478,11 +610,27 @@ Invoke-Native pnpm @("install")
 Write-Info "Generating Prisma client..."
 Invoke-Native pnpm @("db:generate")
 
+# Safety backup before applying migrations when data already exists.
+if (-not $script:FreshInstall) {
+    $preMigrationBackup = Backup-LetsChatDataIfPopulated -Reason "pre-migration"
+    if ($preMigrationBackup) {
+        Write-Info "Pre-migration backup: $($preMigrationBackup.FullName)"
+    }
+}
+else {
+    Write-Info "Fresh install: skipping pre-migration backup."
+}
+
 Write-Info "Running local migrations..."
 Invoke-Native pnpm @("db:migrate:local")
 
 Write-Info "Seeding local data..."
 Invoke-Native pnpm @("db:seed:local")
+
+if ($script:FreshInstall -and -not (Read-InstallMarker)) {
+    Write-InstallMarker | Out-Null
+    Write-Ok "Installation marker created for new installation."
+}
 
 # 9. Start API
 $ApiOut = "$RepoRoot\logs\dev-api.out.log"
@@ -535,18 +683,39 @@ Write-Ok "API health is 200"
 
 Write-Ok ""
 if ($VercelBackend) {
+    $volumes = Get-LetsChatExpectedVolumes
+    $counts = Get-DatabaseCounts
+    $latestBackup = Get-LatestBackup
+    $marker = Read-InstallMarker
+    $installKind = if ($marker) { "existing" } else { "first-install" }
+
     Write-Ok "=== Vercel + local backend is ready ==="
+    Write-Info "Vercel frontend is connected to LOCAL API."
+    Write-Info "Render is not used."
+    Write-Info "Database:     letschat_local"
+    Write-Info "PG volume:    $($volumes.Postgres)"
+    Write-Info "MinIO volume: $($volumes.Minio)"
+    if ($counts) {
+        Write-Info "Users:        $($counts.users), Messages: $($counts.messages), Attachments: $($counts.attachments), Workspaces: $($counts.workspaces)"
+    }
+    Write-Info "Installation: $installKind"
+    Write-Info "Marker:       $(Get-LetsChatInstallMarkerPath)"
+    if ($latestBackup) {
+        Write-Info "Latest backup: $($latestBackup.Name)"
+    }
+    else {
+        Write-Warn "No successful backup found yet."
+    }
     Write-Info "Vercel Web:   https://lets-chat-web.vercel.app"
     Write-Info "Local API:    http://localhost:3001/api/v1"
     Write-Info "API health:   http://localhost:3001/api/v1/health"
-    Write-Info "Database:     local Docker Postgres"
     if ($Mailpit) {
         Write-Info "Mailpit:      http://localhost:8025"
     }
     else {
         Write-Info "Mail mode:    real provider from .env"
     }
-    Write-Info "Override URL: https://lets-chat-web.vercel.app/?apiUrl=http://localhost:3001/api/v1&wsUrl=ws://localhost:3001"
+    Write-Info "Override URL: https://lets-chat-web.vercel.app/login?apiUrl=http://localhost:3001/api/v1&wsUrl=ws://localhost:3001"
     Write-Warn "Run stop-vercel-local-backend.bat to stop."
 }
 else {
