@@ -318,6 +318,21 @@ if (-not $SkipRollback) {
 
             Invoke-Native docker @("run", "--rm", "-v", "${activeMinio}:/data", "alpine", "sh", "-c", "echo stale > /data/stale-rollback.txt")
 
+            $originalCounts = $null
+            $countContainer = "test-count-pg-$suffix"
+            try {
+                Invoke-Native docker @("run", "-d", "--name", $countContainer,
+                    "-e", "POSTGRES_USER=letschat",
+                    "-e", "POSTGRES_PASSWORD=letschat",
+                    "-v", "${activePg}:/var/lib/postgresql/data",
+                    "postgres:15-alpine") | Out-Null
+                if (-not (Wait-PostgresReady -Container $countContainer)) { throw "Count container not ready" }
+                $originalCounts = Get-DatabaseCountsFromContainer -Container $countContainer -DatabaseName "letschat_local"
+            }
+            finally {
+                Remove-DockerContainer $countContainer
+            }
+
             $restoreScript = Join-Path $PSScriptRoot "restore-letschat-local-data.ps1"
             $restoreOutput = & $restoreScript `
                 -BackupPath $backup.FullName `
@@ -345,7 +360,7 @@ if (-not $SkipRollback) {
             if (-not (Wait-PostgresReady -Container $verifyContainer)) { throw "Verify container not ready" }
             try {
                 $counts = Get-DatabaseCountsFromContainer -Container $verifyContainer -DatabaseName "letschat_local"
-                Assert ($counts.users -eq $manifest.counts.users) "User count mismatch after rollback"
+                Assert ($counts.users -eq $originalCounts.users) "User count mismatch after rollback"
             }
             finally {
                 Remove-DockerContainer $verifyContainer

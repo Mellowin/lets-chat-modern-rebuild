@@ -41,16 +41,21 @@ function Write-Err($msg) { Write-Host $msg -ForegroundColor Red }
 $script:FreshInstall = $false
 
 function Install-LocalDataGuardrails() {
-    $markerStatus = Test-InstallMarker
     $expected = Get-LetsChatExpectedVolumes
+    $markerStatus = Test-InstallMarkerStructure
     $legacyCandidates = Find-LegacyLetsChatVolumes
 
     switch ($markerStatus) {
         "Valid" {
+            $marker = Read-InstallMarker
+            if (-not (Test-ExpectedVolumes -Marker $marker)) {
+                Write-Err "CRITICAL: Installation marker volume names do not match expected stable volumes."
+                throw "Aborting startup due to marker/volume mismatch."
+            }
             if ($legacyCandidates.Count -gt 0) {
                 Write-Warn "Installation marker is valid; ignoring $($legacyCandidates.Count) legacy installation(s)."
             }
-            Write-Ok "Local installation marker is valid. Using stable volumes."
+            Write-Ok "Installation marker is valid and stable volumes exist."
             return
         }
         "VolumeMissing" {
@@ -67,32 +72,21 @@ function Install-LocalDataGuardrails() {
             }
             throw "Aborting startup due to missing expected volume."
         }
+        "VolumeMismatch" {
+            Write-Err "CRITICAL: Installation marker volume names do not match expected stable volumes."
+            throw "Aborting startup due to marker/volume mismatch."
+        }
         "MarkerCorrupt" {
             Write-Err "Installation marker is corrupt: $(Get-LetsChatInstallMarkerPath)"
             throw "Aborting startup. Please inspect or remove the marker file."
         }
     }
 
-    # Marker is missing or database is empty.
+    # Marker is missing.
     $stablePgExists = Test-DockerVolumeExists $expected.Postgres
     $stableMinioExists = Test-DockerVolumeExists $expected.Minio
     $stableRedisExists = Test-DockerVolumeExists $expected.Redis
     $stableMailpitExists = Test-DockerVolumeExists $expected.Mailpit
-
-    if ($stablePgExists -and $stableMinioExists -and $stableRedisExists -and $stableMailpitExists) {
-        if ($markerStatus -eq "DatabaseEmpty") {
-            $latest = Get-LatestBackup
-            Write-Err "CRITICAL: Stable volumes exist but the database is unexpectedly empty."
-            Write-Err "Do not seed a replacement database silently."
-            if ($latest) {
-                Write-Info "Newest backup: $($latest.FullName)"
-                Write-Info "Run: .\restore-letschat-local-data.bat -BackupPath `"$($latest.FullName)`" -ReplaceActive"
-            }
-            throw "Aborting startup due to empty database."
-        }
-        Write-Warn "Stable volumes exist but installation marker is missing. Marker will be recreated after the database is confirmed reachable."
-        return
-    }
 
     if ($legacyCandidates.Count -gt 1) {
         Write-Err "Multiple verified legacy LetsChat installations found. Cannot guess which to migrate:"
@@ -129,21 +123,39 @@ function Install-LocalDataGuardrails() {
 
     $anyStable = $stablePgExists -or $stableMinioExists -or $stableRedisExists -or $stableMailpitExists
     Write-Info "No existing data found. Initializing a new local installation."
-    Invoke-Native docker @("volume", "create", $expected.Postgres)
-    Invoke-Native docker @("volume", "create", $expected.Minio)
-    Invoke-Native docker @("volume", "create", $expected.Redis)
-    Invoke-Native docker @("volume", "create", $expected.Mailpit)
+    foreach ($key in $expected.Keys) {
+        if (-not (Test-DockerVolumeExists $expected[$key])) {
+            Invoke-Native docker @("volume", "create", $expected[$key])
+        }
+    }
     $script:FreshInstall = -not $anyStable
     Write-Ok "New installation volumes created."
 }
 
 function Confirm-LocalDatabaseState() {
-    $markerStatus = Test-InstallMarker
     $expected = Get-LetsChatExpectedVolumes
+    $markerStatus = Test-InstallMarkerStructure
+
+    # Wait for PostgreSQL to be reachable before validating content.
+    if (-not (Wait-PostgresReady -Container "letschat-postgres" -TimeoutSeconds 90)) {
+        $logs = docker logs letschat-postgres 2>&1
+        throw "PostgreSQL did not become ready within timeout. Container logs:`n$logs"
+    }
+
+    $counts = $null
+    try {
+        $counts = Confirm-RunningDatabaseState -Container "letschat-postgres" -DatabaseName "letschat_local"
+    }
+    catch {
+        if ($markerStatus -eq "Valid") {
+            throw "Installation marker is valid but database validation failed: $_"
+        }
+        # For a missing marker, an empty/uninitialized database is a normal first-install state.
+        Write-Warn "Database is empty or not yet initialized: $_"
+    }
 
     switch ($markerStatus) {
         "Valid" {
-            $counts = Get-DatabaseCounts
             if (-not $counts -or $counts.users -eq 0) {
                 $latest = Get-LatestBackup
                 Write-Err "CRITICAL: Installation marker exists but the database is unexpectedly empty."
@@ -161,6 +173,10 @@ function Confirm-LocalDatabaseState() {
             Write-Err "CRITICAL: Installation marker exists but expected volume is missing."
             throw "Aborting startup due to missing expected volume."
         }
+        "VolumeMismatch" {
+            Write-Err "CRITICAL: Installation marker volume names do not match expected stable volumes."
+            throw "Aborting startup due to marker/volume mismatch."
+        }
         "MarkerCorrupt" {
             Write-Err "Installation marker is corrupt: $(Get-LetsChatInstallMarkerPath)"
             throw "Aborting startup. Please inspect or remove the marker file."
@@ -172,7 +188,6 @@ function Confirm-LocalDatabaseState() {
     $stableMinioExists = Test-DockerVolumeExists $expected.Minio
 
     if ($stablePgExists -and $stableMinioExists) {
-        $counts = Get-DatabaseCounts
         if (-not $counts -or $counts.users -eq 0) {
             Write-Warn "Stable volumes exist but database is empty. Treating as first install."
             $script:FreshInstall = $true

@@ -35,22 +35,25 @@ function Get-LatestBackup {
 }
 
 function Read-InstallMarker {
-    if (-not (Test-Path $script:MarkerFile)) { return $null }
+    param([string]$MarkerPath = $script:MarkerFile)
+    if (-not (Test-Path $MarkerPath)) { return $null }
     try {
-        return Get-Content $script:MarkerFile -Raw | ConvertFrom-Json
+        return Get-Content $MarkerPath -Raw | ConvertFrom-Json
     }
     catch {
-        return $null
+        throw "Installation marker at '$MarkerPath' is not valid JSON: $_"
     }
 }
 
 function Write-InstallMarker {
     param(
         [string]$InstallId = [guid]::NewGuid().ToString(),
-        [string]$DatabaseName = "letschat_local"
+        [string]$DatabaseName = "letschat_local",
+        [string]$MarkerPath = $script:MarkerFile
     )
-    if (-not (Test-Path $script:InstallDir)) {
-        New-Item -ItemType Directory -Path $script:InstallDir -Force | Out-Null
+    $dir = Split-Path -Parent $MarkerPath
+    if (-not (Test-Path $dir)) {
+        New-Item -ItemType Directory -Path $dir -Force | Out-Null
     }
     $marker = [ordered]@{
         installId          = $InstallId
@@ -63,7 +66,7 @@ function Write-InstallMarker {
         createdBy          = "start-local-dev.ps1"
         dataDirectory      = $script:InstallDir
     }
-    $marker | ConvertTo-Json -Depth 3 | Out-File -FilePath $script:MarkerFile -Encoding utf8
+    $marker | ConvertTo-Json -Depth 3 | Out-File -FilePath $MarkerPath -Encoding utf8
     return $marker
 }
 
@@ -71,17 +74,28 @@ enum MarkerStatus {
     Missing
     Valid
     VolumeMissing
-    DatabaseEmpty
+    VolumeMismatch
     MarkerCorrupt
+    DatabaseEmpty
 }
 
-function Test-InstallMarker {
-    $marker = Read-InstallMarker
+function Test-InstallMarkerStructure {
+    param([string]$MarkerPath = $script:MarkerFile)
+    $marker = $null
+    try {
+        $marker = Read-InstallMarker -MarkerPath $MarkerPath
+    }
+    catch {
+        return [MarkerStatus]::MarkerCorrupt
+    }
     if (-not $marker) {
         return [MarkerStatus]::Missing
     }
-    if (-not $marker.postgresVolume -or -not $marker.minioVolume -or -not $marker.redisVolume -or -not $marker.mailpitVolume -or -not $marker.databaseName) {
-        return [MarkerStatus]::MarkerCorrupt
+    $requiredFields = @('postgresVolume', 'minioVolume', 'redisVolume', 'mailpitVolume', 'databaseName')
+    foreach ($field in $requiredFields) {
+        if (-not $marker.$field) {
+            return [MarkerStatus]::MarkerCorrupt
+        }
     }
 
     $pgExists = Test-DockerVolumeExists $marker.postgresVolume
@@ -92,24 +106,55 @@ function Test-InstallMarker {
         return [MarkerStatus]::VolumeMissing
     }
 
-    # Try to read user count from the database.
-    try {
-        $tempSql = Join-Path $env:TEMP "letschat-marker-check-$(Get-Date -Format 'yyyyMMdd-HHmmss-fff').sql"
-        'SELECT count(*)::text FROM "User";' | Out-File -FilePath $tempSql -Encoding utf8 -Force
-        $containerSql = "/tmp/letschat-marker-check.sql"
-        docker cp $tempSql "letschat-postgres:${containerSql}" | Out-Null
-        $result = docker exec letschat-postgres psql -U letschat -d $marker.databaseName -t -A -f $containerSql 2>$null
-        Remove-Item -LiteralPath $tempSql -Force -ErrorAction SilentlyContinue
-        $count = [int]($result.Trim())
-        if ($count -eq 0) {
-            return [MarkerStatus]::DatabaseEmpty
-        }
+    return [MarkerStatus]::Valid
+}
+
+function Test-ExpectedVolumes {
+    param(
+        [Parameter(Mandatory)] [object]$Marker,
+        [hashtable]$ExpectedVolumes = (Get-LetsChatExpectedVolumes)
+    )
+    if (
+        $Marker.postgresVolume -ne $ExpectedVolumes.Postgres -or
+        $Marker.minioVolume -ne $ExpectedVolumes.Minio -or
+        $Marker.redisVolume -ne $ExpectedVolumes.Redis -or
+        $Marker.mailpitVolume -ne $ExpectedVolumes.Mailpit
+    ) {
+        return $false
     }
-    catch {
-        return [MarkerStatus]::DatabaseEmpty
+    return $true
+}
+
+function Confirm-RunningDatabaseState {
+    param(
+        [string]$Container = "letschat-postgres",
+        [string]$DatabaseName = "letschat_local",
+        [int]$TimeoutSeconds = 90
+    )
+    if (-not (Wait-PostgresReady -Container $Container -TimeoutSeconds $TimeoutSeconds)) {
+        $logs = docker logs $Container 2>&1
+        throw "PostgreSQL container '$Container' did not become ready within ${TimeoutSeconds}s.`nContainer logs:`n$logs"
     }
 
-    return [MarkerStatus]::Valid
+    $dbs = Get-DatabasesOnContainer -Container $Container
+    if (-not $dbs -or $dbs -notcontains $DatabaseName) {
+        throw "Database '$DatabaseName' not found on running container '$Container'. Available databases: $($dbs -join ', ')"
+    }
+
+    if (-not (Test-HasRequiredTables -Container $Container -DatabaseName $DatabaseName)) {
+        throw "Required tables are missing in database '$DatabaseName' on container '$Container'."
+    }
+
+    $counts = Get-DatabaseCountsFromContainer -Container $Container -DatabaseName $DatabaseName
+    if (-not $counts) {
+        throw "Could not read database counts from running container '$Container'."
+    }
+    return $counts
+}
+
+function Test-DockerContainerRunning($Name) {
+    $result = Invoke-DockerSilently -Arguments @("ps", "-q", "-f", "name=^${Name}$")
+    return ($result.ExitCode -eq 0 -and -not [string]::IsNullOrWhiteSpace($result.StdOut))
 }
 
 function Invoke-Native {
@@ -252,6 +297,35 @@ function Get-DatabaseCounts {
     return Get-DatabaseCountsFromContainer -Container "letschat-postgres" -DatabaseName "letschat_local"
 }
 
+function Start-BackupPostgres {
+    param(
+        [Parameter(Mandatory)] [string]$ContainerName,
+        [string]$SourceVolume = "letschat-postgres-data",
+        [string]$Image = "postgres:15-alpine",
+        [int]$TimeoutSeconds = 90
+    )
+    if (-not (Test-DockerVolumeExists $SourceVolume)) {
+        throw "PostgreSQL volume '$SourceVolume' does not exist. Cannot start backup container."
+    }
+    Invoke-Native docker @(
+        "run", "-d", "--name", $ContainerName,
+        "-e", "POSTGRES_USER=letschat",
+        "-e", "POSTGRES_PASSWORD=letschat",
+        "-v", "${SourceVolume}:/var/lib/postgresql/data",
+        $Image
+    ) | Out-Null
+    if (-not (Wait-PostgresReady -Container $ContainerName -TimeoutSeconds $TimeoutSeconds)) {
+        $logs = docker logs $ContainerName 2>&1
+        Stop-BackupPostgres -ContainerName $ContainerName
+        throw "Backup PostgreSQL container '$ContainerName' did not become ready.`nLogs:`n$logs"
+    }
+    return $ContainerName
+}
+
+function Stop-BackupPostgres($ContainerName) {
+    Remove-DockerContainer $ContainerName
+}
+
 function Start-DiagnosticPostgres {
     param(
         [Parameter(Mandatory)] [string]$SourceVolume,
@@ -382,7 +456,12 @@ Export-ModuleMember -Function @(
     "Get-LatestBackup"
     "Read-InstallMarker"
     "Write-InstallMarker"
-    "Test-InstallMarker"
+    "Test-InstallMarkerStructure"
+    "Test-ExpectedVolumes"
+    "Confirm-RunningDatabaseState"
+    "Test-DockerContainerRunning"
+    "Start-BackupPostgres"
+    "Stop-BackupPostgres"
     "Invoke-Native"
     "Invoke-DockerSilently"
     "Remove-DockerContainer"

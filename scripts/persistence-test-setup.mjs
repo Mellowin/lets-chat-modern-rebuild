@@ -54,7 +54,7 @@ async function main() {
   const workspace = await apiCall("/workspaces", {
     method: "POST",
     headers: authHeaders,
-    body: JSON.stringify({ name: "Persistence Test Workspace", slug: "persistence-test" }),
+    body: JSON.stringify({ name: "Persistence Test Workspace", slug: `persistence-test-${Date.now()}` }),
   });
 
   // 3. Create channel
@@ -117,8 +117,9 @@ async function main() {
     userId,
     workspaceId: workspace.id,
     channelId: channel.id,
-    attachmentId: attachment.id,
+    attachmentId: message2.attachments?.[0]?.id || attachment.id,
     attachmentStorageKey: attachment.storageKey,
+    attachmentMessageId: message2.id,
     messageIds: [message1.id, message2.id],
   };
   console.log(JSON.stringify(result, null, 2));

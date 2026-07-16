@@ -12,8 +12,10 @@
 import { readFileSync } from "fs";
 
 const API = "http://localhost:3001/api/v1";
-const idsPath = process.env.PERSISTENCE_IDS || "./scripts/temp_persistence_ids.json";
+const idsPath = process.env.PERSISTENCE_IDS || "./scripts/persistence-test-ids.json";
 const ids = JSON.parse(readFileSync(idsPath, "utf8"));
+
+const ORIGINAL_ATTACHMENT_TEXT = "Hello from persistence test";
 
 async function apiCall(path, options = {}) {
   const url = `${API}${path}`;
@@ -33,6 +35,10 @@ async function apiCall(path, options = {}) {
     throw new Error(`HTTP ${res.status} ${url}: ${JSON.stringify(body)}`);
   }
   return body;
+}
+
+function attachmentFileUrl(messageId, attachmentId) {
+  return `/workspaces/${ids.workspaceId}/channels/${ids.channelId}/messages/${messageId}/attachments/${attachmentId}/file`;
 }
 
 async function main() {
@@ -63,15 +69,74 @@ async function main() {
     console.log(`✅ Message exists: ${id}`);
   }
 
-  const download = await fetch(`${API}/attachments/${ids.attachmentStorageKey}`, { headers: authHeaders });
-  if (!download.ok) {
-    throw new Error(`Attachment download failed: ${download.status}`);
+  // Determine the message that owns the attachment.
+  let attachmentMessageId = ids.attachmentMessageId;
+  if (!attachmentMessageId) {
+    const candidates = messages.items.filter((m) =>
+      Array.isArray(m.attachments) && m.attachments.some((a) => a.id === ids.attachmentId),
+    );
+    if (candidates.length !== 1) {
+      throw new Error(
+        `IDs file is missing attachmentMessageId and migration fallback is ambiguous (${candidates.length} candidates). Regenerate the persistence fixture.`,
+      );
+    }
+    attachmentMessageId = candidates[0].id;
+    console.log(`⚠️ Migrated missing attachmentMessageId to ${attachmentMessageId}`);
   }
+
+  const downloadUrl = `${API}${attachmentFileUrl(attachmentMessageId, ids.attachmentId)}`;
+  console.log(`Downloading attachment via scoped route: ${downloadUrl}`);
+  const download = await fetch(downloadUrl, { headers: authHeaders });
+  if (!download.ok) {
+    throw new Error(`Attachment download failed: ${download.status} ${download.statusText}`);
+  }
+  const contentType = download.headers.get("content-type") || "";
+  const contentDisposition = download.headers.get("content-disposition") || "";
   const content = await download.text();
-  if (!content.includes("Hello from persistence test")) {
+
+  if (!contentType.includes("text/plain")) {
+    throw new Error(`Unexpected content-type: ${contentType}`);
+  }
+  console.log(`✅ Content-Type OK: ${contentType}`);
+
+  if (!contentDisposition.includes("persistence-test.txt")) {
+    throw new Error(`Unexpected Content-Disposition: ${contentDisposition}`);
+  }
+  console.log(`✅ Content-Disposition OK: ${contentDisposition}`);
+
+  if (!content.includes(ORIGINAL_ATTACHMENT_TEXT)) {
     throw new Error("Attachment content mismatch");
   }
-  console.log(`✅ Attachment download OK: ${ids.attachmentStorageKey}`);
+  console.log(`✅ Attachment content matches original`);
+
+  // Scoped-route security checks
+  console.log("Checking scoped-route authorization...");
+  const wrongWorkspace = await fetch(
+    `${API}/workspaces/00000000-0000-0000-0000-000000000000/channels/${ids.channelId}/messages/${attachmentMessageId}/attachments/${ids.attachmentId}/file`,
+    { headers: authHeaders },
+  );
+  if (wrongWorkspace.status !== 404 && wrongWorkspace.status !== 403) {
+    throw new Error(`Wrong workspace scope should fail with 404/403, got ${wrongWorkspace.status}`);
+  }
+  console.log(`✅ Wrong workspace scope rejected: ${wrongWorkspace.status}`);
+
+  const wrongAttachment = await fetch(
+    `${API}/workspaces/${ids.workspaceId}/channels/${ids.channelId}/messages/${attachmentMessageId}/attachments/00000000-0000-0000-0000-000000000000/file`,
+    { headers: authHeaders },
+  );
+  if (wrongAttachment.status !== 404) {
+    throw new Error(`Wrong attachment scope should fail with 404, got ${wrongAttachment.status}`);
+  }
+  console.log(`✅ Wrong attachment scope rejected: ${wrongAttachment.status}`);
+
+  // Unauthenticated request must fail
+  const unauth = await fetch(downloadUrl);
+  if (unauth.status !== 401 && unauth.status !== 403) {
+    throw new Error(`Unauthenticated request should fail with 401/403, got ${unauth.status}`);
+  }
+  console.log(`✅ Unauthenticated download rejected: ${unauth.status}`);
+
+  console.log(`✅ Attachment download OK via scoped route: ${downloadUrl}`);
 }
 
 main().catch((err) => {

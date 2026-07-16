@@ -7,6 +7,10 @@
     Creates a timestamped backup under %LOCALAPPDATA%\LetsChat\backups\.
     Includes a manifest with counts, volume names and SHA-256 checksums.
     Retains the latest 14 successful backups.
+
+    Works whether the normal PostgreSQL container is running or stopped. When
+    stopped, a uniquely named temporary PostgreSQL 15 container is launched
+    against the stable Postgres volume, then removed after the backup.
 #>
 param(
     [string]$BackupRoot = "$env:LOCALAPPDATA\LetsChat\backups",
@@ -19,6 +23,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+Import-Module "$PSScriptRoot\lib\local-data-utils.psm1" -Force
 
 function Write-Info($msg) { Write-Host $msg -ForegroundColor Cyan }
 function Write-Ok($msg) { Write-Host $msg -ForegroundColor Green }
@@ -48,6 +54,10 @@ function Invoke-Native($cmd, $argsArray) {
     }
 }
 
+$backupDir = $null
+$usingTempPg = $false
+$pgContainer = $null
+
 try {
     if (-not (Test-DockerReady)) {
         throw "Docker Engine is not running. Start Docker Desktop first."
@@ -60,12 +70,26 @@ try {
 
     Write-Info "Backup destination: $backupDir"
 
-    # PostgreSQL
-    Write-Info "Dumping PostgreSQL database $DatabaseName..."
+    # Determine PostgreSQL container to use.
+    $normalContainer = "letschat-postgres"
+    if (Test-DockerContainerRunning -Name $normalContainer) {
+        Write-Info "Using running PostgreSQL container '$normalContainer'."
+        $pgContainer = $normalContainer
+    }
+    else {
+        Write-Warn "Normal PostgreSQL container is not running. Starting a temporary backup container..."
+        $pgContainer = "letschat-backup-pg-$timestamp"
+        Start-BackupPostgres -ContainerName $pgContainer -SourceVolume $PostgresVolume | Out-Null
+        $usingTempPg = $true
+        Write-Ok "Temporary backup container '$pgContainer' is ready."
+    }
+
+    # PostgreSQL dump
+    Write-Info "Dumping PostgreSQL database $DatabaseName from '$pgContainer'..."
     $pgDumpPath = "/tmp/letschat-local-$timestamp.dump"
-    Invoke-Native docker @("exec", "letschat-postgres", "pg_dump", "-U", "letschat", "-d", $DatabaseName, "-Fc", "-f", $pgDumpPath)
+    Invoke-Native docker @("exec", $pgContainer, "pg_dump", "-U", "letschat", "-d", $DatabaseName, "-Fc", "-f", $pgDumpPath)
     $pgLocal = Join-Path $backupDir "letschat_local.dump"
-    Invoke-Native docker @("cp", "letschat-postgres:${pgDumpPath}", $pgLocal)
+    Invoke-Native docker @("cp", "${pgContainer}:${pgDumpPath}", $pgLocal)
 
     # MinIO
     Write-Info "Archiving MinIO data..."
@@ -108,28 +132,16 @@ try {
         workspaces = 0
     }
     if (-not $SkipCounts) {
-        Write-Info "Collecting database counts..."
-        $countSql = @"
-SELECT 'users' AS k, count(*)::text AS v FROM "User"
-UNION ALL
-SELECT 'messages', count(*)::text FROM "Message"
-UNION ALL
-SELECT 'attachments', count(*)::text FROM "Attachment"
-UNION ALL
-SELECT 'workspaces', count(*)::text FROM "Workspace";
-"@
-        $tempSqlFile = Join-Path $env:TEMP "letschat-counts-$timestamp.sql"
-        $countSql | Out-File -FilePath $tempSqlFile -Encoding utf8 -Force
-        $containerSql = "/tmp/counts-$timestamp.sql"
-        Invoke-Native docker @("cp", $tempSqlFile, "letschat-postgres:${containerSql}")
-        $countResult = docker exec letschat-postgres psql -U letschat -d $DatabaseName -t -A -F"," -f $containerSql
-        foreach ($line in $countResult -split "`r?`n") {
-            $line = $line.Trim()
-            if ($line -match "^(\w+),(\d+)$") {
-                $counts[$matches[1]] = [int]$matches[2]
+        Write-Info "Collecting database counts from '$pgContainer'..."
+        $dbCounts = Get-DatabaseCountsFromContainer -Container $pgContainer -DatabaseName $DatabaseName
+        if (-not $dbCounts) {
+            throw "Could not collect database counts from '$pgContainer'."
+        }
+        foreach ($key in @($counts.Keys)) {
+            if ($dbCounts.ContainsKey($key)) {
+                $counts[$key] = $dbCounts[$key]
             }
         }
-        Remove-Item -LiteralPath $tempSqlFile -Force -ErrorAction SilentlyContinue
     }
 
     # Checksums
@@ -202,4 +214,9 @@ catch {
         Remove-Item -LiteralPath $backupDir -Recurse -Force -ErrorAction SilentlyContinue
     }
     exit 1
+}
+finally {
+    if ($usingTempPg -and $pgContainer) {
+        Stop-BackupPostgres -ContainerName $pgContainer | Out-Null
+    }
 }
