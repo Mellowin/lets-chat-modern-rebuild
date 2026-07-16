@@ -263,7 +263,7 @@ function Reset-VolumeEmpty($Name) {
     Invoke-Native docker @("volume", "create", $Name)
 }
 
-function Invoke-EmergencyBackup($backupRoot, $pgVol, $minioVol, $redisVol, $mailpitVol) {
+function Invoke-EmergencyBackup($backupRoot, $pgVol, $minioVol, $redisVol, $mailpitVol, $DatabaseName = "letschat_local") {
     $stableContainer = "letschat-postgres"
     $startedTemp = $false
     $tempContainer = $null
@@ -308,7 +308,8 @@ function Invoke-EmergencyBackup($backupRoot, $pgVol, $minioVol, $redisVol, $mail
             -MinioVolume $minioVol `
             -RedisVolume $redisVol `
             -MailpitVolume $mailpitVol `
-            -PostgresContainer $container
+            -PostgresContainer $container `
+            -DatabaseName $DatabaseName
     }
     finally {
         if ($startedTemp -and $tempContainer) {
