@@ -644,11 +644,8 @@ if (-not $SkipEmergency) {
                 -Force
             if ($global:LASTEXITCODE -ne 0) { throw "ReplaceActive exited with code $($global:LASTEXITCODE)" }
 
-            $emergencyRoot = Get-EmergencyBackupRoot
-            $emergencyBackup = Get-ChildItem -Directory -Path $emergencyRoot -Filter "letschat-local-*" |
-                Sort-Object CreationTime -Descending |
-                Select-Object -First 1
-            Assert ($emergencyBackup) "Emergency backup was not created in $emergencyRoot"
+            $emergencyBackup = Get-LatestEmergencyBackup
+            Assert ($emergencyBackup) "Emergency backup was not created in $(Get-EmergencyBackupRoot)"
             $emergencyManifest = Read-TestManifest $emergencyBackup.FullName
             Assert ($emergencyManifest.countsCollected -eq $true) "Emergency backup countsCollected should be true, got $($emergencyManifest.countsCollected)"
             Assert ($emergencyManifest.counts.users -gt 0) "Emergency backup of populated DB should have non-zero users, got $($emergencyManifest.counts.users)"
@@ -688,10 +685,7 @@ if (-not $SkipEmergency) {
                 -Force
             if ($global:LASTEXITCODE -ne 0) { throw "ReplaceActive exited with code $($global:LASTEXITCODE)" }
 
-            $emergencyRoot = Get-EmergencyBackupRoot
-            $emergencyBackup = Get-ChildItem -Directory -Path $emergencyRoot -Filter "letschat-local-*" |
-                Sort-Object CreationTime -Descending |
-                Select-Object -First 1
+            $emergencyBackup = Get-LatestEmergencyBackup
             Assert ($emergencyBackup) "Emergency backup was not created"
 
             & $restoreScript -BackupPath $emergencyBackup.FullName -Drill

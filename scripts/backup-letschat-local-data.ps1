@@ -11,6 +11,10 @@
     Works whether the normal PostgreSQL container is running or stopped. When
     stopped, a uniquely named temporary PostgreSQL 15 container is launched
     against the stable Postgres volume, then removed after the backup.
+
+    MinIO is quiesced before the consistency window (PostgreSQL dump + MinIO
+    archive) so the archive cannot capture a non-atomic mix of object and
+    metadata state. MinIO is restarted only when it was running before backup.
 #>
 param(
     [string]$BackupRoot = "$env:LOCALAPPDATA\LetsChat\backups",
@@ -55,9 +59,43 @@ function Invoke-Native($cmd, $argsArray) {
     }
 }
 
+function Stop-WriterContainers($names) {
+    foreach ($name in $names) {
+        Write-Info "Stopping writer container '$name'..."
+        Invoke-Native docker @("stop", $name)
+    }
+}
+
+function Start-WriterContainers($names) {
+    foreach ($name in $names) {
+        Write-Info "Restarting writer container '$name'..."
+        Invoke-Native docker @("start", $name)
+    }
+}
+
+function Get-ApiWriterContainers() {
+    # The local API may run as a container named letschat-api or as a service in
+    # the same compose project. Stop only clearly named API containers; never
+    # stop unrelated project containers.
+    $candidates = @("letschat-api")
+    $found = @()
+    foreach ($name in $candidates) {
+        if (Test-DockerContainerRunning -Name $name) {
+            $found += $name
+        }
+    }
+    return $found
+}
+
 $backupDir = $null
 $usingTempPg = $false
 $pgContainer = $null
+$minioContainers = @()
+$apiContainers = @()
+$minioWasRunning = $false
+$consistencyStartedAt = $null
+$consistencyCompletedAt = $null
+$minioQuiesced = $false
 
 try {
     if (-not (Test-DockerReady)) {
@@ -92,6 +130,27 @@ try {
         Write-Ok "Temporary backup container '$pgContainer' is ready."
     }
 
+    # Quiesce attachment writers before the consistency window.
+    $minioContainers = @(Get-LetsChatRunningMinioContainersForVolume -Volume $MinioVolume)
+    $minioWasRunning = $minioContainers.Count -gt 0
+    $apiContainers = @(Get-ApiWriterContainers)
+
+    if ($minioWasRunning -or $apiContainers.Count -gt 0) {
+        $consistencyStartedAt = Get-Date -Format "o"
+        Write-Info "Quiescing attachment writers before consistency window..."
+        if ($minioContainers.Count -gt 0) {
+            Stop-WriterContainers -names $minioContainers
+        }
+        if ($apiContainers.Count -gt 0) {
+            Stop-WriterContainers -names $apiContainers
+        }
+        $minioQuiesced = $true
+        Write-Ok "Attachment writers quiesced."
+    }
+    else {
+        Write-Info "No running MinIO/API writer containers found for volume '$MinioVolume'; archive will be created from stopped volume."
+    }
+
     # PostgreSQL dump
     Write-Info "Dumping PostgreSQL database $DatabaseName from '$pgContainer'..."
     $pgDumpPath = "/tmp/letschat-local-$timestamp.dump"
@@ -109,6 +168,9 @@ try {
         "alpine",
         "tar", "czf", "/backup/minio-data.tar.gz", "-C", "/data", "."
     )
+
+    $minioFileCount = Test-MinioArchiveSafe -ArchivePath $minioTar
+    Write-Ok "MinIO archive validated: $minioFileCount file(s), no absolute paths."
 
     # Redis
     Write-Info "Archiving Redis data..."
@@ -131,6 +193,10 @@ try {
         "alpine",
         "tar", "czf", "/backup/mailpit-data.tar.gz", "-C", "/data", "."
     )
+
+    if ($minioQuiesced) {
+        $consistencyCompletedAt = Get-Date -Format "o"
+    }
 
     $counts = [ordered]@{
         users = 0
@@ -179,6 +245,12 @@ try {
         mailpitVolume = $MailpitVolume
         countsCollected = $countsCollected
         counts = $counts
+        minioQuiesced = $minioQuiesced
+        minioWasRunning = $minioWasRunning
+        minioFileCount = $minioFileCount
+        minioArchiveSha256 = ($manifestFiles | Where-Object { $_.name -eq "minio-data.tar.gz" }).sha256
+        consistencyStartedAt = $consistencyStartedAt
+        consistencyCompletedAt = $consistencyCompletedAt
         files = $manifestFiles
     }
 
@@ -228,5 +300,21 @@ catch {
 finally {
     if ($usingTempPg -and $pgContainer) {
         Stop-BackupPostgres -ContainerName $pgContainer | Out-Null
+    }
+    if ($minioWasRunning -and $minioContainers.Count -gt 0) {
+        try {
+            Start-WriterContainers -names $minioContainers
+        }
+        catch {
+            Write-Err "CRITICAL: Backup completed but MinIO containers could not be restarted: $_"
+        }
+    }
+    if ($apiContainers.Count -gt 0) {
+        try {
+            Start-WriterContainers -names $apiContainers
+        }
+        catch {
+            Write-Err "CRITICAL: Backup completed but API writer containers could not be restarted: $_"
+        }
     }
 }

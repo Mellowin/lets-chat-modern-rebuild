@@ -41,7 +41,8 @@ param(
     [string]$ActiveMailpitVolume = "letschat-mailpit-data",
     [switch]$Force,
     [switch]$ForceEmergencyValidationFailure,
-    [switch]$ForceValidationFailureAfterCopy
+    [switch]$ForceValidationFailureAfterCopy,
+    [switch]$KeepDrill
 )
 
 $ErrorActionPreference = "Stop"
@@ -80,6 +81,17 @@ function Read-Manifest($backupDir) {
         throw "Manifest not found: $manifestPath"
     }
     return Get-Content $manifestPath -Raw | ConvertFrom-Json
+}
+
+function Get-ValidatedTargetDatabase($manifest) {
+    if (-not $manifest.database) {
+        throw "Manifest is missing the required 'database' field. This backup was created before database-name tracking was enforced and cannot be restored safely. Create a new backup with the current backup script."
+    }
+    $target = $manifest.database
+    if (-not (Test-SafeDatabaseName -Name $target)) {
+        throw "Manifest database name '$target' is not a safe PostgreSQL identifier. Refusing to use it."
+    }
+    return $target
 }
 
 function Validate-Backup($backupDir) {
@@ -156,6 +168,7 @@ function Validate-RestoredPostgres($Container, $Manifest) {
 }
 
 function Restore-ToTempVolumes($backupDir, $manifest, $suffix) {
+    $targetDatabase = Get-ValidatedTargetDatabase -manifest $manifest
     $pgVol = "letschat-restore-pg-$suffix"
     $minioVol = "letschat-restore-minio-$suffix"
     $redisVol = "letschat-restore-redis-$suffix"
@@ -188,15 +201,21 @@ function Restore-ToTempVolumes($backupDir, $manifest, $suffix) {
             throw "Temporary PostgreSQL container did not become ready within timeout"
         }
 
-        Write-Info "Creating target database and running pg_restore..."
-        Invoke-Native docker @("exec", $container, "psql", "-U", "letschat", "-d", "postgres", "-c", "CREATE DATABASE letschat_local;")
-        Invoke-Native docker @("exec", $container, "pg_restore", "-U", "letschat", "-d", "letschat_local", "--no-owner", "--no-acl", "/backup/letschat_local.dump")
+        Write-Info "Creating target database '$targetDatabase' and running pg_restore..."
+        Invoke-Native docker @("exec", $container, "psql", "-U", "letschat", "-d", "postgres", "-c", "CREATE DATABASE `"$targetDatabase`";")
+        Invoke-Native docker @("exec", $container, "pg_restore", "-U", "letschat", "-d", $targetDatabase, "--no-owner", "--no-acl", "/backup/letschat_local.dump")
 
         Validate-RestoredPostgres -Container $container -Manifest $manifest
 
-        Invoke-Native docker @("stop", $container)
-        Invoke-Native docker @("rm", $container)
-        $containerStarted = $false
+        if ($KeepDrill) {
+            Write-Info "Keeping temporary PostgreSQL container $container for inspection (-KeepDrill)."
+            $containerStarted = $false
+        }
+        else {
+            Invoke-Native docker @("stop", $container)
+            Invoke-Native docker @("rm", $container)
+            $containerStarted = $false
+        }
 
         Restore-TarArchive -backupDir $backupDir -archiveName "minio-data.tar.gz" -volume $minioVol
         Restore-TarArchive -backupDir $backupDir -archiveName "redis-data.tar.gz" -volume $redisVol
@@ -467,13 +486,13 @@ try {
             }
         }
 
+        Confirm-ReplaceActiveDatabaseAllowed -TargetDatabase $manifest.database
+
         $emergencyRoot = Join-Path $BackupRoot "emergency"
         Write-Info "Creating emergency backup of active data..."
-        Invoke-EmergencyBackup -backupRoot $emergencyRoot -pgVol $ActivePostgresVolume -minioVol $ActiveMinioVolume -redisVol $ActiveRedisVolume -mailpitVol $ActiveMailpitVolume
+        Invoke-EmergencyBackup -backupRoot $emergencyRoot -pgVol $ActivePostgresVolume -minioVol $ActiveMinioVolume -redisVol $ActiveRedisVolume -mailpitVol $ActiveMailpitVolume -DatabaseName $manifest.database
 
-        $emergencyBackupDir = Get-ChildItem -Directory -Path $emergencyRoot -Filter "letschat-local-*" |
-            Sort-Object CreationTime -Descending |
-            Select-Object -First 1
+        $emergencyBackupDir = Get-LatestBackup -Root $emergencyRoot
         if (-not $emergencyBackupDir) {
             throw "Emergency backup was not created in $emergencyRoot"
         }
@@ -565,9 +584,11 @@ try {
     }
     else {
         Write-Info "Drill mode: active data was not modified."
-        Write-Info "Cleaning up temporary validation volumes..."
-        Remove-TempVolumes $tempVolumes
-        $tempVolumes = $null
+        if (-not $KeepDrill) {
+            Write-Info "Cleaning up temporary validation volumes..."
+            Remove-TempVolumes $tempVolumes
+            $tempVolumes = $null
+        }
         Write-Ok "Restore drill completed successfully"
     }
 }
@@ -576,7 +597,7 @@ catch {
     exit 1
 }
 finally {
-    if ($tempVolumes) {
+    if ($tempVolumes -and -not $KeepDrill) {
         Remove-TempVolumes $tempVolumes
     }
 }

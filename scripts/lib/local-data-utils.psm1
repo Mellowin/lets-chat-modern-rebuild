@@ -751,6 +751,122 @@ function Migrate-LegacyToStable {
     }
 }
 
+function Test-SafeDatabaseName {
+    <#
+    .SYNOPSIS
+        Validates that a database identifier is safe to use in SQL. Allows only
+        unquoted PostgreSQL identifiers: [A-Za-z_][A-Za-z0-9_]*. Rejects reserved
+        system databases such as template0, template1 and postgres.
+    #>
+    param(
+        [Parameter(Mandatory)] [AllowEmptyString()] [string]$Name
+    )
+    if ([string]::IsNullOrWhiteSpace($Name)) { return $false }
+    $reserved = @("template0", "template1", "postgres")
+    if ($reserved -contains $Name) { return $false }
+    return $Name -cmatch '^[A-Za-z_][A-Za-z0-9_]*$'
+}
+
+function Get-LetsChatRunningMinioContainersForVolume {
+    <#
+    .SYNOPSIS
+        Returns the names of running containers whose image matches minio* and mount
+        the given volume. Only returns verified LetsChat MinIO containers.
+    #>
+    param(
+        [Parameter(Mandatory)] [string]$Volume
+    )
+    $result = Invoke-DockerSilently -Arguments @("ps", "-q", "--filter", "volume=${Volume}")
+    $containers = @()
+    if ($result.ExitCode -eq 0 -and $result.StdOut) {
+        $ids = @($result.StdOut -split "`r?`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+        foreach ($id in $ids) {
+            $status = Invoke-DockerSilently -Arguments @("inspect", "--format", "{{.State.Status}}", $id)
+            if ($status.ExitCode -ne 0 -or $status.StdOut -ne "running") { continue }
+            $image = Invoke-DockerSilently -Arguments @("inspect", "--format", "{{.Config.Image}}", $id)
+            if ($image.ExitCode -ne 0 -or $image.StdOut -notlike "minio*") { continue }
+            $name = Invoke-DockerSilently -Arguments @("inspect", "--format", "{{.Name}}", $id)
+            if ($name.ExitCode -eq 0 -and $name.StdOut) {
+                $containers += $name.StdOut.Trim().TrimStart('/')
+            }
+            else {
+                $containers += $id
+            }
+        }
+    }
+    return $containers
+}
+
+function Get-MinioVolumeFileCount {
+    <#
+    .SYNOPSIS
+        Counts regular files in a MinIO Docker volume (recursive). Returns -1 on error.
+    #>
+    param(
+        [Parameter(Mandatory)] [string]$Volume
+    )
+    $result = Invoke-DockerSilently -Arguments @("run", "--rm", "-v", "${Volume}:/data:ro", "alpine", "sh", "-c", "find /data -type f | wc -l")
+    if ($result.ExitCode -ne 0) { return -1 }
+    $count = 0
+    if ([int]::TryParse($result.StdOut.Trim(), [ref]$count)) { return $count }
+    return -1
+}
+
+function Test-MinioArchiveSafe {
+    <#
+    .SYNOPSIS
+        Validates a tar.gz MinIO archive: readable, no absolute paths, contains a
+        non-empty object tree. Returns the file count on success, throws otherwise.
+    #>
+    param(
+        [Parameter(Mandatory)] [string]$ArchivePath
+    )
+    if (-not (Test-Path $ArchivePath)) { throw "MinIO archive not found: $ArchivePath" }
+    $list = Invoke-DockerSilently -Arguments @("run", "--rm", "-v", "${ArchivePath}:/archive.tar.gz:ro", "alpine", "tar", "tzf", "/archive.tar.gz")
+    if ($list.ExitCode -ne 0) { throw "MinIO archive is not readable: $($list.StdErr)" }
+    $entries = @($list.StdOut -split "`r?`n" | Where-Object { $_.Trim() })
+    if ($entries.Count -eq 0) { throw "MinIO archive is empty" }
+    foreach ($entry in $entries) {
+        if ($entry -match '^/') { throw "MinIO archive contains absolute path: $entry" }
+    }
+    $files = $entries | Where-Object { -not $_.EndsWith('/') }
+    return $files.Count
+}
+
+function Get-MinioArchiveFileCount {
+    <#
+    .SYNOPSIS
+        Returns the number of regular files in a MinIO tar.gz archive without
+        extracting it. Returns -1 on error.
+    #>
+    param(
+        [Parameter(Mandatory)] [string]$ArchivePath
+    )
+    if (-not (Test-Path $ArchivePath)) { return -1 }
+    $list = Invoke-DockerSilently -Arguments @("run", "--rm", "-v", "${ArchivePath}:/archive.tar.gz:ro", "alpine", "tar", "tzf", "/archive.tar.gz")
+    if ($list.ExitCode -ne 0) { return -1 }
+    $entries = @($list.StdOut -split "`r?`n" | Where-Object { $_.Trim() })
+    $files = $entries | Where-Object { -not $_.EndsWith('/') }
+    return $files.Count
+}
+
+function Confirm-ReplaceActiveDatabaseAllowed {
+    <#
+    .SYNOPSIS
+        Verifies that a ReplaceActive operation is safe for the requested database name.
+        The manifest database name must match the installation marker database name, so
+        the local API configuration stays consistent with the restored data.
+    #>
+    param(
+        [Parameter(Mandatory)] [string]$TargetDatabase
+    )
+    $marker = Read-InstallMarker
+    $expected = if ($marker -and $marker.databaseName) { $marker.databaseName } else { "letschat_local" }
+    if ($TargetDatabase -ne $expected) {
+        throw "ReplaceActive database mismatch: manifest database is '$TargetDatabase' but the local installation marker expects '$expected'. Refusing to replace active volumes with a database name the application configuration cannot use. Either update the marker/.env/database configuration to match or perform a Drill-only restore."
+    }
+}
+
 function Backup-LetsChatDataIfPopulated {
     param([string]$Reason = "pre-migration")
     $counts = Get-DatabaseCounts
@@ -799,5 +915,11 @@ Export-ModuleMember -Function @(
     "Stop-DiagnosticPostgres"
     "Find-LegacyLetsChatVolumes"
     "Migrate-LegacyToStable"
+    "Test-SafeDatabaseName"
+    "Get-LetsChatRunningMinioContainersForVolume"
+    "Get-MinioVolumeFileCount"
+    "Test-MinioArchiveSafe"
+    "Get-MinioArchiveFileCount"
+    "Confirm-ReplaceActiveDatabaseAllowed"
     "Backup-LetsChatDataIfPopulated"
 )
