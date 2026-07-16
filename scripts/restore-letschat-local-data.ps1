@@ -40,6 +40,7 @@ param(
     [string]$ActiveRedisVolume = "letschat-redis-data",
     [string]$ActiveMailpitVolume = "letschat-mailpit-data",
     [switch]$Force,
+    [switch]$ForceEmergencyValidationFailure,
     [switch]$ForceValidationFailureAfterCopy
 )
 
@@ -137,6 +138,16 @@ function Validate-RestoredPostgres($Container, $Manifest) {
     }
     $counts = Get-DatabaseCountsFromContainer -Container $Container -DatabaseName $Manifest.database
     Write-Info "Restored counts: users=$($counts.users) messages=$($counts.messages) attachments=$($counts.attachments) workspaces=$($counts.workspaces)"
+
+    if ($Manifest.countsCollected -eq $false) {
+        Write-Warn "Manifest explicitly records countsCollected=false; skipping count comparison."
+        return
+    }
+    if ($Manifest.countsCollected -ne $true) {
+        Write-Warn "Manifest does not explicitly record countsCollected=true; counts were not verified at backup time. Skipping count comparison for safety."
+        return
+    }
+
     foreach ($key in @("users", "messages", "attachments", "workspaces")) {
         if ($counts[$key] -ne $Manifest.counts.$key) {
             throw "Count mismatch for $key`: expected $($Manifest.counts.$key), got $($counts[$key])"
@@ -234,33 +245,32 @@ function Reset-VolumeEmpty($Name) {
 }
 
 function Invoke-EmergencyBackup($backupRoot, $pgVol, $minioVol, $redisVol, $mailpitVol) {
-    $container = "letschat-postgres"
+    $stableContainer = "letschat-postgres"
     $startedTemp = $false
     $tempContainer = $null
+    $container = $null
 
     try {
-        $runningId = (Invoke-DockerSilently -Arguments @("ps", "-q", "-f", "name=^${container}$")).StdOut
+        $runningId = (Invoke-DockerSilently -Arguments @("ps", "-q", "-f", "name=^${stableContainer}$")).StdOut
         if ($runningId) {
-            $inspect = Invoke-DockerSilently -Arguments @("inspect", $container, "--format", "{{json .Mounts}}")
+            $inspect = Invoke-DockerSilently -Arguments @("inspect", $stableContainer, "--format", "{{json .Mounts}}")
             $pgMount = $null
             if ($inspect.ExitCode -eq 0 -and $inspect.StdOut) {
                 $mounts = $inspect.StdOut | ConvertFrom-Json
                 $pgMount = $mounts | Where-Object { $_.Destination -eq "/var/lib/postgresql/data" } | Select-Object -ExpandProperty Name
             }
-            if ($pgMount -ne $pgVol) {
-                Write-Warn "Running postgres container is mounted to $pgMount, not $pgVol. Stopping it for emergency backup."
-                Remove-DockerContainer $container
-                $runningId = $null
+            if ($pgMount -eq $pgVol) {
+                $container = $stableContainer
+            }
+            else {
+                Write-Warn "Running postgres container is mounted to $pgMount, not $pgVol; using a separate temporary container for emergency backup."
             }
         }
 
-        if (-not $runningId) {
-            $existing = (Invoke-DockerSilently -Arguments @("ps", "-aq", "-f", "name=^${container}$")).StdOut
-            if ($existing) {
-                Remove-DockerContainer $container
-            }
+        if (-not $container) {
             $startedTemp = $true
-            $tempContainer = $container
+            $tempContainer = "letschat-emergency-pg-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+            $container = $tempContainer
             Invoke-Native docker @(
                 "run", "-d", "--name", $container,
                 "-e", "POSTGRES_USER=letschat",
@@ -279,13 +289,61 @@ function Invoke-EmergencyBackup($backupRoot, $pgVol, $minioVol, $redisVol, $mail
             -MinioVolume $minioVol `
             -RedisVolume $redisVol `
             -MailpitVolume $mailpitVol `
-            -SkipCounts
+            -PostgresContainer $container
     }
     finally {
         if ($startedTemp -and $tempContainer) {
             Remove-DockerContainer $tempContainer
         }
     }
+}
+
+function Test-BackupManifestCounts {
+    param(
+        [Parameter(Mandatory)] [object]$Manifest,
+        [switch]$RequireNonZero
+    )
+    if ($Manifest.countsCollected -ne $true) {
+        throw "Emergency backup manifest is missing counts (countsCollected=$($Manifest.countsCollected))."
+    }
+    $countKeys = @("users", "messages", "attachments", "workspaces")
+    foreach ($key in $countKeys) {
+        if ($null -eq $Manifest.counts.$key) {
+            throw "Emergency backup manifest is missing count for '$key'."
+        }
+    }
+    if ($RequireNonZero -and ($Manifest.counts.users -le 0)) {
+        throw "Emergency backup of populated installation reported zero users. Counts: $($Manifest.counts | ConvertTo-Json -Compress)"
+    }
+}
+
+function Validate-EmergencyBackup {
+    param(
+        [Parameter(Mandatory)] [string]$BackupDir,
+        [switch]$ExpectedPopulated,
+        [switch]$ForceFailure
+    )
+    if ($ForceFailure) {
+        throw "Forced emergency backup validation failure for testing."
+    }
+    $manifest = Validate-Backup $BackupDir
+    Test-BackupManifestCounts -Manifest $manifest -RequireNonZero:$ExpectedPopulated
+
+    Write-Info "Running isolated Drill restore of emergency backup..."
+    $suffix = Get-Date -Format "yyyyMMdd-HHmmss"
+    $tempVolumes = $null
+    try {
+        $tempVolumes = Restore-ToTempVolumes -backupDir $BackupDir -manifest $manifest -suffix "emergency-$suffix"
+    }
+    catch {
+        throw "Emergency backup failed isolated Drill validation: $_"
+    }
+    finally {
+        if ($tempVolumes) {
+            Remove-TempVolumes $tempVolumes
+        }
+    }
+    Write-Ok "Emergency backup validated: checksums, pg_restore readability, and counts match."
 }
 
 function Start-StackAndValidate($manifest, [switch]$RequireCountsMatch, [hashtable]$ActiveVolumes) {
@@ -412,6 +470,14 @@ try {
         $emergencyRoot = Join-Path $BackupRoot "emergency"
         Write-Info "Creating emergency backup of active data..."
         Invoke-EmergencyBackup -backupRoot $emergencyRoot -pgVol $ActivePostgresVolume -minioVol $ActiveMinioVolume -redisVol $ActiveRedisVolume -mailpitVol $ActiveMailpitVolume
+
+        $emergencyBackupDir = Get-ChildItem -Directory -Path $emergencyRoot -Filter "letschat-local-*" |
+            Sort-Object CreationTime -Descending |
+            Select-Object -First 1
+        if (-not $emergencyBackupDir) {
+            throw "Emergency backup was not created in $emergencyRoot"
+        }
+        Validate-EmergencyBackup -BackupDir $emergencyBackupDir.FullName -ExpectedPopulated -ForceFailure:$ForceEmergencyValidationFailure
 
         Write-Info "Stopping active containers..."
         Invoke-Native docker @("compose", "down")

@@ -297,6 +297,127 @@ function Get-DatabaseCounts {
     return Get-DatabaseCountsFromContainer -Container "letschat-postgres" -DatabaseName "letschat_local"
 }
 
+function Get-LetsChatRunningPostgresContainerForVolume {
+    <#
+    .SYNOPSIS
+        Returns the name of a running container whose image matches postgres* and mounts the given volume.
+        Returns $null if no healthy running container is found.
+    #>
+    param(
+        [Parameter(Mandatory)] [string]$Volume
+    )
+    $result = Invoke-DockerSilently -Arguments @("ps", "-q", "--filter", "volume=${Volume}")
+    if ($result.ExitCode -eq 0 -and $result.StdOut) {
+        $ids = @($result.StdOut -split "`r?`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+        foreach ($id in $ids) {
+            $status = Invoke-DockerSilently -Arguments @("inspect", "--format", "{{.State.Status}}", $id)
+            if ($status.ExitCode -eq 0 -and $status.StdOut -eq "running") {
+                $image = Invoke-DockerSilently -Arguments @("inspect", "--format", "{{.Config.Image}}", $id)
+                if ($image.ExitCode -eq 0 -and $image.StdOut -like "postgres*") {
+                    $name = Invoke-DockerSilently -Arguments @("inspect", "--format", "{{.Name}}", $id)
+                    if ($name.ExitCode -eq 0 -and $name.StdOut) {
+                        return $name.StdOut.Trim().TrimStart('/')
+                    }
+                    return $id
+                }
+            }
+        }
+    }
+    return $null
+}
+
+function Start-TemporaryPostgresContainer {
+    <#
+    .SYNOPSIS
+        Starts a uniquely named temporary PostgreSQL container on the supplied volume,
+        waits for pg_isready, and returns the container name. No host port is exposed.
+    #>
+    param(
+        [Parameter(Mandatory)] [string]$ContainerName,
+        [Parameter(Mandatory)] [string]$Volume,
+        [string]$Image = "postgres:15-alpine",
+        [int]$TimeoutSeconds = 90
+    )
+    if (-not (Test-DockerVolumeExists $Volume)) {
+        throw "PostgreSQL volume '$Volume' does not exist. Cannot start temporary container."
+    }
+    Invoke-Native docker @(
+        "run", "-d", "--name", $ContainerName,
+        "-e", "POSTGRES_USER=letschat",
+        "-e", "POSTGRES_PASSWORD=letschat",
+        "-v", "${Volume}:/var/lib/postgresql/data",
+        $Image
+    ) | Out-Null
+    if (-not (Wait-PostgresReady -Container $ContainerName -TimeoutSeconds $TimeoutSeconds)) {
+        $logs = docker logs $ContainerName 2>&1
+        Remove-DockerContainer $ContainerName
+        throw "Temporary PostgreSQL container '$ContainerName' did not become ready.`nLogs:`n$logs"
+    }
+    return $ContainerName
+}
+
+function New-PostgresLogicalDump {
+    <#
+    .SYNOPSIS
+        Creates a custom-format pg_dump of the specified database from a running container
+        and copies it to a local file path.
+    #>
+    param(
+        [Parameter(Mandatory)] [string]$Container,
+        [Parameter(Mandatory)] [string]$DatabaseName,
+        [Parameter(Mandatory)] [string]$DumpPath,
+        [string]$User = "letschat"
+    )
+    $containerDump = "/tmp/letschat-dump-$(Get-Date -Format 'yyyyMMdd-HHmmss-fff').dump"
+    try {
+        Invoke-Native docker @("exec", $Container, "pg_dump", "-U", $User, "-d", $DatabaseName, "-Fc", "-f", $containerDump)
+        Invoke-Native docker @("cp", "${Container}:${containerDump}", $DumpPath)
+    }
+    finally {
+        Invoke-DockerSilently -Arguments @("exec", $Container, "rm", "-f", $containerDump) | Out-Null
+    }
+}
+
+function Restore-PostgresLogicalDump {
+    <#
+    .SYNOPSIS
+        Creates the target database on the container and restores a custom-format pg_dump
+        with --no-owner --no-acl. Warnings (exit code 1) are tolerated if validation passes.
+    #>
+    param(
+        [Parameter(Mandatory)] [string]$Container,
+        [Parameter(Mandatory)] [string]$DatabaseName,
+        [Parameter(Mandatory)] [string]$DumpPath,
+        [string]$User = "letschat"
+    )
+    $containerDump = "/tmp/letschat-restore-$(Get-Date -Format 'yyyyMMdd-HHmmss-fff').dump"
+    Invoke-Native docker @("cp", $DumpPath, "${Container}:${containerDump}")
+    try {
+        Invoke-DockerSilently -Arguments @("exec", $Container, "psql", "-U", $User, "-d", "postgres", "-c", "CREATE DATABASE `"$DatabaseName`";") | Out-Null
+        $restore = Invoke-DockerSilently -Arguments @("exec", $Container, "pg_restore", "-U", $User, "-d", $DatabaseName, "--no-owner", "--no-acl", $containerDump)
+        if ($restore.ExitCode -ne 0 -and $restore.ExitCode -ne 1) {
+            throw "pg_restore failed with exit code $($restore.ExitCode): $($restore.StdErr)"
+        }
+    }
+    finally {
+        Invoke-DockerSilently -Arguments @("exec", $Container, "rm", "-f", $containerDump) | Out-Null
+    }
+}
+
+function Test-DatabaseOpenable {
+    <#
+    .SYNOPSIS
+        Returns $true if a simple psql SELECT succeeds against the database.
+    #>
+    param(
+        [Parameter(Mandatory)] [string]$Container,
+        [Parameter(Mandatory)] [string]$DatabaseName,
+        [string]$User = "letschat"
+    )
+    $result = Invoke-DockerSilently -Arguments @("exec", $Container, "psql", "-U", $User, "-d", $DatabaseName, "-t", "-A", "-c", "SELECT 1;")
+    return ($result.ExitCode -eq 0 -and $result.StdOut -match "1")
+}
+
 function Start-BackupPostgres {
     param(
         [Parameter(Mandatory)] [string]$ContainerName,
@@ -360,9 +481,16 @@ function Stop-DiagnosticPostgres {
 }
 
 function Find-LegacyLetsChatVolumes {
+    <#
+    .SYNOPSIS
+        Discovers legacy LetsChat Docker volume sets and verifies the PostgreSQL database
+        content via a logical dump/restore cycle, never a raw PGDATA copy.
+
+    .OUTPUTS
+        Array of [pscustomobject] with Project, DatabaseName, Counts, Volumes.
+    #>
     param(
         [string[]]$StableVolumes = ((Get-LetsChatExpectedVolumes).Values),
-        [int]$DiagnosticPort = 5433,
         [string]$PostgresImage = "postgres:15-alpine"
     )
     $allVolumes = @(docker volume ls -q 2>$null)
@@ -397,19 +525,58 @@ function Find-LegacyLetsChatVolumes {
         $minio = $g.Group | Where-Object { $_.Kind -eq 'minio-data' } | Select-Object -First 1
         if (-not $pg) { continue }
 
-        $suffix = Get-Date -Format 'yyyyMMdd-HHmmss-fff'
+        $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss-fff'
+        $randomSuffix = Get-Random -Minimum 1000 -Maximum 9999
+        $suffix = "${timestamp}-${randomSuffix}"
+        $dumpPath = Join-Path $env:TEMP "letschat-legacy-dump-$suffix.dump"
+        $sourceContainer = $null
+        $sourceWasTemporary = $false
         $diagVol = "letschat-diag-$($g.Name)-$suffix"
         $diagContainer = "letschat-diag-$($g.Name)-$suffix"
-        try {
-            Start-DiagnosticPostgres -SourceVolume $pg.Name -DiagnosticVolume $diagVol -ContainerName $diagContainer -Port $DiagnosticPort -Image $PostgresImage
 
-            $dbs = Get-DatabasesOnContainer -Container $diagContainer
+        try {
+            # 1. Discover or start a temporary source container for the legacy postgres volume.
+            $sourceContainer = Get-LetsChatRunningPostgresContainerForVolume -Volume $pg.Name
+            if (-not $sourceContainer) {
+                $sourceContainer = "letschat-legacy-src-$($g.Name)-$suffix"
+                Start-TemporaryPostgresContainer -ContainerName $sourceContainer -Volume $pg.Name -Image $PostgresImage | Out-Null
+                $sourceWasTemporary = $true
+            }
+
+            # 2. Verify the legacy database exists and is populated.
+            $dbs = Get-DatabasesOnContainer -Container $sourceContainer
             if (-not $dbs -or $dbs -notcontains 'letschat_local') { continue }
 
-            if (-not (Test-HasRequiredTables -Container $diagContainer -DatabaseName 'letschat_local')) { continue }
+            if (-not (Test-HasRequiredTables -Container $sourceContainer -DatabaseName 'letschat_local')) { continue }
 
-            $counts = Get-DatabaseCountsFromContainer -Container $diagContainer -DatabaseName 'letschat_local'
+            $counts = Get-DatabaseCountsFromContainer -Container $sourceContainer -DatabaseName 'letschat_local'
             if (-not $counts -or $counts.users -eq 0) { continue }
+
+            # 3. Create a custom-format logical dump from the source container.
+            New-PostgresLogicalDump -Container $sourceContainer -DatabaseName 'letschat_local' -DumpPath $dumpPath
+
+            # 4. Create a fresh diagnostic volume and restore the dump into it.
+            Invoke-Native docker @("volume", "create", $diagVol) | Out-Null
+            Start-TemporaryPostgresContainer -ContainerName $diagContainer -Volume $diagVol -Image $PostgresImage | Out-Null
+            Restore-PostgresLogicalDump -Container $diagContainer -DatabaseName 'letschat_local' -DumpPath $dumpPath
+
+            # 5. Validate the diagnostic database: exists, has required tables, and counts match.
+            $diagDbs = Get-DatabasesOnContainer -Container $diagContainer
+            if (-not $diagDbs -or $diagDbs -notcontains 'letschat_local') {
+                throw "Diagnostic database 'letschat_local' missing after restore"
+            }
+            if (-not (Test-HasRequiredTables -Container $diagContainer -DatabaseName 'letschat_local')) {
+                throw "Diagnostic required tables missing after restore"
+            }
+            $diagCounts = Get-DatabaseCountsFromContainer -Container $diagContainer -DatabaseName 'letschat_local'
+            if (-not $diagCounts) {
+                throw "Could not read diagnostic database counts after restore"
+            }
+            foreach ($key in $counts.Keys) {
+                if ($diagCounts[$key] -ne $counts[$key]) {
+                    throw "Diagnostic count mismatch for $key`: source $($counts[$key]), diagnostic $($diagCounts[$key])"
+                }
+            }
 
             $redis = $g.Group | Where-Object { $_.Kind -eq 'redis-data' } | Select-Object -First 1
             $mailpit = $g.Group | Where-Object { $_.Kind -eq 'mailpit-data' } | Select-Object -First 1
@@ -426,11 +593,162 @@ function Find-LegacyLetsChatVolumes {
                 }
             }
         }
+        catch {
+            Write-Warn "Legacy candidate $($g.Name) verification failed: $_"
+            continue
+        }
         finally {
-            Stop-DiagnosticPostgres -ContainerName $diagContainer -DiagnosticVolume $diagVol
+            # 6. Remove any temporary source container and the diagnostic container/volume.
+            if ($sourceContainer -and $sourceWasTemporary) {
+                Remove-DockerContainer $sourceContainer
+            }
+            if ($diagContainer) { Remove-DockerContainer $diagContainer }
+            if ($diagVol) { Remove-DockerVolume $diagVol }
+            if ($dumpPath -and (Test-Path $dumpPath)) { Remove-Item -LiteralPath $dumpPath -Force -ErrorAction SilentlyContinue }
         }
     }
     return @($verified)
+}
+
+function Migrate-LegacyToStable {
+    <#
+    .SYNOPSIS
+        Migrates a verified legacy LetsChat installation into the stable volume set
+        using a logical dump/restore for PostgreSQL and Copy-DockerVolume for the other
+        file-backed volumes. Never copies raw PostgreSQL PGDATA.
+
+    .PARAMETER Legacy
+        PSCustomObject returned by Find-LegacyLetsChatVolumes.
+
+    .OUTPUTS
+        Hashtable @{ SourceCounts = @{}; DestCounts = @{} }
+    #>
+    param(
+        [Parameter(Mandatory)] [object]$Legacy,
+        [hashtable]$StableVolumes = (Get-LetsChatExpectedVolumes),
+        [string]$PostgresImage = "postgres:15-alpine",
+        [int]$TimeoutSeconds = 90
+    )
+    $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss-fff'
+    $randomSuffix = Get-Random -Minimum 1000 -Maximum 9999
+    $suffix = "${timestamp}-${randomSuffix}"
+    $dumpPath = Join-Path $env:TEMP "letschat-migrate-dump-$suffix.dump"
+    $sourceContainer = $null
+    $sourceWasTemporary = $false
+    $stableContainer = "letschat-migrate-stable-$suffix"
+    $stablePgVolume = $StableVolumes.Postgres
+    $stablePgExisted = Test-DockerVolumeExists $stablePgVolume
+    $migrationSuccess = $false
+
+    try {
+        # Ensure all stable destination volumes exist.
+        foreach ($key in $StableVolumes.Keys) {
+            $vol = $StableVolumes[$key]
+            if (-not (Test-DockerVolumeExists $vol)) {
+                Invoke-Native docker @("volume", "create", $vol) | Out-Null
+            }
+        }
+
+        # 1. Discover or start a temporary source container on the legacy postgres volume.
+        $sourceContainer = Get-LetsChatRunningPostgresContainerForVolume -Volume $Legacy.Volumes.Postgres
+        if (-not $sourceContainer) {
+            $sourceContainer = "letschat-migrate-src-$suffix"
+            Start-TemporaryPostgresContainer -ContainerName $sourceContainer -Volume $Legacy.Volumes.Postgres -Image $PostgresImage -TimeoutSeconds $TimeoutSeconds | Out-Null
+            $sourceWasTemporary = $true
+        }
+
+        # 2. Verify the source database and collect counts.
+        $dbs = Get-DatabasesOnContainer -Container $sourceContainer
+        if (-not $dbs -or $dbs -notcontains 'letschat_local') {
+            throw "Source database 'letschat_local' not found on legacy volume $($Legacy.Volumes.Postgres)"
+        }
+        if (-not (Test-HasRequiredTables -Container $sourceContainer -DatabaseName 'letschat_local')) {
+            throw "Required tables missing in source database 'letschat_local'"
+        }
+        $sourceCounts = Get-DatabaseCountsFromContainer -Container $sourceContainer -DatabaseName 'letschat_local'
+        if (-not $sourceCounts) {
+            throw "Could not read source database counts"
+        }
+
+        # 3. Create a custom-format logical dump.
+        New-PostgresLogicalDump -Container $sourceContainer -DatabaseName 'letschat_local' -DumpPath $dumpPath
+
+        # 4. Remove any temporary source container before starting the destination server.
+        if ($sourceWasTemporary) {
+            Remove-DockerContainer $sourceContainer
+            $sourceContainer = $null
+        }
+
+        # 5. Start a fresh stable PostgreSQL container and restore the dump.
+        Start-TemporaryPostgresContainer -ContainerName $stableContainer -Volume $stablePgVolume -Image $PostgresImage -TimeoutSeconds $TimeoutSeconds | Out-Null
+        Restore-PostgresLogicalDump -Container $stableContainer -DatabaseName 'letschat_local' -DumpPath $dumpPath
+
+        # 6. Validate the destination database.
+        $stableDbs = Get-DatabasesOnContainer -Container $stableContainer
+        if (-not $stableDbs -or $stableDbs -notcontains 'letschat_local') {
+            throw "Stable database 'letschat_local' not found after restore"
+        }
+        if (-not (Test-HasRequiredTables -Container $stableContainer -DatabaseName 'letschat_local')) {
+            throw "Required tables missing in stable database after restore"
+        }
+        $destCounts = Get-DatabaseCountsFromContainer -Container $stableContainer -DatabaseName 'letschat_local'
+        if (-not $destCounts) {
+            throw "Could not read destination database counts after restore"
+        }
+        foreach ($key in $sourceCounts.Keys) {
+            if ($destCounts[$key] -ne $sourceCounts[$key]) {
+                throw "Destination count mismatch for $key`: source $($sourceCounts[$key]), destination $($destCounts[$key])"
+            }
+        }
+        if (-not (Test-DatabaseOpenable -Container $stableContainer -DatabaseName 'letschat_local')) {
+            throw "Destination database 'letschat_local' is not openable"
+        }
+
+        Remove-DockerContainer $stableContainer
+        $stableContainer = $null
+
+        # 7. Copy MinIO / Redis / Mailpit volumes, stopping only containers that mount the legacy volume.
+        foreach ($kind in @("Minio", "Redis", "Mailpit")) {
+            $legacyVol = $Legacy.Volumes[$kind]
+            $stableVol = $StableVolumes[$kind]
+            if (-not $legacyVol -or -not (Test-DockerVolumeExists $legacyVol)) { continue }
+
+            $mounting = Invoke-DockerSilently -Arguments @("ps", "-q", "--filter", "volume=${legacyVol}")
+            if ($mounting.ExitCode -eq 0 -and $mounting.StdOut) {
+                $ids = @($mounting.StdOut -split "`r?`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+                foreach ($id in $ids) {
+                    Invoke-DockerSilently -Arguments @("stop", $id) | Out-Null
+                    Invoke-DockerSilently -Arguments @("rm", $id) | Out-Null
+                }
+            }
+
+            if (-not (Test-DockerVolumeExists $stableVol)) {
+                Invoke-Native docker @("volume", "create", $stableVol) | Out-Null
+            }
+            Copy-DockerVolume -From $legacyVol -To $stableVol
+        }
+
+        # 8. Validate destination MinIO volume is readable (empty is acceptable for a legacy install with no attachments).
+        $minioCheck = Invoke-DockerSilently -Arguments @("run", "--rm", "-v", "$($StableVolumes.Minio):/data:ro", "alpine", "ls", "/data")
+        if ($minioCheck.ExitCode -ne 0) {
+            throw "MinIO destination volume is not readable after migration"
+        }
+
+        $migrationSuccess = $true
+        return @{ SourceCounts = $sourceCounts; DestCounts = $destCounts }
+    }
+    catch {
+        throw "Migration from legacy installation $($Legacy.Project) failed. Recovery: inspect the legacy volume '$($Legacy.Volumes.Postgres)' and stable volume '$stablePgVolume'; no legacy data was deleted. Details: $_"
+    }
+    finally {
+        if ($dumpPath -and (Test-Path $dumpPath)) { Remove-Item -LiteralPath $dumpPath -Force -ErrorAction SilentlyContinue }
+        if ($sourceContainer -and $sourceWasTemporary) { Remove-DockerContainer $sourceContainer }
+        if ($stableContainer) { Remove-DockerContainer $stableContainer }
+        # Roll back the stable postgres volume only if this migration created it and failed.
+        if (-not $migrationSuccess -and -not $stablePgExisted -and (Test-DockerVolumeExists $stablePgVolume)) {
+            Remove-DockerVolume $stablePgVolume
+        }
+    }
 }
 
 function Backup-LetsChatDataIfPopulated {
@@ -472,8 +790,14 @@ Export-ModuleMember -Function @(
     "Test-HasRequiredTables"
     "Get-DatabaseCountsFromContainer"
     "Get-DatabaseCounts"
+    "Get-LetsChatRunningPostgresContainerForVolume"
+    "Start-TemporaryPostgresContainer"
+    "New-PostgresLogicalDump"
+    "Restore-PostgresLogicalDump"
+    "Test-DatabaseOpenable"
     "Start-DiagnosticPostgres"
     "Stop-DiagnosticPostgres"
     "Find-LegacyLetsChatVolumes"
+    "Migrate-LegacyToStable"
     "Backup-LetsChatDataIfPopulated"
 )

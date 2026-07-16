@@ -19,6 +19,7 @@ param(
     [string]$RedisVolume = "letschat-redis-data",
     [string]$MailpitVolume = "letschat-mailpit-data",
     [string]$DatabaseName = "letschat_local",
+    [string]$PostgresContainer,
     [switch]$SkipCounts
 )
 
@@ -72,7 +73,14 @@ try {
 
     # Determine PostgreSQL container to use.
     $normalContainer = "letschat-postgres"
-    if (Test-DockerContainerRunning -Name $normalContainer) {
+    if ($PostgresContainer) {
+        if (-not (Test-DockerContainerRunning -Name $PostgresContainer)) {
+            throw "Specified PostgreSQL container '$PostgresContainer' is not running."
+        }
+        Write-Info "Using caller-provided PostgreSQL container '$PostgresContainer'."
+        $pgContainer = $PostgresContainer
+    }
+    elseif (Test-DockerContainerRunning -Name $normalContainer) {
         Write-Info "Using running PostgreSQL container '$normalContainer'."
         $pgContainer = $normalContainer
     }
@@ -124,13 +132,13 @@ try {
         "tar", "czf", "/backup/mailpit-data.tar.gz", "-C", "/data", "."
     )
 
-    # Counts
     $counts = [ordered]@{
         users = 0
         messages = 0
         attachments = 0
         workspaces = 0
     }
+    $countsCollected = $false
     if (-not $SkipCounts) {
         Write-Info "Collecting database counts from '$pgContainer'..."
         $dbCounts = Get-DatabaseCountsFromContainer -Container $pgContainer -DatabaseName $DatabaseName
@@ -142,6 +150,7 @@ try {
                 $counts[$key] = $dbCounts[$key]
             }
         }
+        $countsCollected = $true
     }
 
     # Checksums
@@ -168,6 +177,7 @@ try {
         minioVolume = $MinioVolume
         redisVolume = $RedisVolume
         mailpitVolume = $MailpitVolume
+        countsCollected = $countsCollected
         counts = $counts
         files = $manifestFiles
     }

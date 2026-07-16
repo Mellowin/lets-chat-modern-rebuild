@@ -98,18 +98,10 @@ function Install-LocalDataGuardrails() {
 
     if ($legacyCandidates.Count -eq 1) {
         $legacy = $legacyCandidates[0]
-        Write-Warn "Legacy installation found ($($legacy.Project)). Migrating to stable volumes..."
-        foreach ($key in $expected.Keys) {
-            $stable = $expected[$key]
-            $legacyVol = $legacy.Volumes[$key]
-            if (-not (Test-DockerVolumeExists $stable)) {
-                Invoke-Native docker @("volume", "create", $stable)
-            }
-            if ($legacyVol -and (Test-DockerVolumeExists $legacyVol)) {
-                Copy-DockerVolume -From $legacyVol -To $stable
-            }
-        }
-        Write-Ok "Migration copy complete. Marker will be created after DB is reachable."
+        Write-Warn "Legacy installation found ($($legacy.Project)). Migrating to stable volumes with logical PostgreSQL dump/restore..."
+        $migration = Migrate-LegacyToStable -Legacy $legacy
+        Write-Ok "Migration complete. Source: users=$($migration.SourceCounts.users), messages=$($migration.SourceCounts.messages), attachments=$($migration.SourceCounts.attachments), workspaces=$($migration.SourceCounts.workspaces)"
+        Write-Ok "Migration complete. Destination: users=$($migration.DestCounts.users), messages=$($migration.DestCounts.messages), attachments=$($migration.DestCounts.attachments), workspaces=$($migration.DestCounts.workspaces)"
         return
     }
 

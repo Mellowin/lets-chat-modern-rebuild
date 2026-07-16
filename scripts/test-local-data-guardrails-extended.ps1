@@ -14,7 +14,8 @@
 #>
 param(
     [switch]$SkipMarker,
-    [switch]$SkipBackup
+    [switch]$SkipBackup,
+    [switch]$SkipMigration
 )
 
 $ErrorActionPreference = "Stop"
@@ -79,6 +80,36 @@ function New-TestMarker($path, $volumeNames) {
     }
     $marker | ConvertTo-Json -Depth 3 | Out-File -FilePath $path -Encoding utf8
     return $marker
+}
+
+function New-LegacyVolumeSet($project, $kinds) {
+    foreach ($kind in $kinds) {
+        $vol = "${project}_${kind}"
+        Invoke-Native docker @("volume", "create", "--label", "com.docker.compose.volume=$kind", "--label", "com.docker.compose.project=$project", $vol)
+    }
+}
+
+function Seed-LegacyDatabase($container) {
+    if (-not (Wait-PostgresReady -Container $container)) { throw "Seed container $container not ready" }
+    Invoke-Native docker @("exec", $container, "psql", "-U", "letschat", "-d", "postgres", "-c", "CREATE DATABASE letschat_local;")
+    $sql = @'
+CREATE TABLE "User" (id serial primary key, email text);
+CREATE TABLE "Message" (id serial primary key, body text);
+CREATE TABLE "Attachment" (id serial primary key, key text);
+CREATE TABLE "Workspace" (id serial primary key, name text);
+INSERT INTO "User" (email) VALUES ('test@example.com');
+'@
+    $tempSql = Join-Path $env:TEMP "seed-$container.sql"
+    try {
+        $sql | Out-File -FilePath $tempSql -Encoding utf8 -Force
+        $containerSql = "/tmp/seed.sql"
+        Invoke-Native docker @("cp", $tempSql, "${container}:${containerSql}")
+        Invoke-Native docker @("exec", $container, "psql", "-U", "letschat", "-d", "letschat_local", "-f", $containerSql)
+    }
+    finally {
+        Remove-Item -LiteralPath $tempSql -Force -ErrorAction SilentlyContinue
+    }
+    Invoke-Native docker @("exec", $container, "psql", "-U", "letschat", "-d", "letschat_local", "-c", "CHECKPOINT;")
 }
 
 function Seed-TestDatabase($pgVolume) {
@@ -403,6 +434,177 @@ if (-not $SkipBackup) {
         }
         $afterVolumes = docker volume ls -q | Where-Object { $_ -like "backup-test-*" }
         Assert (($afterVolumes.Count -eq $beforeVolumes.Count)) "Backup created an unexpected replacement volume"
+    }
+}
+
+# ---------------------------------------------------------------------------
+# P3 logical migration
+# ---------------------------------------------------------------------------
+if (-not $SkipMigration) {
+    Run-Test "Legacy discovery with stopped PostgreSQL uses temporary source container" {
+        $suffix = Get-Date -Format "yyyyMMdd-HHmmss-fff"
+        $project = "test-ext-stopped-$suffix"
+        $kinds = @("postgres-data", "minio-data", "redis-data", "mailpit-data")
+        $volumesToClean = @()
+        $containersToClean = @()
+
+        try {
+            New-LegacyVolumeSet -project $project -kinds $kinds
+            $volumesToClean += $kinds | ForEach-Object { "${project}_$_" }
+
+            $seed = "test-ext-stopped-seed-$suffix"
+            $containersToClean += $seed
+            Invoke-Native docker @("run", "-d", "--name", $seed,
+                "-e", "POSTGRES_USER=letschat",
+                "-e", "POSTGRES_PASSWORD=letschat",
+                "-v", "${project}_postgres-data:/var/lib/postgresql/data",
+                "postgres:15-alpine")
+            Seed-LegacyDatabase $seed
+            Remove-DockerContainer $seed
+            $containersToClean = $containersToClean | Where-Object { $_ -ne $seed }
+
+            $running = Get-LetsChatRunningPostgresContainerForVolume -Volume "${project}_postgres-data"
+            Assert (-not $running) "Expected no running container for stopped legacy volume"
+
+            $legacy = Find-LegacyLetsChatVolumes -StableVolumes (Get-LetsChatExpectedVolumes).Values
+            $found = $legacy | Where-Object { $_.Project -eq $project }
+            Assert ($found) "Expected to find stopped legacy project $project"
+            Assert ($found.Counts.users -eq 1) "Expected 1 user from stopped legacy"
+        }
+        finally {
+            foreach ($c in $containersToClean) { Remove-DockerContainer $c }
+            foreach ($v in $volumesToClean) { docker volume rm $v 2>$null | Out-Null }
+        }
+    }
+
+    Run-Test "Migration from stopped legacy succeeds and counts match" {
+        $suffix = Get-Date -Format "yyyyMMdd-HHmmss-fff"
+        $project = "test-ext-migrate-$suffix"
+        $kinds = @("postgres-data", "minio-data", "redis-data", "mailpit-data")
+        $volumesToClean = @()
+        $containersToClean = @()
+
+        try {
+            New-LegacyVolumeSet -project $project -kinds $kinds
+            $volumesToClean += $kinds | ForEach-Object { "${project}_$_" }
+
+            $seed = "test-ext-migrate-seed-$suffix"
+            $containersToClean += $seed
+            Invoke-Native docker @("run", "-d", "--name", $seed,
+                "-e", "POSTGRES_USER=letschat",
+                "-e", "POSTGRES_PASSWORD=letschat",
+                "-v", "${project}_postgres-data:/var/lib/postgresql/data",
+                "postgres:15-alpine")
+            Seed-LegacyDatabase $seed
+            Invoke-Native docker @("run", "--rm", "-v", "${project}_minio-data:/data", "alpine", "sh", "-c", "echo ext-migrated > /data/marker.txt")
+            Remove-DockerContainer $seed
+            $containersToClean = $containersToClean | Where-Object { $_ -ne $seed }
+
+            $legacy = Find-LegacyLetsChatVolumes -StableVolumes (Get-LetsChatExpectedVolumes).Values
+            $found = $legacy | Where-Object { $_.Project -eq $project }
+            Assert ($found) "Expected to find legacy project $project"
+
+            $testStableVolumes = @{
+                Postgres = "test-ext-stable-postgres-$suffix"
+                Minio    = "test-ext-stable-minio-$suffix"
+                Redis    = "test-ext-stable-redis-$suffix"
+                Mailpit  = "test-ext-stable-mailpit-$suffix"
+            }
+            $volumesToClean += $testStableVolumes.Values
+
+            $result = Migrate-LegacyToStable -Legacy $found -StableVolumes $testStableVolumes
+            Assert ($result.SourceCounts.users -eq 1) "Source user count mismatch"
+            Assert ($result.DestCounts.users -eq 1) "Destination user count mismatch"
+
+            # Verify destination content.
+            $verifyContainer = "test-ext-verify-migrate-$suffix"
+            $containersToClean += $verifyContainer
+            Invoke-Native docker @("run", "-d", "--name", $verifyContainer,
+                "-e", "POSTGRES_USER=letschat",
+                "-e", "POSTGRES_PASSWORD=letschat",
+                "-v", "$($testStableVolumes.Postgres):/var/lib/postgresql/data",
+                "postgres:15-alpine")
+            if (-not (Wait-PostgresReady -Container $verifyContainer)) { throw "Verify container not ready" }
+            $counts = Get-DatabaseCountsFromContainer -Container $verifyContainer -DatabaseName "letschat_local"
+            Assert ($counts.users -eq 1) "Verify user count mismatch"
+
+            $minioLs = docker run --rm -v "$($testStableVolumes.Minio):/data:ro" alpine ls /data 2>$null
+            Assert ($minioLs -contains "marker.txt") "MinIO marker not copied"
+
+            # No temporary containers left behind.
+            $remaining = docker ps -a --format "{{.Names}}" | Where-Object { $_ -like "letschat-legacy-*" -or $_ -like "letschat-diag-*" -or $_ -like "letschat-migrate-*" }
+            Assert (-not $remaining) "Temporary containers remain after migration: $($remaining -join ', ')"
+        }
+        finally {
+            foreach ($c in $containersToClean) { Remove-DockerContainer $c }
+            foreach ($v in $volumesToClean) { docker volume rm $v 2>$null | Out-Null }
+        }
+    }
+
+    Run-Test "Migration failure does not modify legacy source volumes" {
+        $suffix = Get-Date -Format "yyyyMMdd-HHmmss-fff"
+        $project = "test-ext-fail-$suffix"
+        $kinds = @("postgres-data", "minio-data", "redis-data", "mailpit-data")
+        $volumesToClean = @()
+        $containersToClean = @()
+
+        try {
+            New-LegacyVolumeSet -project $project -kinds $kinds
+            $volumesToClean += $kinds | ForEach-Object { "${project}_$_" }
+
+            $seed = "test-ext-fail-seed-$suffix"
+            $containersToClean += $seed
+            Invoke-Native docker @("run", "-d", "--name", $seed,
+                "-e", "POSTGRES_USER=letschat",
+                "-e", "POSTGRES_PASSWORD=letschat",
+                "-v", "${project}_postgres-data:/var/lib/postgresql/data",
+                "postgres:15-alpine")
+            Seed-LegacyDatabase $seed
+            Remove-DockerContainer $seed
+            $containersToClean = $containersToClean | Where-Object { $_ -ne $seed }
+
+            $legacy = Find-LegacyLetsChatVolumes -StableVolumes (Get-LetsChatExpectedVolumes).Values
+            $found = $legacy | Where-Object { $_.Project -eq $project }
+            Assert ($found) "Expected to find legacy project $project"
+
+            # Corrupt the legacy candidate to force a migration failure without touching the source volume.
+            $corrupt = [pscustomobject]@{
+                Project      = $found.Project
+                DatabaseName = $found.DatabaseName
+                Counts       = $found.Counts
+                Volumes      = [ordered]@{
+                    Postgres = "does-not-exist-$suffix"
+                    Minio    = $found.Volumes.Minio
+                    Redis    = $found.Volumes.Redis
+                    Mailpit  = $found.Volumes.Mailpit
+                }
+            }
+
+            $threw = $false
+            try {
+                Migrate-LegacyToStable -Legacy $corrupt
+            }
+            catch {
+                $threw = $true
+            }
+            Assert $threw "Expected migration to fail for non-existent source volume"
+
+            # Verify the legacy source volume is still intact.
+            $sourceVerifyContainer = "test-ext-source-verify-$suffix"
+            $containersToClean += $sourceVerifyContainer
+            Invoke-Native docker @("run", "-d", "--name", $sourceVerifyContainer,
+                "-e", "POSTGRES_USER=letschat",
+                "-e", "POSTGRES_PASSWORD=letschat",
+                "-v", "${project}_postgres-data:/var/lib/postgresql/data",
+                "postgres:15-alpine")
+            if (-not (Wait-PostgresReady -Container $sourceVerifyContainer)) { throw "Source verify container not ready" }
+            $sourceCounts = Get-DatabaseCountsFromContainer -Container $sourceVerifyContainer -DatabaseName "letschat_local"
+            Assert ($sourceCounts.users -eq 1) "Source volume was modified after failed migration"
+        }
+        finally {
+            foreach ($c in $containersToClean) { Remove-DockerContainer $c }
+            foreach ($v in $volumesToClean) { docker volume rm $v 2>$null | Out-Null }
+        }
     }
 }
 
