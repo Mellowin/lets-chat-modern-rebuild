@@ -22,7 +22,8 @@
 param(
     [switch]$Mailpit,
     [switch]$OpenBrowser,
-    [switch]$VercelBackend
+    [switch]$VercelBackend,
+    [string]$MarkerPath = (Get-LetsChatInstallMarkerPath)
 )
 
 $ErrorActionPreference = "Continue"
@@ -40,160 +41,7 @@ function Write-Err($msg) { Write-Host $msg -ForegroundColor Red }
 
 $script:FreshInstall = $false
 
-function Install-LocalDataGuardrails() {
-    $expected = Get-LetsChatExpectedVolumes
-    $markerStatus = Test-InstallMarkerStructure
-    $legacyCandidates = Find-LegacyLetsChatVolumes
-
-    switch ($markerStatus) {
-        "Valid" {
-            $marker = Read-InstallMarker
-            if (-not (Test-ExpectedVolumes -Marker $marker)) {
-                Write-Err "CRITICAL: Installation marker volume names do not match expected stable volumes."
-                throw "Aborting startup due to marker/volume mismatch."
-            }
-            if ($legacyCandidates.Count -gt 0) {
-                Write-Warn "Installation marker is valid; ignoring $($legacyCandidates.Count) legacy installation(s)."
-            }
-            Write-Ok "Installation marker is valid and stable volumes exist."
-            return
-        }
-        "VolumeMissing" {
-            $latest = Get-LatestBackup
-            Write-Err "CRITICAL: Installation marker exists but expected volume is missing."
-            Write-Err "Possible data loss. Do not start a fresh empty database."
-            if ($legacyCandidates.Count -gt 0) {
-                Write-Info "Legacy installations detected: $($legacyCandidates.Project -join ', ')"
-                Write-Info "You may recover by migrating a legacy installation manually."
-            }
-            if ($latest) {
-                Write-Info "Newest backup: $($latest.FullName)"
-                Write-Info "Run: .\restore-letschat-local-data.bat -BackupPath `"$($latest.FullName)`" -ReplaceActive"
-            }
-            throw "Aborting startup due to missing expected volume."
-        }
-        "VolumeMismatch" {
-            Write-Err "CRITICAL: Installation marker volume names do not match expected stable volumes."
-            throw "Aborting startup due to marker/volume mismatch."
-        }
-        "MarkerCorrupt" {
-            Write-Err "Installation marker is corrupt: $(Get-LetsChatInstallMarkerPath)"
-            throw "Aborting startup. Please inspect or remove the marker file."
-        }
-    }
-
-    # Marker is missing.
-    $stablePgExists = Test-DockerVolumeExists $expected.Postgres
-    $stableMinioExists = Test-DockerVolumeExists $expected.Minio
-    $stableRedisExists = Test-DockerVolumeExists $expected.Redis
-    $stableMailpitExists = Test-DockerVolumeExists $expected.Mailpit
-
-    if ($legacyCandidates.Count -gt 1) {
-        Write-Err "Multiple verified legacy LetsChat installations found. Cannot guess which to migrate:"
-        foreach ($c in $legacyCandidates) {
-            Write-Err "  - Project $($c.Project): PG volume $($c.Volumes.Postgres), users=$($c.Counts.users), messages=$($c.Counts.messages)"
-        }
-        throw "Aborting startup. Please remove unwanted legacy volumes or migrate manually."
-    }
-
-    if ($legacyCandidates.Count -eq 1) {
-        $legacy = $legacyCandidates[0]
-        Write-Warn "Legacy installation found ($($legacy.Project)). Migrating to stable volumes with logical PostgreSQL dump/restore..."
-        $migration = Migrate-LegacyToStable -Legacy $legacy
-        Write-Ok "Migration complete. Source: users=$($migration.SourceCounts.users), messages=$($migration.SourceCounts.messages), attachments=$($migration.SourceCounts.attachments), workspaces=$($migration.SourceCounts.workspaces)"
-        Write-Ok "Migration complete. Destination: users=$($migration.DestCounts.users), messages=$($migration.DestCounts.messages), attachments=$($migration.DestCounts.attachments), workspaces=$($migration.DestCounts.workspaces)"
-        return
-    }
-
-    # No stable data and no verified legacy data. Check for backup before treating as first install.
-    $latest = Get-LatestBackup
-    if ($latest) {
-        Write-Warn "No local data found, but a backup exists: $($latest.FullName)"
-        Write-Warn "A fresh install will create empty volumes. To restore from backup, cancel and run:"
-        Write-Warn "  .\restore-letschat-local-data.bat -BackupPath `"$($latest.FullName)`" -ReplaceActive"
-    }
-
-    $anyStable = $stablePgExists -or $stableMinioExists -or $stableRedisExists -or $stableMailpitExists
-    Write-Info "No existing data found. Initializing a new local installation."
-    foreach ($key in $expected.Keys) {
-        if (-not (Test-DockerVolumeExists $expected[$key])) {
-            Invoke-Native docker @("volume", "create", $expected[$key])
-        }
-    }
-    $script:FreshInstall = -not $anyStable
-    Write-Ok "New installation volumes created."
-}
-
-function Confirm-LocalDatabaseState() {
-    $expected = Get-LetsChatExpectedVolumes
-    $markerStatus = Test-InstallMarkerStructure
-
-    # Wait for PostgreSQL to be reachable before validating content.
-    if (-not (Wait-PostgresReady -Container "letschat-postgres" -TimeoutSeconds 90)) {
-        $logs = docker logs letschat-postgres 2>&1
-        throw "PostgreSQL did not become ready within timeout. Container logs:`n$logs"
-    }
-
-    $counts = $null
-    try {
-        $counts = Confirm-RunningDatabaseState -Container "letschat-postgres" -DatabaseName "letschat_local"
-    }
-    catch {
-        if ($markerStatus -eq "Valid") {
-            throw "Installation marker is valid but database validation failed: $_"
-        }
-        # For a missing marker, an empty/uninitialized database is a normal first-install state.
-        Write-Warn "Database is empty or not yet initialized: $_"
-    }
-
-    switch ($markerStatus) {
-        "Valid" {
-            if (-not $counts -or $counts.users -eq 0) {
-                $latest = Get-LatestBackup
-                Write-Err "CRITICAL: Installation marker exists but the database is unexpectedly empty."
-                Write-Err "Do not seed a replacement database silently."
-                if ($latest) {
-                    Write-Info "Newest backup: $($latest.FullName)"
-                    Write-Info "Run: .\restore-letschat-local-data.bat -BackupPath `"$($latest.FullName)`" -ReplaceActive"
-                }
-                throw "Aborting startup due to empty database."
-            }
-            Write-Ok "Existing database confirmed: $($counts.users) user(s), $($counts.messages) message(s)."
-            return
-        }
-        "VolumeMissing" {
-            Write-Err "CRITICAL: Installation marker exists but expected volume is missing."
-            throw "Aborting startup due to missing expected volume."
-        }
-        "VolumeMismatch" {
-            Write-Err "CRITICAL: Installation marker volume names do not match expected stable volumes."
-            throw "Aborting startup due to marker/volume mismatch."
-        }
-        "MarkerCorrupt" {
-            Write-Err "Installation marker is corrupt: $(Get-LetsChatInstallMarkerPath)"
-            throw "Aborting startup. Please inspect or remove the marker file."
-        }
-    }
-
-    # Marker missing
-    $stablePgExists = Test-DockerVolumeExists $expected.Postgres
-    $stableMinioExists = Test-DockerVolumeExists $expected.Minio
-
-    if ($stablePgExists -and $stableMinioExists) {
-        if (-not $counts -or $counts.users -eq 0) {
-            Write-Warn "Stable volumes exist but database is empty. Treating as first install."
-            $script:FreshInstall = $true
-        }
-        else {
-            Write-Warn "Stable volumes exist but installation marker is missing. Recreating marker."
-            Write-InstallMarker | Out-Null
-            Write-Ok "Installation marker recreated."
-        }
-        return
-    }
-
-    throw "Unable to confirm local database state. Please inspect Docker volumes and installation marker."
-}
+# Install-LocalDataGuardrails and Confirm-LocalDatabaseState are defined in scripts/lib/local-data-utils.psm1.
 
 function Assert-Command($Name) {
     if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
@@ -602,7 +450,7 @@ foreach ($p in $devPorts) {
 Ensure-Docker
 
 # 6a. Guardrails for permanent local data (container-independent)
-Install-LocalDataGuardrails
+$script:FreshInstall = Install-LocalDataGuardrails -MarkerPath $MarkerPath
 
 Write-Info "Stopping any previous LetsChat containers..."
 docker compose down --remove-orphans --timeout 10 2>$null | Out-Null
@@ -633,7 +481,7 @@ foreach ($svc in $infra) {
 }
 
 # 6b. Confirm database state now that the container is running
-Confirm-LocalDatabaseState
+$script:FreshInstall = (Confirm-LocalDatabaseState -MarkerPath $MarkerPath)
 
 # 7. Dependencies
 Write-Info "Installing dependencies (pnpm install)..."

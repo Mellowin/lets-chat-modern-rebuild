@@ -10,7 +10,9 @@
 param(
     [switch]$SkipMinio,
     [switch]$SkipDatabaseName,
-    [switch]$SkipReplaceMismatch
+    [switch]$SkipReplaceMismatch,
+    [switch]$SkipReplaceRollback,
+    [switch]$SkipStableRecovery
 )
 
 $ErrorActionPreference = "Stop"
@@ -60,11 +62,11 @@ function New-TestVolumeSet($suffix) {
 
 function Remove-TestVolumes($volumes) {
     foreach ($v in $volumes.Values) {
-        docker volume rm $v 2>$null | Out-Null
+        Invoke-DockerSilently -Arguments @("volume", "rm", $v) | Out-Null
     }
 }
 
-function Seed-TestDatabase($container, $databaseName, $attachmentKey) {
+function Seed-TestDatabase($container, $databaseName, $attachmentKey, $email = "test@example.com") {
     if (-not (Wait-PostgresReady -Container $container)) { throw "Seed container $container not ready" }
     Invoke-Native docker @("exec", $container, "psql", "-U", "letschat", "-d", "postgres", "-c", "CREATE DATABASE `"$databaseName`";")
     $sql = @"
@@ -72,7 +74,7 @@ CREATE TABLE "User" (id serial primary key, email text);
 CREATE TABLE "Message" (id serial primary key, body text);
 CREATE TABLE "Attachment" (id serial primary key, key text, originalName text);
 CREATE TABLE "Workspace" (id serial primary key, name text);
-INSERT INTO "User" (email) VALUES ('test@example.com');
+INSERT INTO "User" (email) VALUES ('$email');
 INSERT INTO "Attachment" (key, originalName) VALUES ('$attachmentKey', 'known.txt');
 "@
     $tempSql = Join-Path $env:TEMP "seed-$container.sql"
@@ -109,8 +111,8 @@ function Start-TestMinio($container, $volume) {
 }
 
 function Stop-TestContainer($container) {
-    docker stop $container 2>$null | Out-Null
-    docker rm $container 2>$null | Out-Null
+    Invoke-DockerSilently -Arguments @("stop", $container) | Out-Null
+    Invoke-DockerSilently -Arguments @("rm", "-f", $container) | Out-Null
 }
 
 function Add-MinioTestObject($volume, $key, $bytes) {
@@ -142,6 +144,206 @@ function Get-ContainerState($container) {
     $result = Invoke-DockerSilently -Arguments @("inspect", "--format", "{{.State.Status}}", $container)
     if ($result.ExitCode -ne 0) { return $null }
     return $result.StdOut.Trim()
+}
+
+function New-LegacyVolumeSet($project, $suffix) {
+    $volumes = @{
+        Postgres = "${project}_postgres-data"
+        Minio    = "${project}_minio-data"
+        Redis    = "${project}_redis-data"
+        Mailpit  = "${project}_mailpit-data"
+    }
+    foreach ($k in $volumes.Keys) {
+        $composeVolume = if ($k -eq 'Postgres') { 'postgres-data' } elseif ($k -eq 'Minio') { 'minio-data' } elseif ($k -eq 'Redis') { 'redis-data' } else { 'mailpit-data' }
+        Invoke-Native docker @("volume", "create", "--label", "com.docker.compose.volume=$composeVolume", "--label", "com.docker.compose.project=$project", $volumes[$k]) | Out-Null
+    }
+    return $volumes
+}
+
+function Remove-LegacyVolumes($volumes) {
+    foreach ($v in $volumes.Values) {
+        docker volume rm $v 2>$null | Out-Null
+    }
+}
+
+function Test-ReplaceActiveRollbackAtStep {
+    param(
+        [Parameter(Mandatory)] [string]$Name,
+        [Parameter(Mandatory)] [string]$FailureFlag
+    )
+    Run-Test $Name {
+        $suffix = Get-Date -Format "yyyyMMdd-HHmmss-fff"
+        $activeVolumes = New-TestVolumeSet "active-$suffix"
+        $sourceVolumes = New-TestVolumeSet "source-$suffix"
+        $activePgContainer = "test-codex-active-pg-$suffix"
+        $activeMinioContainer = "test-codex-active-minio-$suffix"
+        $sourcePgContainer = "test-codex-source-pg-$suffix"
+        $sourceMinioContainer = "test-codex-source-minio-$suffix"
+        $activeAttachmentKey = "attachments/active-$suffix.txt"
+        $sourceAttachmentKey = "attachments/source-$suffix.txt"
+        $activeBytes = [System.Text.Encoding]::UTF8.GetBytes("active-attachment-$suffix")
+        $sourceBytes = [System.Text.Encoding]::UTF8.GetBytes("source-attachment-$suffix")
+
+        try {
+            Start-TestPostgres -container $activePgContainer -volume $activeVolumes.Postgres
+            Start-TestMinio -container $activeMinioContainer -volume $activeVolumes.Minio
+            Seed-TestDatabase -container $activePgContainer -databaseName "letschat_local" -attachmentKey $activeAttachmentKey -email "active-$suffix@example.com"
+            Add-MinioTestObject -volume $activeVolumes.Minio -key $activeAttachmentKey -bytes $activeBytes
+
+            Start-TestPostgres -container $sourcePgContainer -volume $sourceVolumes.Postgres
+            Start-TestMinio -container $sourceMinioContainer -volume $sourceVolumes.Minio
+            Seed-TestDatabase -container $sourcePgContainer -databaseName "letschat_local" -attachmentKey $sourceAttachmentKey -email "source-$suffix@example.com"
+            Add-MinioTestObject -volume $sourceVolumes.Minio -key $sourceAttachmentKey -bytes $sourceBytes
+
+            $backupRoot = Join-Path $env:TEMP "codex-replace-backup-$suffix"
+            $backupScript = Join-Path $PSScriptRoot "backup-letschat-local-data.ps1"
+            & $backupScript `
+                -BackupRoot $backupRoot `
+                -PostgresContainer $sourcePgContainer `
+                -PostgresVolume $sourceVolumes.Postgres `
+                -MinioVolume $sourceVolumes.Minio `
+                -RedisVolume $sourceVolumes.Redis `
+                -MailpitVolume $sourceVolumes.Mailpit
+            if ($global:LASTEXITCODE -ne 0) { throw "Source backup failed with code $($global:LASTEXITCODE)" }
+
+            $latest = Get-ChildItem -Directory -Path $backupRoot -Filter "letschat-local-*" |
+                Sort-Object CreationTime -Descending | Select-Object -First 1
+
+            $restoreScript = Join-Path $PSScriptRoot "restore-letschat-local-data.ps1"
+            $restoreArgs = @{
+                BackupPath           = $latest.FullName
+                ReplaceActive        = $true
+                Force                = $true
+                ActivePostgresVolume = $activeVolumes.Postgres
+                ActiveMinioVolume    = $activeVolumes.Minio
+                ActiveRedisVolume    = $activeVolumes.Redis
+                ActiveMailpitVolume  = $activeVolumes.Mailpit
+            }
+            switch ($FailureFlag) {
+                "-ForceFailureAfterReset"        { $restoreArgs['ForceFailureAfterReset'] = $true }
+                "-ForceFailureAfterPgCopy"       { $restoreArgs['ForceFailureAfterPgCopy'] = $true }
+                "-ForceFailureAfterMinioCopy"    { $restoreArgs['ForceFailureAfterMinioCopy'] = $true }
+                "-ForceFailureAfterRedisCopy"    { $restoreArgs['ForceFailureAfterRedisCopy'] = $true }
+                "-ForceFailureAfterMailpitCopy"  { $restoreArgs['ForceFailureAfterMailpitCopy'] = $true }
+                "-ForceFailureAfterStackStart"   { $restoreArgs['ForceFailureAfterStackStart'] = $true }
+                "-ForceValidationFailureAfterCopy" { $restoreArgs['ForceValidationFailureAfterCopy'] = $true }
+            }
+            $restoreOutput = & $restoreScript @restoreArgs *>&1
+            $restoreExit = $global:LASTEXITCODE
+            Assert ($restoreExit -ne 0) "Expected ReplaceActive to fail with $FailureFlag"
+            Assert (($restoreOutput | Out-String) -match "rolled back") "Expected rollback message in output"
+
+            # The rollback routine leaves the replacement validation container running; query it directly.
+            $counts = Get-DatabaseCountsFromContainer -Container "letschat-validate-pg" -DatabaseName "letschat_local"
+            Assert ($counts.users -eq 1) "Expected 1 user after rollback, got $($counts.users)"
+            Assert ($counts.attachments -eq 1) "Expected 1 attachment after rollback, got $($counts.attachments)"
+
+            $restoredBytes = Get-MinioObjectBytes -volume $activeVolumes.Minio -key $activeAttachmentKey
+            Assert (([System.Text.Encoding]::UTF8.GetString($restoredBytes)) -eq ([System.Text.Encoding]::UTF8.GetString($activeBytes))) "Active attachment bytes were not restored after rollback"
+        }
+        finally {
+            Stop-TestContainer $activePgContainer
+            Stop-TestContainer $activeMinioContainer
+            Stop-TestContainer $sourcePgContainer
+            Stop-TestContainer $sourceMinioContainer
+            Stop-ContainersUsingVolume $activeVolumes.Postgres
+            Stop-ContainersUsingVolume $activeVolumes.Minio
+            Stop-ContainersUsingVolume $activeVolumes.Redis
+            Stop-ContainersUsingVolume $activeVolumes.Mailpit
+            Stop-ContainersUsingVolume $sourceVolumes.Postgres
+            Stop-ContainersUsingVolume $sourceVolumes.Minio
+            Stop-ContainersUsingVolume $sourceVolumes.Redis
+            Stop-ContainersUsingVolume $sourceVolumes.Mailpit
+            Remove-TestVolumes $activeVolumes
+            Remove-TestVolumes $sourceVolumes
+            docker ps -a -q --filter "name=letschat-restore-*" | ForEach-Object { docker rm -f $_ 2>$null | Out-Null }
+            docker volume ls -q | Where-Object { $_ -like "letschat-restore-*" } | ForEach-Object { docker volume rm $_ 2>$null | Out-Null }
+            docker volume ls -q | Where-Object { $_ -like "letschat-emergency-*" } | ForEach-Object { docker volume rm $_ 2>$null | Out-Null }
+        }
+    }
+}
+
+function Test-ReplaceActiveRollbackFailure {
+    Run-Test "Rollback failure is reported clearly and rollback volumes are preserved" {
+        $suffix = Get-Date -Format "yyyyMMdd-HHmmss-fff"
+        $activeVolumes = New-TestVolumeSet "active-$suffix"
+        $sourceVolumes = New-TestVolumeSet "source-$suffix"
+        $activePgContainer = "test-codex-rf-active-pg-$suffix"
+        $activeMinioContainer = "test-codex-rf-active-minio-$suffix"
+        $sourcePgContainer = "test-codex-rf-source-pg-$suffix"
+        $sourceMinioContainer = "test-codex-rf-source-minio-$suffix"
+        $activeAttachmentKey = "attachments/rf-active-$suffix.txt"
+        $sourceAttachmentKey = "attachments/rf-source-$suffix.txt"
+        $activeBytes = [System.Text.Encoding]::UTF8.GetBytes("rf-active-attachment-$suffix")
+        $sourceBytes = [System.Text.Encoding]::UTF8.GetBytes("rf-source-attachment-$suffix")
+
+        try {
+            Start-TestPostgres -container $activePgContainer -volume $activeVolumes.Postgres
+            Start-TestMinio -container $activeMinioContainer -volume $activeVolumes.Minio
+            Seed-TestDatabase -container $activePgContainer -databaseName "letschat_local" -attachmentKey $activeAttachmentKey -email "rf-active-$suffix@example.com"
+            Add-MinioTestObject -volume $activeVolumes.Minio -key $activeAttachmentKey -bytes $activeBytes
+
+            Start-TestPostgres -container $sourcePgContainer -volume $sourceVolumes.Postgres
+            Start-TestMinio -container $sourceMinioContainer -volume $sourceVolumes.Minio
+            Seed-TestDatabase -container $sourcePgContainer -databaseName "letschat_local" -attachmentKey $sourceAttachmentKey -email "rf-source-$suffix@example.com"
+            Add-MinioTestObject -volume $sourceVolumes.Minio -key $sourceAttachmentKey -bytes $sourceBytes
+
+            $backupRoot = Join-Path $env:TEMP "codex-rf-backup-$suffix"
+            $backupScript = Join-Path $PSScriptRoot "backup-letschat-local-data.ps1"
+            & $backupScript `
+                -BackupRoot $backupRoot `
+                -PostgresContainer $sourcePgContainer `
+                -PostgresVolume $sourceVolumes.Postgres `
+                -MinioVolume $sourceVolumes.Minio `
+                -RedisVolume $sourceVolumes.Redis `
+                -MailpitVolume $sourceVolumes.Mailpit
+            if ($global:LASTEXITCODE -ne 0) { throw "Source backup failed with code $($global:LASTEXITCODE)" }
+
+            $latest = Get-ChildItem -Directory -Path $backupRoot -Filter "letschat-local-*" |
+                Sort-Object CreationTime -Descending | Select-Object -First 1
+
+            $restoreScript = Join-Path $PSScriptRoot "restore-letschat-local-data.ps1"
+            $restoreOutput = & $restoreScript `
+                -BackupPath $latest.FullName `
+                -ReplaceActive `
+                -Force `
+                -ActivePostgresVolume $activeVolumes.Postgres `
+                -ActiveMinioVolume $activeVolumes.Minio `
+                -ActiveRedisVolume $activeVolumes.Redis `
+                -ActiveMailpitVolume $activeVolumes.Mailpit `
+                -ForceFailureAfterReset `
+                -ForceRollbackFailure *>&1
+            $restoreExit = $global:LASTEXITCODE
+            Assert ($restoreExit -ne 0) "Expected ReplaceActive to fail"
+            Assert ($restoreOutput -match "rollback also failed") "Expected rollback failure message"
+            Assert ($restoreOutput -match "Manual intervention") "Expected manual intervention message"
+
+            # Rollback volumes should still exist.
+            $rollbackVolumes = @()
+            docker volume ls -q | Where-Object { $_ -like "test-codex-*-active-*-rollback-*" } | ForEach-Object { $rollbackVolumes += $_ }
+            Assert ($rollbackVolumes.Count -gt 0) "Expected rollback volumes to be preserved"
+        }
+        finally {
+            Stop-TestContainer $activePgContainer
+            Stop-TestContainer $activeMinioContainer
+            Stop-TestContainer $sourcePgContainer
+            Stop-TestContainer $sourceMinioContainer
+            Stop-ContainersUsingVolume $activeVolumes.Postgres
+            Stop-ContainersUsingVolume $activeVolumes.Minio
+            Stop-ContainersUsingVolume $activeVolumes.Redis
+            Stop-ContainersUsingVolume $activeVolumes.Mailpit
+            Stop-ContainersUsingVolume $sourceVolumes.Postgres
+            Stop-ContainersUsingVolume $sourceVolumes.Minio
+            Stop-ContainersUsingVolume $sourceVolumes.Redis
+            Stop-ContainersUsingVolume $sourceVolumes.Mailpit
+            Remove-TestVolumes $activeVolumes
+            Remove-TestVolumes $sourceVolumes
+            docker ps -a -q --filter "name=letschat-restore-*" | ForEach-Object { docker rm -f $_ 2>$null | Out-Null }
+            docker volume ls -q | Where-Object { $_ -like "letschat-restore-*" } | ForEach-Object { docker volume rm $_ 2>$null | Out-Null }
+            docker volume ls -q | Where-Object { $_ -like "test-codex-*-rf-active-*-rollback-*" } | ForEach-Object { docker volume rm $_ 2>$null | Out-Null }
+            docker volume ls -q | Where-Object { $_ -like "letschat-emergency-*" } | ForEach-Object { docker volume rm $_ 2>$null | Out-Null }
+        }
+    }
 }
 
 function Test-BackupWithRunningMinio($databaseName = "letschat_local") {
@@ -533,6 +735,190 @@ if (-not $SkipReplaceMismatch) {
             Stop-TestContainer $minioContainer
             Remove-TestVolumes $volumes
         }
+    }
+}
+
+# ---------------------------------------------------------------------------
+# P1 transactional ReplaceActive rollback tests
+# ---------------------------------------------------------------------------
+if (-not $SkipReplaceRollback) {
+    Test-ReplaceActiveRollbackAtStep -Name "Rollback after active volume reset" -FailureFlag "-ForceFailureAfterReset"
+    Test-ReplaceActiveRollbackAtStep -Name "Rollback after PostgreSQL copy" -FailureFlag "-ForceFailureAfterPgCopy"
+    Test-ReplaceActiveRollbackAtStep -Name "Rollback after MinIO copy" -FailureFlag "-ForceFailureAfterMinioCopy"
+    Test-ReplaceActiveRollbackAtStep -Name "Rollback after Redis copy" -FailureFlag "-ForceFailureAfterRedisCopy"
+    Test-ReplaceActiveRollbackAtStep -Name "Rollback after Mailpit copy" -FailureFlag "-ForceFailureAfterMailpitCopy"
+    Test-ReplaceActiveRollbackAtStep -Name "Rollback after replacement stack start" -FailureFlag "-ForceFailureAfterStackStart"
+    Test-ReplaceActiveRollbackAtStep -Name "Rollback after replacement validation failure" -FailureFlag "-ForceValidationFailureAfterCopy"
+    Test-ReplaceActiveRollbackFailure
+}
+
+# ---------------------------------------------------------------------------
+# P1 stable volume preservation tests
+# ---------------------------------------------------------------------------
+if (-not $SkipStableRecovery) {
+    Run-Test "Populated stable + missing marker + one legacy: marker recreated, no migration, legacy preserved" {
+        $suffix = Get-Date -Format "yyyyMMdd-HHmmss-fff"
+        $tempMarker = Join-Path $env:TEMP "test-marker-recovery-$suffix.json"
+        $project = "test-marker-legacy-$suffix"
+        $legacyVolumes = New-LegacyVolumeSet -project $project -suffix $suffix
+        $legacyPgContainer = "test-marker-legacy-pg-$suffix"
+        if (Test-Path $tempMarker) { Remove-Item $tempMarker -Force }
+        try {
+            Start-TestPostgres -container $legacyPgContainer -volume $legacyVolumes.Postgres
+            Seed-TestDatabase -container $legacyPgContainer -databaseName "letschat_local" -attachmentKey "attachments/marker-legacy-$suffix.txt" -email "marker-legacy-$suffix@example.com"
+            Stop-TestContainer $legacyPgContainer
+
+            Install-LocalDataGuardrails -MarkerPath $tempMarker
+            Assert (Test-Path $tempMarker) "Marker should have been recreated at temp path"
+            $marker = Get-Content $tempMarker -Raw | ConvertFrom-Json
+            Assert ($marker.databaseName -eq "letschat_local") "Marker databaseName should be letschat_local"
+            Assert ($marker.postgresVolume -eq "letschat-postgres-data") "Marker postgresVolume should match production stable volume"
+            Assert (Test-DockerVolumeExists $legacyVolumes.Postgres) "Legacy Postgres volume should be preserved"
+        }
+        finally {
+            if (Test-Path $tempMarker) { Remove-Item $tempMarker -Force }
+            Stop-TestContainer $legacyPgContainer
+            Remove-LegacyVolumes $legacyVolumes
+        }
+    }
+
+    Run-Test "Partial stable set aborts without modifying volumes" {
+        $suffix = Get-Date -Format "yyyyMMdd-HHmmss-fff"
+        $tempStableVolumes = [ordered]@{
+            Postgres = "test-stable-pg-$suffix"
+            Minio    = "test-stable-minio-$suffix"
+            Redis    = "test-stable-redis-$suffix"
+            Mailpit  = "test-stable-mailpit-$suffix"
+        }
+        Invoke-Native docker @("volume", "create", $tempStableVolumes.Minio) | Out-Null
+        $tempMarker = Join-Path $env:TEMP "test-marker-partial-$suffix.json"
+        if (Test-Path $tempMarker) { Remove-Item $tempMarker -Force }
+        $failed = $false
+        try {
+            Install-LocalDataGuardrails -MarkerPath $tempMarker -StableVolumes $tempStableVolumes
+        }
+        catch {
+            $failed = $true
+        }
+        finally {
+            docker volume rm $tempStableVolumes.Minio 2>$null | Out-Null
+            if (Test-Path $tempMarker) { Remove-Item $tempMarker -Force }
+        }
+        Assert $failed "Expected partial stable installation to abort"
+        Assert (-not (Test-DockerVolumeExists $tempStableVolumes.Postgres)) "Postgres volume should not have been created"
+    }
+
+    Run-Test "No stable volumes + exactly one legacy: migration succeeds" {
+        $suffix = Get-Date -Format "yyyyMMdd-HHmmss-fff"
+        $project = "test-legacy-migration-$suffix"
+        $legacyVolumes = New-LegacyVolumeSet -project $project -suffix $suffix
+        $stableVolumes = [ordered]@{
+            Postgres = "test-migrate-pg-$suffix"
+            Minio    = "test-migrate-minio-$suffix"
+            Redis    = "test-migrate-redis-$suffix"
+            Mailpit  = "test-migrate-mailpit-$suffix"
+        }
+        $legacyPgContainer = "test-legacy-migrate-pg-$suffix"
+        $legacyMinioContainer = "test-legacy-migrate-minio-$suffix"
+        $attachmentKey = "attachments/legacy-migrate-$suffix.txt"
+        $attachmentBytes = [System.Text.Encoding]::UTF8.GetBytes("legacy-migrate-$suffix")
+
+        try {
+            Start-TestPostgres -container $legacyPgContainer -volume $legacyVolumes.Postgres
+            Start-TestMinio -container $legacyMinioContainer -volume $legacyVolumes.Minio
+            Seed-TestDatabase -container $legacyPgContainer -databaseName "letschat_local" -attachmentKey $attachmentKey -email "legacy-migrate-$suffix@example.com"
+            Add-MinioTestObject -volume $legacyVolumes.Minio -key $attachmentKey -bytes $attachmentBytes
+
+            $legacy = Find-LegacyLetsChatVolumes -StableVolumes $stableVolumes.Values | Select-Object -First 1
+            Assert ($legacy) "Expected one legacy candidate to be found"
+
+            $migration = Migrate-LegacyToStable -Legacy $legacy -StableVolumes $stableVolumes
+            Assert ($migration.SourceCounts.users -eq 1) "Expected source user count 1"
+            Assert ($migration.DestCounts.users -eq 1) "Expected destination user count 1"
+            Assert (Test-DockerVolumeExists $stableVolumes.Postgres) "Stable Postgres volume should exist after migration"
+            Assert (Test-DockerVolumeExists $stableVolumes.Minio) "Stable MinIO volume should exist after migration"
+        }
+        finally {
+            Stop-TestContainer $legacyPgContainer
+            Stop-TestContainer $legacyMinioContainer
+            Remove-LegacyVolumes $legacyVolumes
+            foreach ($v in $stableVolumes.Values) { docker volume rm $v 2>$null | Out-Null }
+        }
+    }
+
+    Run-Test "Migrate-LegacyToStable refuses to overlay existing destination volumes" {
+        $suffix = Get-Date -Format "yyyyMMdd-HHmmss-fff"
+        $project = "test-legacy-refuse-$suffix"
+        $legacyVolumes = New-LegacyVolumeSet -project $project -suffix $suffix
+        $stableVolumes = [ordered]@{
+            Postgres = "test-refuse-pg-$suffix"
+            Minio    = "test-refuse-minio-$suffix"
+            Redis    = "test-refuse-redis-$suffix"
+            Mailpit  = "test-refuse-mailpit-$suffix"
+        }
+        foreach ($v in $stableVolumes.Values) { Invoke-Native docker @("volume", "create", $v) | Out-Null }
+        $legacyPgContainer = "test-legacy-refuse-pg-$suffix"
+
+        try {
+            Start-TestPostgres -container $legacyPgContainer -volume $legacyVolumes.Postgres
+            Seed-TestDatabase -container $legacyPgContainer -databaseName "letschat_local" -attachmentKey "attachments/legacy-refuse-$suffix.txt" -email "legacy-refuse-$suffix@example.com"
+
+            $legacy = Find-LegacyLetsChatVolumes -StableVolumes $stableVolumes.Values | Select-Object -First 1
+            Assert ($legacy) "Expected one legacy candidate to be found"
+            $failed = $false
+            try {
+                Migrate-LegacyToStable -Legacy $legacy -StableVolumes $stableVolumes
+            }
+            catch {
+                $failed = $true
+            }
+            Assert $failed "Expected migration to refuse existing destination volumes"
+        }
+        finally {
+            Stop-TestContainer $legacyPgContainer
+            Remove-LegacyVolumes $legacyVolumes
+            foreach ($v in $stableVolumes.Values) { docker volume rm $v 2>$null | Out-Null }
+        }
+    }
+
+    Run-Test "No stable volumes + multiple legacy installations: startup aborts" {
+        $suffix = Get-Date -Format "yyyyMMdd-HHmmss-fff"
+        $project1 = "test-legacy-multi1-$suffix"
+        $project2 = "test-legacy-multi2-$suffix"
+        $legacyVolumes1 = New-LegacyVolumeSet -project $project1 -suffix $suffix
+        $legacyVolumes2 = New-LegacyVolumeSet -project $project2 -suffix $suffix
+        $stableVolumes = [ordered]@{
+            Postgres = "test-multi-pg-$suffix"
+            Minio    = "test-multi-minio-$suffix"
+            Redis    = "test-multi-redis-$suffix"
+            Mailpit  = "test-multi-mailpit-$suffix"
+        }
+        $legacyPgContainer1 = "test-legacy-multi1-pg-$suffix"
+        $legacyPgContainer2 = "test-legacy-multi2-pg-$suffix"
+        $tempMarker = Join-Path $env:TEMP "test-marker-multi-$suffix.json"
+        if (Test-Path $tempMarker) { Remove-Item $tempMarker -Force }
+
+        try {
+            Start-TestPostgres -container $legacyPgContainer1 -volume $legacyVolumes1.Postgres
+            Seed-TestDatabase -container $legacyPgContainer1 -databaseName "letschat_local" -attachmentKey "attachments/legacy-multi1-$suffix.txt" -email "legacy-multi1-$suffix@example.com"
+            Start-TestPostgres -container $legacyPgContainer2 -volume $legacyVolumes2.Postgres
+            Seed-TestDatabase -container $legacyPgContainer2 -databaseName "letschat_local" -attachmentKey "attachments/legacy-multi2-$suffix.txt" -email "legacy-multi2-$suffix@example.com"
+
+            $failed = $false
+            Install-LocalDataGuardrails -MarkerPath $tempMarker -StableVolumes $stableVolumes
+        }
+        catch {
+            $failed = $true
+        }
+        finally {
+            Stop-TestContainer $legacyPgContainer1
+            Stop-TestContainer $legacyPgContainer2
+            Remove-LegacyVolumes $legacyVolumes1
+            Remove-LegacyVolumes $legacyVolumes2
+            if (Test-Path $tempMarker) { Remove-Item $tempMarker -Force }
+        }
+        Assert $failed "Expected startup to abort when multiple legacy installations are found"
+        Assert (-not (Test-DockerVolumeExists $stableVolumes.Postgres)) "Stable Postgres volume should not be created"
     }
 }
 

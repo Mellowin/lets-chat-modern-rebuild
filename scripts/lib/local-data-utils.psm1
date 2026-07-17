@@ -210,6 +210,20 @@ function Remove-DockerVolume($Name) {
     Invoke-DockerSilently -Arguments @("volume", "rm", $Name) | Out-Null
 }
 
+function Stop-ContainersUsingVolume($Name) {
+    <#
+    .SYNOPSIS
+        Stops and removes any running container that mounts the given Docker volume.
+    #>
+    $result = Invoke-DockerSilently -Arguments @("ps", "-q", "--filter", "volume=${Name}")
+    if ($result.ExitCode -eq 0 -and $result.StdOut) {
+        $ids = @($result.StdOut -split "`r?`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+        foreach ($id in $ids) {
+            Invoke-DockerSilently -Arguments @("rm", "-f", $id) | Out-Null
+        }
+    }
+}
+
 function Copy-DockerVolume {
     param(
         [Parameter(Mandatory)] [string]$From,
@@ -531,14 +545,14 @@ function Find-LegacyLetsChatVolumes {
         $dumpPath = Join-Path $env:TEMP "letschat-legacy-dump-$suffix.dump"
         $sourceContainer = $null
         $sourceWasTemporary = $false
-        $diagVol = "letschat-diag-$($g.Name)-$suffix"
-        $diagContainer = "letschat-diag-$($g.Name)-$suffix"
+        $diagVol = "letschat-diag-$suffix"
+        $diagContainer = "letschat-diag-$suffix"
 
         try {
             # 1. Discover or start a temporary source container for the legacy postgres volume.
             $sourceContainer = Get-LetsChatRunningPostgresContainerForVolume -Volume $pg.Name
             if (-not $sourceContainer) {
-                $sourceContainer = "letschat-legacy-src-$($g.Name)-$suffix"
+                $sourceContainer = "letschat-legacy-src-$suffix"
                 Start-TemporaryPostgresContainer -ContainerName $sourceContainer -Volume $pg.Name -Image $PostgresImage | Out-Null
                 $sourceWasTemporary = $true
             }
@@ -594,7 +608,7 @@ function Find-LegacyLetsChatVolumes {
             }
         }
         catch {
-            Write-Warn "Legacy candidate $($g.Name) verification failed: $_"
+            Write-Warning "Legacy candidate $($g.Name) verification failed: $_"
             continue
         }
         finally {
@@ -627,7 +641,8 @@ function Migrate-LegacyToStable {
         [Parameter(Mandatory)] [object]$Legacy,
         [hashtable]$StableVolumes = (Get-LetsChatExpectedVolumes),
         [string]$PostgresImage = "postgres:15-alpine",
-        [int]$TimeoutSeconds = 90
+        [int]$TimeoutSeconds = 90,
+        [switch]$AllowExistingStableVolumes
     )
     $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss-fff'
     $randomSuffix = Get-Random -Minimum 1000 -Maximum 9999
@@ -639,6 +654,15 @@ function Migrate-LegacyToStable {
     $stablePgVolume = $StableVolumes.Postgres
     $stablePgExisted = Test-DockerVolumeExists $stablePgVolume
     $migrationSuccess = $false
+
+    # Defense in depth: refuse to migrate when any destination stable volume already exists unless explicitly allowed.
+    $existingStable = @()
+    foreach ($key in $StableVolumes.Keys) {
+        if (Test-DockerVolumeExists $StableVolumes[$key]) { $existingStable += $StableVolumes[$key] }
+    }
+    if ($existingStable.Count -gt 0 -and -not $AllowExistingStableVolumes) {
+        throw "Migration refused because destination stable volume(s) already exist: $($existingStable -join ', '). Migrate-LegacyToStable will not overlay existing data. Remove the volumes or pass -AllowExistingStableVolumes explicitly for a disposable test."
+    }
 
     try {
         # Ensure all stable destination volumes exist.
@@ -882,6 +906,229 @@ function Backup-LetsChatDataIfPopulated {
     return Get-LatestBackup
 }
 
+function Install-LocalDataGuardrails {
+    <#
+    .SYNOPSIS
+        Decides how to proceed when the installation marker is missing or invalid.
+        Populated stable volumes win over legacy candidates. Migration is only allowed
+        when no stable volumes exist and exactly one verified legacy installation is found.
+    #>
+    param(
+        [string]$MarkerPath = (Get-LetsChatInstallMarkerPath),
+        [hashtable]$StableVolumes = (Get-LetsChatExpectedVolumes)
+    )
+    $expected = $StableVolumes
+    $markerStatus = Test-InstallMarkerStructure -MarkerPath $MarkerPath
+    $legacyCandidates = Find-LegacyLetsChatVolumes -StableVolumes $StableVolumes.Values
+
+    switch ($markerStatus) {
+        "Valid" {
+            $marker = Read-InstallMarker -MarkerPath $MarkerPath
+            if (-not (Test-ExpectedVolumes -Marker $marker)) {
+                Write-Host "CRITICAL: Installation marker volume names do not match expected stable volumes." -ForegroundColor Red
+                throw "Aborting startup due to marker/volume mismatch."
+            }
+            if ($legacyCandidates.Count -gt 0) {
+                Write-Host "Installation marker is valid; ignoring $($legacyCandidates.Count) legacy installation(s)." -ForegroundColor Yellow
+            }
+            Write-Host "Installation marker is valid and stable volumes exist." -ForegroundColor Green
+            return $false
+        }
+        "VolumeMissing" {
+            $latest = Get-LatestBackup
+            Write-Host "CRITICAL: Installation marker exists but expected volume is missing." -ForegroundColor Red
+            Write-Host "Possible data loss. Do not start a fresh empty database." -ForegroundColor Red
+            if ($legacyCandidates.Count -gt 0) {
+                Write-Host "Legacy installations detected: $($legacyCandidates.Project -join ', ')" -ForegroundColor Cyan
+                Write-Host "You may recover by migrating a legacy installation manually." -ForegroundColor Cyan
+            }
+            if ($latest) {
+                Write-Host "Newest backup: $($latest.FullName)" -ForegroundColor Cyan
+                Write-Host "Run: .\restore-letschat-local-data.bat -BackupPath `"$($latest.FullName)`" -ReplaceActive" -ForegroundColor Cyan
+            }
+            throw "Aborting startup due to missing expected volume."
+        }
+        "VolumeMismatch" {
+            Write-Host "CRITICAL: Installation marker volume names do not match expected stable volumes." -ForegroundColor Red
+            throw "Aborting startup due to marker/volume mismatch."
+        }
+        "MarkerCorrupt" {
+            Write-Host "Installation marker is corrupt: $MarkerPath" -ForegroundColor Red
+            throw "Aborting startup. Please inspect or remove the marker file."
+        }
+    }
+
+    # Marker is missing. Inspect stable volumes first.
+    $stablePgExists = Test-DockerVolumeExists $expected.Postgres
+    $stableMinioExists = Test-DockerVolumeExists $expected.Minio
+    $stableRedisExists = Test-DockerVolumeExists $expected.Redis
+    $stableMailpitExists = Test-DockerVolumeExists $expected.Mailpit
+
+    if ($stablePgExists) {
+        # Inspect the stable PostgreSQL volume before deciding anything.
+        $pgContainer = Get-LetsChatRunningPostgresContainerForVolume -Volume $expected.Postgres
+        $startedTemp = $false
+        if (-not $pgContainer) {
+            $pgContainer = "letschat-stable-diag-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+            Start-TemporaryPostgresContainer -ContainerName $pgContainer -Volume $expected.Postgres | Out-Null
+            $startedTemp = $true
+        }
+
+        $hasDb = $false
+        $tablesOk = $false
+        $counts = $null
+        try {
+            $dbs = Get-DatabasesOnContainer -Container $pgContainer
+            $hasDb = ($dbs -contains 'letschat_local')
+            if ($hasDb) {
+                $tablesOk = Test-HasRequiredTables -Container $pgContainer -DatabaseName 'letschat_local'
+                if ($tablesOk) {
+                    $counts = Get-DatabaseCountsFromContainer -Container $pgContainer -DatabaseName 'letschat_local'
+                }
+            }
+        }
+        finally {
+            if ($startedTemp) { Remove-DockerContainer $pgContainer }
+        }
+
+        if ($hasDb -and $tablesOk -and $counts -and $counts.users -gt 0) {
+            # Case A: populated, valid stable installation wins. Do not migrate legacy.
+            if ($legacyCandidates.Count -gt 0) {
+                Write-Host "Populated stable installation found. Ignoring $($legacyCandidates.Count) legacy installation(s) without migrating." -ForegroundColor Yellow
+            }
+            Write-InstallMarker -DatabaseName 'letschat_local' -MarkerPath $MarkerPath | Out-Null
+            Write-Host "Installation marker recreated for existing populated stable installation." -ForegroundColor Green
+            return $false
+        }
+
+        # Case B: partial or ambiguous stable installation.
+        Write-Host "CRITICAL: Stable volume(s) exist but the installation is not a valid, populated LetsChat database." -ForegroundColor Red
+        Write-Host "Diagnostics: stablePostgresExists=$stablePgExists, stableMinioExists=$stableMinioExists, stableRedisExists=$stableRedisExists, stableMailpitExists=$stableMailpitExists, databaseFound=$hasDb, tablesOk=$tablesOk, users=$($counts.users)" -ForegroundColor Red
+        Write-Host "Do not migrate, do not initialize, and do not delete anything." -ForegroundColor Red
+        if ($legacyCandidates.Count -gt 0) {
+            Write-Host "Legacy candidate(s) preserved: $($legacyCandidates.Project -join ', ')" -ForegroundColor Cyan
+        }
+        throw "Aborting startup due to partial or ambiguous stable installation."
+    }
+
+    if ($stableMinioExists -or $stableRedisExists -or $stableMailpitExists) {
+        # PostgreSQL volume is missing but other stable volumes are present.
+        Write-Host "CRITICAL: Stable data exists without the PostgreSQL volume. Cannot safely continue." -ForegroundColor Red
+        throw "Aborting startup due to partial stable installation."
+    }
+
+    # Case C: no stable volumes at all. Legacy migration is allowed only with exactly one verified candidate.
+    if ($legacyCandidates.Count -gt 1) {
+        Write-Host "Multiple verified legacy LetsChat installations found. Cannot guess which to migrate:" -ForegroundColor Red
+        foreach ($c in $legacyCandidates) {
+            Write-Host "  - Project $($c.Project): PG volume $($c.Volumes.Postgres), users=$($c.Counts.users), messages=$($c.Counts.messages)" -ForegroundColor Red
+        }
+        throw "Aborting startup. Please remove unwanted legacy volumes or migrate manually."
+    }
+
+    if ($legacyCandidates.Count -eq 1) {
+        $legacy = $legacyCandidates[0]
+        Write-Host "No stable installation found. Legacy installation found ($($legacy.Project)). Migrating to stable volumes with logical PostgreSQL dump/restore..." -ForegroundColor Yellow
+        $migration = Migrate-LegacyToStable -Legacy $legacy -StableVolumes $StableVolumes
+        Write-Host "Migration complete. Source: users=$($migration.SourceCounts.users), messages=$($migration.SourceCounts.messages), attachments=$($migration.SourceCounts.attachments), workspaces=$($migration.SourceCounts.workspaces)" -ForegroundColor Green
+        Write-Host "Migration complete. Destination: users=$($migration.DestCounts.users), messages=$($migration.DestCounts.messages), attachments=$($migration.DestCounts.attachments), workspaces=$($migration.DestCounts.workspaces)" -ForegroundColor Green
+        return $false
+    }
+
+    # No stable data and no verified legacy data. Check for backup before treating as first install.
+    $latest = Get-LatestBackup
+    if ($latest) {
+        Write-Host "No local data found, but a backup exists: $($latest.FullName)" -ForegroundColor Yellow
+        Write-Host "A fresh install will create empty volumes. To restore from backup, cancel and run:" -ForegroundColor Yellow
+        Write-Host "  .\restore-letschat-local-data.bat -BackupPath `"$($latest.FullName)`" -ReplaceActive" -ForegroundColor Yellow
+    }
+
+    $anyStable = $stablePgExists -or $stableMinioExists -or $stableRedisExists -or $stableMailpitExists
+    Write-Host "No existing data found. Initializing a new local installation." -ForegroundColor Cyan
+    foreach ($key in $expected.Keys) {
+        if (-not (Test-DockerVolumeExists $expected[$key])) {
+            Invoke-Native docker @("volume", "create", $expected[$key])
+        }
+    }
+    return -not $anyStable
+}
+
+function Confirm-LocalDatabaseState {
+    <#
+    .SYNOPSIS
+        Validates the running database after infrastructure containers are started.
+    #>
+    param([string]$MarkerPath = (Get-LetsChatInstallMarkerPath))
+    $expected = Get-LetsChatExpectedVolumes
+    $markerStatus = Test-InstallMarkerStructure -MarkerPath $MarkerPath
+
+    # Wait for PostgreSQL to be reachable before validating content.
+    if (-not (Wait-PostgresReady -Container "letschat-postgres" -TimeoutSeconds 90)) {
+        $logs = docker logs letschat-postgres 2>&1
+        throw "PostgreSQL did not become ready within timeout. Container logs:`n$logs"
+    }
+
+    $counts = $null
+    try {
+        $counts = Confirm-RunningDatabaseState -Container "letschat-postgres" -DatabaseName "letschat_local"
+    }
+    catch {
+        if ($markerStatus -eq "Valid") {
+            throw "Installation marker is valid but database validation failed: $_"
+        }
+        # For a missing marker, an empty/uninitialized database is a normal first-install state.
+        Write-Host "Database is empty or not yet initialized: $_" -ForegroundColor Yellow
+    }
+
+    switch ($markerStatus) {
+        "Valid" {
+            if (-not $counts -or $counts.users -eq 0) {
+                $latest = Get-LatestBackup
+                Write-Host "CRITICAL: Installation marker exists but the database is unexpectedly empty." -ForegroundColor Red
+                Write-Host "Do not seed a replacement database silently." -ForegroundColor Red
+                if ($latest) {
+                    Write-Host "Newest backup: $($latest.FullName)" -ForegroundColor Cyan
+                    Write-Host "Run: .\restore-letschat-local-data.bat -BackupPath `"$($latest.FullName)`" -ReplaceActive" -ForegroundColor Cyan
+                }
+                throw "Aborting startup due to empty database."
+            }
+            Write-Host "Existing database confirmed: $($counts.users) user(s), $($counts.messages) message(s)." -ForegroundColor Green
+            return
+        }
+        "VolumeMissing" {
+            Write-Host "CRITICAL: Installation marker exists but expected volume is missing." -ForegroundColor Red
+            throw "Aborting startup due to missing expected volume."
+        }
+        "VolumeMismatch" {
+            Write-Host "CRITICAL: Installation marker volume names do not match expected stable volumes." -ForegroundColor Red
+            throw "Aborting startup due to marker/volume mismatch."
+        }
+        "MarkerCorrupt" {
+            Write-Host "Installation marker is corrupt: $MarkerPath" -ForegroundColor Red
+            throw "Aborting startup. Please inspect or remove the marker file."
+        }
+    }
+
+    # Marker missing
+    $stablePgExists = Test-DockerVolumeExists $expected.Postgres
+    $stableMinioExists = Test-DockerVolumeExists $expected.Minio
+
+    if ($stablePgExists -and $stableMinioExists) {
+        if (-not $counts -or $counts.users -eq 0) {
+            Write-Host "Stable volumes exist but database is empty. Treating as first install." -ForegroundColor Yellow
+            return $false
+        }
+        else {
+            Write-Host "Stable volumes exist but installation marker is missing. Recreating marker." -ForegroundColor Yellow
+            Write-InstallMarker -MarkerPath $MarkerPath | Out-Null
+            Write-Host "Installation marker recreated." -ForegroundColor Green
+        }
+        return $false
+    }
+
+    throw "Unable to confirm local database state. Please inspect Docker volumes and installation marker."
+}
+
 Export-ModuleMember -Function @(
     "Get-LetsChatInstallMarkerPath"
     "Get-LetsChatBackupRoot"
@@ -900,6 +1147,7 @@ Export-ModuleMember -Function @(
     "Invoke-DockerSilently"
     "Remove-DockerContainer"
     "Remove-DockerVolume"
+    "Stop-ContainersUsingVolume"
     "Copy-DockerVolume"
     "Wait-PostgresReady"
     "Get-DatabasesOnContainer"
@@ -922,4 +1170,6 @@ Export-ModuleMember -Function @(
     "Get-MinioArchiveFileCount"
     "Confirm-ReplaceActiveDatabaseAllowed"
     "Backup-LetsChatDataIfPopulated"
+    "Install-LocalDataGuardrails"
+    "Confirm-LocalDatabaseState"
 )

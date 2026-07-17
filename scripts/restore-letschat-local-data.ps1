@@ -42,6 +42,13 @@ param(
     [switch]$Force,
     [switch]$ForceEmergencyValidationFailure,
     [switch]$ForceValidationFailureAfterCopy,
+    [switch]$ForceFailureAfterReset,
+    [switch]$ForceFailureAfterPgCopy,
+    [switch]$ForceFailureAfterMinioCopy,
+    [switch]$ForceFailureAfterRedisCopy,
+    [switch]$ForceFailureAfterMailpitCopy,
+    [switch]$ForceFailureAfterStackStart,
+    [switch]$ForceRollbackFailure,
     [switch]$KeepDrill
 )
 
@@ -258,35 +265,139 @@ function Test-VolumeReadable($Volume) {
     return ($result.ExitCode -eq 0)
 }
 
+function Stop-ReplacementStack([hashtable]$ActiveVolumes, [switch]$UsingOverrides) {
+    if ($UsingOverrides) {
+        Invoke-DockerSilently -Arguments @("rm", "-f", "letschat-validate-pg") | Out-Null
+    }
+    else {
+        Invoke-DockerSilently -Arguments @("compose", "down") | Out-Null
+    }
+    if ($ActiveVolumes) {
+        foreach ($v in $ActiveVolumes.Values) {
+            Stop-ContainersUsingVolume $v
+        }
+    }
+}
+
+function Start-ReplacementStack([hashtable]$ActiveVolumes, [switch]$UsingOverrides) {
+    if ($UsingOverrides) {
+        Remove-DockerContainer "letschat-validate-pg"
+        Invoke-Native docker @(
+            "run", "-d", "--name", "letschat-validate-pg",
+            "-p", "5434:5432",
+            "-e", "POSTGRES_USER=letschat",
+            "-e", "POSTGRES_PASSWORD=letschat",
+            "-v", "$($ActiveVolumes.Postgres):/var/lib/postgresql/data",
+            "postgres:15-alpine"
+        ) | Out-Null
+    }
+    else {
+        Invoke-Native docker @("compose", "up", "-d")
+    }
+}
+
+function Restore-ActiveVolumesFromRollback {
+    param(
+        [Parameter(Mandatory)] [hashtable]$ActiveVolumes,
+        [Parameter(Mandatory)] [hashtable]$RollbackVolumes,
+        [Parameter(Mandatory)] [object]$EmergencyManifest,
+        [switch]$UsingOverrides,
+        [switch]$ForceFailure
+    )
+    if ($ForceFailure) {
+        throw "Forced rollback failure for testing."
+    }
+    Write-Err "Replacement failed. Rolling back active volumes from rollback copies..."
+
+    Stop-ReplacementStack -ActiveVolumes $ActiveVolumes -UsingOverrides:$UsingOverrides
+
+    Write-Info "Recreating active volumes as empty for rollback..."
+    foreach ($v in $ActiveVolumes.Values) {
+        if (Test-DockerVolumeExists $v) {
+            Remove-DockerVolume $v
+        }
+        Invoke-Native docker @("volume", "create", $v)
+    }
+
+    Write-Info "Copying rollback volumes back into active volumes..."
+    Copy-DockerVolume -From $RollbackVolumes.Postgres -To $ActiveVolumes.Postgres
+    Copy-DockerVolume -From $RollbackVolumes.Minio -To $ActiveVolumes.Minio
+    Copy-DockerVolume -From $RollbackVolumes.Redis -To $ActiveVolumes.Redis
+    Copy-DockerVolume -From $RollbackVolumes.Mailpit -To $ActiveVolumes.Mailpit
+
+    Write-Info "Starting stack and validating rollback..."
+    Start-ReplacementStack -ActiveVolumes $ActiveVolumes -UsingOverrides:$UsingOverrides
+
+    $pgContainer = if ($UsingOverrides) { "letschat-validate-pg" } else { "letschat-postgres" }
+    if (-not (Wait-PostgresReady -Container $pgContainer -User "letschat" -Database $EmergencyManifest.database)) {
+        throw "Rollback validation failed: PostgreSQL did not become ready"
+    }
+    if (-not (Test-DatabaseOpenable -Container $pgContainer -DatabaseName $EmergencyManifest.database)) {
+        throw "Rollback validation failed: database is not openable"
+    }
+    if (-not (Test-HasRequiredTables -Container $pgContainer -DatabaseName $EmergencyManifest.database)) {
+        throw "Rollback validation failed: required tables missing"
+    }
+    $counts = Get-DatabaseCountsFromContainer -Container $pgContainer -DatabaseName $EmergencyManifest.database
+    if (-not $counts) {
+        throw "Rollback validation failed: could not read database counts"
+    }
+    if ($EmergencyManifest.countsCollected -eq $true) {
+        foreach ($key in @("users", "messages", "attachments", "workspaces")) {
+            if ($counts[$key] -ne $EmergencyManifest.counts.$key) {
+                throw "Rollback validation failed: count mismatch for $key`: expected $($EmergencyManifest.counts.$key), got $($counts[$key])"
+            }
+        }
+    }
+
+    Write-Ok "Rollback succeeded and original state is validated. Rollback volumes preserved: $($RollbackVolumes.Values -join ', ')"
+    return $true
+}
+
+function Get-OriginalStateSnapshot {
+    param(
+        [Parameter(Mandatory)] [string]$PgVolume,
+        [Parameter(Mandatory)] [string]$DatabaseName
+    )
+    $container = Get-LetsChatRunningPostgresContainerForVolume -Volume $PgVolume
+    $startedTemp = $false
+    if (-not $container) {
+        $container = "letschat-original-state-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+        Start-TemporaryPostgresContainer -ContainerName $container -Volume $PgVolume | Out-Null
+        $startedTemp = $true
+    }
+    try {
+        $counts = Get-DatabaseCountsFromContainer -Container $container -DatabaseName $DatabaseName
+        return [pscustomobject]@{
+            Counts      = $counts
+            Container   = $container
+            StartedTemp = $startedTemp
+        }
+    }
+    finally {
+        if ($startedTemp) { Remove-DockerContainer $container }
+    }
+}
+
 function Reset-VolumeEmpty($Name) {
     Invoke-Native docker @("volume", "rm", $Name)
     Invoke-Native docker @("volume", "create", $Name)
 }
 
 function Invoke-EmergencyBackup($backupRoot, $pgVol, $minioVol, $redisVol, $mailpitVol, $DatabaseName = "letschat_local") {
-    $stableContainer = "letschat-postgres"
     $startedTemp = $false
     $tempContainer = $null
     $container = $null
 
     try {
-        $runningId = (Invoke-DockerSilently -Arguments @("ps", "-q", "-f", "name=^${stableContainer}$")).StdOut
-        if ($runningId) {
-            $inspect = Invoke-DockerSilently -Arguments @("inspect", $stableContainer, "--format", "{{json .Mounts}}")
-            $pgMount = $null
-            if ($inspect.ExitCode -eq 0 -and $inspect.StdOut) {
-                $mounts = $inspect.StdOut | ConvertFrom-Json
-                $pgMount = $mounts | Where-Object { $_.Destination -eq "/var/lib/postgresql/data" } | Select-Object -ExpandProperty Name
-            }
-            if ($pgMount -eq $pgVol) {
-                $container = $stableContainer
-            }
-            else {
-                Write-Warn "Running postgres container is mounted to $pgMount, not $pgVol; using a separate temporary container for emergency backup."
-            }
+        # Discover any running PostgreSQL container that already mounts the active volume.
+        # Never mount the same PGDATA into two active PostgreSQL servers simultaneously.
+        $container = Get-LetsChatRunningPostgresContainerForVolume -Volume $pgVol
+        if ($container) {
+            Write-Warn "Using existing running PostgreSQL container '$container' for emergency backup of '$pgVol'."
         }
-
-        if (-not $container) {
+        else {
+            Write-Warn "No running PostgreSQL container found for '$pgVol'; starting a temporary emergency container."
             $startedTemp = $true
             $tempContainer = "letschat-emergency-pg-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
             $container = $tempContainer
@@ -364,6 +475,7 @@ function Validate-EmergencyBackup {
         }
     }
     Write-Ok "Emergency backup validated: checksums, pg_restore readability, and counts match."
+    return $manifest
 }
 
 function Start-StackAndValidate($manifest, [switch]$RequireCountsMatch, [hashtable]$ActiveVolumes) {
@@ -417,9 +529,7 @@ function Start-StackAndValidate($manifest, [switch]$RequireCountsMatch, [hashtab
         return ($items.Count -gt 0)
     }
     finally {
-        if ($usingOverrides) {
-            Remove-DockerContainer $pgContainer
-        }
+        # Do not remove the validation container here; the caller owns the stack lifecycle.
     }
 }
 
@@ -461,6 +571,11 @@ try {
     $tempVolumes = Restore-ToTempVolumes $BackupPath $manifest $suffix
 
     if ($ReplaceActive) {
+        $script:rollbackReady = $false
+        $script:destructivePhaseStarted = $false
+        $script:replacementValidated = $false
+        $script:rollbackApplied = $false
+
         Write-Warn "This will replace the active volumes:"
         Write-Warn "  PostgreSQL: $ActivePostgresVolume"
         Write-Warn "  MinIO:      $ActiveMinioVolume"
@@ -487,6 +602,12 @@ try {
             }
         }
 
+        $expected = Get-LetsChatExpectedVolumes
+        $usingOverrides = $false
+        foreach ($key in $expected.Keys) {
+            if ($activeVolumes[$key] -ne $expected[$key]) { $usingOverrides = $true; break }
+        }
+
         Confirm-ReplaceActiveDatabaseAllowed -TargetDatabase $manifest.database
 
         $emergencyRoot = Join-Path $BackupRoot "emergency"
@@ -497,10 +618,10 @@ try {
         if (-not $emergencyBackupDir) {
             throw "Emergency backup was not created in $emergencyRoot"
         }
-        Validate-EmergencyBackup -BackupDir $emergencyBackupDir.FullName -ExpectedPopulated -ForceFailure:$ForceEmergencyValidationFailure
+        $emergencyManifest = Validate-EmergencyBackup -BackupDir $emergencyBackupDir.FullName -ExpectedPopulated -ForceFailure:$ForceEmergencyValidationFailure
 
-        Write-Info "Stopping active containers..."
-        Invoke-Native docker @("compose", "down")
+        Write-Info "Recording original active state before destructive changes..."
+        $originalSnapshot = Get-OriginalStateSnapshot -PgVolume $ActivePostgresVolume -DatabaseName $emergencyManifest.database
 
         $rollbackSuffix = Get-Date -Format "yyyyMMdd-HHmmss"
         $rollbackVolumes = [ordered]@{
@@ -534,21 +655,41 @@ try {
             }
         }
 
+        $script:rollbackReady = $true
+
+        Write-Info "Stopping active containers before replacing active volumes..."
+        Stop-ReplacementStack -ActiveVolumes $activeVolumes -UsingOverrides:$usingOverrides
+
+        $script:destructivePhaseStarted = $true
+
         Write-Info "Recreating active volumes as empty..."
         Reset-VolumeEmpty $ActivePostgresVolume
         Reset-VolumeEmpty $ActiveMinioVolume
         Reset-VolumeEmpty $ActiveRedisVolume
         Reset-VolumeEmpty $ActiveMailpitVolume
+        if ($ForceFailureAfterReset) { throw "Forced failure after active volume reset" }
 
-        Write-Info "Copying validated restored state into active volumes..."
+        Write-Info "Copying validated restored PostgreSQL into active volume..."
         Copy-DockerVolume -From $tempVolumes.pgVolume -To $ActivePostgresVolume
-        Copy-DockerVolume -From $tempVolumes.minioVolume -To $ActiveMinioVolume
-        Copy-DockerVolume -From $tempVolumes.redisVolume -To $ActiveRedisVolume
-        Copy-DockerVolume -From $tempVolumes.mailpitVolume -To $ActiveMailpitVolume
+        if ($ForceFailureAfterPgCopy) { throw "Forced failure after PostgreSQL copy" }
 
-        # Clean up temp volumes now that they have been copied.
+        Write-Info "Copying validated restored MinIO into active volume..."
+        Copy-DockerVolume -From $tempVolumes.minioVolume -To $ActiveMinioVolume
+        if ($ForceFailureAfterMinioCopy) { throw "Forced failure after MinIO copy" }
+
+        Write-Info "Copying validated restored Redis into active volume..."
+        Copy-DockerVolume -From $tempVolumes.redisVolume -To $ActiveRedisVolume
+        if ($ForceFailureAfterRedisCopy) { throw "Forced failure after Redis copy" }
+
+        Write-Info "Copying validated restored Mailpit into active volume..."
+        Copy-DockerVolume -From $tempVolumes.mailpitVolume -To $ActiveMailpitVolume
+        if ($ForceFailureAfterMailpitCopy) { throw "Forced failure after Mailpit copy" }
+
+        # Temp volumes are no longer needed now that rollback copies are validated and active data is restored.
         Remove-TempVolumes $tempVolumes
         $tempVolumes = $null
+
+        if ($ForceFailureAfterStackStart) { throw "Forced failure before starting replacement stack" }
 
         Write-Info "Starting local stack and validating replacement..."
         if ($ForceValidationFailureAfterCopy) {
@@ -560,27 +701,10 @@ try {
         }
 
         if (-not $validationOk) {
-            Write-Err "Active volume replacement validation failed. Rolling back..."
-            Invoke-Native docker @("compose", "down")
-
-            Reset-VolumeEmpty $ActivePostgresVolume
-            Reset-VolumeEmpty $ActiveMinioVolume
-            Reset-VolumeEmpty $ActiveRedisVolume
-            Reset-VolumeEmpty $ActiveMailpitVolume
-
-            Copy-DockerVolume -From $rollbackVolumes.Postgres -To $ActivePostgresVolume
-            Copy-DockerVolume -From $rollbackVolumes.Minio -To $ActiveMinioVolume
-            Copy-DockerVolume -From $rollbackVolumes.Redis -To $ActiveRedisVolume
-            Copy-DockerVolume -From $rollbackVolumes.Mailpit -To $ActiveMailpitVolume
-
-            Write-Info "Starting stack and validating rollback..."
-            if (-not (Start-StackAndValidate -manifest $manifest -ActiveVolumes $activeVolumes)) {
-                throw "Rollback was applied but the stack could not be validated. Manual intervention required."
-            }
-
-            throw "Active volume replacement validation failed; rollback was applied. Rollback volumes: $($rollbackVolumes.Values -join ', ')"
+            throw "Active volume replacement validation failed"
         }
 
+        $script:replacementValidated = $true
         Write-Ok "Active volumes replaced successfully. Rollback volumes: $($rollbackVolumes.Values -join ', ')"
     }
     else {
@@ -594,8 +718,27 @@ try {
     }
 }
 catch {
-    Write-Err "Restore failed: $_"
-    exit 1
+    $originalError = $_
+    if ($script:destructivePhaseStarted -and -not $script:rollbackApplied) {
+        $rollbackSuccess = $false
+        try {
+            $rollbackOk = Restore-ActiveVolumesFromRollback -ActiveVolumes $activeVolumes -RollbackVolumes $rollbackVolumes -EmergencyManifest $emergencyManifest -UsingOverrides:$usingOverrides -ForceFailure:$ForceRollbackFailure
+            $script:rollbackApplied = $true
+            $rollbackSuccess = $true
+        }
+        catch {
+            Write-Err "Active volume replacement failed AND rollback also failed. Manual intervention required. Rollback volumes: $($rollbackVolumes.Values -join ', '). Original failure: $_"
+            exit 1
+        }
+        if ($rollbackSuccess) {
+            Write-Err "Active volume replacement failed and was rolled back. Rollback volumes preserved: $($rollbackVolumes.Values -join ', '). Original failure: $originalError"
+            exit 1
+        }
+    }
+    else {
+        Write-Err "Restore failed: $originalError"
+        exit 1
+    }
 }
 finally {
     if ($tempVolumes -and -not $KeepDrill) {
