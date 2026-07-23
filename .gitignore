@@ -20,6 +20,9 @@ out/
 *.log
 logs/
 
+# Local safety backups (must never be committed)
+backups/
+
 # IDE
 .vscode/
 .idea/

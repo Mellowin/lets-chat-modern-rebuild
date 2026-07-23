@@ -23,6 +23,7 @@
     "db:migrate:local": "pnpm --filter @lets-chat/database migrate:deploy",
     "db:seed:local": "node scripts/seed-local.mjs",
     "smoke:local": "node scripts/local-smoke.mjs",
+    "test:local-mail-registration": "node scripts/local-mailpit-registration.mjs",
     "verify:prod:public": "node scripts/verify-production-public.mjs",
     "verify:prod:auth": "node scripts/verify-production-auth.mjs",
     "verify:prod:permissions": "node scripts/verify-production-permissions.mjs",

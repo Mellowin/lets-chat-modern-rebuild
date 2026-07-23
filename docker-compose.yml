@@ -64,6 +64,10 @@ services:
 
 volumes:
   postgres-data:
+    name: letschat-postgres-data
   redis-data:
+    name: letschat-redis-data
   minio-data:
+    name: letschat-minio-data
   mailpit-data:
+    name: letschat-mailpit-data
