@@ -3,6 +3,9 @@
   "rootDir": ".",
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
+  "moduleNameMapper": {
+    "^@prisma/client$": "<rootDir>/../../../packages/database/node_modules/@prisma/client"
+  },
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   }

@@ -227,6 +227,30 @@ pnpm smoke:local
 
 This requires the API (`pnpm dev:api`) and local infrastructure to be running. It creates a random test account, reads the verification email from Mailpit, calls the verify endpoint, and logs in.
 
+### Mailpit registration acceptance test
+
+`scripts/local-mailpit-registration.mjs` verifies the full registration → verification → login flow against the local API and a local Mailpit inbox. It does not send real email and does not test Gmail delivery.
+
+Requirements:
+
+- Local API running at `http://localhost:3001/api/v1`
+- Mailpit running at `http://localhost:8025`
+
+Environment variables:
+
+- `API_BASE` — local API base URL (default: `http://localhost:3001/api/v1`)
+- `MAILPIT_BASE` — Mailpit API base URL (default: `http://localhost:8025`)
+
+The script refuses any `API_BASE` or `MAILPIT_BASE` host that is not `localhost` or `127.0.0.1`, so it cannot accidentally call Render. It generates a unique plus-style test address and a one-time password, neither of which is printed.
+
+Run it with:
+
+```powershell
+pnpm test:local-mail-registration
+```
+
+A successful run prints JSON with `email`, `username`, `userId`, and `accessToken`, and exits `0`. Any verification or login failure exits non-zero.
+
 ## Optional: MinIO for attachment testing
 
 Mailpit, MinIO, Postgres and Redis are all started by `pnpm db:local:up`. To test file attachments locally, make sure MinIO is running (it is started by the shortcut). The `.env.example` already points at the local MinIO instance.

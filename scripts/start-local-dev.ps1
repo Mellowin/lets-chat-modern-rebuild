@@ -22,7 +22,8 @@
 param(
     [switch]$Mailpit,
     [switch]$OpenBrowser,
-    [switch]$VercelBackend
+    [switch]$VercelBackend,
+    [string]$MarkerPath = (Get-LetsChatInstallMarkerPath)
 )
 
 $ErrorActionPreference = "Continue"
@@ -31,10 +32,16 @@ $ErrorActionPreference = "Continue"
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $RepoRoot
 
+Import-Module "$PSScriptRoot\lib\local-data-utils.psm1" -Force
+
 function Write-Info($msg) { Write-Host $msg -ForegroundColor Cyan }
 function Write-Ok($msg) { Write-Host $msg -ForegroundColor Green }
 function Write-Warn($msg) { Write-Host $msg -ForegroundColor Yellow }
 function Write-Err($msg) { Write-Host $msg -ForegroundColor Red }
+
+$script:FreshInstall = $false
+
+# Install-LocalDataGuardrails and Confirm-LocalDatabaseState are defined in scripts/lib/local-data-utils.psm1.
 
 function Assert-Command($Name) {
     if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
@@ -442,6 +449,9 @@ foreach ($p in $devPorts) {
 # 6. Ensure Docker and start infrastructure
 Ensure-Docker
 
+# 6a. Guardrails for permanent local data (container-independent)
+$script:FreshInstall = Install-LocalDataGuardrails -MarkerPath $MarkerPath
+
 Write-Info "Stopping any previous LetsChat containers..."
 docker compose down --remove-orphans --timeout 10 2>$null | Out-Null
 if ($LASTEXITCODE -ne 0) {
@@ -470,6 +480,9 @@ foreach ($svc in $infra) {
     Write-Ok "$($svc.Name) is ready"
 }
 
+# 6b. Confirm database state now that the container is running
+$script:FreshInstall = (Confirm-LocalDatabaseState -MarkerPath $MarkerPath)
+
 # 7. Dependencies
 Write-Info "Installing dependencies (pnpm install)..."
 Invoke-Native pnpm @("install")
@@ -478,11 +491,27 @@ Invoke-Native pnpm @("install")
 Write-Info "Generating Prisma client..."
 Invoke-Native pnpm @("db:generate")
 
+# Safety backup before applying migrations when data already exists.
+if (-not $script:FreshInstall) {
+    $preMigrationBackup = Backup-LetsChatDataIfPopulated -Reason "pre-migration"
+    if ($preMigrationBackup) {
+        Write-Info "Pre-migration backup: $($preMigrationBackup.FullName)"
+    }
+}
+else {
+    Write-Info "Fresh install: skipping pre-migration backup."
+}
+
 Write-Info "Running local migrations..."
 Invoke-Native pnpm @("db:migrate:local")
 
 Write-Info "Seeding local data..."
 Invoke-Native pnpm @("db:seed:local")
+
+if ($script:FreshInstall -and -not (Read-InstallMarker)) {
+    Write-InstallMarker | Out-Null
+    Write-Ok "Installation marker created for new installation."
+}
 
 # 9. Start API
 $ApiOut = "$RepoRoot\logs\dev-api.out.log"
@@ -535,18 +564,39 @@ Write-Ok "API health is 200"
 
 Write-Ok ""
 if ($VercelBackend) {
+    $volumes = Get-LetsChatExpectedVolumes
+    $counts = Get-DatabaseCounts
+    $latestBackup = Get-LatestBackup
+    $marker = Read-InstallMarker
+    $installKind = if ($marker) { "existing" } else { "first-install" }
+
     Write-Ok "=== Vercel + local backend is ready ==="
+    Write-Info "Vercel frontend is connected to LOCAL API."
+    Write-Info "Render is not used."
+    Write-Info "Database:     letschat_local"
+    Write-Info "PG volume:    $($volumes.Postgres)"
+    Write-Info "MinIO volume: $($volumes.Minio)"
+    if ($counts) {
+        Write-Info "Users:        $($counts.users), Messages: $($counts.messages), Attachments: $($counts.attachments), Workspaces: $($counts.workspaces)"
+    }
+    Write-Info "Installation: $installKind"
+    Write-Info "Marker:       $(Get-LetsChatInstallMarkerPath)"
+    if ($latestBackup) {
+        Write-Info "Latest backup: $($latestBackup.Name)"
+    }
+    else {
+        Write-Warn "No successful backup found yet."
+    }
     Write-Info "Vercel Web:   https://lets-chat-web.vercel.app"
     Write-Info "Local API:    http://localhost:3001/api/v1"
     Write-Info "API health:   http://localhost:3001/api/v1/health"
-    Write-Info "Database:     local Docker Postgres"
     if ($Mailpit) {
         Write-Info "Mailpit:      http://localhost:8025"
     }
     else {
         Write-Info "Mail mode:    real provider from .env"
     }
-    Write-Info "Override URL: https://lets-chat-web.vercel.app/?apiUrl=http://localhost:3001/api/v1&wsUrl=ws://localhost:3001"
+    Write-Info "Override URL: https://lets-chat-web.vercel.app/login?apiUrl=http://localhost:3001/api/v1&wsUrl=ws://localhost:3001"
     Write-Warn "Run stop-vercel-local-backend.bat to stop."
 }
 else {
