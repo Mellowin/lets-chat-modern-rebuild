@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService, StorageBackend } from '@lets-chat/database';
 import { ForwardService } from './forward.service';
 import { MessagesService } from './messages.service';
@@ -30,6 +30,7 @@ describe('ForwardService', () => {
 
   const userId = '11111111-1111-1111-1111-111111111111';
   const channelId = '22222222-2222-2222-2222-222222222222';
+  const otherChannelId = '99999999-9999-9999-9999-999999999999';
   const workspaceId = '33333333-3333-3333-3333-333333333333';
   const messageId = '44444444-4444-4444-4444-444444444444';
   const attachmentId = '55555555-5555-5555-5555-555555555555';
@@ -159,7 +160,7 @@ describe('ForwardService', () => {
         baseMessage as any,
       );
       channelsRepository.findActiveById.mockResolvedValue({
-        id: channelId,
+        id: otherChannelId,
         workspaceId,
       } as any);
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
@@ -169,14 +170,14 @@ describe('ForwardService', () => {
         sourceType: 'channel',
         sourceMessageId: messageId,
         destinationType: 'channel',
-        destinationId: channelId,
+        destinationId: otherChannelId,
       };
 
       await service.forward(dto, userId);
 
       expect(messagesService.create).toHaveBeenCalledWith(
         workspaceId,
-        channelId,
+        otherChannelId,
         expect.objectContaining({ content: baseMessage.content }),
         userId,
         expect.objectContaining({
@@ -194,7 +195,7 @@ describe('ForwardService', () => {
         baseMessage as any,
       );
       channelsRepository.findActiveById.mockResolvedValue({
-        id: channelId,
+        id: otherChannelId,
         workspaceId,
       } as any);
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
@@ -204,7 +205,7 @@ describe('ForwardService', () => {
         sourceType: 'channel',
         sourceMessageId: messageId,
         destinationType: 'channel',
-        destinationId: channelId,
+        destinationId: otherChannelId,
         comment: 'Check this out',
       };
 
@@ -212,7 +213,7 @@ describe('ForwardService', () => {
 
       expect(messagesService.create).toHaveBeenCalledWith(
         workspaceId,
-        channelId,
+        otherChannelId,
         expect.objectContaining({
           content: 'Check this out\n\noriginal content',
         }),
@@ -249,7 +250,7 @@ describe('ForwardService', () => {
         sourceType: 'channel',
         sourceMessageId: messageId,
         destinationType: 'channel',
-        destinationId: channelId,
+        destinationId: otherChannelId,
       };
 
       await expect(service.forward(dto, userId)).rejects.toBeInstanceOf(
@@ -267,7 +268,7 @@ describe('ForwardService', () => {
         sourceType: 'channel',
         sourceMessageId: messageId,
         destinationType: 'channel',
-        destinationId: channelId,
+        destinationId: otherChannelId,
       };
 
       await expect(service.forward(dto, userId)).rejects.toBeInstanceOf(
@@ -292,7 +293,7 @@ describe('ForwardService', () => {
         },
       ] as any);
       channelsRepository.findActiveById.mockResolvedValue({
-        id: channelId,
+        id: otherChannelId,
         workspaceId,
       } as any);
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
@@ -302,7 +303,7 @@ describe('ForwardService', () => {
         sourceType: 'channel',
         sourceMessageId: messageId,
         destinationType: 'channel',
-        destinationId: channelId,
+        destinationId: otherChannelId,
       };
 
       await service.forward(dto, userId);
@@ -313,7 +314,7 @@ describe('ForwardService', () => {
       );
       expect(messagesService.create).toHaveBeenCalledWith(
         workspaceId,
-        channelId,
+        otherChannelId,
         expect.objectContaining({
           // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           attachments: expect.arrayContaining([
@@ -403,7 +404,7 @@ describe('ForwardService', () => {
         forwardedFrom: existingMeta,
       } as any);
       channelsRepository.findActiveById.mockResolvedValue({
-        id: channelId,
+        id: otherChannelId,
         workspaceId,
       } as any);
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
@@ -413,14 +414,14 @@ describe('ForwardService', () => {
         sourceType: 'channel',
         sourceMessageId: messageId,
         destinationType: 'channel',
-        destinationId: channelId,
+        destinationId: otherChannelId,
       };
 
       await service.forward(dto, userId);
 
       expect(messagesService.create).toHaveBeenCalledWith(
         workspaceId,
-        channelId,
+        otherChannelId,
         expect.anything(),
         userId,
         expect.objectContaining(existingMeta),
@@ -614,12 +615,14 @@ describe('ForwardService', () => {
         groupSourceMessage as any,
       );
       forwardPermissions.canViewSource.mockResolvedValue(false);
+      const destinationGroupId = '99999999-9999-9999-9999-999999999999';
+      groupsRepository.findActiveMember.mockResolvedValue({ id: 'm1' } as any);
 
       const dto: ForwardMessageDto = {
         sourceType: 'group',
         sourceMessageId: messageId,
         destinationType: 'group',
-        destinationId: groupId,
+        destinationId: destinationGroupId,
       };
 
       await expect(service.forward(dto, userId)).rejects.toBeInstanceOf(
@@ -657,6 +660,337 @@ describe('ForwardService', () => {
       );
       expect(storageService.copyObject).not.toHaveBeenCalled();
       expect(messagesService.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('same-chat rejection', () => {
+    const dmId = '77777777-7777-7777-7777-777777777777';
+    const groupId = '88888888-8888-8888-8888-888888888888';
+
+    it('rejects channel -> same channel', async () => {
+      messagesRepository.findByIdWithRelations.mockResolvedValue(
+        baseMessage as any,
+      );
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+      } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+
+      const dto: ForwardMessageDto = {
+        sourceType: 'channel',
+        sourceMessageId: messageId,
+        destinationType: 'channel',
+        destinationId: channelId,
+      };
+
+      await expect(service.forward(dto, userId)).rejects.toThrow(
+        'Cannot forward a message to the same chat',
+      );
+      expect(storageService.copyObject).not.toHaveBeenCalled();
+      expect(messagesService.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects direct -> same direct conversation', async () => {
+      const directMessage = {
+        ...baseMessage,
+        conversationId: dmId,
+        channelId: undefined,
+      };
+      directConversationsRepository.findMessageByIdWithRelations.mockResolvedValue(
+        directMessage as any,
+      );
+      directConversationsRepository.findParticipant.mockResolvedValue({
+        id: 'p1',
+      } as any);
+      directConversationsRepository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+      ]);
+
+      const dto: ForwardMessageDto = {
+        sourceType: 'direct',
+        sourceMessageId: messageId,
+        destinationType: 'direct',
+        destinationId: dmId,
+      };
+
+      await expect(service.forward(dto, userId)).rejects.toThrow(
+        'Cannot forward a message to the same chat',
+      );
+      expect(storageService.copyObject).not.toHaveBeenCalled();
+      expect(directConversationsService.createMessage).not.toHaveBeenCalled();
+    });
+
+    it('rejects group -> same group', async () => {
+      const groupMessage = {
+        ...baseMessage,
+        groupId,
+        channelId: undefined,
+      };
+      groupsRepository.findMessageByIdWithRelations.mockResolvedValue(
+        groupMessage as any,
+      );
+      groupsRepository.findActiveMember.mockResolvedValue({ id: 'm1' } as any);
+
+      const dto: ForwardMessageDto = {
+        sourceType: 'group',
+        sourceMessageId: messageId,
+        destinationType: 'group',
+        destinationId: groupId,
+      };
+
+      await expect(service.forward(dto, userId)).rejects.toThrow(
+        'Cannot forward a message to the same chat',
+      );
+      expect(storageService.copyObject).not.toHaveBeenCalled();
+      expect(groupsService.createMessage).not.toHaveBeenCalled();
+    });
+
+    it('allows channel -> different channel', async () => {
+      const otherChannelId = '99999999-9999-9999-9999-999999999999';
+      messagesRepository.findByIdWithRelations.mockResolvedValue(
+        baseMessage as any,
+      );
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: otherChannelId,
+        workspaceId,
+      } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+
+      const dto: ForwardMessageDto = {
+        sourceType: 'channel',
+        sourceMessageId: messageId,
+        destinationType: 'channel',
+        destinationId: otherChannelId,
+      };
+
+      await service.forward(dto, userId);
+
+      expect(messagesService.create).toHaveBeenCalled();
+    });
+
+    it('allows cross-type forwarding', async () => {
+      messagesRepository.findByIdWithRelations.mockResolvedValue(
+        baseMessage as any,
+      );
+      directConversationsRepository.findParticipant.mockResolvedValue({
+        id: 'p1',
+      } as any);
+      directConversationsRepository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+      ]);
+
+      const dto: ForwardMessageDto = {
+        sourceType: 'channel',
+        sourceMessageId: messageId,
+        destinationType: 'direct',
+        destinationId: dmId,
+      };
+
+      await service.forward(dto, userId);
+
+      expect(directConversationsService.createMessage).toHaveBeenCalled();
+    });
+  });
+
+  describe('final content length validation', () => {
+    it('accepts exactly 4000 characters', async () => {
+      const longContent = 'a'.repeat(4000);
+      messagesRepository.findByIdWithRelations.mockResolvedValue({
+        ...baseMessage,
+        content: longContent,
+      } as any);
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+      } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+
+      const otherChannelId = '99999999-9999-9999-9999-999999999999';
+      const dto: ForwardMessageDto = {
+        sourceType: 'channel',
+        sourceMessageId: messageId,
+        destinationType: 'channel',
+        destinationId: otherChannelId,
+      };
+
+      await service.forward(dto, userId);
+
+      expect(messagesService.create).toHaveBeenCalledWith(
+        workspaceId,
+        otherChannelId,
+        expect.objectContaining({ content: longContent }),
+        userId,
+        expect.anything(),
+      );
+    });
+
+    it('rejects 4001 characters', async () => {
+      messagesRepository.findByIdWithRelations.mockResolvedValue({
+        ...baseMessage,
+        content: 'a'.repeat(4001),
+      } as any);
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+      } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+
+      const otherChannelId = '99999999-9999-9999-9999-999999999999';
+      const dto: ForwardMessageDto = {
+        sourceType: 'channel',
+        sourceMessageId: messageId,
+        destinationType: 'channel',
+        destinationId: otherChannelId,
+      };
+
+      await expect(service.forward(dto, userId)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(storageService.copyObject).not.toHaveBeenCalled();
+      expect(messagesService.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects 4000-character source plus comment', async () => {
+      messagesRepository.findByIdWithRelations.mockResolvedValue({
+        ...baseMessage,
+        content: 'a'.repeat(4000),
+      } as any);
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+      } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+
+      const otherChannelId = '99999999-9999-9999-9999-999999999999';
+      const dto: ForwardMessageDto = {
+        sourceType: 'channel',
+        sourceMessageId: messageId,
+        destinationType: 'channel',
+        destinationId: otherChannelId,
+        comment: 'b',
+      };
+
+      await expect(service.forward(dto, userId)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(storageService.copyObject).not.toHaveBeenCalled();
+      expect(messagesService.create).not.toHaveBeenCalled();
+    });
+
+    it('counts separator length correctly', async () => {
+      const sourceContent = 'a'.repeat(3997);
+      messagesRepository.findByIdWithRelations.mockResolvedValue({
+        ...baseMessage,
+        content: sourceContent,
+      } as any);
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+      } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+
+      const otherChannelId = '99999999-9999-9999-9999-999999999999';
+      const dto: ForwardMessageDto = {
+        sourceType: 'channel',
+        sourceMessageId: messageId,
+        destinationType: 'channel',
+        destinationId: otherChannelId,
+        comment: 'b',
+      };
+
+      await service.forward(dto, userId);
+
+      expect(messagesService.create).toHaveBeenCalledWith(
+        workspaceId,
+        otherChannelId,
+        expect.objectContaining({
+          content: `b\n\n${sourceContent}`,
+        }),
+        userId,
+        expect.anything(),
+      );
+    });
+
+    it('ignores whitespace-only comment', async () => {
+      messagesRepository.findByIdWithRelations.mockResolvedValue(
+        baseMessage as any,
+      );
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+      } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+
+      const otherChannelId = '99999999-9999-9999-9999-999999999999';
+      const dto: ForwardMessageDto = {
+        sourceType: 'channel',
+        sourceMessageId: messageId,
+        destinationType: 'channel',
+        destinationId: otherChannelId,
+        comment: '   ',
+      };
+
+      await service.forward(dto, userId);
+
+      expect(messagesService.create).toHaveBeenCalledWith(
+        workspaceId,
+        otherChannelId,
+        expect.objectContaining({ content: baseMessage.content }),
+        userId,
+        expect.anything(),
+      );
+    });
+
+    it('allows attachment-only forwarding with no text', async () => {
+      messagesRepository.findByIdWithRelations.mockResolvedValue({
+        ...baseMessage,
+        content: '',
+      } as any);
+      (prismaService.attachment.findMany as jest.Mock).mockResolvedValue([
+        {
+          id: attachmentId,
+          filename: 'doc.pdf',
+          mimeType: 'application/pdf',
+          size: 1234,
+          storageKey: 'original/key.pdf',
+          storageBackend: StorageBackend.MINIO,
+          createdAt: new Date(),
+          deletedAt: null,
+        },
+      ] as any);
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+      } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+
+      const otherChannelId = '99999999-9999-9999-9999-999999999999';
+      const dto: ForwardMessageDto = {
+        sourceType: 'channel',
+        sourceMessageId: messageId,
+        destinationType: 'channel',
+        destinationId: otherChannelId,
+      };
+
+      await service.forward(dto, userId);
+
+      expect(storageService.copyObject).toHaveBeenCalled();
+      expect(messagesService.create).toHaveBeenCalledWith(
+        workspaceId,
+        otherChannelId,
+        expect.objectContaining({ content: '' }),
+        userId,
+        expect.anything(),
+      );
     });
   });
 });

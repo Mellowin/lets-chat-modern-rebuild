@@ -59,6 +59,142 @@ describe('ForwardPermissionsHelper', () => {
     jest.clearAllMocks();
   });
 
+  describe('channel source access', () => {
+    const workspaceId = '44444444-4444-4444-4444-444444444444';
+    const publicChannelId = '55555555-5555-5555-5555-555555555555';
+    const privateChannelId = '66666666-6666-6666-6666-666666666666';
+
+    beforeEach(() => {
+      (prisma.channel.findFirst as jest.Mock).mockResolvedValue({
+        id: publicChannelId,
+        type: 'PUBLIC',
+        workspaceId,
+      });
+    });
+
+    it('requires an active workspace membership for public channel sources', async () => {
+      (prisma.workspaceMember.findFirst as jest.Mock).mockResolvedValue({
+        id: 'wm1',
+      });
+      (prisma.channelMember.findFirst as jest.Mock).mockResolvedValue({
+        id: 'cm1',
+      });
+
+      const result = await helper.canViewSource(
+        userId,
+        'channel',
+        publicChannelId,
+      );
+
+      expect(result).toBe(true);
+      expect(prisma.workspaceMember.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            workspaceId,
+            userId,
+            deletedAt: null,
+          },
+        }),
+      );
+      expect(prisma.channelMember.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            channelId: publicChannelId,
+            userId,
+            deletedAt: null,
+          },
+        }),
+      );
+    });
+
+    it('requires an active ChannelMember for public channel sources', async () => {
+      (prisma.workspaceMember.findFirst as jest.Mock).mockResolvedValue({
+        id: 'wm1',
+      });
+      (prisma.channelMember.findFirst as jest.Mock).mockResolvedValue(null);
+
+      const result = await helper.canViewSource(
+        userId,
+        'channel',
+        publicChannelId,
+      );
+
+      expect(result).toBe(false);
+    });
+
+    it('requires an active ChannelMember for private channel sources', async () => {
+      (prisma.channel.findFirst as jest.Mock).mockResolvedValue({
+        id: privateChannelId,
+        type: 'PRIVATE',
+        workspaceId,
+      });
+      (prisma.workspaceMember.findFirst as jest.Mock).mockResolvedValue({
+        id: 'wm1',
+      });
+      (prisma.channelMember.findFirst as jest.Mock).mockResolvedValue({
+        id: 'cm1',
+      });
+
+      const result = await helper.canViewSource(
+        userId,
+        'channel',
+        privateChannelId,
+      );
+
+      expect(result).toBe(true);
+    });
+
+    it('masks public channel source as anonymous when ChannelMember is absent', async () => {
+      (prisma.workspaceMember.findFirst as jest.Mock).mockResolvedValue({
+        id: 'wm1',
+      });
+      (prisma.channelMember.findFirst as jest.Mock).mockResolvedValue(null);
+
+      const result = await helper.toResponse(
+        {
+          sourceType: 'channel',
+          sourceChatId: publicChannelId,
+          sourceMessageId: 'msg-1',
+          originalAuthorId: 'u2',
+          originalAuthorName: 'Bob',
+          originalCreatedAt: '2024-01-01T00:00:00Z',
+        },
+        userId,
+      );
+
+      expect(result).toEqual({
+        sourceType: 'channel',
+        originalCreatedAt: '2024-01-01T00:00:00Z',
+        isAnonymous: true,
+      });
+    });
+
+    it('excludes public channels from batched sources when ChannelMember is absent', async () => {
+      (prisma.channel.findMany as jest.Mock).mockResolvedValue([
+        { id: publicChannelId, type: 'PUBLIC', workspaceId },
+      ]);
+      (prisma.workspaceMember.findMany as jest.Mock).mockResolvedValue([
+        { workspaceId },
+      ]);
+      (prisma.channelMember.findMany as jest.Mock).mockResolvedValue([]);
+
+      const result = await helper.canViewSources(userId, [
+        { sourceType: 'channel', sourceChatId: publicChannelId },
+      ]);
+
+      expect(result).toEqual(new Set());
+      expect(prisma.channelMember.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            userId,
+            deletedAt: null,
+            channelId: { in: [publicChannelId] },
+          },
+        }),
+      );
+    });
+  });
+
   describe('group source access', () => {
     it('allows active members of non-archived groups', async () => {
       (prisma.groupMember.findFirst as jest.Mock).mockResolvedValue({

@@ -60,6 +60,8 @@ export type ForwardableMessage = {
   forwardedFrom?: unknown;
 };
 
+const MAX_FORWARD_CONTENT_LENGTH = 4000;
+
 @Injectable()
 export class ForwardService {
   constructor(
@@ -77,19 +79,23 @@ export class ForwardService {
   ) {}
 
   async forward(dto: ForwardMessageDto, currentUserId: string) {
-    if (
-      dto.sourceType === dto.destinationType &&
-      dto.sourceMessageId === dto.destinationId
-    ) {
-      throw new BadRequestException('Cannot forward a message to itself');
-    }
-
     const source = await this.loadSourceMessage(
       dto.sourceType,
       dto.sourceMessageId,
     );
     if (!source || source.deletedAt != null) {
       throw new NotFoundException('Source message not found');
+    }
+
+    const sourceChatId = this.getSourceChatId(dto.sourceType, source);
+
+    if (
+      dto.sourceType === dto.destinationType &&
+      sourceChatId === dto.destinationId
+    ) {
+      throw new BadRequestException(
+        'Cannot forward a message to the same chat',
+      );
     }
 
     await this.requireSourceAccess(dto.sourceType, source, currentUserId);
@@ -99,13 +105,12 @@ export class ForwardService {
       currentUserId,
     );
 
-    const sourceChatId = this.getSourceChatId(dto.sourceType, source);
+    const content = this.buildContent(source.content, dto.comment);
     const forwardedFrom = this.buildForwardedFrom(
       dto.sourceType,
       sourceChatId,
       source,
     );
-    const content = this.buildContent(source.content, dto.comment);
     const attachmentInputs = await this.buildAttachmentInputs(
       source,
       currentUserId,
@@ -325,9 +330,22 @@ export class ForwardService {
 
   private buildContent(sourceContent: string, comment?: string): string {
     const trimmedComment = comment?.trim();
-    if (!trimmedComment) return sourceContent;
-    if (!sourceContent) return trimmedComment;
-    return `${trimmedComment}\n\n${sourceContent}`;
+    let content: string;
+    if (!trimmedComment) {
+      content = sourceContent;
+    } else if (!sourceContent) {
+      content = trimmedComment;
+    } else {
+      content = `${trimmedComment}\n\n${sourceContent}`;
+    }
+
+    if (content.length > MAX_FORWARD_CONTENT_LENGTH) {
+      throw new BadRequestException(
+        `Forwarded content must be at most ${MAX_FORWARD_CONTENT_LENGTH} characters`,
+      );
+    }
+
+    return content;
   }
 
   private async buildAttachmentInputs(

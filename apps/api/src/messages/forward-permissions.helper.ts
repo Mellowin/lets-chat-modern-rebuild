@@ -114,13 +114,11 @@ export class ForwardPermissionsHelper {
     });
     if (!wsMember) return false;
 
-    if (channel.type === 'PRIVATE') {
-      const chMember = await this.prisma.channelMember.findFirst({
-        where: { channelId, userId, deletedAt: null },
-        select: { id: true },
-      });
-      if (!chMember) return false;
-    }
+    const chMember = await this.prisma.channelMember.findFirst({
+      where: { channelId, userId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!chMember) return false;
 
     return true;
   }
@@ -141,15 +139,14 @@ export class ForwardPermissionsHelper {
       select: { id: true, type: true, workspaceId: true },
     });
 
-    const publicChannels = channels.filter((c) => c.type === 'PUBLIC');
-    const privateChannels = channels.filter((c) => c.type === 'PRIVATE');
+    const workspaceIds = unique(channels.map((c) => c.workspaceId));
 
     const [memberWorkspaceRows, memberChannelRows] = await Promise.all([
       this.prisma.workspaceMember.findMany({
         where: {
           userId,
           deletedAt: null,
-          workspaceId: { in: publicChannels.map((c) => c.workspaceId) },
+          workspaceId: { in: workspaceIds },
         },
         select: { workspaceId: true },
       }),
@@ -157,7 +154,7 @@ export class ForwardPermissionsHelper {
         where: {
           userId,
           deletedAt: null,
-          channelId: { in: privateChannels.map((c) => c.id) },
+          channelId: { in: channels.map((c) => c.id) },
         },
         select: { channelId: true },
       }),
@@ -166,15 +163,13 @@ export class ForwardPermissionsHelper {
     const memberWorkspaces = new Set(
       memberWorkspaceRows.map((r) => r.workspaceId),
     );
-    const accessible = new Set(memberChannelRows.map((r) => r.channelId));
+    const memberChannels = new Set(memberChannelRows.map((r) => r.channelId));
 
-    for (const channel of publicChannels) {
-      if (memberWorkspaces.has(channel.workspaceId)) {
-        accessible.add(channel.id);
-      }
-    }
-
-    return Array.from(accessible);
+    return channels
+      .filter(
+        (c) => memberWorkspaces.has(c.workspaceId) && memberChannels.has(c.id),
+      )
+      .map((c) => c.id);
   }
 
   private async canViewDirectSource(
