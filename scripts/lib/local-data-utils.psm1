@@ -846,23 +846,47 @@ function Get-LetsChatRunningMinioContainersForVolume {
 function Get-MinioVolumeFileCount {
     <#
     .SYNOPSIS
-        Counts regular files in a MinIO Docker volume (recursive). Returns -1 on error.
+        Counts user files in a MinIO Docker volume (recursive), excluding MinIO
+        internal metadata under .minio.sys/. Returns -1 on error.
     #>
     param(
         [Parameter(Mandatory)] [string]$Volume
     )
-    $result = Invoke-DockerSilently -Arguments @("run", "--rm", "-v", "${Volume}:/data:ro", "alpine", "sh", "-c", "find /data -type f | wc -l")
+    $result = Invoke-DockerSilently -Arguments @("run", "--rm", "-v", "${Volume}:/data:ro", "alpine", "sh", "-c", "find /data -type f | grep -vF '.minio.sys' | wc -l")
     if ($result.ExitCode -ne 0) { return -1 }
     $count = 0
     if ([int]::TryParse($result.StdOut.Trim(), [ref]$count)) { return $count }
     return -1
 }
 
+function Get-ValidMinioFileCount {
+    <#
+    .SYNOPSIS
+        Validates a manifest minioFileCount value as a non-negative integer.
+        Throws a clear compatibility error for missing, invalid or negative values.
+    #>
+    param(
+        [Parameter(Mandatory)] [object]$ManifestValue
+    )
+    if ($null -eq $ManifestValue) {
+        throw "Manifest is missing required 'minioFileCount'. This backup was created before MinIO file-count tracking and cannot be restored safely. Create a new backup with the current backup script."
+    }
+    $parsed = 0
+    if (-not ([int]::TryParse([string]$ManifestValue, [ref]$parsed))) {
+        throw "Manifest minioFileCount '$ManifestValue' is not a valid integer. Refusing to restore."
+    }
+    if ($parsed -lt 0) {
+        throw "Manifest minioFileCount '$parsed' is negative. Refusing to restore."
+    }
+    return $parsed
+}
+
 function Test-MinioArchiveSafe {
     <#
     .SYNOPSIS
-        Validates a tar.gz MinIO archive: readable, no absolute paths, contains a
-        non-empty object tree. Returns the file count on success, throws otherwise.
+        Validates a tar.gz MinIO archive: readable, no absolute paths. Returns the
+        number of user files (excluding MinIO internal .minio.sys/ metadata) on
+        success, throws otherwise.
     #>
     param(
         [Parameter(Mandatory)] [string]$ArchivePath
@@ -875,15 +899,16 @@ function Test-MinioArchiveSafe {
     foreach ($entry in $entries) {
         if ($entry -match '^/') { throw "MinIO archive contains absolute path: $entry" }
     }
-    $files = $entries | Where-Object { -not $_.EndsWith('/') }
+    $files = $entries | Where-Object { -not $_.EndsWith('/') -and $_ -notmatch '\.minio\.sys' }
     return $files.Count
 }
 
 function Get-MinioArchiveFileCount {
     <#
     .SYNOPSIS
-        Returns the number of regular files in a MinIO tar.gz archive without
-        extracting it. Returns -1 on error.
+        Returns the number of user files in a MinIO tar.gz archive without
+        extracting it, excluding MinIO internal .minio.sys/ metadata.
+        Returns -1 on error.
     #>
     param(
         [Parameter(Mandatory)] [string]$ArchivePath
@@ -892,7 +917,7 @@ function Get-MinioArchiveFileCount {
     $list = Invoke-DockerSilently -Arguments @("run", "--rm", "-v", "${ArchivePath}:/archive.tar.gz:ro", "alpine", "tar", "tzf", "/archive.tar.gz")
     if ($list.ExitCode -ne 0) { return -1 }
     $entries = @($list.StdOut -split "`r?`n" | Where-Object { $_.Trim() })
-    $files = $entries | Where-Object { -not $_.EndsWith('/') }
+    $files = $entries | Where-Object { -not $_.EndsWith('/') -and $_ -notmatch '\.minio\.sys' }
     return $files.Count
 }
 
@@ -1190,6 +1215,7 @@ Export-ModuleMember -Function @(
     "Test-SafeDatabaseName"
     "Get-LetsChatRunningMinioContainersForVolume"
     "Get-MinioVolumeFileCount"
+    "Get-ValidMinioFileCount"
     "Test-MinioArchiveSafe"
     "Get-MinioArchiveFileCount"
     "Confirm-ReplaceActiveDatabaseAllowed"

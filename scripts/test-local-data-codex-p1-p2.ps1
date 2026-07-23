@@ -75,8 +75,10 @@ CREATE TABLE "Message" (id serial primary key, body text);
 CREATE TABLE "Attachment" (id serial primary key, key text, originalName text);
 CREATE TABLE "Workspace" (id serial primary key, name text);
 INSERT INTO "User" (email) VALUES ('$email');
-INSERT INTO "Attachment" (key, originalName) VALUES ('$attachmentKey', 'known.txt');
 "@
+    if ($attachmentKey) {
+        $sql += "`nINSERT INTO `"Attachment`" (key, originalName) VALUES ('$attachmentKey', 'known.txt');"
+    }
     $tempSql = Join-Path $env:TEMP "seed-$container.sql"
     try {
         $sql | Out-File -FilePath $tempSql -Encoding utf8 -Force
@@ -560,7 +562,7 @@ if (-not $SkipMinio) {
         }
     }
 
-    Run-Test "Drill succeeds with an empty MinIO volume" {
+    Run-Test "Drill succeeds with zero attachment records and empty MinIO archive" {
         $suffix = Get-Date -Format "yyyyMMdd-HHmmss-fff"
         $volumes = New-TestVolumeSet $suffix
         $pgContainer = "test-codex-empty-minio-pg-$suffix"
@@ -569,8 +571,8 @@ if (-not $SkipMinio) {
         try {
             Start-TestPostgres -container $pgContainer -volume $volumes.Postgres
             Start-TestMinio -container $minioContainer -volume $volumes.Minio
-            Seed-TestDatabase -container $pgContainer -databaseName "letschat_local" -attachmentKey "attachments/empty-minio-$suffix.txt"
-            # Intentionally do NOT add any objects to MinIO.
+            # No attachment record: database is attachment-free.
+            Seed-TestDatabase -container $pgContainer -databaseName "letschat_local" -email "empty-minio-$suffix@example.com"
 
             $backupRoot = Join-Path $env:TEMP "codex-empty-minio-backup-$suffix"
             $backupScript = Join-Path $PSScriptRoot "backup-letschat-local-data.ps1"
@@ -586,7 +588,9 @@ if (-not $SkipMinio) {
             $latest = Get-ChildItem -Directory -Path $backupRoot -Filter "letschat-local-*" |
                 Sort-Object CreationTime -Descending | Select-Object -First 1
             $manifest = Get-Content (Join-Path $latest.FullName "manifest.json") -Raw | ConvertFrom-Json
-            Assert ($manifest.minioFileCount -ge 0) "Expected minioFileCount to be present and non-negative, got $($manifest.minioFileCount)"
+            Assert ($manifest.countsCollected -eq $true) "Expected countsCollected=true"
+            Assert ($manifest.counts.attachments -eq 0) "Expected 0 attachments in manifest"
+            Assert ($manifest.minioFileCount -eq 0) "Expected minioFileCount=0, got $($manifest.minioFileCount)"
 
             $restoreScript = Join-Path $PSScriptRoot "restore-letschat-local-data.ps1"
             & $restoreScript -BackupPath $latest.FullName -Drill
@@ -601,7 +605,7 @@ if (-not $SkipMinio) {
         }
     }
 
-    Run-Test "ReplaceActive succeeds with empty MinIO volumes" {
+    Run-Test "ReplaceActive succeeds with zero attachment records and empty MinIO volumes" {
         $suffix = Get-Date -Format "yyyyMMdd-HHmmss-fff"
         $activeVolumes = New-TestVolumeSet "active-empty-$suffix"
         $sourceVolumes = New-TestVolumeSet "source-empty-$suffix"
@@ -613,11 +617,11 @@ if (-not $SkipMinio) {
         try {
             Start-TestPostgres -container $activePgContainer -volume $activeVolumes.Postgres
             Start-TestMinio -container $activeMinioContainer -volume $activeVolumes.Minio
-            Seed-TestDatabase -container $activePgContainer -databaseName "letschat_local" -attachmentKey "attachments/active-empty-$suffix.txt" -email "active-empty-$suffix@example.com"
+            Seed-TestDatabase -container $activePgContainer -databaseName "letschat_local" -email "active-empty-$suffix@example.com"
 
             Start-TestPostgres -container $sourcePgContainer -volume $sourceVolumes.Postgres
             Start-TestMinio -container $sourceMinioContainer -volume $sourceVolumes.Minio
-            Seed-TestDatabase -container $sourcePgContainer -databaseName "letschat_local" -attachmentKey "attachments/source-empty-$suffix.txt" -email "source-empty-$suffix@example.com"
+            Seed-TestDatabase -container $sourcePgContainer -databaseName "letschat_local" -email "source-empty-$suffix@example.com"
 
             $backupRoot = Join-Path $env:TEMP "codex-empty-replace-backup-$suffix"
             $backupScript = Join-Path $PSScriptRoot "backup-letschat-local-data.ps1"
@@ -644,12 +648,12 @@ if (-not $SkipMinio) {
                 -ActiveMailpitVolume $activeVolumes.Mailpit
             if ($global:LASTEXITCODE -ne 0) { throw "ReplaceActive with empty MinIO failed with code $($global:LASTEXITCODE)" }
 
-            # Verify replacement state: the active Postgres now has the source user, MinIO is empty but readable.
             $counts = Get-DatabaseCountsFromContainer -Container "letschat-validate-pg" -DatabaseName "letschat_local"
             Assert ($counts.users -eq 1) "Expected 1 user after replacement, got $($counts.users)"
-            Assert ($counts.attachments -eq 1) "Expected 1 attachment record after replacement, got $($counts.attachments)"
+            Assert ($counts.attachments -eq 0) "Expected 0 attachment records after replacement, got $($counts.attachments)"
             Assert (Test-DockerVolumeExists $activeVolumes.Minio) "Active MinIO volume should exist"
             Assert (Test-VolumeReadable $activeVolumes.Minio) "Active MinIO volume should be readable"
+            Assert ((Get-MinioVolumeFileCount -Volume $activeVolumes.Minio) -eq 0) "Active MinIO volume should contain 0 files"
         }
         finally {
             Stop-TestContainer $activePgContainer
@@ -673,6 +677,246 @@ if (-not $SkipMinio) {
             docker volume ls -q | Where-Object { $_ -like "test-codex-*-active-empty-*-rollback-*" } | ForEach-Object { docker volume rm $_ 2>$null | Out-Null }
         }
     }
+
+    Run-Test "Drill fails when attachment record points to a missing MinIO object" {
+        $suffix = Get-Date -Format "yyyyMMdd-HHmmss-fff"
+        $volumes = New-TestVolumeSet $suffix
+        $pgContainer = "test-codex-bad-empty-minio-pg-$suffix"
+        $minioContainer = "test-codex-bad-empty-minio-$suffix"
+
+        try {
+            Start-TestPostgres -container $pgContainer -volume $volumes.Postgres
+            Start-TestMinio -container $minioContainer -volume $volumes.Minio
+            # Create an attachment record but intentionally store no MinIO object.
+            Seed-TestDatabase -container $pgContainer -databaseName "letschat_local" -attachmentKey "attachments/missing-$suffix.txt" -email "bad-empty-$suffix@example.com"
+
+            $backupRoot = Join-Path $env:TEMP "codex-bad-empty-minio-backup-$suffix"
+            $backupScript = Join-Path $PSScriptRoot "backup-letschat-local-data.ps1"
+            & $backupScript `
+                -BackupRoot $backupRoot `
+                -PostgresContainer $pgContainer `
+                -PostgresVolume $volumes.Postgres `
+                -MinioVolume $volumes.Minio `
+                -RedisVolume $volumes.Redis `
+                -MailpitVolume $volumes.Mailpit
+            if ($global:LASTEXITCODE -ne 0) { throw "Backup script exited with code $($global:LASTEXITCODE)" }
+
+            $latest = Get-ChildItem -Directory -Path $backupRoot -Filter "letschat-local-*" |
+                Sort-Object CreationTime -Descending | Select-Object -First 1
+            $manifest = Get-Content (Join-Path $latest.FullName "manifest.json") -Raw | ConvertFrom-Json
+            Assert ($manifest.counts.attachments -eq 1) "Expected 1 attachment in manifest"
+            Assert ($manifest.minioFileCount -eq 0) "Expected minioFileCount=0 for empty MinIO, got $($manifest.minioFileCount)"
+
+            $restoreScript = Join-Path $PSScriptRoot "restore-letschat-local-data.ps1"
+            $output = & $restoreScript -BackupPath $latest.FullName -Drill *>&1
+            $exit = $global:LASTEXITCODE
+            Assert ($exit -ne 0) "Expected Drill to fail for inconsistent backup, but it succeeded"
+            $outputString = $output | Out-String
+            Assert ($outputString -match "inconsistent backup" -or $outputString -match "attachment") "Expected inconsistent-backup error, got: $outputString"
+        }
+        finally {
+            Stop-TestContainer $pgContainer
+            Stop-TestContainer $minioContainer
+            docker ps -a -q --filter "name=letschat-restore-*" | ForEach-Object { docker rm -f $_ 2>$null | Out-Null }
+            docker volume ls -q | Where-Object { $_ -like "letschat-restore-*" } | ForEach-Object { docker volume rm $_ 2>$null | Out-Null }
+            Remove-TestVolumes $volumes
+        }
+    }
+
+    Run-Test "ReplaceActive aborts before destructive replacement when attachment record has no MinIO object" {
+        $suffix = Get-Date -Format "yyyyMMdd-HHmmss-fff"
+        $activeVolumes = New-TestVolumeSet "active-bad-empty-$suffix"
+        $sourceVolumes = New-TestVolumeSet "source-bad-empty-$suffix"
+        $activePgContainer = "test-codex-bad-empty-replace-active-pg-$suffix"
+        $activeMinioContainer = "test-codex-bad-empty-replace-active-minio-$suffix"
+        $sourcePgContainer = "test-codex-bad-empty-replace-source-pg-$suffix"
+        $sourceMinioContainer = "test-codex-bad-empty-replace-source-minio-$suffix"
+        $activeAttachmentKey = "attachments/active-bad-empty-$suffix.txt"
+        $activeBytes = [System.Text.Encoding]::UTF8.GetBytes("active-bad-empty-attachment-$suffix")
+
+        try {
+            Start-TestPostgres -container $activePgContainer -volume $activeVolumes.Postgres
+            Start-TestMinio -container $activeMinioContainer -volume $activeVolumes.Minio
+            Seed-TestDatabase -container $activePgContainer -databaseName "letschat_local" -attachmentKey $activeAttachmentKey -email "active-bad-empty-$suffix@example.com"
+            Add-MinioTestObject -volume $activeVolumes.Minio -key $activeAttachmentKey -bytes $activeBytes
+
+            Start-TestPostgres -container $sourcePgContainer -volume $sourceVolumes.Postgres
+            Start-TestMinio -container $sourceMinioContainer -volume $sourceVolumes.Minio
+            Seed-TestDatabase -container $sourcePgContainer -databaseName "letschat_local" -attachmentKey "attachments/source-bad-empty-$suffix.txt" -email "source-bad-empty-$suffix@example.com"
+
+            $backupRoot = Join-Path $env:TEMP "codex-bad-empty-replace-backup-$suffix"
+            $backupScript = Join-Path $PSScriptRoot "backup-letschat-local-data.ps1"
+            & $backupScript `
+                -BackupRoot $backupRoot `
+                -PostgresContainer $sourcePgContainer `
+                -PostgresVolume $sourceVolumes.Postgres `
+                -MinioVolume $sourceVolumes.Minio `
+                -RedisVolume $sourceVolumes.Redis `
+                -MailpitVolume $sourceVolumes.Mailpit
+            if ($global:LASTEXITCODE -ne 0) { throw "Source backup failed with code $($global:LASTEXITCODE)" }
+
+            $latest = Get-ChildItem -Directory -Path $backupRoot -Filter "letschat-local-*" |
+                Sort-Object CreationTime -Descending | Select-Object -First 1
+
+            $restoreScript = Join-Path $PSScriptRoot "restore-letschat-local-data.ps1"
+            $output = & $restoreScript `
+                -BackupPath $latest.FullName `
+                -ReplaceActive `
+                -Force `
+                -ActivePostgresVolume $activeVolumes.Postgres `
+                -ActiveMinioVolume $activeVolumes.Minio `
+                -ActiveRedisVolume $activeVolumes.Redis `
+                -ActiveMailpitVolume $activeVolumes.Mailpit `
+                *>&1
+            $exit = $global:LASTEXITCODE
+            Assert ($exit -ne 0) "Expected ReplaceActive to abort for inconsistent backup, but it succeeded"
+            $outputString = $output | Out-String
+            Assert ($outputString -match "inconsistent backup" -or $outputString -match "attachment") "Expected inconsistent-backup error, got: $outputString"
+
+            # Active volumes must remain unchanged because the failure happened before replacement.
+            $activeCounts = Get-DatabaseCountsFromContainer -Container $activePgContainer -DatabaseName "letschat_local"
+            Assert ($activeCounts.users -eq 1) "Active users should remain 1, got $($activeCounts.users)"
+            $activeBytesAfter = Get-MinioObjectBytes -volume $activeVolumes.Minio -key $activeAttachmentKey
+            Assert (([System.Text.Encoding]::UTF8.GetString($activeBytesAfter)) -eq ([System.Text.Encoding]::UTF8.GetString($activeBytes))) "Active attachment bytes should be unchanged"
+        }
+        finally {
+            Stop-TestContainer $activePgContainer
+            Stop-TestContainer $activeMinioContainer
+            Stop-TestContainer $sourcePgContainer
+            Stop-TestContainer $sourceMinioContainer
+            Stop-ContainersUsingVolume $activeVolumes.Postgres
+            Stop-ContainersUsingVolume $activeVolumes.Minio
+            Stop-ContainersUsingVolume $activeVolumes.Redis
+            Stop-ContainersUsingVolume $activeVolumes.Mailpit
+            Stop-ContainersUsingVolume $sourceVolumes.Postgres
+            Stop-ContainersUsingVolume $sourceVolumes.Minio
+            Stop-ContainersUsingVolume $sourceVolumes.Redis
+            Stop-ContainersUsingVolume $sourceVolumes.Mailpit
+            Remove-TestVolumes $activeVolumes
+            Remove-TestVolumes $sourceVolumes
+            docker ps -a -q --filter "name=letschat-restore-*" | ForEach-Object { docker rm -f $_ 2>$null | Out-Null }
+            docker ps -a -q --filter "name=letschat-validate-*" | ForEach-Object { docker rm -f $_ 2>$null | Out-Null }
+            docker volume ls -q | Where-Object { $_ -like "letschat-restore-*" } | ForEach-Object { docker volume rm $_ 2>$null | Out-Null }
+            docker volume ls -q | Where-Object { $_ -like "letschat-emergency-*" } | ForEach-Object { docker volume rm $_ 2>$null | Out-Null }
+        }
+    }
+
+    Run-Test "Restored MinIO file count equals manifest.minioFileCount" {
+        $suffix = Get-Date -Format "yyyyMMdd-HHmmss-fff"
+        $volumes = New-TestVolumeSet $suffix
+        $pgContainer = "test-codex-counts-minio-pg-$suffix"
+        $minioContainer = "test-codex-counts-minio-$suffix"
+        $attachmentKey = "attachments/counts-$suffix.txt"
+        $originalBytes = [System.Text.Encoding]::UTF8.GetBytes("counts-attachment-$suffix")
+
+        try {
+            Start-TestPostgres -container $pgContainer -volume $volumes.Postgres
+            Start-TestMinio -container $minioContainer -volume $volumes.Minio
+            Seed-TestDatabase -container $pgContainer -databaseName "letschat_local" -attachmentKey $attachmentKey
+            Add-MinioTestObject -volume $volumes.Minio -key $attachmentKey -bytes $originalBytes
+
+            $backupRoot = Join-Path $env:TEMP "codex-counts-backup-$suffix"
+            $backupScript = Join-Path $PSScriptRoot "backup-letschat-local-data.ps1"
+            & $backupScript `
+                -BackupRoot $backupRoot `
+                -PostgresContainer $pgContainer `
+                -PostgresVolume $volumes.Postgres `
+                -MinioVolume $volumes.Minio `
+                -RedisVolume $volumes.Redis `
+                -MailpitVolume $volumes.Mailpit
+            if ($global:LASTEXITCODE -ne 0) { throw "Backup script exited with code $($global:LASTEXITCODE)" }
+
+            $latest = Get-ChildItem -Directory -Path $backupRoot -Filter "letschat-local-*" |
+                Sort-Object CreationTime -Descending | Select-Object -First 1
+            $manifest = Get-Content (Join-Path $latest.FullName "manifest.json") -Raw | ConvertFrom-Json
+
+            $restoredMinioVol = "test-restored-minio-$suffix"
+            Invoke-Native docker @("volume", "create", $restoredMinioVol) | Out-Null
+            $archivePath = Join-Path $latest.FullName "minio-data.tar.gz"
+            Invoke-Native docker @(
+                "run", "--rm",
+                "-v", "${archivePath}:/archive.tar.gz:ro",
+                "-v", "${restoredMinioVol}:/data",
+                "alpine",
+                "tar", "xzf", "/archive.tar.gz", "-C", "/data"
+            ) | Out-Null
+
+            $restoredCount = Get-MinioVolumeFileCount -Volume $restoredMinioVol
+            Assert ($restoredCount -eq $manifest.minioFileCount) "Restored file count $restoredCount does not match manifest $($manifest.minioFileCount)"
+
+            $restoreScript = Join-Path $PSScriptRoot "restore-letschat-local-data.ps1"
+            & $restoreScript -BackupPath $latest.FullName -Drill
+            if ($global:LASTEXITCODE -ne 0) { throw "Restore drill failed with code $($global:LASTEXITCODE)" }
+        }
+        finally {
+            Stop-TestContainer $pgContainer
+            Stop-TestContainer $minioContainer
+            docker ps -a -q --filter "name=letschat-restore-*" | ForEach-Object { docker rm -f $_ 2>$null | Out-Null }
+            docker volume ls -q | Where-Object { $_ -like "letschat-restore-*" } | ForEach-Object { docker volume rm $_ 2>$null | Out-Null }
+            docker volume rm $restoredMinioVol 2>$null | Out-Null
+            Remove-TestVolumes $volumes
+        }
+    }
+
+    Run-Test "Restored MinIO file-count mismatch fails restore" {
+        $suffix = Get-Date -Format "yyyyMMdd-HHmmss-fff"
+        $volumes = New-TestVolumeSet $suffix
+        $pgContainer = "test-codex-mismatch-minio-pg-$suffix"
+        $minioContainer = "test-codex-mismatch-minio-$suffix"
+        $attachmentKey = "attachments/mismatch-$suffix.txt"
+        $originalBytes = [System.Text.Encoding]::UTF8.GetBytes("mismatch-attachment-$suffix")
+
+        try {
+            Start-TestPostgres -container $pgContainer -volume $volumes.Postgres
+            Start-TestMinio -container $minioContainer -volume $volumes.Minio
+            Seed-TestDatabase -container $pgContainer -databaseName "letschat_local" -attachmentKey $attachmentKey
+            Add-MinioTestObject -volume $volumes.Minio -key $attachmentKey -bytes $originalBytes
+
+            $backupRoot = Join-Path $env:TEMP "codex-mismatch-backup-$suffix"
+            $backupScript = Join-Path $PSScriptRoot "backup-letschat-local-data.ps1"
+            & $backupScript `
+                -BackupRoot $backupRoot `
+                -PostgresContainer $pgContainer `
+                -PostgresVolume $volumes.Postgres `
+                -MinioVolume $volumes.Minio `
+                -RedisVolume $volumes.Redis `
+                -MailpitVolume $volumes.Mailpit
+            if ($global:LASTEXITCODE -ne 0) { throw "Backup script exited with code $($global:LASTEXITCODE)" }
+
+            $latest = Get-ChildItem -Directory -Path $backupRoot -Filter "letschat-local-*" |
+                Sort-Object CreationTime -Descending | Select-Object -First 1
+            $manifestPath = Join-Path $latest.FullName "manifest.json"
+            $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
+            $manifest.minioFileCount = 999
+            $manifest | ConvertTo-Json -Depth 5 | Out-File -FilePath $manifestPath -Encoding utf8
+
+            $restoreScript = Join-Path $PSScriptRoot "restore-letschat-local-data.ps1"
+            $output = & $restoreScript -BackupPath $latest.FullName -Drill *>&1
+            $exit = $global:LASTEXITCODE
+            Assert ($exit -ne 0) "Expected restore to fail on file-count mismatch, but it succeeded"
+            $outputString = $output | Out-String
+            Assert ($outputString -match "file count mismatch") "Expected file-count mismatch error, got: $outputString"
+        }
+        finally {
+            Stop-TestContainer $pgContainer
+            Stop-TestContainer $minioContainer
+            docker ps -a -q --filter "name=letschat-restore-*" | ForEach-Object { docker rm -f $_ 2>$null | Out-Null }
+            docker volume ls -q | Where-Object { $_ -like "letschat-restore-*" } | ForEach-Object { docker volume rm $_ 2>$null | Out-Null }
+            Remove-TestVolumes $volumes
+        }
+    }
+
+    Run-Test "Missing MinIO volume fails readability check" {
+        $result = Test-VolumeReadable -Volume "test-codex-missing-minio-volume"
+        Assert ($result -eq $false) "Expected Test-VolumeReadable to return `$false for missing volume"
+    }
+
+    # Note: an unreadable volume is also rejected by Test-VolumeReadable, but it
+    # cannot be reliably simulated in a root-owned Docker container because root
+    # bypasses filesystem permissions. The missing-volume test and the readable
+    # empty-volume tests above cover the validation surface.
+    # (Requirement: unreadable MinIO volume -> fails is implemented and exercised
+    # by the helper's `ls /data` exit-code check.)
 }
 
 # ---------------------------------------------------------------------------

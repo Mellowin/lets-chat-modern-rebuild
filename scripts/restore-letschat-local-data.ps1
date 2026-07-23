@@ -142,6 +142,38 @@ function Test-MinioVolumeReadable($Volume) {
     return ($result.ExitCode -eq 0)
 }
 
+function Validate-RestoredMinio($Volume, $Manifest) {
+    <#
+    .SYNOPSIS
+        Validates a restored MinIO volume against the backup manifest.
+        An empty readable volume is allowed only when the manifest records an
+        attachment-free state (countsCollected == true, counts.attachments == 0,
+        minioFileCount == 0).
+    #>
+    if (-not (Test-MinioVolumeReadable $Volume)) {
+        throw "Restored MinIO volume '$Volume' is missing or unreadable."
+    }
+
+    $expectedCount = Get-ValidMinioFileCount -ManifestValue $Manifest.minioFileCount
+    $actualCount = Get-MinioVolumeFileCount -Volume $Volume
+    if ($actualCount -lt 0) {
+        throw "Could not count files in restored MinIO volume '$Volume'."
+    }
+
+    if ($actualCount -ne $expectedCount) {
+        throw "MinIO file count mismatch for volume '$Volume': manifest records $expectedCount, restored volume has $actualCount."
+    }
+
+    if ($Manifest.countsCollected -eq $true -and
+        ($Manifest.counts.attachments -is [int] -or $Manifest.counts.attachments -is [long]) -and
+        $Manifest.counts.attachments -gt 0 -and
+        $expectedCount -eq 0) {
+        throw "Backup manifest records $($Manifest.counts.attachments) attachment(s) but restored MinIO volume '$Volume' is empty. Refusing to restore an inconsistent backup."
+    }
+
+    Write-Ok "Restored MinIO volume validated: $actualCount file(s)."
+}
+
 function Validate-RestoredPostgres($Container, $Manifest) {
     Write-Info "Verifying restored PostgreSQL data..."
     if (-not (Wait-PostgresReady -Container $Container -User "letschat" -Database "postgres")) {
@@ -227,9 +259,7 @@ function Restore-ToTempVolumes($backupDir, $manifest, $suffix) {
         Restore-TarArchive -backupDir $backupDir -archiveName "redis-data.tar.gz" -volume $redisVol
         Restore-TarArchive -backupDir $backupDir -archiveName "mailpit-data.tar.gz" -volume $mailpitVol
 
-        if (-not (Test-MinioVolumeReadable $minioVol)) {
-            throw "MinIO validation volume is not readable"
-        }
+        Validate-RestoredMinio -Volume $minioVol -Manifest $manifest
 
         Write-Ok "Temporary restore validation passed"
         return @{
