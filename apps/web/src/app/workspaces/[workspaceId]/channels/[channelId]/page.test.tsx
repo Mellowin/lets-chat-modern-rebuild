@@ -5,7 +5,7 @@ import ChannelDetailPage from "./page";
 import { getChannel, getChannelMembers, addChannelMember, removeChannelMember, leaveChannel, archiveChannel, markChannelRead, type ChannelMember } from "@/lib/channels-api";
 import { createChannelInvite } from "@/lib/channel-invites-api";
 import { getMessages, createMessage, updateMessage, deleteMessage, addMessageReaction, removeMessageReaction, pinMessage, unpinMessage, getPinnedMessages, uploadAttachmentViaProxyWithProgress, fetchAttachmentFile, getAttachmentFileObjectUrl, getMessageContext, searchChannelMessages, Message } from "@/lib/messages-api";
-import { sendDirectMessage, listDirectConversations } from "@/lib/direct-conversations-api";
+import { forwardMessage, loadForwardTargets } from "@/lib/forward-api";
 
 const socketHandlers: Record<string, (...args: unknown[]) => void> = {};
 const socketOnMock = vi.fn((event: string, handler: (...args: unknown[]) => void) => {
@@ -72,9 +72,9 @@ vi.mock("@/lib/messages-api", () => ({
   searchChannelMessages: vi.fn(),
 }));
 
-vi.mock("@/lib/direct-conversations-api", () => ({
-  sendDirectMessage: vi.fn(),
-  listDirectConversations: vi.fn(),
+vi.mock("@/lib/forward-api", () => ({
+  forwardMessage: vi.fn(),
+  loadForwardTargets: vi.fn(),
 }));
 
 vi.mock("@/lib/socket-client", () => ({
@@ -3208,6 +3208,7 @@ describe("ChannelDetailPage — forward", () => {
     sessionStorage.setItem("accessToken", "token");
     Object.keys(socketHandlers).forEach((k) => delete socketHandlers[k]);
     window.alert = vi.fn();
+    vi.mocked(loadForwardTargets).mockResolvedValue({ channels: [], directs: [], groups: [] });
   });
 
   const ownMessage = {
@@ -3236,33 +3237,18 @@ describe("ChannelDetailPage — forward", () => {
 
   it("opens forward modal and sends message to selected conversation", async () => {
     mockChannelAndMessages([ownMessage]);
-    vi.mocked(listDirectConversations).mockResolvedValueOnce([
-      {
-        id: "dc1",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        otherParticipant: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
-        lastMessage: null,
-        unreadCount: 0,
-        isOnline: false,
-      },
-    ]);
-    vi.mocked(sendDirectMessage).mockResolvedValueOnce({
-      id: "dm1",
-      conversationId: "dc1",
-      content: "↪ Hello",
-      parentId: null,
-      replyToMessageId: null,
-      replyTo: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      editedAt: null,
-      author: { id: "u1", username: "alice", displayName: null, avatarUrl: null },
-      parent: null,
-      reactions: [],
-      readByOtherParticipant: false,
-      isUnreadForMe: false,
+    vi.mocked(loadForwardTargets).mockResolvedValueOnce({
+      channels: [],
+      directs: [
+        {
+          type: "direct",
+          id: "dc1",
+          otherParticipant: { id: "u2", username: "bob", displayName: "Bob", avatarUrl: null },
+        },
+      ],
+      groups: [],
     });
+    vi.mocked(forwardMessage).mockResolvedValueOnce(undefined);
 
     render(<ChannelDetailPage />);
     await waitFor(() => {
@@ -3273,20 +3259,25 @@ describe("ChannelDetailPage — forward", () => {
     await userEvent.click(screen.getByTestId("channel-forward-action-m1"));
 
     await waitFor(() => {
-      expect(screen.getByText("Forward to")).toBeInTheDocument();
+      expect(screen.getByText("Forward message")).toBeInTheDocument();
     });
 
-    await userEvent.click(screen.getByText("Bob"));
+    await userEvent.click(screen.getByTestId("direct-forward-target-dc1"));
 
     await waitFor(() => {
-      expect(sendDirectMessage).toHaveBeenCalledWith("token", "dc1", { content: "↪ Hello" });
+      expect(forwardMessage).toHaveBeenCalledWith("token", {
+        sourceType: "channel",
+        sourceMessageId: "m1",
+        destinationType: "direct",
+        destinationId: "dc1",
+      });
     });
-    expect(screen.queryByText("Forward to")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("forward-dialog")).not.toBeInTheDocument();
   });
 
-  it("shows error when loading conversations fails", async () => {
+  it("shows error when loading targets fails", async () => {
     mockChannelAndMessages([ownMessage]);
-    vi.mocked(listDirectConversations).mockRejectedValueOnce(new Error("Network error"));
+    vi.mocked(loadForwardTargets).mockRejectedValueOnce(new Error("Failed to forward message"));
 
     render(<ChannelDetailPage />);
     await waitFor(() => {
@@ -3301,9 +3292,9 @@ describe("ChannelDetailPage — forward", () => {
     });
   });
 
-  it("shows 'no conversations' when list is empty", async () => {
+  it("shows 'no chats available' when target list is empty", async () => {
     mockChannelAndMessages([ownMessage]);
-    vi.mocked(listDirectConversations).mockResolvedValueOnce([]);
+    vi.mocked(loadForwardTargets).mockResolvedValueOnce({ channels: [], directs: [], groups: [] });
 
     render(<ChannelDetailPage />);
     await waitFor(() => {
@@ -3314,7 +3305,7 @@ describe("ChannelDetailPage — forward", () => {
     await userEvent.click(screen.getByTestId("channel-forward-action-m1"));
 
     await waitFor(() => {
-      expect(screen.getByText("No direct conversations yet.")).toBeInTheDocument();
+      expect(screen.getByText(/No chats available to forward./i)).toBeInTheDocument();
     });
   });
 
@@ -5062,12 +5053,18 @@ describe("ChannelDetailPage — scroll behavior", () => {
     const scrollEl = screen.getByTestId("channel-messages-scroll") as HTMLDivElement;
     setScrollMetrics(scrollEl, { scrollHeight: 1000, clientHeight: 300 });
 
-    act(() => {
-      vi.advanceTimersByTime(1600);
-    });
-
     await waitFor(() => {
       expect(screen.getByText("Earlier message")).toBeInTheDocument();
+    });
+
+    // Wait for the initial scroll effect to settle so the scroll handler is
+    // not re-attached/rerun mid-test and accidentally pulls the user back down.
+    await waitFor(() => {
+      expect(scrollEl.scrollTop).toBe(scrollEl.scrollHeight);
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(1600);
     });
 
     act(() => {

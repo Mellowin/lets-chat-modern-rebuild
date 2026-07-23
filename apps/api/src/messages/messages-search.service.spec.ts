@@ -3,6 +3,7 @@ import { MessagesSearchService } from './messages-search.service';
 import { PrismaService } from '@lets-chat/database';
 import { ChannelsService } from '../channels/channels.service';
 import { WorkspacesRepository } from '../workspaces/workspaces.repository';
+import { ForwardPermissionsHelper } from './forward-permissions.helper';
 
 describe('MessagesSearchService', () => {
   let service: MessagesSearchService;
@@ -12,6 +13,8 @@ describe('MessagesSearchService', () => {
       '$queryRaw' | 'message' | 'directMessage' | 'groupMessage'
     >
   >;
+  let forwardPermissions: jest.Mocked<ForwardPermissionsHelper>;
+  let workspaces: jest.Mocked<WorkspacesRepository>;
 
   const userId = '11111111-1111-1111-1111-111111111111';
 
@@ -46,10 +49,18 @@ describe('MessagesSearchService', () => {
             findMemberRole: jest.fn(),
           },
         },
+        {
+          provide: ForwardPermissionsHelper,
+          useValue: {
+            canViewSources: jest.fn().mockResolvedValue(new Set<string>()),
+          },
+        },
       ],
     }).compile();
 
     service = moduleRef.get(MessagesSearchService);
+    forwardPermissions = moduleRef.get(ForwardPermissionsHelper);
+    workspaces = moduleRef.get(WorkspacesRepository);
   });
 
   afterEach(() => {
@@ -438,5 +449,173 @@ describe('MessagesSearchService', () => {
     expect(sqlText).toContain('accessible_channels');
     expect(sqlText).toContain('FROM "Message"');
     expect(sqlText).toContain('AND FALSE');
+  });
+
+  describe('forwarded metadata privacy', () => {
+    const accessibleMeta = {
+      sourceType: 'channel',
+      sourceChatId: 'private-ch-1',
+      sourceMessageId: 'orig-1',
+      originalAuthorId: 'u1',
+      originalAuthorName: 'Alice',
+      originalCreatedAt: '2024-01-01T00:00:00Z',
+    };
+
+    it('returns raw metadata when the source is accessible', async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([
+        makeChannelResult({ forwardedFrom: accessibleMeta }),
+      ]);
+      forwardPermissions.canViewSources.mockResolvedValue(
+        new Set([`channel:${accessibleMeta.sourceChatId}`]),
+      );
+
+      const result = await service.searchGlobal(userId, { q: 'к' });
+
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].forwardedFrom).toMatchObject(accessibleMeta);
+    });
+
+    it('masks metadata when the source is not accessible', async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([
+        makeChannelResult({ forwardedFrom: accessibleMeta }),
+      ]);
+      forwardPermissions.canViewSources.mockResolvedValue(new Set<string>());
+
+      const result = await service.searchGlobal(userId, { q: 'к' });
+
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].forwardedFrom).toEqual({
+        sourceType: 'channel',
+        originalCreatedAt: accessibleMeta.originalCreatedAt,
+        isAnonymous: true,
+      });
+      expect(result.items[0].forwardedFrom).not.toHaveProperty(
+        'sourceMessageId',
+      );
+      expect(result.items[0].forwardedFrom).not.toHaveProperty('sourceChatId');
+      expect(result.items[0].forwardedFrom).not.toHaveProperty(
+        'originalAuthorId',
+      );
+      expect(result.items[0].forwardedFrom).not.toHaveProperty(
+        'originalAuthorName',
+      );
+    });
+
+    it('masks metadata for an archived group source in search', async () => {
+      const archivedGroupMeta = {
+        sourceType: 'group',
+        sourceChatId: 'archived-group-1',
+        sourceMessageId: 'orig-gm',
+        originalAuthorId: 'u3',
+        originalAuthorName: 'Carol',
+        originalCreatedAt: '2024-01-03T00:00:00Z',
+      };
+
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([
+        makeGroupResult({ forwardedFrom: archivedGroupMeta }),
+      ]);
+      forwardPermissions.canViewSources.mockResolvedValue(new Set<string>());
+
+      const result = await service.searchGlobal(userId, { q: 'к' });
+
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].forwardedFrom).toEqual({
+        sourceType: 'group',
+        originalCreatedAt: archivedGroupMeta.originalCreatedAt,
+        isAnonymous: true,
+      });
+      expect(result.items[0].forwardedFrom).not.toHaveProperty('sourceChatId');
+      expect(result.items[0].forwardedFrom).not.toHaveProperty(
+        'sourceMessageId',
+      );
+      expect(result.items[0].forwardedFrom).not.toHaveProperty(
+        'originalAuthorId',
+      );
+      expect(result.items[0].forwardedFrom).not.toHaveProperty(
+        'originalAuthorName',
+      );
+      expect(forwardPermissions.canViewSources).toHaveBeenCalledWith(
+        userId,
+        expect.arrayContaining([
+          { sourceType: 'group', sourceChatId: archivedGroupMeta.sourceChatId },
+        ]),
+      );
+    });
+
+    it('masks metadata across all UNION branches', async () => {
+      const dmMeta = {
+        sourceType: 'direct',
+        sourceChatId: 'conv-1',
+        sourceMessageId: 'orig-dm',
+        originalAuthorId: 'u2',
+        originalAuthorName: 'Bob',
+        originalCreatedAt: '2024-01-02T00:00:00Z',
+      };
+      const groupMeta = {
+        sourceType: 'group',
+        sourceChatId: 'group-1',
+        sourceMessageId: 'orig-gm',
+        originalAuthorId: 'u3',
+        originalAuthorName: 'Carol',
+        originalCreatedAt: '2024-01-03T00:00:00Z',
+      };
+
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([
+        makeChannelResult({ forwardedFrom: accessibleMeta }),
+        makeDirectResult({ forwardedFrom: dmMeta }),
+        makeGroupResult({ forwardedFrom: groupMeta }),
+      ]);
+      forwardPermissions.canViewSources.mockResolvedValue(
+        new Set([`direct:${dmMeta.sourceChatId}`]),
+      );
+
+      const result = await service.searchGlobal(userId, { q: 'к' });
+
+      const channelItem = result.items.find((i) => i.source.type === 'CHANNEL');
+      const directItem = result.items.find((i) => i.source.type === 'DIRECT');
+      const groupItem = result.items.find((i) => i.source.type === 'GROUP');
+
+      expect(channelItem?.forwardedFrom).toEqual({
+        sourceType: 'channel',
+        originalCreatedAt: accessibleMeta.originalCreatedAt,
+        isAnonymous: true,
+      });
+      expect(directItem?.forwardedFrom).toMatchObject(dmMeta);
+      expect(groupItem?.forwardedFrom).toEqual({
+        sourceType: 'group',
+        originalCreatedAt: groupMeta.originalCreatedAt,
+        isAnonymous: true,
+      });
+    });
+
+    it('leaves non-forwarded results unchanged', async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([makeChannelResult()]);
+
+      const result = await service.searchGlobal(userId, { q: 'к' });
+
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].forwardedFrom).toBeUndefined();
+      expect(forwardPermissions.canViewSources).not.toHaveBeenCalled();
+    });
+
+    it('masks forwarded metadata in workspace search', async () => {
+      (workspaces.findMemberRole as jest.Mock).mockResolvedValue('MEMBER');
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([
+        {
+          ...makeChannelResult({ forwardedFrom: accessibleMeta }),
+          channel: { id: 'ch-1', name: 'general', slug: 'general' },
+        },
+      ]);
+      forwardPermissions.canViewSources.mockResolvedValue(new Set<string>());
+
+      const result = await service.search('ws-1', userId, { q: 'к' });
+
+      expect(result).toHaveLength(1);
+      expect(result[0].forwardedFrom).toEqual({
+        sourceType: 'channel',
+        originalCreatedAt: accessibleMeta.originalCreatedAt,
+        isAnonymous: true,
+      });
+    });
   });
 });

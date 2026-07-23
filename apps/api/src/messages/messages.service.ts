@@ -5,10 +5,12 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { Prisma } from '@lets-chat/database';
 import { WorkspacesRepository } from '../workspaces/workspaces.repository';
 import { ChannelsRepository } from '../channels/channels.repository';
 import { MessagesRepository } from './messages.repository';
 import { WebsocketEventsService } from '../websocket/websocket-events.service';
+import { ForwardPermissionsHelper } from './forward-permissions.helper';
 import { PushService } from '../push/push.service';
 import { MentionsService } from '../common/mentions.service';
 import { CreateMessageDto } from './dto/create-message.dto';
@@ -60,9 +62,10 @@ export class MessagesService {
     private readonly websocketEvents: WebsocketEventsService,
     private readonly pushService: PushService,
     private readonly mentions: MentionsService,
+    private readonly forwardPermissions: ForwardPermissionsHelper,
   ) {}
 
-  private toMessageResponse(
+  async toMessageResponse(
     message: {
       id: string;
       channelId: string;
@@ -102,6 +105,7 @@ export class MessagesService {
         pinnedAt: Date;
         pinnedByUserId: string | null;
       } | null;
+      forwardedFrom?: unknown;
     },
     userId: string,
   ) {
@@ -131,6 +135,11 @@ export class MessagesService {
         }
       : undefined;
 
+    const forwardedFrom = await this.forwardPermissions.toResponse(
+      message.forwardedFrom,
+      userId,
+    );
+
     return {
       id: message.id,
       channelId: message.channelId,
@@ -157,6 +166,7 @@ export class MessagesService {
       mentions: this.normalizeMentions(message.mentions),
       isPinned,
       pin,
+      forwardedFrom,
     };
   }
 
@@ -220,39 +230,48 @@ export class MessagesService {
     }
   }
 
-  private mapPinResponse(pin: {
-    id: string;
-    pinnedAt: Date;
-    pinnedBy: {
+  private async mapPinResponse(
+    pin: {
       id: string;
-      username: string;
-      displayName: string | null;
-      avatarUrl: string | null;
-    } | null;
-    message: {
-      id: string;
-      content: string;
-      createdAt: Date;
-      author: {
+      pinnedAt: Date;
+      pinnedBy: {
         id: string;
         username: string;
         displayName: string | null;
         avatarUrl: string | null;
-      };
-      attachments: Array<{ id: string }>;
-      replyToMessage?: {
+      } | null;
+      message: {
         id: string;
         content: string;
-        deletedAt: Date | null;
+        createdAt: Date;
         author: {
           id: string;
           username: string;
           displayName: string | null;
           avatarUrl: string | null;
         };
-      } | null;
-    };
-  }) {
+        attachments: Array<{ id: string }>;
+        replyToMessage?: {
+          id: string;
+          content: string;
+          deletedAt: Date | null;
+          author: {
+            id: string;
+            username: string;
+            displayName: string | null;
+            avatarUrl: string | null;
+          };
+        } | null;
+        forwardedFrom?: unknown;
+      };
+    },
+    userId: string,
+  ) {
+    const forwardedFrom = await this.forwardPermissions.toResponse(
+      pin.message.forwardedFrom,
+      userId,
+    );
+
     return {
       id: pin.id,
       pinnedAt: pin.pinnedAt,
@@ -288,6 +307,7 @@ export class MessagesService {
                   },
             }
           : null,
+        forwardedFrom,
       },
     };
   }
@@ -297,6 +317,7 @@ export class MessagesService {
     channelId: string,
     dto: CreateMessageDto,
     userId: string,
+    forwardedFrom?: Prisma.InputJsonValue,
   ) {
     await this.validateChannelAccess(workspaceId, channelId, userId);
 
@@ -365,6 +386,7 @@ export class MessagesService {
       content: dto.content ?? '',
       parentId: dto.parentId,
       replyToMessageId: dto.replyToMessageId,
+      forwardedFrom,
       attachments: dto.attachments?.map((a) => ({
         storageKey: a.storageKey,
         filename: a.fileName,
@@ -375,7 +397,7 @@ export class MessagesService {
       mentions,
     });
 
-    const response = this.toMessageResponse(message, userId);
+    const response = await this.toMessageResponse(message, userId);
     this.websocketEvents.broadcastMessageCreated(channelId, response);
 
     this.pushService
@@ -421,7 +443,9 @@ export class MessagesService {
     const rows = await this.messages.listForChannel(channelId, limit, cursor);
     const hasMore = rows.length > limit;
     const page = (hasMore ? rows.slice(0, limit) : rows).reverse();
-    const items = page.map((m) => this.toMessageResponse(m, userId));
+    const items = await Promise.all(
+      page.map((m) => this.toMessageResponse(m, userId)),
+    );
 
     return {
       items,
@@ -453,8 +477,10 @@ export class MessagesService {
     );
 
     const hasMore = rows.length > limit;
-    const items = (hasMore ? rows.slice(0, limit) : rows).map((m) =>
-      this.toMessageResponse(m, userId),
+    const items = await Promise.all(
+      (hasMore ? rows.slice(0, limit) : rows).map((m) =>
+        this.toMessageResponse(m, userId),
+      ),
     );
 
     return {
@@ -488,16 +514,20 @@ export class MessagesService {
     const hasMoreBefore = beforeRaw.length > beforeLimit;
     const hasMoreAfter = afterRaw.length > afterLimit;
 
-    const before = (hasMoreBefore ? beforeRaw.slice(0, beforeLimit) : beforeRaw)
-      .reverse()
-      .map((m) => this.toMessageResponse(m, userId));
+    const before = await Promise.all(
+      (hasMoreBefore ? beforeRaw.slice(0, beforeLimit) : beforeRaw)
+        .reverse()
+        .map((m) => this.toMessageResponse(m, userId)),
+    );
 
-    const after = (hasMoreAfter ? afterRaw.slice(0, afterLimit) : afterRaw).map(
-      (m) => this.toMessageResponse(m, userId),
+    const after = await Promise.all(
+      (hasMoreAfter ? afterRaw.slice(0, afterLimit) : afterRaw).map((m) =>
+        this.toMessageResponse(m, userId),
+      ),
     );
 
     return {
-      target: this.toMessageResponse(target, userId),
+      target: await this.toMessageResponse(target, userId),
       before,
       after,
       hasMoreBefore,
@@ -537,7 +567,7 @@ export class MessagesService {
       dto.content,
       userId,
     );
-    const response = this.toMessageResponse(updated, userId);
+    const response = await this.toMessageResponse(updated, userId);
     this.websocketEvents.broadcastMessageUpdated(channelId, response);
     return response;
   }
@@ -607,7 +637,7 @@ export class MessagesService {
         : { id: userId, username: '', displayName: null, avatarUrl: null },
     });
 
-    return this.mapPinResponse(pin);
+    return this.mapPinResponse(pin, userId);
   }
 
   async unpinMessage(
@@ -654,7 +684,7 @@ export class MessagesService {
     const page = hasMore ? rows.slice(0, limit) : rows;
 
     return {
-      items: page.map((p) => this.mapPinResponse(p)),
+      items: await Promise.all(page.map((p) => this.mapPinResponse(p, userId))),
       nextCursor:
         hasMore && page.length > 0
           ? encodePinCursor({

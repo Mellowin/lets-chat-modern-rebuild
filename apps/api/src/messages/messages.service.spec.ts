@@ -16,6 +16,7 @@ import { ChannelsRepository } from '../channels/channels.repository';
 import { WebsocketEventsService } from '../websocket/websocket-events.service';
 import { PushService } from '../push/push.service';
 import { MentionsService } from '../common/mentions.service';
+import { ForwardPermissionsHelper } from './forward-permissions.helper';
 type CreatedMessage = Awaited<ReturnType<MessagesRepository['createMessage']>>;
 type ListedMessage = Awaited<
   ReturnType<MessagesRepository['listForChannel']>
@@ -100,6 +101,14 @@ describe('MessagesService', () => {
             resolveMentions: jest.fn().mockResolvedValue([]),
           },
         },
+        {
+          provide: ForwardPermissionsHelper,
+          useValue: {
+            canViewSource: jest.fn().mockResolvedValue(true),
+            toResponse: jest.fn().mockResolvedValue(undefined),
+            maskResponse: jest.fn().mockReturnValue(undefined),
+          },
+        },
       ],
     }).compile();
 
@@ -179,7 +188,7 @@ describe('MessagesService', () => {
             avatarUrl: null,
           },
         },
-      ] as ListedMessage[];
+      ] as unknown as ListedMessage[];
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
       channelsRepository.findActiveById.mockResolvedValue({
         id: channelId,
@@ -558,7 +567,7 @@ describe('MessagesService', () => {
             avatarUrl: null,
           },
         },
-      ] as ListedMessage[];
+      ] as unknown as ListedMessage[];
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
       channelsRepository.findActiveById.mockResolvedValue({
         id: channelId,
@@ -631,7 +640,7 @@ describe('MessagesService', () => {
             avatarUrl: null,
           },
         },
-      ] as ListedMessage[];
+      ] as unknown as ListedMessage[];
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
       channelsRepository.findActiveById.mockResolvedValue({
         id: channelId,

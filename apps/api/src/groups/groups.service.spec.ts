@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { GroupsService } from './groups.service';
+import { ForwardPermissionsHelper } from '../messages/forward-permissions.helper';
 import { StorageService } from '../storage/storage.service';
 import { AttachmentsRepository } from '../messages/attachments.repository';
 import {
@@ -17,7 +18,11 @@ import { WebsocketEventsService } from '../websocket/websocket-events.service';
 import { PushService } from '../push/push.service';
 import { BlocksService } from '../safety/blocks.service';
 import { MentionsService } from '../common/mentions.service';
-import { UserRole, ContactPrivacySetting } from '@lets-chat/database';
+import {
+  UserRole,
+  ContactPrivacySetting,
+  StorageBackend,
+} from '@lets-chat/database';
 
 const userId = '11111111-1111-1111-1111-111111111111';
 const otherUserId = '22222222-2222-2222-2222-222222222222';
@@ -136,6 +141,7 @@ function makeMessage(
     attachments: [],
     replyToMessage: null,
     pin: null,
+    forwardedFrom: null,
   };
   return { ...base, ...overrides };
 }
@@ -172,6 +178,7 @@ function makePin(
       },
       attachments: [],
       replyToMessage: null,
+      forwardedFrom: null,
     },
   };
   return { ...base, ...overrides };
@@ -278,6 +285,14 @@ describe('GroupsService', () => {
           useValue: {
             findById: jest.fn(),
             createUnattachedAttachment: jest.fn(),
+          },
+        },
+        {
+          provide: ForwardPermissionsHelper,
+          useValue: {
+            canViewSource: jest.fn().mockResolvedValue(true),
+            toResponse: jest.fn().mockResolvedValue(undefined),
+            maskResponse: jest.fn().mockReturnValue(undefined),
           },
         },
       ],
@@ -729,6 +744,8 @@ describe('GroupsService', () => {
               filename: 'image.png',
               mimeType: 'image/png',
               size: 5678,
+              storageKey: 'attachments/user/image.png',
+              storageBackend: StorageBackend.MINIO,
               createdAt: new Date(),
             },
           ],
@@ -786,6 +803,8 @@ describe('GroupsService', () => {
               filename: 'image.png',
               mimeType: 'image/png',
               size: 5678,
+              storageKey: 'attachments/user/image.png',
+              storageBackend: StorageBackend.MINIO,
               createdAt: new Date(),
             },
           ],

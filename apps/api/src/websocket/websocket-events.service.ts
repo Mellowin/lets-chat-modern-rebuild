@@ -1,11 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { WebsocketGateway } from './websocket.gateway';
+import {
+  ForwardPermissionsHelper,
+  ForwardedFromPayload,
+} from '../messages/forward-permissions.helper';
 
 @Injectable()
 export class WebsocketEventsService {
   private readonly logger = new Logger(WebsocketEventsService.name);
 
-  constructor(private readonly gateway: WebsocketGateway) {}
+  constructor(
+    private readonly gateway: WebsocketGateway,
+    private readonly forwardPermissions: ForwardPermissionsHelper,
+  ) {}
 
   broadcastMessageCreated(
     channelId: string,
@@ -39,13 +46,14 @@ export class WebsocketEventsService {
           avatarUrl: string | null;
         } | null;
       } | null;
+      forwardedFrom?: ForwardedFromPayload;
     },
   ) {
     try {
       this.gateway.broadcastToRoom(
         `channel:${channelId}`,
         'message:created',
-        payload,
+        this.withAnonymousForwardedFrom(payload),
       );
     } catch (error) {
       this.logger.error(
@@ -251,13 +259,14 @@ export class WebsocketEventsService {
           avatarUrl: string | null;
         } | null;
       } | null;
+      forwardedFrom?: ForwardedFromPayload;
     },
   ) {
     try {
       this.gateway.broadcastToRoom(
         `direct-conversation:${conversationId}`,
         'direct:message:created',
-        payload,
+        this.withAnonymousForwardedFrom(payload),
       );
     } catch (error) {
       this.logger.error(
@@ -338,12 +347,13 @@ export class WebsocketEventsService {
     payload: unknown,
     participantUserIds: string[],
   ) {
+    const maskedPayload = this.maskForwardedFromInPayload(payload);
     for (const userId of participantUserIds) {
       try {
         this.gateway.broadcastToRoom(
           `user:${userId}`,
           'direct:conversation:updated',
-          payload,
+          maskedPayload,
         );
       } catch (error) {
         this.logger.error(
@@ -478,13 +488,14 @@ export class WebsocketEventsService {
           avatarUrl: string | null;
         } | null;
       } | null;
+      forwardedFrom?: ForwardedFromPayload;
     },
   ) {
     try {
       this.gateway.broadcastToRoom(
         `group-conversation:${groupId}`,
         'group:message:created',
-        payload,
+        this.withAnonymousForwardedFrom(payload),
       );
     } catch (error) {
       this.logger.error(
@@ -499,12 +510,13 @@ export class WebsocketEventsService {
     payload: unknown,
     memberUserIds: string[],
   ) {
+    const maskedPayload = this.maskForwardedFromInPayload(payload);
     for (const userId of memberUserIds) {
       try {
         this.gateway.broadcastToRoom(
           `user:${userId}`,
           'group:conversation:updated',
-          payload,
+          maskedPayload,
         );
       } catch (error) {
         this.logger.error(
@@ -513,6 +525,35 @@ export class WebsocketEventsService {
         );
       }
     }
+  }
+
+  private withAnonymousForwardedFrom<
+    T extends { forwardedFrom?: ForwardedFromPayload },
+  >(payload: T): T {
+    if (!payload.forwardedFrom) return payload;
+    return {
+      ...payload,
+      forwardedFrom: this.forwardPermissions.maskResponse(
+        payload.forwardedFrom,
+      ),
+    };
+  }
+
+  private maskForwardedFromInPayload(payload: unknown): unknown {
+    if (
+      !payload ||
+      typeof payload !== 'object' ||
+      !('forwardedFrom' in payload) ||
+      !payload.forwardedFrom
+    ) {
+      return payload;
+    }
+
+    const record = payload as { forwardedFrom?: ForwardedFromPayload };
+    return {
+      ...record,
+      forwardedFrom: this.forwardPermissions.maskResponse(record.forwardedFrom),
+    };
   }
 
   broadcastGroupMemberRemoved(groupId: string, payload: { userId: string }) {
