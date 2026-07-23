@@ -136,11 +136,10 @@ function Restore-TarArchive($backupDir, $archiveName, $volume) {
     )
 }
 
-function Test-MinioVolume($Volume) {
-    $result = Invoke-DockerSilently -Arguments @("run", "--rm", "-v", "${Volume}:/data:ro", "alpine", "sh", "-c", "ls -A /data")
-    if ($result.ExitCode -ne 0) { return $false }
-    $items = @((($result.StdOut -split "`r?`n") | ForEach-Object { $_.Trim() } | Where-Object { $_ }))
-    return ($items.Count -gt 0)
+function Test-MinioVolumeReadable($Volume) {
+    if (-not (Test-DockerVolumeExists $Volume)) { return $false }
+    $result = Invoke-DockerSilently -Arguments @("run", "--rm", "-v", "${Volume}:/data:ro", "alpine", "sh", "-c", "ls /data >/dev/null 2>&1")
+    return ($result.ExitCode -eq 0)
 }
 
 function Validate-RestoredPostgres($Container, $Manifest) {
@@ -228,8 +227,8 @@ function Restore-ToTempVolumes($backupDir, $manifest, $suffix) {
         Restore-TarArchive -backupDir $backupDir -archiveName "redis-data.tar.gz" -volume $redisVol
         Restore-TarArchive -backupDir $backupDir -archiveName "mailpit-data.tar.gz" -volume $mailpitVol
 
-        if (-not (Test-MinioVolume $minioVol)) {
-            throw "MinIO validation volume appears empty or unreadable"
+        if (-not (Test-MinioVolumeReadable $minioVol)) {
+            throw "MinIO validation volume is not readable"
         }
 
         Write-Ok "Temporary restore validation passed"
@@ -253,16 +252,6 @@ function Remove-TempVolumes($volumes) {
             Remove-DockerVolume $v
         }
     }
-}
-
-function Test-VolumeNonEmpty($Volume) {
-    $result = Invoke-DockerSilently -Arguments @("run", "--rm", "-v", "${Volume}:/vol:ro", "alpine", "sh", "-c", "find /vol -mindepth 1 -print -quit")
-    return ($result.ExitCode -eq 0 -and $result.StdOut)
-}
-
-function Test-VolumeReadable($Volume) {
-    $result = Invoke-DockerSilently -Arguments @("run", "--rm", "-v", "${Volume}:/vol:ro", "alpine", "sh", "-c", "ls /vol >/dev/null 2>&1")
-    return ($result.ExitCode -eq 0)
 }
 
 function Stop-ReplacementStack([hashtable]$ActiveVolumes, [switch]$UsingOverrides) {
@@ -523,10 +512,10 @@ function Start-StackAndValidate($manifest, [switch]$RequireCountsMatch, [hashtab
                 if ($counts[$key] -ne $manifest.counts.$key) { return $false }
             }
         }
-        $minioResult = Invoke-DockerSilently -Arguments @("run", "--rm", "-v", "${minioVol}:/data:ro", "alpine", "sh", "-c", "ls -A /data")
-        if ($minioResult.ExitCode -ne 0) { return $false }
-        $items = @((($minioResult.StdOut -split "`r?`n") | ForEach-Object { $_.Trim() } | Where-Object { $_ }))
-        return ($items.Count -gt 0)
+        if (-not (Test-MinioVolumeReadable $minioVol)) {
+            return $false
+        }
+        return $true
     }
     finally {
         # Do not remove the validation container here; the caller owns the stack lifecycle.
@@ -646,8 +635,8 @@ try {
         if (-not (Test-VolumeNonEmpty $rollbackVolumes.Postgres)) {
             throw "Rollback Postgres volume appears empty"
         }
-        if (-not (Test-VolumeNonEmpty $rollbackVolumes.Minio)) {
-            throw "Rollback MinIO volume appears empty"
+        if (-not (Test-VolumeReadable $rollbackVolumes.Minio)) {
+            throw "Rollback MinIO volume is not readable"
         }
         foreach ($key in @("Redis", "Mailpit")) {
             if (-not (Test-VolumeReadable $rollbackVolumes[$key])) {

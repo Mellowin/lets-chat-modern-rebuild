@@ -24,6 +24,28 @@ function Test-DockerVolumeExists($Name) {
     return $volumes -contains $Name
 }
 
+function Test-VolumeReadable($Volume) {
+    <#
+    .SYNOPSIS
+        Verifies that a Docker volume is readable. An empty volume is considered
+        readable; only access failures return $false. A missing volume returns $false.
+    #>
+    if (-not (Test-DockerVolumeExists $Volume)) { return $false }
+    $result = Invoke-DockerSilently -Arguments @("run", "--rm", "-v", "${Volume}:/vol:ro", "alpine", "sh", "-c", "ls /vol >/dev/null 2>&1")
+    return ($result.ExitCode -eq 0)
+}
+
+function Test-VolumeNonEmpty($Volume) {
+    <#
+    .SYNOPSIS
+        Verifies that a Docker volume contains at least one entry. Use this only
+        when emptiness is genuinely an error. A missing volume returns $false.
+    #>
+    if (-not (Test-DockerVolumeExists $Volume)) { return $false }
+    $result = Invoke-DockerSilently -Arguments @("run", "--rm", "-v", "${Volume}:/vol:ro", "alpine", "sh", "-c", "find /vol -mindepth 1 -print -quit")
+    return ($result.ExitCode -eq 0 -and $result.StdOut)
+}
+
 function Get-LatestBackup {
     param([string]$Root = $script:BackupRoot)
     if (-not (Test-Path $Root)) { return $null }
@@ -1134,6 +1156,8 @@ Export-ModuleMember -Function @(
     "Get-LetsChatBackupRoot"
     "Get-LetsChatExpectedVolumes"
     "Test-DockerVolumeExists"
+    "Test-VolumeReadable"
+    "Test-VolumeNonEmpty"
     "Get-LatestBackup"
     "Read-InstallMarker"
     "Write-InstallMarker"

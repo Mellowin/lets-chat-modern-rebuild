@@ -559,6 +559,120 @@ if (-not $SkipMinio) {
             Remove-TestVolumes $volumes
         }
     }
+
+    Run-Test "Drill succeeds with an empty MinIO volume" {
+        $suffix = Get-Date -Format "yyyyMMdd-HHmmss-fff"
+        $volumes = New-TestVolumeSet $suffix
+        $pgContainer = "test-codex-empty-minio-pg-$suffix"
+        $minioContainer = "test-codex-empty-minio-$suffix"
+
+        try {
+            Start-TestPostgres -container $pgContainer -volume $volumes.Postgres
+            Start-TestMinio -container $minioContainer -volume $volumes.Minio
+            Seed-TestDatabase -container $pgContainer -databaseName "letschat_local" -attachmentKey "attachments/empty-minio-$suffix.txt"
+            # Intentionally do NOT add any objects to MinIO.
+
+            $backupRoot = Join-Path $env:TEMP "codex-empty-minio-backup-$suffix"
+            $backupScript = Join-Path $PSScriptRoot "backup-letschat-local-data.ps1"
+            & $backupScript `
+                -BackupRoot $backupRoot `
+                -PostgresContainer $pgContainer `
+                -PostgresVolume $volumes.Postgres `
+                -MinioVolume $volumes.Minio `
+                -RedisVolume $volumes.Redis `
+                -MailpitVolume $volumes.Mailpit
+            if ($global:LASTEXITCODE -ne 0) { throw "Backup script exited with code $($global:LASTEXITCODE)" }
+
+            $latest = Get-ChildItem -Directory -Path $backupRoot -Filter "letschat-local-*" |
+                Sort-Object CreationTime -Descending | Select-Object -First 1
+            $manifest = Get-Content (Join-Path $latest.FullName "manifest.json") -Raw | ConvertFrom-Json
+            Assert ($manifest.minioFileCount -ge 0) "Expected minioFileCount to be present and non-negative, got $($manifest.minioFileCount)"
+
+            $restoreScript = Join-Path $PSScriptRoot "restore-letschat-local-data.ps1"
+            & $restoreScript -BackupPath $latest.FullName -Drill
+            if ($global:LASTEXITCODE -ne 0) { throw "Restore drill with empty MinIO failed with code $($global:LASTEXITCODE)" }
+        }
+        finally {
+            Stop-TestContainer $pgContainer
+            Stop-TestContainer $minioContainer
+            docker ps -a -q --filter "name=letschat-restore-*" | ForEach-Object { docker rm -f $_ 2>$null | Out-Null }
+            docker volume ls -q | Where-Object { $_ -like "letschat-restore-*" } | ForEach-Object { docker volume rm $_ 2>$null | Out-Null }
+            Remove-TestVolumes $volumes
+        }
+    }
+
+    Run-Test "ReplaceActive succeeds with empty MinIO volumes" {
+        $suffix = Get-Date -Format "yyyyMMdd-HHmmss-fff"
+        $activeVolumes = New-TestVolumeSet "active-empty-$suffix"
+        $sourceVolumes = New-TestVolumeSet "source-empty-$suffix"
+        $activePgContainer = "test-codex-empty-replace-active-pg-$suffix"
+        $activeMinioContainer = "test-codex-empty-replace-active-minio-$suffix"
+        $sourcePgContainer = "test-codex-empty-replace-source-pg-$suffix"
+        $sourceMinioContainer = "test-codex-empty-replace-source-minio-$suffix"
+
+        try {
+            Start-TestPostgres -container $activePgContainer -volume $activeVolumes.Postgres
+            Start-TestMinio -container $activeMinioContainer -volume $activeVolumes.Minio
+            Seed-TestDatabase -container $activePgContainer -databaseName "letschat_local" -attachmentKey "attachments/active-empty-$suffix.txt" -email "active-empty-$suffix@example.com"
+
+            Start-TestPostgres -container $sourcePgContainer -volume $sourceVolumes.Postgres
+            Start-TestMinio -container $sourceMinioContainer -volume $sourceVolumes.Minio
+            Seed-TestDatabase -container $sourcePgContainer -databaseName "letschat_local" -attachmentKey "attachments/source-empty-$suffix.txt" -email "source-empty-$suffix@example.com"
+
+            $backupRoot = Join-Path $env:TEMP "codex-empty-replace-backup-$suffix"
+            $backupScript = Join-Path $PSScriptRoot "backup-letschat-local-data.ps1"
+            & $backupScript `
+                -BackupRoot $backupRoot `
+                -PostgresContainer $sourcePgContainer `
+                -PostgresVolume $sourceVolumes.Postgres `
+                -MinioVolume $sourceVolumes.Minio `
+                -RedisVolume $sourceVolumes.Redis `
+                -MailpitVolume $sourceVolumes.Mailpit
+            if ($global:LASTEXITCODE -ne 0) { throw "Source backup failed with code $($global:LASTEXITCODE)" }
+
+            $latest = Get-ChildItem -Directory -Path $backupRoot -Filter "letschat-local-*" |
+                Sort-Object CreationTime -Descending | Select-Object -First 1
+
+            $restoreScript = Join-Path $PSScriptRoot "restore-letschat-local-data.ps1"
+            & $restoreScript `
+                -BackupPath $latest.FullName `
+                -ReplaceActive `
+                -Force `
+                -ActivePostgresVolume $activeVolumes.Postgres `
+                -ActiveMinioVolume $activeVolumes.Minio `
+                -ActiveRedisVolume $activeVolumes.Redis `
+                -ActiveMailpitVolume $activeVolumes.Mailpit
+            if ($global:LASTEXITCODE -ne 0) { throw "ReplaceActive with empty MinIO failed with code $($global:LASTEXITCODE)" }
+
+            # Verify replacement state: the active Postgres now has the source user, MinIO is empty but readable.
+            $counts = Get-DatabaseCountsFromContainer -Container "letschat-validate-pg" -DatabaseName "letschat_local"
+            Assert ($counts.users -eq 1) "Expected 1 user after replacement, got $($counts.users)"
+            Assert ($counts.attachments -eq 1) "Expected 1 attachment record after replacement, got $($counts.attachments)"
+            Assert (Test-DockerVolumeExists $activeVolumes.Minio) "Active MinIO volume should exist"
+            Assert (Test-VolumeReadable $activeVolumes.Minio) "Active MinIO volume should be readable"
+        }
+        finally {
+            Stop-TestContainer $activePgContainer
+            Stop-TestContainer $activeMinioContainer
+            Stop-TestContainer $sourcePgContainer
+            Stop-TestContainer $sourceMinioContainer
+            Stop-ContainersUsingVolume $activeVolumes.Postgres
+            Stop-ContainersUsingVolume $activeVolumes.Minio
+            Stop-ContainersUsingVolume $activeVolumes.Redis
+            Stop-ContainersUsingVolume $activeVolumes.Mailpit
+            Stop-ContainersUsingVolume $sourceVolumes.Postgres
+            Stop-ContainersUsingVolume $sourceVolumes.Minio
+            Stop-ContainersUsingVolume $sourceVolumes.Redis
+            Stop-ContainersUsingVolume $sourceVolumes.Mailpit
+            Remove-TestVolumes $activeVolumes
+            Remove-TestVolumes $sourceVolumes
+            docker ps -a -q --filter "name=letschat-restore-*" | ForEach-Object { docker rm -f $_ 2>$null | Out-Null }
+            docker ps -a -q --filter "name=letschat-validate-*" | ForEach-Object { docker rm -f $_ 2>$null | Out-Null }
+            docker volume ls -q | Where-Object { $_ -like "letschat-restore-*" } | ForEach-Object { docker volume rm $_ 2>$null | Out-Null }
+            docker volume ls -q | Where-Object { $_ -like "letschat-emergency-*" } | ForEach-Object { docker volume rm $_ 2>$null | Out-Null }
+            docker volume ls -q | Where-Object { $_ -like "test-codex-*-active-empty-*-rollback-*" } | ForEach-Object { docker volume rm $_ 2>$null | Out-Null }
+        }
+    }
 }
 
 # ---------------------------------------------------------------------------
