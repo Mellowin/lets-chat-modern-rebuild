@@ -102,6 +102,59 @@ export class GroupsService {
     },
     currentUserId: string,
   ) {
+    const forwardedFrom = await this.forwardPermissions.toResponse(
+      message.forwardedFrom,
+      currentUserId,
+    );
+
+    return this.toMessageResponseWithForward(
+      message,
+      currentUserId,
+      forwardedFrom,
+    );
+  }
+
+  private toMessageResponseWithForward(
+    message: {
+      id: string;
+      groupId: string;
+      content: string;
+      createdAt: Date;
+      updatedAt: Date;
+      author: {
+        id: string;
+        username: string;
+        displayName: string | null;
+        avatarUrl: string | null;
+      };
+      mentions?: unknown;
+      attachments?: Array<{
+        id: string;
+        filename: string;
+        mimeType: string;
+        size: number;
+        createdAt: Date;
+      }>;
+      replyToMessageId: string | null;
+      replyToMessage?: {
+        id: string;
+        content: string;
+        author: {
+          id: string;
+          username: string;
+          displayName: string | null;
+          avatarUrl: string | null;
+        };
+      } | null;
+      pin?: {
+        pinnedAt: Date;
+        pinnedByUserId: string | null;
+      } | null;
+      forwardedFrom?: unknown;
+    },
+    currentUserId: string,
+    forwardedFrom: Awaited<ReturnType<ForwardPermissionsHelper['toResponse']>>,
+  ) {
     return {
       id: message.id,
       groupId: message.groupId,
@@ -126,10 +179,7 @@ export class GroupsService {
             pinnedByUserId: message.pin.pinnedByUserId,
           }
         : undefined,
-      forwardedFrom: await this.forwardPermissions.toResponse(
-        message.forwardedFrom,
-        currentUserId,
-      ),
+      forwardedFrom,
     };
   }
 
@@ -260,6 +310,46 @@ export class GroupsService {
       userId,
     );
 
+    return this.mapPinResponseWithForward(pin, userId, forwardedFrom);
+  }
+
+  private mapPinResponseWithForward(
+    pin: {
+      id: string;
+      pinnedAt: Date;
+      pinnedBy: {
+        id: string;
+        username: string;
+        displayName: string | null;
+        avatarUrl: string | null;
+      } | null;
+      message: {
+        id: string;
+        content: string;
+        createdAt: Date;
+        author: {
+          id: string;
+          username: string;
+          displayName: string | null;
+          avatarUrl: string | null;
+        };
+        attachments: Array<{ id: string }>;
+        replyToMessage?: {
+          id: string;
+          content: string;
+          author: {
+            id: string;
+            username: string;
+            displayName: string | null;
+            avatarUrl: string | null;
+          };
+        } | null;
+        forwardedFrom?: unknown;
+      };
+    },
+    userId: string,
+    forwardedFrom: Awaited<ReturnType<ForwardPermissionsHelper['toResponse']>>,
+  ) {
     return {
       id: pin.id,
       pinnedAt: pin.pinnedAt,
@@ -554,20 +644,42 @@ export class GroupsService {
     const hasMoreBefore = beforeRaw.length > beforeLimit;
     const hasMoreAfter = afterRaw.length > afterLimit;
 
-    const before = await Promise.all(
-      (hasMoreBefore ? beforeRaw.slice(0, beforeLimit) : beforeRaw)
-        .reverse()
-        .map((m) => this.toMessageResponse(m, currentUserId)),
+    const beforeSlice = hasMoreBefore
+      ? beforeRaw.slice(0, beforeLimit)
+      : beforeRaw;
+    const afterSlice = hasMoreAfter ? afterRaw.slice(0, afterLimit) : afterRaw;
+
+    const allMessages = [...beforeSlice, target, ...afterSlice];
+    const mappedForwards = await this.forwardPermissions.toResponses(
+      currentUserId,
+      allMessages,
     );
 
-    const after = await Promise.all(
-      (hasMoreAfter ? afterRaw.slice(0, afterLimit) : afterRaw).map((m) =>
-        this.toMessageResponse(m, currentUserId),
+    let forwardIndex = 0;
+    const before = beforeSlice
+      .reverse()
+      .map((m) =>
+        this.toMessageResponseWithForward(
+          m,
+          currentUserId,
+          mappedForwards[forwardIndex++],
+        ),
+      );
+    const targetForward = mappedForwards[forwardIndex++];
+    const after = afterSlice.map((m) =>
+      this.toMessageResponseWithForward(
+        m,
+        currentUserId,
+        mappedForwards[forwardIndex++],
       ),
     );
 
     return {
-      target: await this.toMessageResponse(target, currentUserId),
+      target: this.toMessageResponseWithForward(
+        target,
+        currentUserId,
+        targetForward,
+      ),
       before,
       after,
       hasMoreBefore,
@@ -593,9 +705,12 @@ export class GroupsService {
     const rows = await this.groups.listMessages(groupId, limit, cursor);
     const hasMore = rows.length > limit;
     const page = (hasMore ? rows.slice(0, limit) : rows).reverse();
-
-    const items = await Promise.all(
-      page.map((m) => this.toMessageResponse(m, currentUserId)),
+    const mappedForwards = await this.forwardPermissions.toResponses(
+      currentUserId,
+      page,
+    );
+    const items = page.map((m, i) =>
+      this.toMessageResponseWithForward(m, currentUserId, mappedForwards[i]),
     );
 
     return {
@@ -785,9 +900,15 @@ export class GroupsService {
     const rows = await this.groups.findPinnedMessages(groupId, limit, cursor);
     const hasMore = rows.length > limit;
     const page = hasMore ? rows.slice(0, limit) : rows;
+    const mappedForwards = await this.forwardPermissions.toResponses(
+      userId,
+      page.map((p) => p.message),
+    );
 
     return {
-      items: await Promise.all(page.map((p) => this.mapPinResponse(p, userId))),
+      items: page.map((p, i) =>
+        this.mapPinResponseWithForward(p, userId, mappedForwards[i]),
+      ),
       nextCursor:
         hasMore && page.length > 0
           ? encodePinCursor({

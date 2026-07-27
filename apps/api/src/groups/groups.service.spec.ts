@@ -190,6 +190,7 @@ describe('GroupsService', () => {
   let usersRepository: jest.Mocked<UsersRepository>;
   let websocketEvents: jest.Mocked<WebsocketEventsService>;
   let pushService: jest.Mocked<PushService>;
+  let forwardPermissions: jest.Mocked<ForwardPermissionsHelper>;
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -292,6 +293,11 @@ describe('GroupsService', () => {
           useValue: {
             canViewSource: jest.fn().mockResolvedValue(true),
             toResponse: jest.fn().mockResolvedValue(undefined),
+            toResponses: jest
+              .fn()
+              .mockImplementation((_, items: unknown[]) =>
+                Promise.resolve(items.map(() => undefined)),
+              ),
             maskResponse: jest.fn().mockReturnValue(undefined),
           },
         },
@@ -303,6 +309,7 @@ describe('GroupsService', () => {
     usersRepository = moduleRef.get(UsersRepository);
     websocketEvents = moduleRef.get(WebsocketEventsService);
     pushService = moduleRef.get(PushService);
+    forwardPermissions = moduleRef.get(ForwardPermissionsHelper);
   });
 
   afterEach(() => {
@@ -618,6 +625,42 @@ describe('GroupsService', () => {
       expect(result.nextCursor).toBe('2026-06-30T12:00:01.000Z:msg-middle');
     });
 
+    it('batches forwarded-from permission checks for a page', async () => {
+      groupsRepository.findById.mockResolvedValue(makeGroup());
+      const messages = [
+        makeMessage({
+          id: 'msg-1',
+          content: 'first',
+          forwardedFrom: {
+            sourceType: 'channel',
+            sourceChatId: 'other-channel-1',
+            sourceMessageId: 'orig-1',
+            originalCreatedAt: '2024-01-01T00:00:00Z',
+          },
+        }),
+        makeMessage({
+          id: 'msg-2',
+          content: 'second',
+          forwardedFrom: {
+            sourceType: 'channel',
+            sourceChatId: 'other-channel-2',
+            sourceMessageId: 'orig-2',
+            originalCreatedAt: '2024-01-01T00:00:00Z',
+          },
+        }),
+      ];
+      groupsRepository.listMessages.mockResolvedValue(messages);
+
+      await service.listMessages(groupId, userId);
+
+      expect(forwardPermissions.toResponses).toHaveBeenCalledTimes(1);
+      expect(forwardPermissions.toResponses).toHaveBeenCalledWith(
+        userId,
+        messages,
+      );
+      expect(forwardPermissions.toResponse).not.toHaveBeenCalled();
+    });
+
     it('throws BadRequestException for an invalid cursor', async () => {
       groupsRepository.findById.mockResolvedValue(makeGroup());
 
@@ -654,6 +697,60 @@ describe('GroupsService', () => {
       expect(result.after[0].content).toBe('after');
       expect(result.hasMoreBefore).toBe(false);
       expect(result.hasMoreAfter).toBe(false);
+    });
+
+    it('batches forwarded-from permission checks for context target + before + after', async () => {
+      groupsRepository.findById.mockResolvedValue(makeGroup());
+      const target = makeMessage({
+        id: 'target-msg',
+        content: 'target',
+        forwardedFrom: {
+          sourceType: 'channel',
+          sourceChatId: 'target-channel',
+          sourceMessageId: 'orig-target',
+          originalCreatedAt: '2024-01-01T00:00:00Z',
+        },
+      });
+      const before = [
+        makeMessage({
+          id: 'before-msg',
+          content: 'before',
+          forwardedFrom: {
+            sourceType: 'channel',
+            sourceChatId: 'before-channel',
+            sourceMessageId: 'orig-before',
+            originalCreatedAt: '2024-01-01T00:00:00Z',
+          },
+        }),
+      ];
+      const after = [
+        makeMessage({
+          id: 'after-msg',
+          content: 'after',
+          forwardedFrom: {
+            sourceType: 'channel',
+            sourceChatId: 'after-channel',
+            sourceMessageId: 'orig-after',
+            originalCreatedAt: '2024-01-01T00:00:00Z',
+          },
+        }),
+      ];
+      groupsRepository.findMessageByIdWithRelations.mockResolvedValue(target);
+      groupsRepository.findContextBefore.mockResolvedValue(before);
+      groupsRepository.findContextAfter.mockResolvedValue(after);
+
+      await service.getMessageContext(groupId, 'target-msg', userId, {
+        before: 10,
+        after: 10,
+      });
+
+      expect(forwardPermissions.toResponses).toHaveBeenCalledTimes(1);
+      expect(forwardPermissions.toResponses).toHaveBeenCalledWith(userId, [
+        ...before,
+        target,
+        ...after,
+      ]);
+      expect(forwardPermissions.toResponse).not.toHaveBeenCalled();
     });
 
     it('throws NotFoundException for a non-member', async () => {
@@ -975,6 +1072,48 @@ describe('GroupsService', () => {
       expect(result.items[0].id).toBe('pin-2');
       expect(result.hasMore).toBe(true);
       expect(result.nextCursor).toBe('2026-07-01T12:00:02.000Z:pin-2');
+    });
+
+    it('batches forwarded-from permission checks for pinned messages', async () => {
+      groupsRepository.findById.mockResolvedValue(makeGroup());
+      const pins = [
+        makePin({
+          id: 'pin-1',
+          message: makeMessage({
+            id: 'msg-1',
+            content: 'first',
+            forwardedFrom: {
+              sourceType: 'channel',
+              sourceChatId: 'other-channel-1',
+              sourceMessageId: 'orig-1',
+              originalCreatedAt: '2024-01-01T00:00:00Z',
+            },
+          }),
+        }),
+        makePin({
+          id: 'pin-2',
+          message: makeMessage({
+            id: 'msg-2',
+            content: 'second',
+            forwardedFrom: {
+              sourceType: 'channel',
+              sourceChatId: 'other-channel-2',
+              sourceMessageId: 'orig-2',
+              originalCreatedAt: '2024-01-01T00:00:00Z',
+            },
+          }),
+        }),
+      ];
+      groupsRepository.findPinnedMessages.mockResolvedValue(pins);
+
+      await service.listPinnedMessages(groupId, otherUserId, {});
+
+      expect(forwardPermissions.toResponses).toHaveBeenCalledTimes(1);
+      expect(forwardPermissions.toResponses).toHaveBeenCalledWith(
+        otherUserId,
+        pins.map((p) => p.message),
+      );
+      expect(forwardPermissions.toResponse).not.toHaveBeenCalled();
     });
 
     it('throws BadRequestException for an invalid cursor', async () => {

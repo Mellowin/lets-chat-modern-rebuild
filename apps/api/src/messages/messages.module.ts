@@ -20,6 +20,7 @@ import { SearchController } from './search.controller';
 import { UserSearchController } from './user-search.controller';
 import { GlobalSearchController } from './global-search.controller';
 import { StorageModule } from '../storage/storage.module';
+import { SafetyModule } from '../safety/safety.module';
 import { WebsocketModule } from '../websocket/websocket.module';
 import { AttachmentsModule } from './attachments.module';
 import { PushModule } from '../push/push.module';
@@ -37,6 +38,7 @@ import { ForwardController } from './forward.controller';
     WorkspacesModule,
     ChannelsModule,
     StorageModule,
+    SafetyModule,
     WebsocketModule,
     PushModule,
     AttachmentsModule,

@@ -278,4 +278,178 @@ describe('ForwardPermissionsHelper', () => {
       expect(result).not.toHaveProperty('originalAuthorName');
     });
   });
+
+  describe('toResponses', () => {
+    it('calls canViewSources once with deduplicated keys', async () => {
+      const canViewSourcesSpy = jest
+        .spyOn(helper, 'canViewSources')
+        .mockResolvedValue(new Set(['channel:c1']));
+
+      const items = [
+        {
+          forwardedFrom: {
+            sourceType: 'channel',
+            sourceChatId: 'c1',
+            sourceMessageId: 'm1',
+            originalCreatedAt: '2024-01-01T00:00:00Z',
+          },
+        },
+        {
+          forwardedFrom: {
+            sourceType: 'channel',
+            sourceChatId: 'c1',
+            sourceMessageId: 'm2',
+            originalCreatedAt: '2024-01-01T00:00:00Z',
+          },
+        },
+        {
+          forwardedFrom: {
+            sourceType: 'direct',
+            sourceChatId: 'd1',
+            sourceMessageId: 'm3',
+            originalCreatedAt: '2024-01-01T00:00:00Z',
+          },
+        },
+      ];
+
+      await helper.toResponses(userId, items);
+
+      expect(canViewSourcesSpy).toHaveBeenCalledTimes(1);
+      const sources = canViewSourcesSpy.mock.calls[0][1];
+      expect(sources).toEqual(
+        expect.arrayContaining([
+          { sourceType: 'channel', sourceChatId: 'c1' },
+          { sourceType: 'direct', sourceChatId: 'd1' },
+        ]),
+      );
+    });
+
+    it('returns full attribution for accessible sources', async () => {
+      jest
+        .spyOn(helper, 'canViewSources')
+        .mockResolvedValue(new Set(['channel:c1']));
+
+      const result = await helper.toResponses(userId, [
+        {
+          forwardedFrom: {
+            sourceType: 'channel',
+            sourceChatId: 'c1',
+            sourceMessageId: 'm1',
+            originalAuthorId: 'u2',
+            originalAuthorName: 'Bob',
+            originalCreatedAt: '2024-01-01T00:00:00Z',
+            replySnapshot: {
+              id: 'r1',
+              content: 'hi',
+              authorName: 'Bob',
+            },
+          },
+        },
+      ]);
+
+      expect(result[0]).toEqual({
+        sourceType: 'channel',
+        sourceChatId: 'c1',
+        sourceMessageId: 'm1',
+        originalAuthorId: 'u2',
+        originalAuthorName: 'Bob',
+        originalCreatedAt: '2024-01-01T00:00:00Z',
+        replySnapshot: {
+          id: 'r1',
+          content: 'hi',
+          authorName: 'Bob',
+        },
+      });
+    });
+
+    it('returns anonymous metadata for inaccessible sources', async () => {
+      jest.spyOn(helper, 'canViewSources').mockResolvedValue(new Set());
+
+      const result = await helper.toResponses(userId, [
+        {
+          forwardedFrom: {
+            sourceType: 'channel',
+            sourceChatId: 'c1',
+            sourceMessageId: 'm1',
+            originalAuthorId: 'u2',
+            originalAuthorName: 'Bob',
+            originalCreatedAt: '2024-01-01T00:00:00Z',
+          },
+        },
+      ]);
+
+      expect(result[0]).toEqual({
+        sourceType: 'channel',
+        originalCreatedAt: '2024-01-01T00:00:00Z',
+        isAnonymous: true,
+      });
+      expect(result[0]).not.toHaveProperty('sourceChatId');
+      expect(result[0]).not.toHaveProperty('sourceMessageId');
+      expect(result[0]).not.toHaveProperty('originalAuthorId');
+    });
+
+    it('returns undefined for non-forwarded items', async () => {
+      jest.spyOn(helper, 'canViewSources').mockResolvedValue(new Set());
+
+      const result = await helper.toResponses(userId, [
+        { content: 'hello' } as never,
+        {
+          forwardedFrom: {
+            sourceType: 'group',
+            sourceChatId: groupId,
+            sourceMessageId: 'm1',
+            originalCreatedAt: '2024-01-01T00:00:00Z',
+          },
+        },
+      ]);
+
+      expect(result[0]).toBeUndefined();
+      expect(result[1]).toBeDefined();
+    });
+
+    it('handles mixed source types', async () => {
+      jest
+        .spyOn(helper, 'canViewSources')
+        .mockResolvedValue(new Set(['channel:c1', `group:${groupId}`]));
+
+      const result = await helper.toResponses(userId, [
+        {
+          forwardedFrom: {
+            sourceType: 'channel',
+            sourceChatId: 'c1',
+            sourceMessageId: 'm1',
+            originalCreatedAt: '2024-01-01T00:00:00Z',
+          },
+        },
+        {
+          forwardedFrom: {
+            sourceType: 'direct',
+            sourceChatId: 'd1',
+            sourceMessageId: 'm2',
+            originalCreatedAt: '2024-01-01T00:00:00Z',
+          },
+        },
+        {
+          forwardedFrom: {
+            sourceType: 'group',
+            sourceChatId: groupId,
+            sourceMessageId: 'm3',
+            originalCreatedAt: '2024-01-01T00:00:00Z',
+          },
+        },
+      ]);
+
+      expect(result[0]).toEqual(
+        expect.objectContaining({ sourceChatId: 'c1' }),
+      );
+      expect(result[1]).toEqual({
+        sourceType: 'direct',
+        originalCreatedAt: '2024-01-01T00:00:00Z',
+        isAnonymous: true,
+      });
+      expect(result[2]).toEqual(
+        expect.objectContaining({ sourceChatId: groupId }),
+      );
+    });
+  });
 });

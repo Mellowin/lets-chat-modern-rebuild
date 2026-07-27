@@ -130,6 +130,7 @@ describe('DirectConversationsService', () => {
   let usersRepository: jest.Mocked<UsersRepository>;
   let websocketEvents: jest.Mocked<WebsocketEventsService>;
   let presence: jest.Mocked<PresenceService>;
+  let forwardPermissions: jest.Mocked<ForwardPermissionsHelper>;
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -238,6 +239,11 @@ describe('DirectConversationsService', () => {
           useValue: {
             canViewSource: jest.fn().mockResolvedValue(true),
             toResponse: jest.fn().mockResolvedValue(undefined),
+            toResponses: jest
+              .fn()
+              .mockImplementation((_, items: unknown[]) =>
+                Promise.resolve(items.map(() => undefined)),
+              ),
             maskResponse: jest.fn().mockReturnValue(undefined),
           },
         },
@@ -249,6 +255,7 @@ describe('DirectConversationsService', () => {
     usersRepository = moduleRef.get(UsersRepository);
     websocketEvents = moduleRef.get(WebsocketEventsService);
     presence = moduleRef.get(PresenceService);
+    forwardPermissions = moduleRef.get(ForwardPermissionsHelper);
   });
 
   afterEach(() => {
@@ -806,6 +813,53 @@ describe('DirectConversationsService', () => {
       const result = (await service.listMessages(conversationId, userId)).items;
       expect(result[0].isUnreadForMe).toBe(true);
     });
+
+    it('batches forwarded-from permission checks for a page', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: null,
+      });
+      repository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: null },
+      ]);
+      const messages = [
+        makeMessage({
+          id: 'msg-1',
+          content: 'first',
+          forwardedFrom: {
+            sourceType: 'channel',
+            sourceChatId: 'other-channel-1',
+            sourceMessageId: 'orig-1',
+            originalCreatedAt: '2024-01-01T00:00:00Z',
+          },
+        }),
+        makeMessage({
+          id: 'msg-2',
+          content: 'second',
+          forwardedFrom: {
+            sourceType: 'channel',
+            sourceChatId: 'other-channel-2',
+            sourceMessageId: 'orig-2',
+            originalCreatedAt: '2024-01-01T00:00:00Z',
+          },
+        }),
+      ];
+      repository.listMessagesForConversation.mockResolvedValue(messages);
+      repository.getDirectMessageReactions.mockResolvedValue([]);
+
+      await service.listMessages(conversationId, userId);
+
+      expect(forwardPermissions.toResponses).toHaveBeenCalledTimes(1);
+      expect(forwardPermissions.toResponses).toHaveBeenCalledWith(
+        userId,
+        messages,
+      );
+      expect(forwardPermissions.toResponse).not.toHaveBeenCalled();
+    });
   });
 
   describe('getMessageContext', () => {
@@ -853,6 +907,71 @@ describe('DirectConversationsService', () => {
       expect(result.after[0].content).toBe('after');
       expect(result.hasMoreBefore).toBe(false);
       expect(result.hasMoreAfter).toBe(false);
+    });
+
+    it('batches forwarded-from permission checks for context target + before + after', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: null },
+      ]);
+      const target = makeMessage({
+        id: 'target-msg',
+        content: 'target',
+        forwardedFrom: {
+          sourceType: 'channel',
+          sourceChatId: 'target-channel',
+          sourceMessageId: 'orig-target',
+          originalCreatedAt: '2024-01-01T00:00:00Z',
+        },
+      });
+      const before = [
+        makeMessage({
+          id: 'before-msg',
+          content: 'before',
+          forwardedFrom: {
+            sourceType: 'channel',
+            sourceChatId: 'before-channel',
+            sourceMessageId: 'orig-before',
+            originalCreatedAt: '2024-01-01T00:00:00Z',
+          },
+        }),
+      ];
+      const after = [
+        makeMessage({
+          id: 'after-msg',
+          content: 'after',
+          forwardedFrom: {
+            sourceType: 'channel',
+            sourceChatId: 'after-channel',
+            sourceMessageId: 'orig-after',
+            originalCreatedAt: '2024-01-01T00:00:00Z',
+          },
+        }),
+      ];
+      repository.findMessageByIdWithRelations.mockResolvedValue(target);
+      repository.findContextBefore.mockResolvedValue(before);
+      repository.findContextAfter.mockResolvedValue(after);
+      repository.getDirectMessageReactions.mockResolvedValue([]);
+
+      await service.getMessageContext(conversationId, 'target-msg', userId, {
+        before: 10,
+        after: 10,
+      });
+
+      expect(forwardPermissions.toResponses).toHaveBeenCalledTimes(1);
+      expect(forwardPermissions.toResponses).toHaveBeenCalledWith(userId, [
+        ...before,
+        target,
+        ...after,
+      ]);
+      expect(forwardPermissions.toResponse).not.toHaveBeenCalled();
     });
 
     it('throws NotFoundException when message belongs to another conversation', async () => {
@@ -3000,6 +3119,54 @@ describe('DirectConversationsService', () => {
         conversationId,
         expect.objectContaining({ id: messageId, conversationId }),
       );
+    });
+  });
+
+  describe('listPinnedMessages', () => {
+    it('batches forwarded-from permission checks for pinned messages', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p-current',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      const pins = [
+        makePin({
+          message: makeMessage({
+            id: 'pinned-msg-1',
+            content: 'first',
+            forwardedFrom: {
+              sourceType: 'channel',
+              sourceChatId: 'other-channel-1',
+              sourceMessageId: 'orig-1',
+              originalCreatedAt: '2024-01-01T00:00:00Z',
+            },
+          }),
+        }),
+        makePin({
+          message: makeMessage({
+            id: 'pinned-msg-2',
+            content: 'second',
+            forwardedFrom: {
+              sourceType: 'channel',
+              sourceChatId: 'other-channel-2',
+              sourceMessageId: 'orig-2',
+              originalCreatedAt: '2024-01-01T00:00:00Z',
+            },
+          }),
+        }),
+      ];
+      repository.findPinnedMessages.mockResolvedValue(pins);
+
+      await service.listPinnedMessages(conversationId, userId, {});
+
+      expect(forwardPermissions.toResponses).toHaveBeenCalledTimes(1);
+      expect(forwardPermissions.toResponses).toHaveBeenCalledWith(
+        userId,
+        pins.map((p) => p.message),
+      );
+      expect(forwardPermissions.toResponse).not.toHaveBeenCalled();
     });
   });
 });

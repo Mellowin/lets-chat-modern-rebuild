@@ -1,5 +1,9 @@
 import { Test } from '@nestjs/testing';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService, StorageBackend } from '@lets-chat/database';
 import { ForwardService } from './forward.service';
 import { MessagesService } from './messages.service';
@@ -11,6 +15,7 @@ import { GroupsRepository } from '../groups/groups.repository';
 import { ChannelsRepository } from '../channels/channels.repository';
 import { WorkspacesRepository } from '../workspaces/workspaces.repository';
 import { StorageService } from '../storage/storage.service';
+import { BlocksService } from '../safety/blocks.service';
 import { ForwardPermissionsHelper } from './forward-permissions.helper';
 import { ForwardMessageDto } from './dto/forward-message.dto';
 
@@ -27,9 +32,11 @@ describe('ForwardService', () => {
   let storageService: jest.Mocked<StorageService>;
   let prismaService: jest.Mocked<PrismaService>;
   let forwardPermissions: jest.Mocked<ForwardPermissionsHelper>;
+  let blocksService: jest.Mocked<BlocksService>;
 
   const userId = '11111111-1111-1111-1111-111111111111';
   const channelId = '22222222-2222-2222-2222-222222222222';
+  const otherUserId = '66666666-6666-6666-6666-666666666666';
   const otherChannelId = '99999999-9999-9999-9999-999999999999';
   const workspaceId = '33333333-3333-3333-3333-333333333333';
   const messageId = '44444444-4444-4444-4444-444444444444';
@@ -124,6 +131,14 @@ describe('ForwardService', () => {
           },
         },
         {
+          provide: BlocksService,
+          useValue: {
+            requireNoBlockInEitherDirection: jest
+              .fn()
+              .mockResolvedValue(undefined),
+          },
+        },
+        {
           provide: ForwardPermissionsHelper,
           useValue: {
             canViewSource: jest.fn().mockResolvedValue(true),
@@ -148,6 +163,7 @@ describe('ForwardService', () => {
     storageService = moduleRef.get(StorageService);
     prismaService = moduleRef.get(PrismaService);
     forwardPermissions = moduleRef.get(ForwardPermissionsHelper);
+    blocksService = moduleRef.get(BlocksService);
   });
 
   afterEach(() => {
@@ -345,6 +361,7 @@ describe('ForwardService', () => {
       } as any);
       directConversationsRepository.findParticipants.mockResolvedValue([
         { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: null },
       ]);
 
       const dto: ForwardMessageDto = {
@@ -487,6 +504,7 @@ describe('ForwardService', () => {
       } as any);
       directConversationsRepository.findParticipants.mockResolvedValue([
         { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: null },
       ]);
 
       const dto: ForwardMessageDto = {
@@ -706,6 +724,7 @@ describe('ForwardService', () => {
       } as any);
       directConversationsRepository.findParticipants.mockResolvedValue([
         { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: null },
       ]);
 
       const dto: ForwardMessageDto = {
@@ -780,6 +799,7 @@ describe('ForwardService', () => {
       } as any);
       directConversationsRepository.findParticipants.mockResolvedValue([
         { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: null },
       ]);
 
       const dto: ForwardMessageDto = {
@@ -791,6 +811,128 @@ describe('ForwardService', () => {
 
       await service.forward(dto, userId);
 
+      expect(directConversationsService.createMessage).toHaveBeenCalled();
+    });
+  });
+
+  describe('direct destination block check', () => {
+    const dmId = '77777777-7777-7777-7777-777777777777';
+
+    it('rejects forwarding to a direct conversation when the recipient is blocked', async () => {
+      messagesRepository.findByIdWithRelations.mockResolvedValue(
+        baseMessage as any,
+      );
+      (prismaService.attachment.findMany as jest.Mock).mockResolvedValue([
+        {
+          id: attachmentId,
+          filename: 'doc.pdf',
+          mimeType: 'application/pdf',
+          size: 1234,
+          storageKey: 'original/key.pdf',
+          storageBackend: StorageBackend.MINIO,
+          createdAt: new Date(),
+          deletedAt: null,
+        },
+      ] as any);
+      directConversationsRepository.findParticipant.mockResolvedValue({
+        id: 'p1',
+      } as any);
+      directConversationsRepository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: null },
+      ]);
+      blocksService.requireNoBlockInEitherDirection.mockRejectedValue(
+        new ForbiddenException('Cannot forward messages to this user'),
+      );
+
+      const dto: ForwardMessageDto = {
+        sourceType: 'channel',
+        sourceMessageId: messageId,
+        destinationType: 'direct',
+        destinationId: dmId,
+      };
+
+      await expect(service.forward(dto, userId)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(storageService.copyObject).not.toHaveBeenCalled();
+      expect(prismaService.attachment.create).not.toHaveBeenCalled();
+      expect(directConversationsService.createMessage).not.toHaveBeenCalled();
+    });
+
+    it('rejects forwarding when the current user blocked the recipient', async () => {
+      messagesRepository.findByIdWithRelations.mockResolvedValue(
+        baseMessage as any,
+      );
+      (prismaService.attachment.findMany as jest.Mock).mockResolvedValue([
+        {
+          id: attachmentId,
+          filename: 'doc.pdf',
+          mimeType: 'application/pdf',
+          size: 1234,
+          storageKey: 'original/key.pdf',
+          storageBackend: StorageBackend.MINIO,
+          createdAt: new Date(),
+          deletedAt: null,
+        },
+      ] as any);
+      directConversationsRepository.findParticipant.mockResolvedValue({
+        id: 'p1',
+      } as any);
+      directConversationsRepository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: null },
+      ]);
+      blocksService.requireNoBlockInEitherDirection.mockRejectedValue(
+        new ForbiddenException('Cannot forward messages to this user'),
+      );
+
+      const dto: ForwardMessageDto = {
+        sourceType: 'channel',
+        sourceMessageId: messageId,
+        destinationType: 'direct',
+        destinationId: dmId,
+      };
+
+      await expect(service.forward(dto, userId)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(storageService.copyObject).not.toHaveBeenCalled();
+      expect(prismaService.attachment.create).not.toHaveBeenCalled();
+      expect(directConversationsService.createMessage).not.toHaveBeenCalled();
+    });
+
+    it('allows forwarding to an unblocked direct conversation', async () => {
+      messagesRepository.findByIdWithRelations.mockResolvedValue(
+        baseMessage as any,
+      );
+      directConversationsRepository.findParticipant.mockResolvedValue({
+        id: 'p1',
+      } as any);
+      directConversationsRepository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: null },
+      ]);
+      blocksService.requireNoBlockInEitherDirection.mockResolvedValue(
+        undefined,
+      );
+
+      const dto: ForwardMessageDto = {
+        sourceType: 'channel',
+        sourceMessageId: messageId,
+        destinationType: 'direct',
+        destinationId: dmId,
+      };
+
+      await service.forward(dto, userId);
+
+      expect(
+        blocksService.requireNoBlockInEitherDirection,
+      ).toHaveBeenCalledWith(
+        userId,
+        otherUserId,
+        'Cannot forward messages to this user',
+      );
       expect(directConversationsService.createMessage).toHaveBeenCalled();
     });
   });

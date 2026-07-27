@@ -109,6 +109,59 @@ export class MessagesService {
     },
     userId: string,
   ) {
+    const forwardedFrom = await this.forwardPermissions.toResponse(
+      message.forwardedFrom,
+      userId,
+    );
+
+    return this.toMessageResponseWithForward(message, userId, forwardedFrom);
+  }
+
+  private toMessageResponseWithForward(
+    message: {
+      id: string;
+      channelId: string;
+      content: string;
+      parentId: string | null;
+      replyToMessageId: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+      editedAt: Date | null;
+      author: {
+        id: string;
+        username: string;
+        displayName: string | null;
+        avatarUrl: string | null;
+      };
+      reactions: Array<{ emoji: string; userId: string }>;
+      attachments: Array<{
+        id: string;
+        filename: string;
+        mimeType: string;
+        size: number;
+        createdAt: Date;
+      }>;
+      mentions?: unknown;
+      replyToMessage?: {
+        id: string;
+        content: string;
+        deletedAt: Date | null;
+        author: {
+          id: string;
+          username: string;
+          displayName: string | null;
+          avatarUrl: string | null;
+        };
+      } | null;
+      pin?: {
+        pinnedAt: Date;
+        pinnedByUserId: string | null;
+      } | null;
+      forwardedFrom?: unknown;
+    },
+    userId: string,
+    forwardedFrom: Awaited<ReturnType<ForwardPermissionsHelper['toResponse']>>,
+  ) {
     const emojiCounts = new Map<string, number>();
     const myEmojis = new Set<string>();
     for (const r of message.reactions ?? []) {
@@ -134,11 +187,6 @@ export class MessagesService {
           pinnedByUserId: message.pin!.pinnedByUserId,
         }
       : undefined;
-
-    const forwardedFrom = await this.forwardPermissions.toResponse(
-      message.forwardedFrom,
-      userId,
-    );
 
     return {
       id: message.id,
@@ -272,6 +320,47 @@ export class MessagesService {
       userId,
     );
 
+    return this.mapPinResponseWithForward(pin, userId, forwardedFrom);
+  }
+
+  private mapPinResponseWithForward(
+    pin: {
+      id: string;
+      pinnedAt: Date;
+      pinnedBy: {
+        id: string;
+        username: string;
+        displayName: string | null;
+        avatarUrl: string | null;
+      } | null;
+      message: {
+        id: string;
+        content: string;
+        createdAt: Date;
+        author: {
+          id: string;
+          username: string;
+          displayName: string | null;
+          avatarUrl: string | null;
+        };
+        attachments: Array<{ id: string }>;
+        replyToMessage?: {
+          id: string;
+          content: string;
+          deletedAt: Date | null;
+          author: {
+            id: string;
+            username: string;
+            displayName: string | null;
+            avatarUrl: string | null;
+          };
+        } | null;
+        forwardedFrom?: unknown;
+      };
+    },
+    userId: string,
+    forwardedFrom: Awaited<ReturnType<ForwardPermissionsHelper['toResponse']>>,
+  ) {
     return {
       id: pin.id,
       pinnedAt: pin.pinnedAt,
@@ -443,8 +532,12 @@ export class MessagesService {
     const rows = await this.messages.listForChannel(channelId, limit, cursor);
     const hasMore = rows.length > limit;
     const page = (hasMore ? rows.slice(0, limit) : rows).reverse();
-    const items = await Promise.all(
-      page.map((m) => this.toMessageResponse(m, userId)),
+    const mappedForwards = await this.forwardPermissions.toResponses(
+      userId,
+      page,
+    );
+    const items = page.map((m, i) =>
+      this.toMessageResponseWithForward(m, userId, mappedForwards[i]),
     );
 
     return {
@@ -477,10 +570,13 @@ export class MessagesService {
     );
 
     const hasMore = rows.length > limit;
-    const items = await Promise.all(
-      (hasMore ? rows.slice(0, limit) : rows).map((m) =>
-        this.toMessageResponse(m, userId),
-      ),
+    const page = hasMore ? rows.slice(0, limit) : rows;
+    const mappedForwards = await this.forwardPermissions.toResponses(
+      userId,
+      page,
+    );
+    const items = page.map((m, i) =>
+      this.toMessageResponseWithForward(m, userId, mappedForwards[i]),
     );
 
     return {
@@ -514,20 +610,38 @@ export class MessagesService {
     const hasMoreBefore = beforeRaw.length > beforeLimit;
     const hasMoreAfter = afterRaw.length > afterLimit;
 
-    const before = await Promise.all(
-      (hasMoreBefore ? beforeRaw.slice(0, beforeLimit) : beforeRaw)
-        .reverse()
-        .map((m) => this.toMessageResponse(m, userId)),
+    const beforeSlice = hasMoreBefore
+      ? beforeRaw.slice(0, beforeLimit)
+      : beforeRaw;
+    const afterSlice = hasMoreAfter ? afterRaw.slice(0, afterLimit) : afterRaw;
+
+    const allMessages = [...beforeSlice, target, ...afterSlice];
+    const mappedForwards = await this.forwardPermissions.toResponses(
+      userId,
+      allMessages,
     );
 
-    const after = await Promise.all(
-      (hasMoreAfter ? afterRaw.slice(0, afterLimit) : afterRaw).map((m) =>
-        this.toMessageResponse(m, userId),
+    let forwardIndex = 0;
+    const before = beforeSlice
+      .reverse()
+      .map((m) =>
+        this.toMessageResponseWithForward(
+          m,
+          userId,
+          mappedForwards[forwardIndex++],
+        ),
+      );
+    const targetForward = mappedForwards[forwardIndex++];
+    const after = afterSlice.map((m) =>
+      this.toMessageResponseWithForward(
+        m,
+        userId,
+        mappedForwards[forwardIndex++],
       ),
     );
 
     return {
-      target: await this.toMessageResponse(target, userId),
+      target: this.toMessageResponseWithForward(target, userId, targetForward),
       before,
       after,
       hasMoreBefore,
@@ -682,9 +796,15 @@ export class MessagesService {
     );
     const hasMore = rows.length > limit;
     const page = hasMore ? rows.slice(0, limit) : rows;
+    const mappedForwards = await this.forwardPermissions.toResponses(
+      userId,
+      page.map((p) => p.message),
+    );
 
     return {
-      items: await Promise.all(page.map((p) => this.mapPinResponse(p, userId))),
+      items: page.map((p, i) =>
+        this.mapPinResponseWithForward(p, userId, mappedForwards[i]),
+      ),
       nextCursor:
         hasMore && page.length > 0
           ? encodePinCursor({

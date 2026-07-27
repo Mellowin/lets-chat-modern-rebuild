@@ -15,6 +15,7 @@ import { GroupsRepository } from '../groups/groups.repository';
 import { ChannelsRepository } from '../channels/channels.repository';
 import { WorkspacesRepository } from '../workspaces/workspaces.repository';
 import { StorageService } from '../storage/storage.service';
+import { BlocksService } from '../safety/blocks.service';
 import {
   ForwardPermissionsHelper,
   ForwardedFromMetadata,
@@ -75,6 +76,7 @@ export class ForwardService {
     private readonly directConversationsService: DirectConversationsService,
     private readonly groupsService: GroupsService,
     private readonly storage: StorageService,
+    private readonly blocks: BlocksService,
     private readonly forwardPermissions: ForwardPermissionsHelper,
   ) {}
 
@@ -252,6 +254,17 @@ export class ForwardService {
         );
         if (!participant) {
           throw new ForbiddenException('Access denied');
+        }
+
+        const participants =
+          await this.directConversations.findParticipants(destinationId);
+        const otherParticipant = participants.find((p) => p.userId !== userId);
+        if (otherParticipant) {
+          await this.blocks.requireNoBlockInEitherDirection(
+            userId,
+            otherParticipant.userId,
+            'Cannot forward messages to this user',
+          );
         }
         return;
       }

@@ -285,6 +285,69 @@ export class ForwardPermissionsHelper {
     };
   }
 
+  async toResponses<T extends { forwardedFrom?: unknown }>(
+    userId: string,
+    items: T[],
+  ): Promise<(ForwardedFromPayload | undefined)[]> {
+    const forwardedItems = items
+      .map((item, index) => ({ index, forwardedFrom: item.forwardedFrom }))
+      .filter(
+        (
+          entry,
+        ): entry is {
+          index: number;
+          forwardedFrom: Record<string, unknown>;
+        } =>
+          !!entry.forwardedFrom &&
+          typeof entry.forwardedFrom === 'object' &&
+          'sourceType' in entry.forwardedFrom &&
+          'sourceChatId' in entry.forwardedFrom &&
+          'originalCreatedAt' in entry.forwardedFrom,
+      );
+
+    const result = new Array<ForwardedFromPayload | undefined>(
+      items.length,
+    ).fill(undefined);
+
+    if (forwardedItems.length === 0) {
+      return result;
+    }
+
+    const sources = forwardedItems.map((entry) => ({
+      sourceType: String(entry.forwardedFrom.sourceType) as
+        | 'channel'
+        | 'direct'
+        | 'group',
+      sourceChatId: String(entry.forwardedFrom.sourceChatId),
+    }));
+
+    const accessible = await this.canViewSources(userId, sources);
+
+    for (const entry of forwardedItems) {
+      const meta = entry.forwardedFrom as Partial<ForwardedFromMetadata>;
+      const key = `${meta.sourceType}:${meta.sourceChatId}`;
+      if (accessible.has(key)) {
+        result[entry.index] = {
+          sourceType: meta.sourceType!,
+          sourceMessageId: meta.sourceMessageId ?? '',
+          sourceChatId: meta.sourceChatId!,
+          originalAuthorId: meta.originalAuthorId,
+          originalAuthorName: meta.originalAuthorName,
+          originalCreatedAt: meta.originalCreatedAt!,
+          replySnapshot: meta.replySnapshot,
+        };
+      } else {
+        result[entry.index] = {
+          sourceType: meta.sourceType!,
+          originalCreatedAt: meta.originalCreatedAt!,
+          isAnonymous: true,
+        };
+      }
+    }
+
+    return result;
+  }
+
   maskResponse(
     forwardedFrom: ForwardedFromPayload | undefined,
   ): ForwardedFromPayload | undefined {
