@@ -54,6 +54,11 @@ describe('WebsocketEventsService', () => {
     originalAuthorId: 'u1',
     originalAuthorName: 'Alice',
     originalCreatedAt: '2024-01-01T00:00:00Z',
+    replySnapshot: {
+      id: 'reply-msg',
+      content: 'original reply',
+      authorName: 'Bob',
+    },
   };
 
   function getEmittedForwardedFrom(
@@ -200,6 +205,168 @@ describe('WebsocketEventsService', () => {
         originalCreatedAt: fullForwardedFrom.originalCreatedAt,
         isAnonymous: true,
       });
+    });
+  });
+
+  describe('broadcastMessageUpdated', () => {
+    it('emits an anonymous forwardedFrom payload to the channel room', () => {
+      const payload = {
+        id: 'msg-1',
+        channelId: 'ch-1',
+        content: 'updated content',
+        parentId: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        editedAt: new Date(),
+        author: {
+          id: 'u1',
+          username: 'alice',
+          displayName: null,
+          avatarUrl: null,
+        },
+        reactions: [] as Array<{
+          emoji: string;
+          count: number;
+          reactedByMe: boolean;
+        }>,
+        forwardedFrom: fullForwardedFrom,
+      };
+
+      service.broadcastMessageUpdated('ch-1', payload);
+
+      expect(gateway.broadcastToRoom).toHaveBeenCalledWith(
+        'channel:ch-1',
+        'message:updated',
+        expect.anything(),
+      );
+      const emitted = getEmittedForwardedFrom();
+      expect(emitted).toEqual({
+        sourceType: fullForwardedFrom.sourceType,
+        originalCreatedAt: fullForwardedFrom.originalCreatedAt,
+        isAnonymous: true,
+      });
+      expect(emitted).not.toHaveProperty('sourceMessageId');
+      expect(emitted).not.toHaveProperty('sourceChatId');
+      expect(emitted).not.toHaveProperty('originalAuthorId');
+      expect(emitted).not.toHaveProperty('originalAuthorName');
+      expect(emitted).not.toHaveProperty('replySnapshot');
+      expect(payload.forwardedFrom).toEqual(fullForwardedFrom);
+    });
+
+    it('does not add forwardedFrom when the updated message is not a forward', () => {
+      const payload = {
+        id: 'msg-2',
+        channelId: 'ch-1',
+        content: 'updated content',
+        parentId: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        editedAt: new Date(),
+        author: {
+          id: 'u1',
+          username: 'alice',
+          displayName: null,
+          avatarUrl: null,
+        },
+        reactions: [] as Array<{
+          emoji: string;
+          count: number;
+          reactedByMe: boolean;
+        }>,
+      };
+
+      service.broadcastMessageUpdated('ch-1', payload);
+
+      expect(gateway.broadcastToRoom).toHaveBeenCalledWith(
+        'channel:ch-1',
+        'message:updated',
+        payload,
+      );
+      expect(forwardPermissions.maskResponse).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('broadcastDirectMessageUpdated', () => {
+    it('emits an anonymous forwardedFrom payload to the direct conversation room', () => {
+      const payload = {
+        id: 'dm-1',
+        conversationId: 'conv-1',
+        content: 'updated content',
+        parentId: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        editedAt: new Date(),
+        author: {
+          id: 'u1',
+          username: 'alice',
+          displayName: null,
+          avatarUrl: null,
+        },
+        parent: null,
+        reactions: [] as Array<{
+          emoji: string;
+          count: number;
+          reactedByMe: boolean;
+        }>,
+        replyToMessageId: null,
+        replyTo: null,
+        forwardedFrom: fullForwardedFrom,
+      };
+
+      service.broadcastDirectMessageUpdated('conv-1', payload);
+
+      expect(gateway.broadcastToRoom).toHaveBeenCalledWith(
+        'direct-conversation:conv-1',
+        'direct:message:updated',
+        expect.anything(),
+      );
+      const emitted = getEmittedForwardedFrom();
+      expect(emitted).toEqual({
+        sourceType: fullForwardedFrom.sourceType,
+        originalCreatedAt: fullForwardedFrom.originalCreatedAt,
+        isAnonymous: true,
+      });
+      expect(emitted).not.toHaveProperty('sourceMessageId');
+      expect(emitted).not.toHaveProperty('sourceChatId');
+      expect(emitted).not.toHaveProperty('originalAuthorId');
+      expect(emitted).not.toHaveProperty('originalAuthorName');
+      expect(emitted).not.toHaveProperty('replySnapshot');
+      expect(payload.forwardedFrom).toEqual(fullForwardedFrom);
+    });
+
+    it('does not add forwardedFrom when the updated direct message is not a forward', () => {
+      const payload = {
+        id: 'dm-2',
+        conversationId: 'conv-1',
+        content: 'updated content',
+        parentId: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        editedAt: new Date(),
+        author: {
+          id: 'u1',
+          username: 'alice',
+          displayName: null,
+          avatarUrl: null,
+        },
+        parent: null,
+        reactions: [] as Array<{
+          emoji: string;
+          count: number;
+          reactedByMe: boolean;
+        }>,
+        replyToMessageId: null,
+        replyTo: null,
+      };
+
+      service.broadcastDirectMessageUpdated('conv-1', payload);
+
+      expect(gateway.broadcastToRoom).toHaveBeenCalledWith(
+        'direct-conversation:conv-1',
+        'direct:message:updated',
+        payload,
+      );
+      expect(forwardPermissions.maskResponse).not.toHaveBeenCalled();
     });
   });
 

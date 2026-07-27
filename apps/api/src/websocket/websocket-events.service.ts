@@ -84,13 +84,14 @@ export class WebsocketEventsService {
         count: number;
         reactedByMe: boolean;
       }>;
+      forwardedFrom?: ForwardedFromPayload;
     },
   ) {
     try {
       this.gateway.broadcastToRoom(
         `channel:${channelId}`,
         'message:updated',
-        payload,
+        this.withAnonymousForwardedFrom(payload),
       );
     } catch (error) {
       this.logger.error(
@@ -322,13 +323,14 @@ export class WebsocketEventsService {
           avatarUrl: string | null;
         } | null;
       } | null;
+      forwardedFrom?: ForwardedFromPayload;
     },
   ) {
     try {
       this.gateway.broadcastToRoom(
         `direct-conversation:${conversationId}`,
         'direct:message:updated',
-        payload,
+        this.withAnonymousForwardedFrom(payload),
       );
     } catch (error) {
       this.logger.error(
