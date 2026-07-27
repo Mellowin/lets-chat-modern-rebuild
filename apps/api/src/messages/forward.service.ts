@@ -23,6 +23,10 @@ import {
 import { ForwardMessageDto } from './dto/forward-message.dto';
 import { CreateMessageAttachmentDto } from './dto/create-message-attachment.dto';
 import { classifyAttachmentKind } from './messages.service';
+import {
+  validateAttachmentBatch,
+  assertAttachmentBatchAllowed,
+} from './attachment-validation';
 
 export type ForwardableMessage = {
   id: string;
@@ -89,6 +93,11 @@ export class ForwardService {
       throw new NotFoundException('Source message not found');
     }
 
+    // Authorize the source before checking or revealing anything about the
+    // destination. This prevents same-chat validation from leaking the
+    // existence of an inaccessible source message.
+    await this.requireSourceAccess(dto.sourceType, source, currentUserId);
+
     const sourceChatId = this.getSourceChatId(dto.sourceType, source);
 
     if (
@@ -100,7 +109,6 @@ export class ForwardService {
       );
     }
 
-    await this.requireSourceAccess(dto.sourceType, source, currentUserId);
     await this.requireDestinationAccess(
       dto.destinationType,
       dto.destinationId,
@@ -113,10 +121,20 @@ export class ForwardService {
       sourceChatId,
       source,
     );
-    const attachmentInputs = await this.buildAttachmentInputs(
-      source,
-      currentUserId,
-    );
+
+    // Validate the complete attachment batch for channel destinations before
+    // any objects are copied. Direct and group destinations keep their existing
+    // limits from their own create-message paths.
+    if (dto.destinationType === 'channel' && source.attachments.length > 0) {
+      const batchItems = source.attachments.map((a) => ({
+        mimeType: a.mimeType,
+        sizeBytes: a.size,
+      }));
+      assertAttachmentBatchAllowed(validateAttachmentBatch(batchItems));
+    }
+
+    const { inputs: attachmentInputs, copiedKeys } =
+      await this.buildAttachmentInputs(source, currentUserId);
 
     switch (dto.destinationType) {
       case 'channel':
@@ -124,6 +142,7 @@ export class ForwardService {
           dto.destinationId,
           content,
           attachmentInputs,
+          copiedKeys,
           forwardedFrom,
           currentUserId,
         );
@@ -132,6 +151,7 @@ export class ForwardService {
           dto.destinationId,
           content,
           attachmentInputs,
+          copiedKeys,
           forwardedFrom,
           currentUserId,
         );
@@ -140,6 +160,7 @@ export class ForwardService {
           dto.destinationId,
           content,
           attachmentInputs,
+          copiedKeys,
           forwardedFrom,
           currentUserId,
         );
@@ -364,106 +385,146 @@ export class ForwardService {
   private async buildAttachmentInputs(
     source: ForwardableMessage,
     forwarderId: string,
-  ): Promise<CreateMessageAttachmentDto[]> {
-    if (source.attachments.length === 0) return [];
+  ): Promise<{
+    inputs: CreateMessageAttachmentDto[];
+    copiedKeys: string[];
+  }> {
+    if (source.attachments.length === 0) return { inputs: [], copiedKeys: [] };
 
-    const copied = await Promise.all(
-      source.attachments.map(async (a) => {
-        const destinationKey = `forwarded/${forwarderId}/${randomUUID()}/${a.filename}`;
-        await this.storage
-          .copyObject(a.storageKey, destinationKey)
-          .catch((err) => {
-            throw new BadRequestException(
-              `Failed to copy attachment ${a.filename}: ${(err as Error).message}`,
-            );
-          });
-        return {
-          storageKey: destinationKey,
-          fileName: a.filename,
-          mimeType: a.mimeType,
-          sizeBytes: a.size,
-          kind: classifyAttachmentKind(a.mimeType),
-        };
-      }),
+    const copiedKeys: string[] = [];
+    const copies = source.attachments.map(async (a) => {
+      const destinationKey = `forwarded/${forwarderId}/${randomUUID()}/${a.filename}`;
+      await this.storage.copyObject(a.storageKey, destinationKey);
+      copiedKeys.push(destinationKey);
+      return {
+        storageKey: destinationKey,
+        fileName: a.filename,
+        mimeType: a.mimeType,
+        sizeBytes: a.size,
+        kind: classifyAttachmentKind(a.mimeType),
+      };
+    });
+
+    try {
+      const inputs = await Promise.all(copies);
+      return { inputs, copiedKeys };
+    } catch (err) {
+      await this.deleteCopiedObjects(copiedKeys);
+      throw err;
+    }
+  }
+
+  private async deleteCopiedObjects(keys: string[]): Promise<void> {
+    await Promise.all(
+      keys.map((key) => this.storage.deleteObject(key).catch(() => {})),
     );
-
-    return copied;
   }
 
   private async forwardToChannel(
     channelId: string,
     content: string,
     attachments: CreateMessageAttachmentDto[],
+    copiedKeys: string[],
     forwardedFrom: Prisma.InputJsonValue,
     userId: string,
   ) {
     const channel = await this.channels.findActiveById(channelId);
     if (!channel) {
+      await this.cleanupAfterFailure([], copiedKeys);
       throw new NotFoundException('Destination channel not found');
     }
 
-    return this.messagesService.create(
-      channel.workspaceId,
-      channelId,
-      {
-        content,
-        attachments: attachments.length > 0 ? attachments : undefined,
-      },
-      userId,
-      forwardedFrom,
-    );
+    try {
+      return await this.messagesService.create(
+        channel.workspaceId,
+        channelId,
+        {
+          content,
+          attachments: attachments.length > 0 ? attachments : undefined,
+        },
+        userId,
+        forwardedFrom,
+      );
+    } catch (err) {
+      await this.cleanupAfterFailure([], copiedKeys);
+      throw err;
+    }
   }
 
   private async forwardToDirect(
     conversationId: string,
     content: string,
     attachments: CreateMessageAttachmentDto[],
+    copiedKeys: string[],
     forwardedFrom: Prisma.InputJsonValue,
     userId: string,
   ) {
-    const attachmentIds =
+    const attachmentRecords =
       attachments.length > 0
         ? await this.createUnattachedAttachmentRecords(attachments, userId)
         : [];
 
-    return this.directConversationsService.createMessage(
-      conversationId,
-      {
-        content,
-        attachmentIds: attachmentIds.length > 0 ? attachmentIds : undefined,
-      },
-      userId,
-      forwardedFrom,
-    );
+    try {
+      return await this.directConversationsService.createMessage(
+        conversationId,
+        {
+          content,
+          attachmentIds:
+            attachmentRecords.length > 0
+              ? attachmentRecords.map((r) => r.id)
+              : undefined,
+        },
+        userId,
+        forwardedFrom,
+      );
+    } catch (err) {
+      await this.cleanupAfterFailure(
+        attachmentRecords.map((r) => r.id),
+        copiedKeys,
+      );
+      throw err;
+    }
   }
 
   private async forwardToGroup(
     groupId: string,
     content: string,
     attachments: CreateMessageAttachmentDto[],
+    copiedKeys: string[],
     forwardedFrom: Prisma.InputJsonValue,
     userId: string,
   ) {
-    const attachmentIds =
+    const attachmentRecords =
       attachments.length > 0
         ? await this.createUnattachedAttachmentRecords(attachments, userId)
         : [];
 
-    return this.groupsService.createMessage(
-      groupId,
-      {
-        content,
-        attachmentIds: attachmentIds.length > 0 ? attachmentIds : undefined,
-      },
-      userId,
-      forwardedFrom,
-    );
+    try {
+      return await this.groupsService.createMessage(
+        groupId,
+        {
+          content,
+          attachmentIds:
+            attachmentRecords.length > 0
+              ? attachmentRecords.map((r) => r.id)
+              : undefined,
+        },
+        userId,
+        forwardedFrom,
+      );
+    } catch (err) {
+      await this.cleanupAfterFailure(
+        attachmentRecords.map((r) => r.id),
+        copiedKeys,
+      );
+      throw err;
+    }
   }
 
   private async createUnattachedAttachmentRecords(
     attachments: CreateMessageAttachmentDto[],
     createdById: string,
-  ): Promise<string[]> {
+  ): Promise<Array<{ id: string; storageKey: string }>> {
     const created = await Promise.all(
       attachments.map((a) =>
         this.prisma.attachment.create({
@@ -476,10 +537,34 @@ export class ForwardService {
             storageKey: a.storageKey,
             storageBackend: StorageBackend.MINIO,
           },
-          select: { id: true },
+          select: { id: true, storageKey: true },
         }),
       ),
     );
-    return created.map((a) => a.id);
+    return created.map((a) => ({ id: a.id, storageKey: a.storageKey }));
+  }
+
+  private async cleanupAfterFailure(
+    createdAttachmentIds: string[],
+    copiedKeys: string[],
+  ): Promise<void> {
+    if (createdAttachmentIds.length > 0) {
+      await this.prisma.attachment
+        .deleteMany({
+          where: { id: { in: createdAttachmentIds } },
+        })
+        .catch(() => {});
+    }
+
+    for (const key of copiedKeys) {
+      const stillReferenced = await this.prisma.attachment
+        .count({
+          where: { storageKey: key, deletedAt: null },
+        })
+        .catch(() => 0);
+      if (stillReferenced === 0) {
+        await this.storage.deleteObject(key).catch(() => {});
+      }
+    }
   }
 }
