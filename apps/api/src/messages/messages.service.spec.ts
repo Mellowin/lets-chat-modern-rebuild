@@ -1763,6 +1763,144 @@ describe('MessagesService', () => {
       ]);
       expect(forwardPermissions.toResponse).not.toHaveBeenCalled();
     });
+
+    it('maps each context message to its own forwardedFrom metadata after reversing before', async () => {
+      const makeMessage = (
+        id: string,
+        sourceChatId: string | null,
+        content: string,
+      ) => ({
+        id,
+        channelId,
+        content,
+        replyToMessageId: null,
+        replyToMessage: null,
+        parentId: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        editedAt: null,
+        author: {
+          id: userId,
+          username: 'user',
+          displayName: null,
+          avatarUrl: null,
+        },
+        reactions: [],
+        attachments: [],
+        forwardedFrom: sourceChatId
+          ? {
+              sourceType: 'channel' as const,
+              sourceChatId,
+              sourceMessageId: `orig-${id}`,
+              originalCreatedAt: '2024-01-01T00:00:00Z',
+            }
+          : undefined,
+      });
+
+      const before1 = makeMessage('before-1', 'before-1-channel', 'before 1');
+      const before2 = makeMessage(
+        'before-2',
+        'inaccessible-channel',
+        'before 2',
+      );
+      const target = makeMessage('target', 'target-channel', 'target');
+      const after1 = makeMessage('after-1', 'after-1-channel', 'after 1');
+
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      messagesRepository.findByIdWithRelations.mockResolvedValue(
+        target as unknown as ListedMessage,
+      );
+      messagesRepository.findContextBefore.mockResolvedValue([
+        before1,
+        before2,
+      ] as unknown as ListedMessage[]);
+      messagesRepository.findContextAfter.mockResolvedValue([
+        after1,
+      ] as unknown as ListedMessage[]);
+
+      forwardPermissions.toResponses.mockImplementationOnce((_, items) =>
+        Promise.resolve(
+          (items as Array<{ id: string; forwardedFrom?: unknown }>).map(
+            (item) => {
+              const meta = item.forwardedFrom as
+                | {
+                    sourceType: 'channel';
+                    sourceChatId: string;
+                    sourceMessageId: string;
+                    originalCreatedAt: string;
+                  }
+                | undefined;
+              if (!meta) return undefined;
+              if (meta.sourceChatId === 'inaccessible-channel') {
+                return {
+                  sourceType: meta.sourceType,
+                  originalCreatedAt: meta.originalCreatedAt,
+                  isAnonymous: true,
+                };
+              }
+              return { ...meta, isAccessible: true };
+            },
+          ),
+        ),
+      );
+
+      const result = await service.getContext(
+        workspaceId,
+        channelId,
+        'target',
+        userId,
+        {},
+      );
+
+      expect(result.before).toHaveLength(2);
+      // before is reversed: the closer message (before-2) comes first
+      expect(result.before[0].id).toBe('before-2');
+      expect(result.before[0].forwardedFrom).toEqual({
+        sourceType: 'channel',
+        originalCreatedAt: '2024-01-01T00:00:00Z',
+        isAnonymous: true,
+      });
+      expect(result.before[1].id).toBe('before-1');
+      expect(result.before[1].forwardedFrom).toEqual({
+        sourceType: 'channel',
+        sourceChatId: 'before-1-channel',
+        sourceMessageId: 'orig-before-1',
+        originalCreatedAt: '2024-01-01T00:00:00Z',
+        isAccessible: true,
+      });
+      expect(result.target.id).toBe('target');
+      expect(result.target.forwardedFrom).toEqual({
+        sourceType: 'channel',
+        sourceChatId: 'target-channel',
+        sourceMessageId: 'orig-target',
+        originalCreatedAt: '2024-01-01T00:00:00Z',
+        isAccessible: true,
+      });
+      expect(result.after).toHaveLength(1);
+      expect(result.after[0].id).toBe('after-1');
+      expect(result.after[0].forwardedFrom).toEqual({
+        sourceType: 'channel',
+        sourceChatId: 'after-1-channel',
+        sourceMessageId: 'orig-after-1',
+        originalCreatedAt: '2024-01-01T00:00:00Z',
+        isAccessible: true,
+      });
+
+      expect(forwardPermissions.toResponses).toHaveBeenCalledTimes(1);
+      expect(forwardPermissions.toResponses).toHaveBeenCalledWith(userId, [
+        before1,
+        before2,
+        target,
+        after1,
+      ]);
+      expect(forwardPermissions.toResponse).not.toHaveBeenCalled();
+    });
   });
 
   describe('message response with attachments', () => {

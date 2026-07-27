@@ -17,7 +17,10 @@ import { PushService } from '../push/push.service';
 import { BlocksService } from '../safety/blocks.service';
 import { MentionsService } from '../common/mentions.service';
 import { mapAttachmentResponse } from '../messages/messages.service';
-import { ForwardPermissionsHelper } from '../messages/forward-permissions.helper';
+import {
+  ForwardPermissionsHelper,
+  ForwardedFromPayload,
+} from '../messages/forward-permissions.helper';
 import {
   validateAttachmentFile,
   assertAttachmentAllowed,
@@ -563,8 +566,11 @@ export class DirectConversationsService {
       currentUserId,
       contextMessages,
     );
+    const forwardMap = new Map<string, ForwardedFromPayload | undefined>();
+    for (let i = 0; i < contextMessages.length; i++) {
+      forwardMap.set(contextMessages[i].id, mappedForwards[i]);
+    }
 
-    let forwardIndex = 0;
     const toResponseWithForward = (
       m: (typeof contextMessages)[number],
     ): Awaited<ReturnType<DirectConversationsService['toMessageResponse']>> =>
@@ -574,16 +580,16 @@ export class DirectConversationsService {
         myLastReadAt,
         otherParticipantLastReadAt,
         reactionsMap.get(m.id) ?? [],
-        mappedForwards[forwardIndex++],
+        forwardMap.get(m.id),
       );
 
-    const before = (hasMoreBefore ? beforeRaw.slice(0, beforeLimit) : beforeRaw)
-      .reverse()
-      .map(toResponseWithForward);
+    const beforeSlice = hasMoreBefore
+      ? beforeRaw.slice(0, beforeLimit)
+      : beforeRaw;
+    const before = [...beforeSlice].reverse().map(toResponseWithForward);
 
-    const after = (hasMoreAfter ? afterRaw.slice(0, afterLimit) : afterRaw).map(
-      toResponseWithForward,
-    );
+    const afterSlice = hasMoreAfter ? afterRaw.slice(0, afterLimit) : afterRaw;
+    const after = afterSlice.map(toResponseWithForward);
 
     return {
       target: toResponseWithForward(target),

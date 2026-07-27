@@ -18,7 +18,10 @@ import { PushService } from '../push/push.service';
 import { BlocksService } from '../safety/blocks.service';
 import { MentionsService } from '../common/mentions.service';
 import { mapAttachmentResponse } from '../messages/messages.service';
-import { ForwardPermissionsHelper } from '../messages/forward-permissions.helper';
+import {
+  ForwardPermissionsHelper,
+  ForwardedFromPayload,
+} from '../messages/forward-permissions.helper';
 import {
   validateAttachmentFile,
   assertAttachmentAllowed,
@@ -654,24 +657,20 @@ export class GroupsService {
       currentUserId,
       allMessages,
     );
+    const forwardMap = new Map<string, ForwardedFromPayload | undefined>();
+    for (let i = 0; i < allMessages.length; i++) {
+      forwardMap.set(allMessages[i].id, mappedForwards[i]);
+    }
+    const getForward = (message: { id: string }) => forwardMap.get(message.id);
 
-    let forwardIndex = 0;
-    const before = beforeSlice
+    const before = [...beforeSlice]
       .reverse()
       .map((m) =>
-        this.toMessageResponseWithForward(
-          m,
-          currentUserId,
-          mappedForwards[forwardIndex++],
-        ),
+        this.toMessageResponseWithForward(m, currentUserId, getForward(m)),
       );
-    const targetForward = mappedForwards[forwardIndex++];
+    const targetForward = getForward(target);
     const after = afterSlice.map((m) =>
-      this.toMessageResponseWithForward(
-        m,
-        currentUserId,
-        mappedForwards[forwardIndex++],
-      ),
+      this.toMessageResponseWithForward(m, currentUserId, getForward(m)),
     );
 
     return {

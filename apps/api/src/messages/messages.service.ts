@@ -10,7 +10,10 @@ import { WorkspacesRepository } from '../workspaces/workspaces.repository';
 import { ChannelsRepository } from '../channels/channels.repository';
 import { MessagesRepository } from './messages.repository';
 import { WebsocketEventsService } from '../websocket/websocket-events.service';
-import { ForwardPermissionsHelper } from './forward-permissions.helper';
+import {
+  ForwardPermissionsHelper,
+  ForwardedFromPayload,
+} from './forward-permissions.helper';
 import { PushService } from '../push/push.service';
 import { MentionsService } from '../common/mentions.service';
 import { CreateMessageDto } from './dto/create-message.dto';
@@ -620,24 +623,18 @@ export class MessagesService {
       userId,
       allMessages,
     );
+    const forwardMap = new Map<string, ForwardedFromPayload | undefined>();
+    for (let i = 0; i < allMessages.length; i++) {
+      forwardMap.set(allMessages[i].id, mappedForwards[i]);
+    }
+    const getForward = (message: { id: string }) => forwardMap.get(message.id);
 
-    let forwardIndex = 0;
-    const before = beforeSlice
+    const before = [...beforeSlice]
       .reverse()
-      .map((m) =>
-        this.toMessageResponseWithForward(
-          m,
-          userId,
-          mappedForwards[forwardIndex++],
-        ),
-      );
-    const targetForward = mappedForwards[forwardIndex++];
+      .map((m) => this.toMessageResponseWithForward(m, userId, getForward(m)));
+    const targetForward = getForward(target);
     const after = afterSlice.map((m) =>
-      this.toMessageResponseWithForward(
-        m,
-        userId,
-        mappedForwards[forwardIndex++],
-      ),
+      this.toMessageResponseWithForward(m, userId, getForward(m)),
     );
 
     return {
