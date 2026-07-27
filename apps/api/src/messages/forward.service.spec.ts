@@ -65,6 +65,7 @@ describe('ForwardService', () => {
         {
           provide: PrismaService,
           useValue: {
+            $transaction: jest.fn((ops: unknown[]) => Promise.all(ops)),
             attachment: {
               findMany: jest.fn().mockResolvedValue([]),
               create: jest.fn().mockResolvedValue({ id: attachmentId }),
@@ -1270,7 +1271,12 @@ describe('ForwardService', () => {
       );
       expect(prismaService.attachment.create).toHaveBeenCalled();
       expect(prismaService.attachment.deleteMany).toHaveBeenCalledWith({
-        where: { id: { in: [attachmentId] } },
+        where: {
+          id: { in: [attachmentId] },
+          messageId: null,
+          directMessageId: null,
+          groupMessageId: null,
+        },
       });
       expect(storageService.deleteObject).toHaveBeenCalled();
       expect(directConversationsService.createMessage).toHaveBeenCalled();
@@ -1361,6 +1367,193 @@ describe('ForwardService', () => {
       expect(storageService.copyObject).toHaveBeenCalled();
       expect(storageService.deleteObject).not.toHaveBeenCalled();
       expect(prismaService.attachment.deleteMany).not.toHaveBeenCalled();
+    });
+
+    it('copies sequentially and cleans up a key that resolves after a later copy fails', async () => {
+      messagesRepository.findByIdWithRelations.mockResolvedValue(
+        baseMessage as any,
+      );
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: otherChannelId,
+        workspaceId,
+      } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      (prismaService.attachment.findMany as jest.Mock).mockResolvedValue([
+        makeAttachment('att-1'),
+        makeAttachment('att-2'),
+      ]);
+
+      let resolveFirst: (() => void) | undefined;
+      let firstDestinationKey: string | undefined;
+      (storageService.copyObject as jest.Mock).mockImplementation(
+        (_source: string, destinationKey: string) => {
+          if (!firstDestinationKey) {
+            firstDestinationKey = destinationKey;
+            return new Promise<void>((resolve) => {
+              resolveFirst = resolve;
+            });
+          }
+          return Promise.reject(new Error('second copy failed'));
+        },
+      );
+
+      const dto: ForwardMessageDto = {
+        sourceType: 'channel',
+        sourceMessageId: messageId,
+        destinationType: 'channel',
+        destinationId: otherChannelId,
+      };
+
+      const forwardPromise = service.forward(dto, userId);
+      // Let the initial async source/destination checks settle so that the
+      // sequential copy loop reaches the first pending copy.
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(storageService.copyObject).toHaveBeenCalledTimes(1);
+
+      resolveFirst!();
+
+      await expect(forwardPromise).rejects.toThrow('second copy failed');
+      expect(firstDestinationKey).toBeDefined();
+      expect(storageService.deleteObject).toHaveBeenCalledWith(
+        firstDestinationKey,
+      );
+    });
+
+    it('deletes copied objects when direct attachment-row creation fails', async () => {
+      messagesRepository.findByIdWithRelations.mockResolvedValue(
+        baseMessage as any,
+      );
+      (prismaService.attachment.findMany as jest.Mock).mockResolvedValue([
+        makeAttachment('att-1'),
+        makeAttachment('att-2'),
+      ]);
+      directConversationsRepository.findParticipant.mockResolvedValue({
+        id: 'p1',
+      } as any);
+      directConversationsRepository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: null },
+      ]);
+      (prismaService.$transaction as jest.Mock).mockRejectedValue(
+        new Error('transaction failed'),
+      );
+
+      const dto: ForwardMessageDto = {
+        sourceType: 'channel',
+        sourceMessageId: messageId,
+        destinationType: 'direct',
+        destinationId: dmId,
+      };
+
+      await expect(service.forward(dto, userId)).rejects.toThrow(
+        'transaction failed',
+      );
+      expect(storageService.copyObject).toHaveBeenCalledTimes(2);
+      expect(directConversationsService.createMessage).not.toHaveBeenCalled();
+      expect(storageService.deleteObject).toHaveBeenCalledTimes(2);
+      expect(prismaService.attachment.deleteMany).not.toHaveBeenCalled();
+    });
+
+    it('deletes copied objects when group attachment-row creation fails', async () => {
+      const destinationGroupId = '99999999-9999-9999-9999-999999999999';
+      messagesRepository.findByIdWithRelations.mockResolvedValue(
+        baseMessage as any,
+      );
+      (prismaService.attachment.findMany as jest.Mock).mockResolvedValue([
+        makeAttachment('att-1'),
+        makeAttachment('att-2'),
+      ]);
+      groupsRepository.findActiveMember.mockResolvedValue({ id: 'm1' } as any);
+      (prismaService.$transaction as jest.Mock).mockRejectedValue(
+        new Error('transaction failed'),
+      );
+
+      const dto: ForwardMessageDto = {
+        sourceType: 'channel',
+        sourceMessageId: messageId,
+        destinationType: 'group',
+        destinationId: destinationGroupId,
+      };
+
+      await expect(service.forward(dto, userId)).rejects.toThrow(
+        'transaction failed',
+      );
+      expect(storageService.copyObject).toHaveBeenCalledTimes(2);
+      expect(groupsService.createMessage).not.toHaveBeenCalled();
+      expect(storageService.deleteObject).toHaveBeenCalledTimes(2);
+      expect(prismaService.attachment.deleteMany).not.toHaveBeenCalled();
+    });
+
+    it('does not delete a linked attachment row or its object when destination fails after linking', async () => {
+      messagesRepository.findByIdWithRelations.mockResolvedValue(
+        baseMessage as any,
+      );
+      (prismaService.attachment.findMany as jest.Mock).mockResolvedValue([
+        makeAttachment('att-1'),
+      ]);
+      directConversationsRepository.findParticipant.mockResolvedValue({
+        id: 'p1',
+      } as any);
+      directConversationsRepository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: null },
+      ]);
+      directConversationsService.createMessage.mockRejectedValue(
+        new Error('post-commit failure'),
+      );
+      (prismaService.attachment.count as jest.Mock).mockResolvedValue(1);
+
+      const dto: ForwardMessageDto = {
+        sourceType: 'channel',
+        sourceMessageId: messageId,
+        destinationType: 'direct',
+        destinationId: dmId,
+      };
+
+      await expect(service.forward(dto, userId)).rejects.toThrow(
+        'post-commit failure',
+      );
+      expect(prismaService.attachment.deleteMany).toHaveBeenCalledWith({
+        where: {
+          id: { in: [attachmentId] },
+          messageId: null,
+          directMessageId: null,
+          groupMessageId: null,
+        },
+      });
+      expect(storageService.deleteObject).not.toHaveBeenCalled();
+    });
+
+    it('does not delete copied objects when the reference count query fails', async () => {
+      messagesRepository.findByIdWithRelations.mockResolvedValue(
+        baseMessage as any,
+      );
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: otherChannelId,
+        workspaceId,
+      } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      (prismaService.attachment.findMany as jest.Mock).mockResolvedValue([
+        makeAttachment('att-1'),
+      ]);
+      messagesService.create.mockRejectedValue(new Error('channel rejected'));
+      (prismaService.attachment.count as jest.Mock).mockRejectedValue(
+        new Error('count failed'),
+      );
+
+      const dto: ForwardMessageDto = {
+        sourceType: 'channel',
+        sourceMessageId: messageId,
+        destinationType: 'channel',
+        destinationId: otherChannelId,
+      };
+
+      await expect(service.forward(dto, userId)).rejects.toThrow(
+        'channel rejected',
+      );
+      expect(storageService.deleteObject).not.toHaveBeenCalled();
     });
   });
 

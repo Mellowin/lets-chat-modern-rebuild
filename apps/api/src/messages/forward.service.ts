@@ -392,21 +392,21 @@ export class ForwardService {
     if (source.attachments.length === 0) return { inputs: [], copiedKeys: [] };
 
     const copiedKeys: string[] = [];
-    const copies = source.attachments.map(async (a) => {
-      const destinationKey = `forwarded/${forwarderId}/${randomUUID()}/${a.filename}`;
-      await this.storage.copyObject(a.storageKey, destinationKey);
-      copiedKeys.push(destinationKey);
-      return {
-        storageKey: destinationKey,
-        fileName: a.filename,
-        mimeType: a.mimeType,
-        sizeBytes: a.size,
-        kind: classifyAttachmentKind(a.mimeType),
-      };
-    });
+    const inputs: CreateMessageAttachmentDto[] = [];
 
     try {
-      const inputs = await Promise.all(copies);
+      for (const a of source.attachments) {
+        const destinationKey = `forwarded/${forwarderId}/${randomUUID()}/${a.filename}`;
+        await this.storage.copyObject(a.storageKey, destinationKey);
+        copiedKeys.push(destinationKey);
+        inputs.push({
+          storageKey: destinationKey,
+          fileName: a.filename,
+          mimeType: a.mimeType,
+          sizeBytes: a.size,
+          kind: classifyAttachmentKind(a.mimeType),
+        });
+      }
       return { inputs, copiedKeys };
     } catch (err) {
       await this.deleteCopiedObjects(copiedKeys);
@@ -459,12 +459,16 @@ export class ForwardService {
     forwardedFrom: Prisma.InputJsonValue,
     userId: string,
   ) {
-    const attachmentRecords =
-      attachments.length > 0
-        ? await this.createUnattachedAttachmentRecords(attachments, userId)
-        : [];
+    let attachmentRecords: Array<{ id: string; storageKey: string }> = [];
 
     try {
+      if (attachments.length > 0) {
+        attachmentRecords = await this.createUnattachedAttachmentRecords(
+          attachments,
+          userId,
+        );
+      }
+
       return await this.directConversationsService.createMessage(
         conversationId,
         {
@@ -494,12 +498,16 @@ export class ForwardService {
     forwardedFrom: Prisma.InputJsonValue,
     userId: string,
   ) {
-    const attachmentRecords =
-      attachments.length > 0
-        ? await this.createUnattachedAttachmentRecords(attachments, userId)
-        : [];
+    let attachmentRecords: Array<{ id: string; storageKey: string }> = [];
 
     try {
+      if (attachments.length > 0) {
+        attachmentRecords = await this.createUnattachedAttachmentRecords(
+          attachments,
+          userId,
+        );
+      }
+
       return await this.groupsService.createMessage(
         groupId,
         {
@@ -525,7 +533,7 @@ export class ForwardService {
     attachments: CreateMessageAttachmentDto[],
     createdById: string,
   ): Promise<Array<{ id: string; storageKey: string }>> {
-    const created = await Promise.all(
+    const created = await this.prisma.$transaction(
       attachments.map((a) =>
         this.prisma.attachment.create({
           data: {
@@ -551,19 +559,27 @@ export class ForwardService {
     if (createdAttachmentIds.length > 0) {
       await this.prisma.attachment
         .deleteMany({
-          where: { id: { in: createdAttachmentIds } },
+          where: {
+            id: { in: createdAttachmentIds },
+            messageId: null,
+            directMessageId: null,
+            groupMessageId: null,
+          },
         })
         .catch(() => {});
     }
 
     for (const key of copiedKeys) {
-      const stillReferenced = await this.prisma.attachment
-        .count({
-          where: { storageKey: key, deletedAt: null },
-        })
-        .catch(() => 0);
-      if (stillReferenced === 0) {
-        await this.storage.deleteObject(key).catch(() => {});
+      try {
+        const stillReferenced = await this.prisma.attachment.count({
+          where: { storageKey: key },
+        });
+        if (stillReferenced === 0) {
+          await this.storage.deleteObject(key).catch(() => {});
+        }
+      } catch {
+        // If we cannot verify references, preserve the object rather than
+        // risk deleting one that is still in use.
       }
     }
   }
