@@ -68,6 +68,25 @@ export interface DirectMessageAttachment {
   thumbnailUrl?: string;
 }
 
+export interface ForwardedFromResponse {
+  sourceType: "channel" | "direct" | "group";
+  sourceMessageId: string;
+  sourceChatId: string;
+  originalAuthorId?: string;
+  originalAuthorName?: string;
+  originalCreatedAt: string;
+  replySnapshot?: { id: string; content: string; authorName: string };
+  isAnonymous?: false;
+}
+
+export interface ForwardedFromAnonymous {
+  sourceType: "channel" | "direct" | "group";
+  originalCreatedAt: string;
+  isAnonymous: true;
+}
+
+export type ForwardedFrom = ForwardedFromResponse | ForwardedFromAnonymous;
+
 export interface DirectMessage {
   id: string;
   conversationId: string;
@@ -89,6 +108,7 @@ export interface DirectMessage {
   isUnreadForMe: boolean;
   mentions?: DirectMessageMention[];
   attachments?: DirectMessageAttachment[];
+  forwardedFrom?: ForwardedFrom;
   isPinned?: boolean;
   pin?: {
     pinnedAt: string;
@@ -115,6 +135,7 @@ export interface PinnedDirectMessageSummary {
       content: string | null;
       author: DirectMessageAuthor | null;
     } | null;
+    forwardedFrom?: ForwardedFrom;
   };
 }
 

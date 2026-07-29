@@ -5,10 +5,15 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { Prisma } from '@lets-chat/database';
 import { WorkspacesRepository } from '../workspaces/workspaces.repository';
 import { ChannelsRepository } from '../channels/channels.repository';
 import { MessagesRepository } from './messages.repository';
 import { WebsocketEventsService } from '../websocket/websocket-events.service';
+import {
+  ForwardPermissionsHelper,
+  ForwardedFromPayload,
+} from './forward-permissions.helper';
 import { PushService } from '../push/push.service';
 import { MentionsService } from '../common/mentions.service';
 import { CreateMessageDto } from './dto/create-message.dto';
@@ -60,9 +65,10 @@ export class MessagesService {
     private readonly websocketEvents: WebsocketEventsService,
     private readonly pushService: PushService,
     private readonly mentions: MentionsService,
+    private readonly forwardPermissions: ForwardPermissionsHelper,
   ) {}
 
-  private toMessageResponse(
+  async toMessageResponse(
     message: {
       id: string;
       channelId: string;
@@ -102,8 +108,62 @@ export class MessagesService {
         pinnedAt: Date;
         pinnedByUserId: string | null;
       } | null;
+      forwardedFrom?: unknown;
     },
     userId: string,
+  ) {
+    const forwardedFrom = await this.forwardPermissions.toResponse(
+      message.forwardedFrom,
+      userId,
+    );
+
+    return this.toMessageResponseWithForward(message, userId, forwardedFrom);
+  }
+
+  private toMessageResponseWithForward(
+    message: {
+      id: string;
+      channelId: string;
+      content: string;
+      parentId: string | null;
+      replyToMessageId: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+      editedAt: Date | null;
+      author: {
+        id: string;
+        username: string;
+        displayName: string | null;
+        avatarUrl: string | null;
+      };
+      reactions: Array<{ emoji: string; userId: string }>;
+      attachments: Array<{
+        id: string;
+        filename: string;
+        mimeType: string;
+        size: number;
+        createdAt: Date;
+      }>;
+      mentions?: unknown;
+      replyToMessage?: {
+        id: string;
+        content: string;
+        deletedAt: Date | null;
+        author: {
+          id: string;
+          username: string;
+          displayName: string | null;
+          avatarUrl: string | null;
+        };
+      } | null;
+      pin?: {
+        pinnedAt: Date;
+        pinnedByUserId: string | null;
+      } | null;
+      forwardedFrom?: unknown;
+    },
+    userId: string,
+    forwardedFrom: Awaited<ReturnType<ForwardPermissionsHelper['toResponse']>>,
   ) {
     const emojiCounts = new Map<string, number>();
     const myEmojis = new Set<string>();
@@ -157,6 +217,7 @@ export class MessagesService {
       mentions: this.normalizeMentions(message.mentions),
       isPinned,
       pin,
+      forwardedFrom,
     };
   }
 
@@ -220,39 +281,89 @@ export class MessagesService {
     }
   }
 
-  private mapPinResponse(pin: {
-    id: string;
-    pinnedAt: Date;
-    pinnedBy: {
+  private async mapPinResponse(
+    pin: {
       id: string;
-      username: string;
-      displayName: string | null;
-      avatarUrl: string | null;
-    } | null;
-    message: {
-      id: string;
-      content: string;
-      createdAt: Date;
-      author: {
+      pinnedAt: Date;
+      pinnedBy: {
         id: string;
         username: string;
         displayName: string | null;
         avatarUrl: string | null;
-      };
-      attachments: Array<{ id: string }>;
-      replyToMessage?: {
+      } | null;
+      message: {
         id: string;
         content: string;
-        deletedAt: Date | null;
+        createdAt: Date;
         author: {
           id: string;
           username: string;
           displayName: string | null;
           avatarUrl: string | null;
         };
+        attachments: Array<{ id: string }>;
+        replyToMessage?: {
+          id: string;
+          content: string;
+          deletedAt: Date | null;
+          author: {
+            id: string;
+            username: string;
+            displayName: string | null;
+            avatarUrl: string | null;
+          };
+        } | null;
+        forwardedFrom?: unknown;
+      };
+    },
+    userId: string,
+  ) {
+    const forwardedFrom = await this.forwardPermissions.toResponse(
+      pin.message.forwardedFrom,
+      userId,
+    );
+
+    return this.mapPinResponseWithForward(pin, userId, forwardedFrom);
+  }
+
+  private mapPinResponseWithForward(
+    pin: {
+      id: string;
+      pinnedAt: Date;
+      pinnedBy: {
+        id: string;
+        username: string;
+        displayName: string | null;
+        avatarUrl: string | null;
       } | null;
-    };
-  }) {
+      message: {
+        id: string;
+        content: string;
+        createdAt: Date;
+        author: {
+          id: string;
+          username: string;
+          displayName: string | null;
+          avatarUrl: string | null;
+        };
+        attachments: Array<{ id: string }>;
+        replyToMessage?: {
+          id: string;
+          content: string;
+          deletedAt: Date | null;
+          author: {
+            id: string;
+            username: string;
+            displayName: string | null;
+            avatarUrl: string | null;
+          };
+        } | null;
+        forwardedFrom?: unknown;
+      };
+    },
+    userId: string,
+    forwardedFrom: Awaited<ReturnType<ForwardPermissionsHelper['toResponse']>>,
+  ) {
     return {
       id: pin.id,
       pinnedAt: pin.pinnedAt,
@@ -288,6 +399,7 @@ export class MessagesService {
                   },
             }
           : null,
+        forwardedFrom,
       },
     };
   }
@@ -297,6 +409,7 @@ export class MessagesService {
     channelId: string,
     dto: CreateMessageDto,
     userId: string,
+    forwardedFrom?: Prisma.InputJsonValue,
   ) {
     await this.validateChannelAccess(workspaceId, channelId, userId);
 
@@ -365,6 +478,7 @@ export class MessagesService {
       content: dto.content ?? '',
       parentId: dto.parentId,
       replyToMessageId: dto.replyToMessageId,
+      forwardedFrom,
       attachments: dto.attachments?.map((a) => ({
         storageKey: a.storageKey,
         filename: a.fileName,
@@ -375,7 +489,7 @@ export class MessagesService {
       mentions,
     });
 
-    const response = this.toMessageResponse(message, userId);
+    const response = await this.toMessageResponse(message, userId);
     this.websocketEvents.broadcastMessageCreated(channelId, response);
 
     this.pushService
@@ -421,7 +535,13 @@ export class MessagesService {
     const rows = await this.messages.listForChannel(channelId, limit, cursor);
     const hasMore = rows.length > limit;
     const page = (hasMore ? rows.slice(0, limit) : rows).reverse();
-    const items = page.map((m) => this.toMessageResponse(m, userId));
+    const mappedForwards = await this.forwardPermissions.toResponses(
+      userId,
+      page,
+    );
+    const items = page.map((m, i) =>
+      this.toMessageResponseWithForward(m, userId, mappedForwards[i]),
+    );
 
     return {
       items,
@@ -453,8 +573,13 @@ export class MessagesService {
     );
 
     const hasMore = rows.length > limit;
-    const items = (hasMore ? rows.slice(0, limit) : rows).map((m) =>
-      this.toMessageResponse(m, userId),
+    const page = hasMore ? rows.slice(0, limit) : rows;
+    const mappedForwards = await this.forwardPermissions.toResponses(
+      userId,
+      page,
+    );
+    const items = page.map((m, i) =>
+      this.toMessageResponseWithForward(m, userId, mappedForwards[i]),
     );
 
     return {
@@ -488,16 +613,32 @@ export class MessagesService {
     const hasMoreBefore = beforeRaw.length > beforeLimit;
     const hasMoreAfter = afterRaw.length > afterLimit;
 
-    const before = (hasMoreBefore ? beforeRaw.slice(0, beforeLimit) : beforeRaw)
-      .reverse()
-      .map((m) => this.toMessageResponse(m, userId));
+    const beforeSlice = hasMoreBefore
+      ? beforeRaw.slice(0, beforeLimit)
+      : beforeRaw;
+    const afterSlice = hasMoreAfter ? afterRaw.slice(0, afterLimit) : afterRaw;
 
-    const after = (hasMoreAfter ? afterRaw.slice(0, afterLimit) : afterRaw).map(
-      (m) => this.toMessageResponse(m, userId),
+    const allMessages = [...beforeSlice, target, ...afterSlice];
+    const mappedForwards = await this.forwardPermissions.toResponses(
+      userId,
+      allMessages,
+    );
+    const forwardMap = new Map<string, ForwardedFromPayload | undefined>();
+    for (let i = 0; i < allMessages.length; i++) {
+      forwardMap.set(allMessages[i].id, mappedForwards[i]);
+    }
+    const getForward = (message: { id: string }) => forwardMap.get(message.id);
+
+    const before = [...beforeSlice]
+      .reverse()
+      .map((m) => this.toMessageResponseWithForward(m, userId, getForward(m)));
+    const targetForward = getForward(target);
+    const after = afterSlice.map((m) =>
+      this.toMessageResponseWithForward(m, userId, getForward(m)),
     );
 
     return {
-      target: this.toMessageResponse(target, userId),
+      target: this.toMessageResponseWithForward(target, userId, targetForward),
       before,
       after,
       hasMoreBefore,
@@ -526,6 +667,10 @@ export class MessagesService {
       throw new ForbiddenException('Only the author can edit this message');
     }
 
+    if (message.forwardedFrom != null) {
+      throw new ForbiddenException('Forwarded messages cannot be edited');
+    }
+
     const editWindowMs = 15 * 60 * 1000;
     if (Date.now() - message.createdAt.getTime() > editWindowMs) {
       throw new UnprocessableEntityException('Message edit window has expired');
@@ -537,7 +682,7 @@ export class MessagesService {
       dto.content,
       userId,
     );
-    const response = this.toMessageResponse(updated, userId);
+    const response = await this.toMessageResponse(updated, userId);
     this.websocketEvents.broadcastMessageUpdated(channelId, response);
     return response;
   }
@@ -607,7 +752,7 @@ export class MessagesService {
         : { id: userId, username: '', displayName: null, avatarUrl: null },
     });
 
-    return this.mapPinResponse(pin);
+    return this.mapPinResponse(pin, userId);
   }
 
   async unpinMessage(
@@ -652,9 +797,15 @@ export class MessagesService {
     );
     const hasMore = rows.length > limit;
     const page = hasMore ? rows.slice(0, limit) : rows;
+    const mappedForwards = await this.forwardPermissions.toResponses(
+      userId,
+      page.map((p) => p.message),
+    );
 
     return {
-      items: page.map((p) => this.mapPinResponse(p)),
+      items: page.map((p, i) =>
+        this.mapPinResponseWithForward(p, userId, mappedForwards[i]),
+      ),
       nextCursor:
         hasMore && page.length > 0
           ? encodePinCursor({

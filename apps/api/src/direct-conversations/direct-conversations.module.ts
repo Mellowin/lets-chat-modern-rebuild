@@ -10,6 +10,7 @@ import { StorageModule } from '../storage/storage.module';
 import { DirectConversationsService } from './direct-conversations.service';
 import { DirectConversationsRepository } from './direct-conversations.repository';
 import { DirectConversationsController } from './direct-conversations.controller';
+import { MessagesModule } from '../messages/messages.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { DirectConversationsController } from './direct-conversations.controller
     SafetyModule,
     AttachmentsModule,
     StorageModule,
+    forwardRef(() => MessagesModule),
   ],
   controllers: [DirectConversationsController],
   providers: [

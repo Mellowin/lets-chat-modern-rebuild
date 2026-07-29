@@ -107,9 +107,16 @@ export function useMessageListScroll(
       scrollNodeRef.current = node;
       if (node) {
         node.addEventListener("scroll", handleScroll, { passive: true });
+        // If messages have already loaded when the ref is attached (e.g. React
+        // re-attached the scroll container after a state update), make sure the
+        // new node is anchored to the bottom.
+        if (options.messagesLoaded && !options.disabled && stickToBottomRef.current) {
+          const target = node.scrollHeight;
+          node.scrollTop = target;
+        }
       }
     },
-    [handleScroll],
+    [handleScroll, options.messagesLoaded, options.disabled],
   );
 
   const endRef = useCallback((node: HTMLDivElement | null) => {

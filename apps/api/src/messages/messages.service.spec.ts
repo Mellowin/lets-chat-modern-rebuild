@@ -16,6 +16,7 @@ import { ChannelsRepository } from '../channels/channels.repository';
 import { WebsocketEventsService } from '../websocket/websocket-events.service';
 import { PushService } from '../push/push.service';
 import { MentionsService } from '../common/mentions.service';
+import { ForwardPermissionsHelper } from './forward-permissions.helper';
 type CreatedMessage = Awaited<ReturnType<MessagesRepository['createMessage']>>;
 type ListedMessage = Awaited<
   ReturnType<MessagesRepository['listForChannel']>
@@ -36,6 +37,7 @@ describe('MessagesService', () => {
   let messagesRepository: jest.Mocked<MessagesRepository>;
   let workspacesRepository: jest.Mocked<WorkspacesRepository>;
   let channelsRepository: jest.Mocked<ChannelsRepository>;
+  let forwardPermissions: jest.Mocked<ForwardPermissionsHelper>;
 
   const userId = '11111111-1111-1111-1111-111111111111';
   const otherUserId = '22222222-2222-2222-2222-222222222222';
@@ -100,6 +102,19 @@ describe('MessagesService', () => {
             resolveMentions: jest.fn().mockResolvedValue([]),
           },
         },
+        {
+          provide: ForwardPermissionsHelper,
+          useValue: {
+            canViewSource: jest.fn().mockResolvedValue(true),
+            toResponse: jest.fn().mockResolvedValue(undefined),
+            toResponses: jest
+              .fn()
+              .mockImplementation((_, items: unknown[]) =>
+                Promise.resolve(items.map(() => undefined)),
+              ),
+            maskResponse: jest.fn().mockReturnValue(undefined),
+          },
+        },
       ],
     }).compile();
 
@@ -107,6 +122,7 @@ describe('MessagesService', () => {
     messagesRepository = moduleRef.get(MessagesRepository);
     workspacesRepository = moduleRef.get(WorkspacesRepository);
     channelsRepository = moduleRef.get(ChannelsRepository);
+    forwardPermissions = moduleRef.get(ForwardPermissionsHelper);
   });
 
   afterEach(() => {
@@ -179,7 +195,7 @@ describe('MessagesService', () => {
             avatarUrl: null,
           },
         },
-      ] as ListedMessage[];
+      ] as unknown as ListedMessage[];
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
       channelsRepository.findActiveById.mockResolvedValue({
         id: channelId,
@@ -558,7 +574,7 @@ describe('MessagesService', () => {
             avatarUrl: null,
           },
         },
-      ] as ListedMessage[];
+      ] as unknown as ListedMessage[];
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
       channelsRepository.findActiveById.mockResolvedValue({
         id: channelId,
@@ -631,7 +647,7 @@ describe('MessagesService', () => {
             avatarUrl: null,
           },
         },
-      ] as ListedMessage[];
+      ] as unknown as ListedMessage[];
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
       channelsRepository.findActiveById.mockResolvedValue({
         id: channelId,
@@ -646,6 +662,66 @@ describe('MessagesService', () => {
       expect(result.items[0].content).toBe('secret');
       expect(result.hasMore).toBe(false);
       expect(result.nextCursor).toBeNull();
+    });
+
+    it('batches forwarded-from permission checks for a page', async () => {
+      const messages = [
+        {
+          id: 'msg-1',
+          channelId,
+          content: 'first',
+          replyToMessageId: null,
+          replyToMessage: null,
+          forwardedFrom: {
+            sourceType: 'channel',
+            sourceChatId: 'other-channel-1',
+            sourceMessageId: 'orig-1',
+            originalCreatedAt: '2024-01-01T00:00:00Z',
+          },
+          author: {
+            id: userId,
+            username: 'user',
+            displayName: null,
+            avatarUrl: null,
+          },
+        },
+        {
+          id: 'msg-2',
+          channelId,
+          content: 'second',
+          replyToMessageId: null,
+          replyToMessage: null,
+          forwardedFrom: {
+            sourceType: 'channel',
+            sourceChatId: 'other-channel-1',
+            sourceMessageId: 'orig-2',
+            originalCreatedAt: '2024-01-01T00:00:00Z',
+          },
+          author: {
+            id: userId,
+            username: 'user',
+            displayName: null,
+            avatarUrl: null,
+          },
+        },
+      ] as unknown as ListedMessage[];
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      messagesRepository.listForChannel.mockResolvedValue(messages);
+
+      await service.list(workspaceId, channelId, userId, {});
+
+      expect(forwardPermissions.toResponses).toHaveBeenCalledTimes(1);
+      expect(forwardPermissions.toResponses).toHaveBeenCalledWith(
+        userId,
+        messages,
+      );
+      expect(forwardPermissions.toResponse).not.toHaveBeenCalled();
     });
   });
 
@@ -811,6 +887,34 @@ describe('MessagesService', () => {
           userId,
         ),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('throws ForbiddenException when editing a forwarded message', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      messagesRepository.findById.mockResolvedValue({
+        id: messageId,
+        channelId,
+        authorId: userId,
+        deletedAt: null,
+        createdAt: new Date(),
+        forwardedFrom: { sourceType: 'channel', sourceMessageId: 'other-id' },
+      } as unknown as FoundMessage);
+
+      await expect(
+        service.update(
+          workspaceId,
+          channelId,
+          messageId,
+          { content: 'edited' },
+          userId,
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
     });
   });
 
@@ -1192,6 +1296,65 @@ describe('MessagesService', () => {
       );
       expect(result.items).toHaveLength(2);
       expect(result.nextCursor).toBe('msg-1');
+    });
+
+    it('batches forwarded-from permission checks for search results', async () => {
+      const msgs = [
+        {
+          id: 'msg-1',
+          channelId,
+          content: 'hello',
+          replyToMessageId: null,
+          replyToMessage: null,
+          forwardedFrom: {
+            sourceType: 'channel',
+            sourceChatId: 'other-channel-1',
+            sourceMessageId: 'orig-1',
+            originalCreatedAt: '2024-01-01T00:00:00Z',
+          },
+          author: {
+            id: userId,
+            username: 'user',
+            displayName: null,
+            avatarUrl: null,
+          },
+        },
+        {
+          id: 'msg-2',
+          channelId,
+          content: 'hello again',
+          replyToMessageId: null,
+          replyToMessage: null,
+          forwardedFrom: {
+            sourceType: 'channel',
+            sourceChatId: 'other-channel-2',
+            sourceMessageId: 'orig-2',
+            originalCreatedAt: '2024-01-01T00:00:00Z',
+          },
+          author: {
+            id: userId,
+            username: 'user',
+            displayName: null,
+            avatarUrl: null,
+          },
+        },
+      ] as unknown as ListedMessage[];
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      messagesRepository.searchChannelMessages.mockResolvedValue(msgs);
+
+      await service.searchChannelMessages(workspaceId, channelId, userId, {
+        q: 'hello',
+      });
+
+      expect(forwardPermissions.toResponses).toHaveBeenCalledTimes(1);
+      expect(forwardPermissions.toResponses).toHaveBeenCalledWith(userId, msgs);
+      expect(forwardPermissions.toResponse).not.toHaveBeenCalled();
     });
   });
 
@@ -1576,6 +1739,196 @@ describe('MessagesService', () => {
       expect(result.before).toEqual([]);
       expect(result.after).toEqual([]);
     });
+
+    it('batches forwarded-from permission checks for target + before + after together', async () => {
+      const makeForwarded = (id: string, sourceChatId: string) => ({
+        id,
+        channelId,
+        content: id,
+        replyToMessageId: null,
+        replyToMessage: null,
+        forwardedFrom: {
+          sourceType: 'channel',
+          sourceChatId,
+          sourceMessageId: `orig-${id}`,
+          originalCreatedAt: '2024-01-01T00:00:00Z',
+        },
+        author: {
+          id: userId,
+          username: 'user',
+          displayName: null,
+          avatarUrl: null,
+        },
+      });
+      const target = makeForwarded('target', 'target-channel');
+      const before = [makeForwarded('before-1', 'before-channel')];
+      const after = [makeForwarded('after-1', 'after-channel')];
+
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      messagesRepository.findByIdWithRelations.mockResolvedValue(
+        target as unknown as ListedMessage,
+      );
+      messagesRepository.findContextBefore.mockResolvedValue(
+        before as unknown as ListedMessage[],
+      );
+      messagesRepository.findContextAfter.mockResolvedValue(
+        after as unknown as ListedMessage[],
+      );
+
+      await service.getContext(workspaceId, channelId, messageId, userId, {});
+
+      expect(forwardPermissions.toResponses).toHaveBeenCalledTimes(1);
+      expect(forwardPermissions.toResponses).toHaveBeenCalledWith(userId, [
+        ...before,
+        target,
+        ...after,
+      ]);
+      expect(forwardPermissions.toResponse).not.toHaveBeenCalled();
+    });
+
+    it('maps each context message to its own forwardedFrom metadata after reversing before', async () => {
+      const makeMessage = (
+        id: string,
+        sourceChatId: string | null,
+        content: string,
+      ) => ({
+        id,
+        channelId,
+        content,
+        replyToMessageId: null,
+        replyToMessage: null,
+        parentId: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        editedAt: null,
+        author: {
+          id: userId,
+          username: 'user',
+          displayName: null,
+          avatarUrl: null,
+        },
+        reactions: [],
+        attachments: [],
+        forwardedFrom: sourceChatId
+          ? {
+              sourceType: 'channel' as const,
+              sourceChatId,
+              sourceMessageId: `orig-${id}`,
+              originalCreatedAt: '2024-01-01T00:00:00Z',
+            }
+          : undefined,
+      });
+
+      const before1 = makeMessage('before-1', 'before-1-channel', 'before 1');
+      const before2 = makeMessage(
+        'before-2',
+        'inaccessible-channel',
+        'before 2',
+      );
+      const target = makeMessage('target', 'target-channel', 'target');
+      const after1 = makeMessage('after-1', 'after-1-channel', 'after 1');
+
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      messagesRepository.findByIdWithRelations.mockResolvedValue(
+        target as unknown as ListedMessage,
+      );
+      messagesRepository.findContextBefore.mockResolvedValue([
+        before1,
+        before2,
+      ] as unknown as ListedMessage[]);
+      messagesRepository.findContextAfter.mockResolvedValue([
+        after1,
+      ] as unknown as ListedMessage[]);
+
+      forwardPermissions.toResponses.mockImplementationOnce((_, items) =>
+        Promise.resolve(
+          (items as Array<{ id: string; forwardedFrom?: unknown }>).map(
+            (item) => {
+              const meta = item.forwardedFrom as
+                | {
+                    sourceType: 'channel';
+                    sourceChatId: string;
+                    sourceMessageId: string;
+                    originalCreatedAt: string;
+                  }
+                | undefined;
+              if (!meta) return undefined;
+              if (meta.sourceChatId === 'inaccessible-channel') {
+                return {
+                  sourceType: meta.sourceType,
+                  originalCreatedAt: meta.originalCreatedAt,
+                  isAnonymous: true,
+                };
+              }
+              return { ...meta, isAccessible: true };
+            },
+          ),
+        ),
+      );
+
+      const result = await service.getContext(
+        workspaceId,
+        channelId,
+        'target',
+        userId,
+        {},
+      );
+
+      expect(result.before).toHaveLength(2);
+      // before is reversed: the closer message (before-2) comes first
+      expect(result.before[0].id).toBe('before-2');
+      expect(result.before[0].forwardedFrom).toEqual({
+        sourceType: 'channel',
+        originalCreatedAt: '2024-01-01T00:00:00Z',
+        isAnonymous: true,
+      });
+      expect(result.before[1].id).toBe('before-1');
+      expect(result.before[1].forwardedFrom).toEqual({
+        sourceType: 'channel',
+        sourceChatId: 'before-1-channel',
+        sourceMessageId: 'orig-before-1',
+        originalCreatedAt: '2024-01-01T00:00:00Z',
+        isAccessible: true,
+      });
+      expect(result.target.id).toBe('target');
+      expect(result.target.forwardedFrom).toEqual({
+        sourceType: 'channel',
+        sourceChatId: 'target-channel',
+        sourceMessageId: 'orig-target',
+        originalCreatedAt: '2024-01-01T00:00:00Z',
+        isAccessible: true,
+      });
+      expect(result.after).toHaveLength(1);
+      expect(result.after[0].id).toBe('after-1');
+      expect(result.after[0].forwardedFrom).toEqual({
+        sourceType: 'channel',
+        sourceChatId: 'after-1-channel',
+        sourceMessageId: 'orig-after-1',
+        originalCreatedAt: '2024-01-01T00:00:00Z',
+        isAccessible: true,
+      });
+
+      expect(forwardPermissions.toResponses).toHaveBeenCalledTimes(1);
+      expect(forwardPermissions.toResponses).toHaveBeenCalledWith(userId, [
+        before1,
+        before2,
+        target,
+        after1,
+      ]);
+      expect(forwardPermissions.toResponse).not.toHaveBeenCalled();
+    });
   });
 
   describe('message response with attachments', () => {
@@ -1857,6 +2210,88 @@ describe('MessagesService', () => {
 
       expect(result.items).toHaveLength(1);
       expect(result.items[0].message.id).toBe('msg-1');
+    });
+
+    it('batches forwarded-from permission checks for pinned messages', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      const pins = [
+        {
+          id: 'pin-1',
+          pinnedAt: new Date(),
+          pinnedBy: {
+            id: userId,
+            username: 'user',
+            displayName: null,
+            avatarUrl: null,
+          },
+          message: {
+            id: 'msg-1',
+            content: 'first',
+            createdAt: new Date(),
+            author: {
+              id: userId,
+              username: 'user',
+              displayName: null,
+              avatarUrl: null,
+            },
+            attachments: [],
+            replyToMessage: null,
+            forwardedFrom: {
+              sourceType: 'channel',
+              sourceChatId: 'other-channel-1',
+              sourceMessageId: 'orig-1',
+              originalCreatedAt: '2024-01-01T00:00:00Z',
+            },
+          },
+        },
+        {
+          id: 'pin-2',
+          pinnedAt: new Date(),
+          pinnedBy: {
+            id: userId,
+            username: 'user',
+            displayName: null,
+            avatarUrl: null,
+          },
+          message: {
+            id: 'msg-2',
+            content: 'second',
+            createdAt: new Date(),
+            author: {
+              id: userId,
+              username: 'user',
+              displayName: null,
+              avatarUrl: null,
+            },
+            attachments: [],
+            replyToMessage: null,
+            forwardedFrom: {
+              sourceType: 'channel',
+              sourceChatId: 'other-channel-2',
+              sourceMessageId: 'orig-2',
+              originalCreatedAt: '2024-01-01T00:00:00Z',
+            },
+          },
+        },
+      ];
+      messagesRepository.findPinnedMessages.mockResolvedValue(pins as never[]);
+
+      await service.listPinnedMessages(workspaceId, channelId, userId, {
+        limit: 20,
+      });
+
+      expect(forwardPermissions.toResponses).toHaveBeenCalledTimes(1);
+      expect(forwardPermissions.toResponses).toHaveBeenCalledWith(
+        userId,
+        pins.map((p) => p.message),
+      );
+      expect(forwardPermissions.toResponse).not.toHaveBeenCalled();
     });
   });
 });

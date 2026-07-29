@@ -57,6 +57,25 @@ export interface GroupMessageAttachment {
   thumbnailUrl?: string;
 }
 
+export interface ForwardedFromResponse {
+  sourceType: "channel" | "direct" | "group";
+  sourceMessageId: string;
+  sourceChatId: string;
+  originalAuthorId?: string;
+  originalAuthorName?: string;
+  originalCreatedAt: string;
+  replySnapshot?: { id: string; content: string; authorName: string };
+  isAnonymous?: false;
+}
+
+export interface ForwardedFromAnonymous {
+  sourceType: "channel" | "direct" | "group";
+  originalCreatedAt: string;
+  isAnonymous: true;
+}
+
+export type ForwardedFrom = ForwardedFromResponse | ForwardedFromAnonymous;
+
 export interface GroupMessage {
   id: string;
   groupId: string;
@@ -72,6 +91,7 @@ export interface GroupMessage {
   author: GroupMessageAuthor;
   mentions?: GroupMessageMention[];
   attachments?: GroupMessageAttachment[];
+  forwardedFrom?: ForwardedFrom;
   isPinned?: boolean;
   pin?: {
     pinnedAt: string;
@@ -98,6 +118,7 @@ export interface PinnedGroupMessageSummary {
       content: string | null;
       author: GroupMessageAuthor | null;
     } | null;
+    forwardedFrom?: ForwardedFrom;
   };
 }
 

@@ -18,6 +18,10 @@ import { BlocksService } from '../safety/blocks.service';
 import { MentionsService } from '../common/mentions.service';
 import { mapAttachmentResponse } from '../messages/messages.service';
 import {
+  ForwardPermissionsHelper,
+  ForwardedFromPayload,
+} from '../messages/forward-permissions.helper';
+import {
   validateAttachmentFile,
   assertAttachmentAllowed,
 } from '../messages/attachment-validation';
@@ -28,7 +32,7 @@ import {
 import { StorageService } from '../storage/storage.service';
 import { AttachmentsRepository } from '../messages/attachments.repository';
 import { DirectConversationsRepository } from './direct-conversations.repository';
-import { StorageBackend } from '@lets-chat/database';
+import { StorageBackend, Prisma } from '@lets-chat/database';
 import { randomUUID } from 'crypto';
 import { CreateDirectConversationDto } from './dto/create-direct-conversation.dto';
 import { CreateDirectMessageDto } from './dto/create-direct-message.dto';
@@ -48,6 +52,7 @@ export class DirectConversationsService {
     private readonly mentions: MentionsService,
     private readonly storage: StorageService,
     private readonly attachments: AttachmentsRepository,
+    private readonly forwardPermissions: ForwardPermissionsHelper,
   ) {}
 
   private makePairKey(userIdA: string, userIdB: string): string {
@@ -105,7 +110,7 @@ export class DirectConversationsService {
     };
   }
 
-  private toMessageResponse(
+  async toMessageResponse(
     message: Awaited<
       ReturnType<DirectConversationsRepository['createMessage']>
     >,
@@ -113,6 +118,33 @@ export class DirectConversationsService {
     myLastReadAt: Date | null,
     otherParticipantLastReadAt: Date | null,
     reactions?: Array<{ emoji: string; count: number; reactedByMe: boolean }>,
+  ) {
+    const forwardedFrom = await this.forwardPermissions.toResponse(
+      message.forwardedFrom,
+      currentUserId,
+    );
+
+    return this.toMessageResponseWithForward(
+      message,
+      currentUserId,
+      myLastReadAt,
+      otherParticipantLastReadAt,
+      reactions,
+      forwardedFrom,
+    );
+  }
+
+  private toMessageResponseWithForward(
+    message: Awaited<
+      ReturnType<DirectConversationsRepository['createMessage']>
+    >,
+    currentUserId: string,
+    myLastReadAt: Date | null,
+    otherParticipantLastReadAt: Date | null,
+    reactions:
+      | Array<{ emoji: string; count: number; reactedByMe: boolean }>
+      | undefined,
+    forwardedFrom: Awaited<ReturnType<ForwardPermissionsHelper['toResponse']>>,
   ) {
     return {
       id: message.id,
@@ -163,6 +195,7 @@ export class DirectConversationsService {
             pinnedByUserId: message.pin.pinnedByUserId,
           }
         : undefined,
+      forwardedFrom,
     };
   }
 
@@ -192,39 +225,89 @@ export class DirectConversationsService {
     return participant;
   }
 
-  private mapPinResponse(pin: {
-    id: string;
-    pinnedAt: Date;
-    pinnedBy: {
+  private async mapPinResponse(
+    pin: {
       id: string;
-      username: string;
-      displayName: string | null;
-      avatarUrl: string | null;
-    } | null;
-    message: {
-      id: string;
-      content: string;
-      createdAt: Date;
-      author: {
+      pinnedAt: Date;
+      pinnedBy: {
         id: string;
         username: string;
         displayName: string | null;
         avatarUrl: string | null;
       } | null;
-      attachments: Array<{ id: string }>;
-      replyToMessage?: {
+      message: {
         id: string;
         content: string;
-        deletedAt: Date | null;
+        createdAt: Date;
         author: {
           id: string;
           username: string;
           displayName: string | null;
           avatarUrl: string | null;
         } | null;
+        attachments: Array<{ id: string }>;
+        replyToMessage?: {
+          id: string;
+          content: string;
+          deletedAt: Date | null;
+          author: {
+            id: string;
+            username: string;
+            displayName: string | null;
+            avatarUrl: string | null;
+          } | null;
+        } | null;
+        forwardedFrom?: unknown;
+      };
+    },
+    userId: string,
+  ) {
+    const forwardedFrom = await this.forwardPermissions.toResponse(
+      pin.message.forwardedFrom,
+      userId,
+    );
+
+    return this.mapPinResponseWithForward(pin, userId, forwardedFrom);
+  }
+
+  private mapPinResponseWithForward(
+    pin: {
+      id: string;
+      pinnedAt: Date;
+      pinnedBy: {
+        id: string;
+        username: string;
+        displayName: string | null;
+        avatarUrl: string | null;
       } | null;
-    };
-  }) {
+      message: {
+        id: string;
+        content: string;
+        createdAt: Date;
+        author: {
+          id: string;
+          username: string;
+          displayName: string | null;
+          avatarUrl: string | null;
+        } | null;
+        attachments: Array<{ id: string }>;
+        replyToMessage?: {
+          id: string;
+          content: string;
+          deletedAt: Date | null;
+          author: {
+            id: string;
+            username: string;
+            displayName: string | null;
+            avatarUrl: string | null;
+          } | null;
+        } | null;
+        forwardedFrom?: unknown;
+      };
+    },
+    userId: string,
+    forwardedFrom: Awaited<ReturnType<ForwardPermissionsHelper['toResponse']>>,
+  ) {
     return {
       id: pin.id,
       pinnedAt: pin.pinnedAt,
@@ -265,6 +348,7 @@ export class DirectConversationsService {
                   : null,
             }
           : null,
+        forwardedFrom,
       },
     };
   }
@@ -388,13 +472,19 @@ export class DirectConversationsService {
       reactionsMap.set(message.id, reactions);
     }
 
-    const items = page.map((m) =>
-      this.toMessageResponse(
+    const mappedForwards = await this.forwardPermissions.toResponses(
+      currentUserId,
+      page,
+    );
+
+    const items = page.map((m, index) =>
+      this.toMessageResponseWithForward(
         m,
         currentUserId,
         myLastReadAt,
         otherParticipantLastReadAt,
         reactionsMap.get(m.id) ?? [],
+        mappedForwards[index],
       ),
     );
 
@@ -472,27 +562,37 @@ export class DirectConversationsService {
       reactionsMap.set(message.id, reactions);
     }
 
-    const toResponse = (
+    const mappedForwards = await this.forwardPermissions.toResponses(
+      currentUserId,
+      contextMessages,
+    );
+    const forwardMap = new Map<string, ForwardedFromPayload | undefined>();
+    for (let i = 0; i < contextMessages.length; i++) {
+      forwardMap.set(contextMessages[i].id, mappedForwards[i]);
+    }
+
+    const toResponseWithForward = (
       m: (typeof contextMessages)[number],
-    ): ReturnType<DirectConversationsService['toMessageResponse']> =>
-      this.toMessageResponse(
+    ): Awaited<ReturnType<DirectConversationsService['toMessageResponse']>> =>
+      this.toMessageResponseWithForward(
         m,
         currentUserId,
         myLastReadAt,
         otherParticipantLastReadAt,
         reactionsMap.get(m.id) ?? [],
+        forwardMap.get(m.id),
       );
 
-    const before = (hasMoreBefore ? beforeRaw.slice(0, beforeLimit) : beforeRaw)
-      .reverse()
-      .map(toResponse);
+    const beforeSlice = hasMoreBefore
+      ? beforeRaw.slice(0, beforeLimit)
+      : beforeRaw;
+    const before = [...beforeSlice].reverse().map(toResponseWithForward);
 
-    const after = (hasMoreAfter ? afterRaw.slice(0, afterLimit) : afterRaw).map(
-      toResponse,
-    );
+    const afterSlice = hasMoreAfter ? afterRaw.slice(0, afterLimit) : afterRaw;
+    const after = afterSlice.map(toResponseWithForward);
 
     return {
-      target: toResponse(target),
+      target: toResponseWithForward(target),
       before,
       after,
       hasMoreBefore,
@@ -504,6 +604,7 @@ export class DirectConversationsService {
     conversationId: string,
     dto: CreateDirectMessageDto,
     currentUserId: string,
+    forwardedFrom?: Prisma.InputJsonValue,
   ) {
     const participant = await this.directConversations.findParticipant(
       conversationId,
@@ -603,12 +704,13 @@ export class DirectConversationsService {
       parentId: dto.parentId,
       replyToMessageId: dto.replyToMessageId,
       mentions,
+      forwardedFrom,
       ...(attachmentIds.length > 0 && { attachmentIds }),
     });
 
     await this.directConversations.touchConversationUpdatedAt(conversationId);
 
-    const response = this.toMessageResponse(
+    const response = await this.toMessageResponse(
       message,
       currentUserId,
       myLastReadAt,
@@ -678,6 +780,10 @@ export class DirectConversationsService {
       throw new ForbiddenException('Only the author can edit this message');
     }
 
+    if (message.forwardedFrom != null) {
+      throw new ForbiddenException('Forwarded messages cannot be edited');
+    }
+
     const trimmed = content.trim();
     if (!trimmed) {
       throw new BadRequestException('Content is required');
@@ -703,7 +809,7 @@ export class DirectConversationsService {
       userId,
     );
 
-    const response = this.toMessageResponse(
+    const response = await this.toMessageResponse(
       updated,
       userId,
       myLastReadAt,
@@ -1076,7 +1182,7 @@ export class DirectConversationsService {
         : { id: userId, username: '', displayName: null, avatarUrl: null },
     });
 
-    return this.mapPinResponse(pin);
+    return this.mapPinResponse(pin, userId);
   }
 
   async unpinMessage(
@@ -1123,9 +1229,15 @@ export class DirectConversationsService {
     );
     const hasMore = rows.length > limit;
     const page = hasMore ? rows.slice(0, limit) : rows;
+    const mappedForwards = await this.forwardPermissions.toResponses(
+      userId,
+      page.map((p) => p.message),
+    );
 
     return {
-      items: page.map((p) => this.mapPinResponse(p)),
+      items: page.map((p, i) =>
+        this.mapPinResponseWithForward(p, userId, mappedForwards[i]),
+      ),
       nextCursor:
         hasMore && page.length > 0
           ? encodePinCursor({

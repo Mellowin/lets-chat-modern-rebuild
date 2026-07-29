@@ -19,6 +19,10 @@ import { BlocksService } from '../safety/blocks.service';
 import { MentionsService } from '../common/mentions.service';
 import { mapAttachmentResponse } from '../messages/messages.service';
 import {
+  ForwardPermissionsHelper,
+  ForwardedFromPayload,
+} from '../messages/forward-permissions.helper';
+import {
   validateAttachmentFile,
   assertAttachmentAllowed,
 } from '../messages/attachment-validation';
@@ -28,7 +32,7 @@ import {
 } from '../messages/attachments.service';
 import { StorageService } from '../storage/storage.service';
 import { AttachmentsRepository } from '../messages/attachments.repository';
-import { StorageBackend } from '@lets-chat/database';
+import { StorageBackend, Prisma } from '@lets-chat/database';
 import { randomUUID } from 'crypto';
 import { GroupsRepository } from './groups.repository';
 import { AuditService } from '../audit/audit.service';
@@ -55,10 +59,132 @@ export class GroupsService {
     private readonly mentions: MentionsService,
     private readonly storage: StorageService,
     private readonly attachments: AttachmentsRepository,
+    private readonly forwardPermissions: ForwardPermissionsHelper,
     @Optional()
     @Inject(AuditService)
     private readonly audit: AuditService | null = null,
   ) {}
+
+  private async toMessageResponse(
+    message: {
+      id: string;
+      groupId: string;
+      content: string;
+      createdAt: Date;
+      updatedAt: Date;
+      author: {
+        id: string;
+        username: string;
+        displayName: string | null;
+        avatarUrl: string | null;
+      };
+      mentions?: unknown;
+      attachments?: Array<{
+        id: string;
+        filename: string;
+        mimeType: string;
+        size: number;
+        createdAt: Date;
+      }>;
+      replyToMessageId: string | null;
+      replyToMessage?: {
+        id: string;
+        content: string;
+        author: {
+          id: string;
+          username: string;
+          displayName: string | null;
+          avatarUrl: string | null;
+        };
+      } | null;
+      pin?: {
+        pinnedAt: Date;
+        pinnedByUserId: string | null;
+      } | null;
+      forwardedFrom?: unknown;
+    },
+    currentUserId: string,
+  ) {
+    const forwardedFrom = await this.forwardPermissions.toResponse(
+      message.forwardedFrom,
+      currentUserId,
+    );
+
+    return this.toMessageResponseWithForward(
+      message,
+      currentUserId,
+      forwardedFrom,
+    );
+  }
+
+  private toMessageResponseWithForward(
+    message: {
+      id: string;
+      groupId: string;
+      content: string;
+      createdAt: Date;
+      updatedAt: Date;
+      author: {
+        id: string;
+        username: string;
+        displayName: string | null;
+        avatarUrl: string | null;
+      };
+      mentions?: unknown;
+      attachments?: Array<{
+        id: string;
+        filename: string;
+        mimeType: string;
+        size: number;
+        createdAt: Date;
+      }>;
+      replyToMessageId: string | null;
+      replyToMessage?: {
+        id: string;
+        content: string;
+        author: {
+          id: string;
+          username: string;
+          displayName: string | null;
+          avatarUrl: string | null;
+        };
+      } | null;
+      pin?: {
+        pinnedAt: Date;
+        pinnedByUserId: string | null;
+      } | null;
+      forwardedFrom?: unknown;
+    },
+    currentUserId: string,
+    forwardedFrom: Awaited<ReturnType<ForwardPermissionsHelper['toResponse']>>,
+  ) {
+    return {
+      id: message.id,
+      groupId: message.groupId,
+      content: message.content,
+      createdAt: message.createdAt,
+      updatedAt: message.updatedAt,
+      author: message.author,
+      attachments: (message.attachments ?? []).map(mapAttachmentResponse),
+      mentions: this.normalizeMentions(message.mentions),
+      replyToMessageId: message.replyToMessageId ?? null,
+      replyTo: message.replyToMessage
+        ? {
+            id: message.replyToMessage.id,
+            content: message.replyToMessage.content,
+            author: message.replyToMessage.author,
+          }
+        : null,
+      isPinned: !!message.pin,
+      pin: message.pin
+        ? {
+            pinnedAt: message.pin.pinnedAt,
+            pinnedByUserId: message.pin.pinnedByUserId,
+          }
+        : undefined,
+      forwardedFrom,
+    };
+  }
 
   private normalizeMentions(
     value: unknown,
@@ -146,38 +272,87 @@ export class GroupsService {
     return group;
   }
 
-  private mapPinResponse(pin: {
-    id: string;
-    pinnedAt: Date;
-    pinnedBy: {
+  private async mapPinResponse(
+    pin: {
       id: string;
-      username: string;
-      displayName: string | null;
-      avatarUrl: string | null;
-    } | null;
-    message: {
-      id: string;
-      content: string;
-      createdAt: Date;
-      author: {
+      pinnedAt: Date;
+      pinnedBy: {
         id: string;
         username: string;
         displayName: string | null;
         avatarUrl: string | null;
-      };
-      attachments: Array<{ id: string }>;
-      replyToMessage?: {
+      } | null;
+      message: {
         id: string;
         content: string;
+        createdAt: Date;
         author: {
           id: string;
           username: string;
           displayName: string | null;
           avatarUrl: string | null;
         };
+        attachments: Array<{ id: string }>;
+        replyToMessage?: {
+          id: string;
+          content: string;
+          author: {
+            id: string;
+            username: string;
+            displayName: string | null;
+            avatarUrl: string | null;
+          };
+        } | null;
+        forwardedFrom?: unknown;
+      };
+    },
+    userId: string,
+  ) {
+    const forwardedFrom = await this.forwardPermissions.toResponse(
+      pin.message.forwardedFrom,
+      userId,
+    );
+
+    return this.mapPinResponseWithForward(pin, userId, forwardedFrom);
+  }
+
+  private mapPinResponseWithForward(
+    pin: {
+      id: string;
+      pinnedAt: Date;
+      pinnedBy: {
+        id: string;
+        username: string;
+        displayName: string | null;
+        avatarUrl: string | null;
       } | null;
-    };
-  }) {
+      message: {
+        id: string;
+        content: string;
+        createdAt: Date;
+        author: {
+          id: string;
+          username: string;
+          displayName: string | null;
+          avatarUrl: string | null;
+        };
+        attachments: Array<{ id: string }>;
+        replyToMessage?: {
+          id: string;
+          content: string;
+          author: {
+            id: string;
+            username: string;
+            displayName: string | null;
+            avatarUrl: string | null;
+          };
+        } | null;
+        forwardedFrom?: unknown;
+      };
+    },
+    userId: string,
+    forwardedFrom: Awaited<ReturnType<ForwardPermissionsHelper['toResponse']>>,
+  ) {
     return {
       id: pin.id,
       pinnedAt: pin.pinnedAt,
@@ -209,6 +384,7 @@ export class GroupsService {
               },
             }
           : null,
+        forwardedFrom,
       },
     };
   }
@@ -471,88 +647,38 @@ export class GroupsService {
     const hasMoreBefore = beforeRaw.length > beforeLimit;
     const hasMoreAfter = afterRaw.length > afterLimit;
 
-    const before = (hasMoreBefore ? beforeRaw.slice(0, beforeLimit) : beforeRaw)
-      .reverse()
-      .map((m) => ({
-        id: m.id,
-        groupId: m.groupId,
-        content: m.content,
-        createdAt: m.createdAt,
-        updatedAt: m.updatedAt,
-        author: m.author,
-        attachments: (m.attachments ?? []).map(mapAttachmentResponse),
-        mentions: this.normalizeMentions(m.mentions),
-        replyToMessageId: m.replyToMessageId ?? null,
-        replyTo: m.replyToMessage
-          ? {
-              id: m.replyToMessage.id,
-              content: m.replyToMessage.content,
-              author: m.replyToMessage.author,
-            }
-          : null,
-        isPinned: !!m.pin,
-        pin: m.pin
-          ? {
-              pinnedAt: m.pin.pinnedAt,
-              pinnedByUserId: m.pin.pinnedByUserId,
-            }
-          : undefined,
-      }));
+    const beforeSlice = hasMoreBefore
+      ? beforeRaw.slice(0, beforeLimit)
+      : beforeRaw;
+    const afterSlice = hasMoreAfter ? afterRaw.slice(0, afterLimit) : afterRaw;
 
-    const after = (hasMoreAfter ? afterRaw.slice(0, afterLimit) : afterRaw).map(
-      (m) => ({
-        id: m.id,
-        groupId: m.groupId,
-        content: m.content,
-        createdAt: m.createdAt,
-        updatedAt: m.updatedAt,
-        author: m.author,
-        attachments: (m.attachments ?? []).map(mapAttachmentResponse),
-        mentions: this.normalizeMentions(m.mentions),
-        replyToMessageId: m.replyToMessageId ?? null,
-        replyTo: m.replyToMessage
-          ? {
-              id: m.replyToMessage.id,
-              content: m.replyToMessage.content,
-              author: m.replyToMessage.author,
-            }
-          : null,
-        isPinned: !!m.pin,
-        pin: m.pin
-          ? {
-              pinnedAt: m.pin.pinnedAt,
-              pinnedByUserId: m.pin.pinnedByUserId,
-            }
-          : undefined,
-      }),
+    const allMessages = [...beforeSlice, target, ...afterSlice];
+    const mappedForwards = await this.forwardPermissions.toResponses(
+      currentUserId,
+      allMessages,
+    );
+    const forwardMap = new Map<string, ForwardedFromPayload | undefined>();
+    for (let i = 0; i < allMessages.length; i++) {
+      forwardMap.set(allMessages[i].id, mappedForwards[i]);
+    }
+    const getForward = (message: { id: string }) => forwardMap.get(message.id);
+
+    const before = [...beforeSlice]
+      .reverse()
+      .map((m) =>
+        this.toMessageResponseWithForward(m, currentUserId, getForward(m)),
+      );
+    const targetForward = getForward(target);
+    const after = afterSlice.map((m) =>
+      this.toMessageResponseWithForward(m, currentUserId, getForward(m)),
     );
 
     return {
-      target: {
-        id: target.id,
-        groupId: target.groupId,
-        content: target.content,
-        createdAt: target.createdAt,
-        updatedAt: target.updatedAt,
-        author: target.author,
-        attachments: (target.attachments ?? []).map(mapAttachmentResponse),
-        mentions: this.normalizeMentions(target.mentions),
-        replyToMessageId: target.replyToMessageId ?? null,
-        replyTo: target.replyToMessage
-          ? {
-              id: target.replyToMessage.id,
-              content: target.replyToMessage.content,
-              author: target.replyToMessage.author,
-            }
-          : null,
-        isPinned: !!target.pin,
-        pin: target.pin
-          ? {
-              pinnedAt: target.pin.pinnedAt,
-              pinnedByUserId: target.pin.pinnedByUserId,
-            }
-          : undefined,
-      },
+      target: this.toMessageResponseWithForward(
+        target,
+        currentUserId,
+        targetForward,
+      ),
       before,
       after,
       hasMoreBefore,
@@ -578,32 +704,13 @@ export class GroupsService {
     const rows = await this.groups.listMessages(groupId, limit, cursor);
     const hasMore = rows.length > limit;
     const page = (hasMore ? rows.slice(0, limit) : rows).reverse();
-
-    const items = page.map((m) => ({
-      id: m.id,
-      groupId: m.groupId,
-      content: m.content,
-      createdAt: m.createdAt,
-      updatedAt: m.updatedAt,
-      author: m.author,
-      attachments: (m.attachments ?? []).map(mapAttachmentResponse),
-      mentions: this.normalizeMentions(m.mentions),
-      replyToMessageId: m.replyToMessageId ?? null,
-      replyTo: m.replyToMessage
-        ? {
-            id: m.replyToMessage.id,
-            content: m.replyToMessage.content,
-            author: m.replyToMessage.author,
-          }
-        : null,
-      isPinned: !!m.pin,
-      pin: m.pin
-        ? {
-            pinnedAt: m.pin.pinnedAt,
-            pinnedByUserId: m.pin.pinnedByUserId,
-          }
-        : undefined,
-    }));
+    const mappedForwards = await this.forwardPermissions.toResponses(
+      currentUserId,
+      page,
+    );
+    const items = page.map((m, i) =>
+      this.toMessageResponseWithForward(m, currentUserId, mappedForwards[i]),
+    );
 
     return {
       items,
@@ -617,6 +724,7 @@ export class GroupsService {
     groupId: string,
     dto: CreateGroupMessageDto,
     currentUserId: string,
+    forwardedFrom?: Prisma.InputJsonValue,
   ) {
     const group = await this.requireGroupAccessible(groupId, currentUserId);
 
@@ -672,29 +780,13 @@ export class GroupsService {
       content,
       mentions,
       replyToMessageId: dto.replyToMessageId ?? null,
+      forwardedFrom,
       ...(attachmentIds.length > 0 && { attachmentIds }),
     });
 
     await this.groups.touchUpdatedAt(groupId);
 
-    const response = {
-      id: message.id,
-      groupId: message.groupId,
-      content: message.content,
-      createdAt: message.createdAt,
-      updatedAt: message.updatedAt,
-      author: message.author,
-      attachments: (message.attachments ?? []).map(mapAttachmentResponse),
-      mentions: this.normalizeMentions(message.mentions),
-      replyToMessageId: message.replyToMessageId ?? null,
-      replyTo: message.replyToMessage
-        ? {
-            id: message.replyToMessage.id,
-            content: message.replyToMessage.content,
-            author: message.replyToMessage.author,
-          }
-        : null,
-    };
+    const response = await this.toMessageResponse(message, currentUserId);
 
     this.websocketEvents.broadcastGroupMessageCreated(groupId, response);
 
@@ -772,7 +864,7 @@ export class GroupsService {
         : { id: userId, username: '', displayName: null, avatarUrl: null },
     });
 
-    return this.mapPinResponse(pin);
+    return this.mapPinResponse(pin, userId);
   }
 
   async unpinMessage(groupId: string, messageId: string, userId: string) {
@@ -807,9 +899,15 @@ export class GroupsService {
     const rows = await this.groups.findPinnedMessages(groupId, limit, cursor);
     const hasMore = rows.length > limit;
     const page = hasMore ? rows.slice(0, limit) : rows;
+    const mappedForwards = await this.forwardPermissions.toResponses(
+      userId,
+      page.map((p) => p.message),
+    );
 
     return {
-      items: page.map((p) => this.mapPinResponse(p)),
+      items: page.map((p, i) =>
+        this.mapPinResponseWithForward(p, userId, mappedForwards[i]),
+      ),
       nextCursor:
         hasMore && page.length > 0
           ? encodePinCursor({

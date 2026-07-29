@@ -2,8 +2,9 @@
 /**
  * Cleanup orphaned attachment uploads from storage.
  *
- * An orphaned upload is a storage object under the "attachments/" prefix
- * that has no corresponding active row in the Attachment table.
+ * An orphaned upload is a storage object under the "attachments/" or
+ * "forwarded/" prefix that has no corresponding active row in the
+ * Attachment table.
  *
  * Usage (dry-run by default):
  *   node apps/api/scripts/cleanup-orphaned-attachments.mjs
@@ -29,7 +30,7 @@ import { prisma } from "@lets-chat/database";
 const args = process.argv.slice(2);
 const isDelete = args.includes("--delete");
 const ageHours = parseInt(process.env.CLEANUP_AGE_HOURS || "24", 10);
-const prefix = "attachments/";
+const prefixes = ["attachments/", "forwarded/"];
 
 if (Number.isNaN(ageHours) || ageHours < 1) {
   console.error("Error: CLEANUP_AGE_HOURS must be a positive integer");
@@ -60,7 +61,7 @@ const s3 = new S3Client({
 
 const bucket = getEnv("S3_BUCKET");
 
-async function listAllObjects() {
+async function listObjectsForPrefix(prefix) {
   const objects = [];
   let continuationToken;
 
@@ -89,6 +90,13 @@ async function listAllObjects() {
   return objects;
 }
 
+async function listAllObjects() {
+  const results = await Promise.all(
+    prefixes.map((prefix) => listObjectsForPrefix(prefix)),
+  );
+  return results.flat();
+}
+
 async function main() {
   await prisma.$connect();
 
@@ -97,7 +105,7 @@ async function main() {
 
   console.log("\n📦 Listing storage objects...");
   const storageObjects = await listAllObjects();
-  console.log(`   Found ${storageObjects.length} object(s) under "${prefix}"`);
+  console.log(`   Found ${storageObjects.length} object(s) under ${prefixes.map((p) => `"${p}"`).join(", ")}`);
 
   console.log("\n🗄️  Fetching attachment storageKeys from DB...");
   const dbAttachments = await prisma.attachment.findMany({

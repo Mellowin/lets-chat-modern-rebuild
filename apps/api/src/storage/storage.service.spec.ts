@@ -6,6 +6,7 @@ import {
   ListObjectsV2Command,
   DeleteObjectCommand,
   GetObjectCommand,
+  CopyObjectCommand,
 } from '@aws-sdk/client-s3';
 import { StorageService } from './storage.service';
 import { Readable } from 'stream';
@@ -286,6 +287,105 @@ describe('StorageService', () => {
       expect(result.objectKey).toBe('attachments/u1/file.png');
       expect(result.expiresInSeconds).toBe(300);
       expect(typeof result.downloadUrl).toBe('string');
+    });
+  });
+
+  describe('copyObject', () => {
+    it('encodes a normal path key', async () => {
+      s3SendMock.mockResolvedValue({});
+
+      await service.copyObject('normal/path/file.pdf', 'dest/key.pdf');
+
+      expect(s3SendMock).toHaveBeenCalledWith(expect.any(CopyObjectCommand));
+      expect(CopyObjectCommand).toHaveBeenCalledWith(
+        expect.objectContaining({
+          CopySource: '/bucket/normal/path/file.pdf',
+        }),
+      );
+    });
+
+    it('encodes spaces', async () => {
+      s3SendMock.mockResolvedValue({});
+
+      await service.copyObject('file name.pdf', 'dest/key.pdf');
+
+      expect(CopyObjectCommand).toHaveBeenCalledWith(
+        expect.objectContaining({
+          CopySource: '/bucket/file%20name.pdf',
+        }),
+      );
+    });
+
+    it('encodes hash characters', async () => {
+      s3SendMock.mockResolvedValue({});
+
+      await service.copyObject('file#name.pdf', 'dest/key.pdf');
+
+      expect(CopyObjectCommand).toHaveBeenCalledWith(
+        expect.objectContaining({
+          CopySource: '/bucket/file%23name.pdf',
+        }),
+      );
+    });
+
+    it('encodes question marks', async () => {
+      s3SendMock.mockResolvedValue({});
+
+      await service.copyObject('file?name.pdf', 'dest/key.pdf');
+
+      expect(CopyObjectCommand).toHaveBeenCalledWith(
+        expect.objectContaining({
+          CopySource: '/bucket/file%3Fname.pdf',
+        }),
+      );
+    });
+
+    it('encodes percent signs', async () => {
+      s3SendMock.mockResolvedValue({});
+
+      await service.copyObject('file%name.pdf', 'dest/key.pdf');
+
+      expect(CopyObjectCommand).toHaveBeenCalledWith(
+        expect.objectContaining({
+          CopySource: '/bucket/file%25name.pdf',
+        }),
+      );
+    });
+
+    it('encodes Unicode characters', async () => {
+      s3SendMock.mockResolvedValue({});
+
+      await service.copyObject('файл.pdf', 'dest/key.pdf');
+
+      expect(CopyObjectCommand).toHaveBeenCalledWith(
+        expect.objectContaining({
+          CopySource: '/bucket/%D1%84%D0%B0%D0%B9%D0%BB.pdf',
+        }),
+      );
+    });
+
+    it('encodes combinations of nested directories and reserved characters', async () => {
+      s3SendMock.mockResolvedValue({});
+
+      await service.copyObject('a/b/c/file #?%.pdf', 'dest/key.pdf');
+
+      expect(CopyObjectCommand).toHaveBeenCalledWith(
+        expect.objectContaining({
+          CopySource: '/bucket/a/b/c/file%20%23%3F%25.pdf',
+        }),
+      );
+    });
+
+    it('does not double-encode already encoded-looking raw characters', async () => {
+      s3SendMock.mockResolvedValue({});
+
+      await service.copyObject('file%20name.pdf', 'dest/key.pdf');
+
+      expect(CopyObjectCommand).toHaveBeenCalledWith(
+        expect.objectContaining({
+          CopySource: '/bucket/file%2520name.pdf',
+        }),
+      );
     });
   });
 });

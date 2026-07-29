@@ -849,7 +849,36 @@ export type TranslationKey =
   | "groups.unpinFailed"
   | "groups.pinnedBy"
   | "groups.attachmentOnly"
-  | "groups.report";
+  | "groups.report"
+  | "groups.forward"
+  | "forward.title"
+  | "forward.comment"
+  | "forward.commentPlaceholder"
+  | "forward.send"
+  | "forward.sending"
+  | "forward.cancel"
+  | "forward.search"
+  | "forward.loading"
+  | "forward.noTargets"
+  | "forward.noResults"
+  | "forward.channels"
+  | "forward.direct"
+  | "forward.groups"
+  | "forward.scopeAll"
+  | "forward.scopeChannel"
+  | "forward.scopeDirect"
+  | "forward.scopeGroup"
+  | "forward.public"
+  | "forward.private"
+  | "forward.forwardedFrom"
+  | "forward.forwardedFromUnknown"
+  | "forward.sourceAnonymous"
+  | "forward.originalAuthor"
+  | "forward.sourceChannel"
+  | "forward.sourceDirect"
+  | "forward.sourceGroup"
+  | "forward.failed"
+  | "forward.forwardedMessage";
 
 const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string) => string)>> = {
   en: {
@@ -1685,6 +1714,35 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.contactPrivacySaveFailed": "Failed to save contact privacy setting.",
     "groups.block": "Block",
     "groups.report": "Report",
+    "groups.forward": "Forward",
+    "forward.title": "Forward message",
+    "forward.comment": "Add a comment (optional)",
+    "forward.commentPlaceholder": "Write an optional comment…",
+    "forward.send": "Forward",
+    "forward.sending": "Forwarding…",
+    "forward.cancel": "Cancel",
+    "forward.search": "Search chats…",
+    "forward.loading": "Loading…",
+    "forward.noTargets": "No chats available to forward.",
+    "forward.noResults": "No chats match your search.",
+    "forward.channels": "Channels",
+    "forward.direct": "Direct messages",
+    "forward.groups": "Groups",
+    "forward.scopeAll": "All",
+    "forward.scopeChannel": "Channels",
+    "forward.scopeDirect": "Direct",
+    "forward.scopeGroup": "Groups",
+    "forward.public": "Public",
+    "forward.private": "Private",
+    "forward.forwardedFrom": "Forwarded from",
+    "forward.forwardedFromUnknown": "Forwarded from unknown source",
+    "forward.sourceAnonymous": "Unknown source",
+    "forward.originalAuthor": "Original author",
+    "forward.sourceChannel": "channel",
+    "forward.sourceDirect": "direct message",
+    "forward.sourceGroup": "group",
+    "forward.failed": "Failed to forward message",
+    "forward.forwardedMessage": "Forwarded message",
   },
   uk: {
     "header.profile": "Профіль",
@@ -2519,6 +2577,35 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.contactPrivacySaveFailed": "Не вдалося зберегти налаштування конфіденційності контактів.",
     "groups.block": "Заблокувати",
     "groups.report": "Поскаржитися",
+    "groups.forward": "Переслати",
+    "forward.title": "Переслати повідомлення",
+    "forward.comment": "Додайте коментар (необов'язково)",
+    "forward.commentPlaceholder": "Напишіть необов'язковий коментар…",
+    "forward.send": "Переслати",
+    "forward.sending": "Пересилання…",
+    "forward.cancel": "Скасувати",
+    "forward.search": "Пошук чатів…",
+    "forward.loading": "Завантаження…",
+    "forward.noTargets": "Немає доступних чатів для пересилання.",
+    "forward.noResults": "Жоден чат не відповідає пошуку.",
+    "forward.channels": "Канали",
+    "forward.direct": "Особисті повідомлення",
+    "forward.groups": "Групи",
+    "forward.scopeAll": "Усі",
+    "forward.scopeChannel": "Канали",
+    "forward.scopeDirect": "Особисті",
+    "forward.scopeGroup": "Групи",
+    "forward.public": "Публічний",
+    "forward.private": "Приватний",
+    "forward.forwardedFrom": "Переслано з",
+    "forward.forwardedFromUnknown": "Переслано з невідомого джерела",
+    "forward.sourceAnonymous": "Невідоме джерело",
+    "forward.originalAuthor": "Первинний автор",
+    "forward.sourceChannel": "каналу",
+    "forward.sourceDirect": "особистого повідомлення",
+    "forward.sourceGroup": "групи",
+    "forward.failed": "Не вдалося переслати повідомлення",
+    "forward.forwardedMessage": "Переслане повідомлення",
   },
   ru: {
     "header.profile": "Профиль",
@@ -3353,6 +3440,35 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.contactPrivacySaveFailed": "Не удалось сохранить настройку конфиденциальности контактов.",
     "groups.block": "Заблокировать",
     "groups.report": "Пожаловаться",
+    "groups.forward": "Переслать",
+    "forward.title": "Переслать сообщение",
+    "forward.comment": "Добавьте комментарий (необязательно)",
+    "forward.commentPlaceholder": "Напишите необязательный комментарий…",
+    "forward.send": "Переслать",
+    "forward.sending": "Пересылка…",
+    "forward.cancel": "Отменить",
+    "forward.search": "Поиск чатов…",
+    "forward.loading": "Загрузка…",
+    "forward.noTargets": "Нет доступных чатов для пересылки.",
+    "forward.noResults": "Ни один чат не соответствует поиску.",
+    "forward.channels": "Каналы",
+    "forward.direct": "Личные сообщения",
+    "forward.groups": "Группы",
+    "forward.scopeAll": "Все",
+    "forward.scopeChannel": "Каналы",
+    "forward.scopeDirect": "Личные",
+    "forward.scopeGroup": "Группы",
+    "forward.public": "Публичный",
+    "forward.private": "Приватный",
+    "forward.forwardedFrom": "Переслано из",
+    "forward.forwardedFromUnknown": "Переслано из неизвестного источника",
+    "forward.sourceAnonymous": "Неизвестный источник",
+    "forward.originalAuthor": "Первоначальный автор",
+    "forward.sourceChannel": "канала",
+    "forward.sourceDirect": "личного сообщения",
+    "forward.sourceGroup": "группы",
+    "forward.failed": "Не удалось переслать сообщение",
+    "forward.forwardedMessage": "Пересланное сообщение",
   },
 };
 

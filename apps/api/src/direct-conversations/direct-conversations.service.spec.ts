@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { DirectConversationsService } from './direct-conversations.service';
+import { ForwardPermissionsHelper } from '../messages/forward-permissions.helper';
 import { StorageService } from '../storage/storage.service';
 import { AttachmentsRepository } from '../messages/attachments.repository';
 import {
@@ -18,7 +19,11 @@ import { PresenceService } from '../websocket/presence.service';
 import { PushService } from '../push/push.service';
 import { BlocksService } from '../safety/blocks.service';
 import { MentionsService } from '../common/mentions.service';
-import { UserRole, ContactPrivacySetting } from '@lets-chat/database';
+import {
+  UserRole,
+  ContactPrivacySetting,
+  StorageBackend,
+} from '@lets-chat/database';
 
 const userId = '11111111-1111-1111-1111-111111111111';
 const otherUserId = '22222222-2222-2222-2222-222222222222';
@@ -81,6 +86,7 @@ function makeMessage(
     editedAt: null,
     deletedAt: null,
     mentions: [],
+    forwardedFrom: null,
     author: {
       id: userId,
       username: 'alice',
@@ -124,6 +130,7 @@ describe('DirectConversationsService', () => {
   let usersRepository: jest.Mocked<UsersRepository>;
   let websocketEvents: jest.Mocked<WebsocketEventsService>;
   let presence: jest.Mocked<PresenceService>;
+  let forwardPermissions: jest.Mocked<ForwardPermissionsHelper>;
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -227,6 +234,19 @@ describe('DirectConversationsService', () => {
             createUnattachedAttachment: jest.fn(),
           },
         },
+        {
+          provide: ForwardPermissionsHelper,
+          useValue: {
+            canViewSource: jest.fn().mockResolvedValue(true),
+            toResponse: jest.fn().mockResolvedValue(undefined),
+            toResponses: jest
+              .fn()
+              .mockImplementation((_, items: unknown[]) =>
+                Promise.resolve(items.map(() => undefined)),
+              ),
+            maskResponse: jest.fn().mockReturnValue(undefined),
+          },
+        },
       ],
     }).compile();
 
@@ -235,6 +255,7 @@ describe('DirectConversationsService', () => {
     usersRepository = moduleRef.get(UsersRepository);
     websocketEvents = moduleRef.get(WebsocketEventsService);
     presence = moduleRef.get(PresenceService);
+    forwardPermissions = moduleRef.get(ForwardPermissionsHelper);
   });
 
   afterEach(() => {
@@ -792,6 +813,53 @@ describe('DirectConversationsService', () => {
       const result = (await service.listMessages(conversationId, userId)).items;
       expect(result[0].isUnreadForMe).toBe(true);
     });
+
+    it('batches forwarded-from permission checks for a page', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: null,
+      });
+      repository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: null },
+      ]);
+      const messages = [
+        makeMessage({
+          id: 'msg-1',
+          content: 'first',
+          forwardedFrom: {
+            sourceType: 'channel',
+            sourceChatId: 'other-channel-1',
+            sourceMessageId: 'orig-1',
+            originalCreatedAt: '2024-01-01T00:00:00Z',
+          },
+        }),
+        makeMessage({
+          id: 'msg-2',
+          content: 'second',
+          forwardedFrom: {
+            sourceType: 'channel',
+            sourceChatId: 'other-channel-2',
+            sourceMessageId: 'orig-2',
+            originalCreatedAt: '2024-01-01T00:00:00Z',
+          },
+        }),
+      ];
+      repository.listMessagesForConversation.mockResolvedValue(messages);
+      repository.getDirectMessageReactions.mockResolvedValue([]);
+
+      await service.listMessages(conversationId, userId);
+
+      expect(forwardPermissions.toResponses).toHaveBeenCalledTimes(1);
+      expect(forwardPermissions.toResponses).toHaveBeenCalledWith(
+        userId,
+        messages,
+      );
+      expect(forwardPermissions.toResponse).not.toHaveBeenCalled();
+    });
   });
 
   describe('getMessageContext', () => {
@@ -839,6 +907,206 @@ describe('DirectConversationsService', () => {
       expect(result.after[0].content).toBe('after');
       expect(result.hasMoreBefore).toBe(false);
       expect(result.hasMoreAfter).toBe(false);
+    });
+
+    it('batches forwarded-from permission checks for context target + before + after', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: null },
+      ]);
+      const target = makeMessage({
+        id: 'target-msg',
+        content: 'target',
+        forwardedFrom: {
+          sourceType: 'channel',
+          sourceChatId: 'target-channel',
+          sourceMessageId: 'orig-target',
+          originalCreatedAt: '2024-01-01T00:00:00Z',
+        },
+      });
+      const before = [
+        makeMessage({
+          id: 'before-msg',
+          content: 'before',
+          forwardedFrom: {
+            sourceType: 'channel',
+            sourceChatId: 'before-channel',
+            sourceMessageId: 'orig-before',
+            originalCreatedAt: '2024-01-01T00:00:00Z',
+          },
+        }),
+      ];
+      const after = [
+        makeMessage({
+          id: 'after-msg',
+          content: 'after',
+          forwardedFrom: {
+            sourceType: 'channel',
+            sourceChatId: 'after-channel',
+            sourceMessageId: 'orig-after',
+            originalCreatedAt: '2024-01-01T00:00:00Z',
+          },
+        }),
+      ];
+      repository.findMessageByIdWithRelations.mockResolvedValue(target);
+      repository.findContextBefore.mockResolvedValue(before);
+      repository.findContextAfter.mockResolvedValue(after);
+      repository.getDirectMessageReactions.mockResolvedValue([]);
+
+      await service.getMessageContext(conversationId, 'target-msg', userId, {
+        before: 10,
+        after: 10,
+      });
+
+      expect(forwardPermissions.toResponses).toHaveBeenCalledTimes(1);
+      expect(forwardPermissions.toResponses).toHaveBeenCalledWith(userId, [
+        ...before,
+        target,
+        ...after,
+      ]);
+      expect(forwardPermissions.toResponse).not.toHaveBeenCalled();
+    });
+
+    it('maps each context message to its own forwardedFrom metadata after reordering before', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p1',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findParticipants.mockResolvedValue([
+        { userId, lastReadAt: null },
+        { userId: otherUserId, lastReadAt: null },
+      ]);
+      repository.getDirectMessageReactions.mockResolvedValue([]);
+
+      const target = makeMessage({
+        id: 'target-msg',
+        content: 'target',
+        forwardedFrom: {
+          sourceType: 'channel',
+          sourceChatId: 'target-channel',
+          sourceMessageId: 'orig-target',
+          originalCreatedAt: '2024-01-01T00:00:00Z',
+        },
+      });
+      const before1 = makeMessage({
+        id: 'before-1',
+        content: 'before 1',
+        forwardedFrom: {
+          sourceType: 'channel',
+          sourceChatId: 'before-1-channel',
+          sourceMessageId: 'orig-before-1',
+          originalCreatedAt: '2024-01-01T00:00:00Z',
+        },
+      });
+      const before2 = makeMessage({
+        id: 'before-2',
+        content: 'before 2',
+        forwardedFrom: {
+          sourceType: 'channel',
+          sourceChatId: 'inaccessible-channel',
+          sourceMessageId: 'orig-before-2',
+          originalCreatedAt: '2024-01-01T00:00:00Z',
+        },
+      });
+      const after1 = makeMessage({
+        id: 'after-1',
+        content: 'after 1',
+        forwardedFrom: {
+          sourceType: 'channel',
+          sourceChatId: 'after-1-channel',
+          sourceMessageId: 'orig-after-1',
+          originalCreatedAt: '2024-01-01T00:00:00Z',
+        },
+      });
+
+      repository.findMessageByIdWithRelations.mockResolvedValue(target);
+      repository.findContextBefore.mockResolvedValue([before1, before2]);
+      repository.findContextAfter.mockResolvedValue([after1]);
+
+      forwardPermissions.toResponses.mockImplementationOnce((_, items) =>
+        Promise.resolve(
+          (items as Array<{ id: string; forwardedFrom?: unknown }>).map(
+            (item) => {
+              const meta = item.forwardedFrom as
+                | {
+                    sourceType: 'channel';
+                    sourceChatId: string;
+                    sourceMessageId: string;
+                    originalCreatedAt: string;
+                  }
+                | undefined;
+              if (!meta) return undefined;
+              if (meta.sourceChatId === 'inaccessible-channel') {
+                return {
+                  sourceType: meta.sourceType,
+                  originalCreatedAt: meta.originalCreatedAt,
+                  isAnonymous: true,
+                };
+              }
+              return { ...meta, isAccessible: true };
+            },
+          ),
+        ),
+      );
+
+      const result = await service.getMessageContext(
+        conversationId,
+        'target-msg',
+        userId,
+        { before: 10, after: 10 },
+      );
+
+      expect(result.before).toHaveLength(2);
+      expect(result.before[0].id).toBe('before-2');
+      expect(result.before[0].forwardedFrom).toEqual({
+        sourceType: 'channel',
+        originalCreatedAt: '2024-01-01T00:00:00Z',
+        isAnonymous: true,
+      });
+      expect(result.before[1].id).toBe('before-1');
+      expect(result.before[1].forwardedFrom).toEqual({
+        sourceType: 'channel',
+        sourceChatId: 'before-1-channel',
+        sourceMessageId: 'orig-before-1',
+        originalCreatedAt: '2024-01-01T00:00:00Z',
+        isAccessible: true,
+      });
+      expect(result.target.id).toBe('target-msg');
+      expect(result.target.forwardedFrom).toEqual({
+        sourceType: 'channel',
+        sourceChatId: 'target-channel',
+        sourceMessageId: 'orig-target',
+        originalCreatedAt: '2024-01-01T00:00:00Z',
+        isAccessible: true,
+      });
+      expect(result.after).toHaveLength(1);
+      expect(result.after[0].id).toBe('after-1');
+      expect(result.after[0].forwardedFrom).toEqual({
+        sourceType: 'channel',
+        sourceChatId: 'after-1-channel',
+        sourceMessageId: 'orig-after-1',
+        originalCreatedAt: '2024-01-01T00:00:00Z',
+        isAccessible: true,
+      });
+
+      expect(forwardPermissions.toResponses).toHaveBeenCalledTimes(1);
+      expect(forwardPermissions.toResponses).toHaveBeenCalledWith(userId, [
+        before1,
+        before2,
+        target,
+        after1,
+      ]);
+      expect(forwardPermissions.toResponse).not.toHaveBeenCalled();
     });
 
     it('throws NotFoundException when message belongs to another conversation', async () => {
@@ -1054,6 +1322,8 @@ describe('DirectConversationsService', () => {
               filename: 'doc.pdf',
               mimeType: 'application/pdf',
               size: 1234,
+              storageKey: 'attachments/user/doc.pdf',
+              storageBackend: StorageBackend.MINIO,
               createdAt: new Date(),
             },
           ],
@@ -1127,6 +1397,8 @@ describe('DirectConversationsService', () => {
               filename: 'doc.pdf',
               mimeType: 'application/pdf',
               size: 1234,
+              storageKey: 'attachments/user/doc.pdf',
+              storageBackend: StorageBackend.MINIO,
               createdAt: new Date(),
             },
           ],
@@ -1185,6 +1457,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: null,
         mentions: [],
+        forwardedFrom: null,
       });
       repository.findParticipants.mockResolvedValue([
         { userId, lastReadAt: null },
@@ -1205,6 +1478,7 @@ describe('DirectConversationsService', () => {
             editedAt: null,
             deletedAt: null,
             mentions: [],
+            forwardedFrom: null,
             author: {
               id: otherUserId,
               username: 'bob',
@@ -1249,6 +1523,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: null,
         mentions: [],
+        forwardedFrom: null,
       });
 
       await expect(
@@ -1285,6 +1560,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: null,
         mentions: [],
+        forwardedFrom: null,
       });
 
       await expect(
@@ -1321,6 +1597,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: new Date(),
         mentions: [],
+        forwardedFrom: null,
       });
 
       await expect(
@@ -1733,6 +2010,29 @@ describe('DirectConversationsService', () => {
       ).rejects.toBeInstanceOf(NotFoundException);
       expect(repository.updateDirectMessageContent).not.toHaveBeenCalled();
     });
+
+    it('rejects editing a forwarded message', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p-current',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue(
+        makeMessage({
+          forwardedFrom: {
+            sourceType: 'channel',
+            sourceMessageId: 'other-id',
+          },
+        }),
+      );
+
+      await expect(
+        service.updateMessage(conversationId, messageId, userId, 'updated'),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(repository.updateDirectMessageContent).not.toHaveBeenCalled();
+    });
   });
 
   describe('addReaction', () => {
@@ -1756,6 +2056,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: null,
         mentions: [],
+        forwardedFrom: null,
       });
       repository.findDirectReaction.mockResolvedValue(null);
       repository.createDirectReaction.mockResolvedValue({
@@ -1835,6 +2136,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: new Date(),
         mentions: [],
+        forwardedFrom: null,
       });
 
       await expect(
@@ -1863,6 +2165,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: null,
         mentions: [],
+        forwardedFrom: null,
       });
       repository.findDirectReaction.mockResolvedValue(null);
       const raceError = new Error('Unique constraint failed') as Error & {
@@ -1903,6 +2206,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: null,
         mentions: [],
+        forwardedFrom: null,
       });
       repository.findDirectReaction.mockResolvedValue({
         id: 'r1',
@@ -1983,6 +2287,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: null,
         mentions: [],
+        forwardedFrom: null,
       });
       repository.findDirectReaction.mockResolvedValue(null);
       repository.deleteDirectReactionsForUser.mockResolvedValue({ count: 1 });
@@ -2067,6 +2372,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: null,
         mentions: [],
+        forwardedFrom: null,
       });
       repository.findDirectReaction.mockResolvedValue(null);
       repository.deleteDirectReactionsForUser.mockResolvedValue({ count: 1 });
@@ -2151,6 +2457,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: null,
         mentions: [],
+        forwardedFrom: null,
       });
       repository.findDirectReaction.mockResolvedValue(null);
       repository.deleteDirectReactionsForUser.mockResolvedValue({ count: 1 });
@@ -2230,6 +2537,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: null,
         mentions: [],
+        forwardedFrom: null,
       });
       repository.findDirectReaction.mockResolvedValue({
         id: 'r1',
@@ -2318,6 +2626,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: null,
         mentions: [],
+        forwardedFrom: null,
       });
       repository.findDirectReaction.mockResolvedValue(null);
       repository.deleteDirectReactionsForUser.mockResolvedValue({ count: 1 });
@@ -2409,6 +2718,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: null,
         mentions: [],
+        forwardedFrom: null,
       });
 
       await expect(
@@ -2438,6 +2748,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: null,
         mentions: [],
+        forwardedFrom: null,
       });
       repository.findDirectReaction.mockResolvedValue({
         id: 'r1',
@@ -2511,6 +2822,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: new Date(),
         mentions: [],
+        forwardedFrom: null,
       });
 
       await expect(
@@ -2539,6 +2851,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: null,
         mentions: [],
+        forwardedFrom: null,
       });
       repository.findDirectReaction.mockResolvedValue(null);
       repository.getDirectMessageReactions.mockResolvedValue([]);
@@ -2610,6 +2923,7 @@ describe('DirectConversationsService', () => {
         editedAt: null,
         deletedAt: new Date(),
         mentions: [],
+        forwardedFrom: null,
       });
 
       const result = await service.deleteMessage(
@@ -2963,6 +3277,54 @@ describe('DirectConversationsService', () => {
         conversationId,
         expect.objectContaining({ id: messageId, conversationId }),
       );
+    });
+  });
+
+  describe('listPinnedMessages', () => {
+    it('batches forwarded-from permission checks for pinned messages', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p-current',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      const pins = [
+        makePin({
+          message: makeMessage({
+            id: 'pinned-msg-1',
+            content: 'first',
+            forwardedFrom: {
+              sourceType: 'channel',
+              sourceChatId: 'other-channel-1',
+              sourceMessageId: 'orig-1',
+              originalCreatedAt: '2024-01-01T00:00:00Z',
+            },
+          }),
+        }),
+        makePin({
+          message: makeMessage({
+            id: 'pinned-msg-2',
+            content: 'second',
+            forwardedFrom: {
+              sourceType: 'channel',
+              sourceChatId: 'other-channel-2',
+              sourceMessageId: 'orig-2',
+              originalCreatedAt: '2024-01-01T00:00:00Z',
+            },
+          }),
+        }),
+      ];
+      repository.findPinnedMessages.mockResolvedValue(pins);
+
+      await service.listPinnedMessages(conversationId, userId, {});
+
+      expect(forwardPermissions.toResponses).toHaveBeenCalledTimes(1);
+      expect(forwardPermissions.toResponses).toHaveBeenCalledWith(
+        userId,
+        pins.map((p) => p.message),
+      );
+      expect(forwardPermissions.toResponse).not.toHaveBeenCalled();
     });
   });
 });

@@ -9,6 +9,7 @@ import {
   CreateBucketCommand,
   ListObjectsV2Command,
   DeleteObjectCommand,
+  CopyObjectCommand,
   NotFound,
 } from '@aws-sdk/client-s3';
 import type { Readable } from 'stream';
@@ -169,6 +170,21 @@ export class StorageService implements OnModuleInit {
         Key: objectKey,
       }),
     );
+  }
+
+  async copyObject(sourceKey: string, destinationKey: string) {
+    await this.client.send(
+      new CopyObjectCommand({
+        Bucket: this.bucket,
+        CopySource: this.encodeCopySourcePath(this.bucket, sourceKey),
+        Key: destinationKey,
+      }),
+    );
+  }
+
+  private encodeCopySourcePath(bucket: string, key: string): string {
+    const encodedKey = key.split('/').map(encodeURIComponent).join('/');
+    return `/${encodeURIComponent(bucket)}/${encodedKey}`;
   }
 
   async getObject(objectKey: string) {

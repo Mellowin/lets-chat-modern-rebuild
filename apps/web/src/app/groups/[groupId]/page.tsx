@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   Download,
   File as FileIcon,
+  Forward,
   FileArchive,
   FileAudio,
   FileSpreadsheet,
@@ -56,6 +57,8 @@ import {
 } from "@/lib/groups-api";
 import { createSocket } from "@/lib/socket-client";
 import { useMessageListScroll } from "@/lib/use-message-list-scroll";
+import { ForwardDialog } from "@/components/ForwardDialog";
+import { ForwardedIndicator } from "@/components/ForwardedIndicator";
 import {
   ALLOWED_ATTACHMENT_MIME_TYPES as ALLOWED_ATTACHMENT_TYPES,
   EXTENSION_TO_MIME_TYPE as EXTENSION_MIME_MAP,
@@ -321,6 +324,7 @@ export default function GroupConversationPage() {
     { kind: "idle" } | { kind: "loading" } | { kind: "error"; message: string }
   >({ kind: "idle" });
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [forwardMessage, setForwardMessage] = useState<GroupMessage | null>(null);
   const [replyToMessage, setReplyToMessage] = useState<GroupMessage | null>(null);
   const [scrollPaused, setScrollPaused] = useState(false);
   const socketRef = useRef<ReturnType<typeof createSocket> | null>(null);
@@ -1094,6 +1098,11 @@ export default function GroupConversationPage() {
     textarea?.focus();
   }
 
+  function handleForward(msg: GroupMessage) {
+    closeMenu();
+    setForwardMessage(msg);
+  }
+
   function formatTime(iso: string) {
     try {
       return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -1402,6 +1411,7 @@ export default function GroupConversationPage() {
                                 {t("groups.pinnedMessage")}
                               </Badge>
                             )}
+                            <ForwardedIndicator forwardedFrom={msg.forwardedFrom} />
                             <div className="ml-auto inline-flex items-center gap-1">
                               <button
                                 type="button"
@@ -1767,6 +1777,15 @@ export default function GroupConversationPage() {
             if (!activeMenuMessage) return null;
             return (
               <>
+                <button
+                  onClick={() => handleForward(activeMenuMessage)}
+                  data-testid={`group-forward-action-${activeMenuMessage.id}`}
+                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-popover-foreground hover:bg-accent hover:text-accent-foreground"
+                  role="menuitem"
+                >
+                  <Forward size={16} />
+                  <span>{t("groups.forward")}</span>
+                </button>
                 {canPinMessage && !activeMenuMessage.isPinned && (
                   <button
                     onClick={() => handlePinMessage(activeMenuMessage)}
@@ -1793,6 +1812,16 @@ export default function GroupConversationPage() {
             );
           })()}
         </div>
+      )}
+
+      {forwardMessage && accessToken && (
+        <ForwardDialog
+          accessToken={accessToken}
+          sourceType="group"
+          sourceMessageId={forwardMessage.id}
+          sourceChatId={groupId}
+          onClose={() => setForwardMessage(null)}
+        />
       )}
 
       {settingsOpen && groupData && (

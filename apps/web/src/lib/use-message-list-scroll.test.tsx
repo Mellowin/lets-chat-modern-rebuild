@@ -201,4 +201,18 @@ describe("useMessageListScroll", () => {
 
     expect(scrollEl.scrollTop).toBe(0);
   });
+
+  it("scrolls to bottom when the scroll container ref is attached after messages already loaded", () => {
+    const { result } = renderHook(() => useMessageListScroll({ messagesLoaded: true }));
+
+    const scrollEl = document.createElement("div");
+    Object.defineProperty(scrollEl, "clientHeight", { value: 300 });
+    Object.defineProperty(scrollEl, "scrollHeight", { value: 1000 });
+
+    act(() => {
+      result.current.scrollRef(scrollEl);
+    });
+
+    expect(scrollEl.scrollTop).toBe(scrollEl.scrollHeight);
+  });
 });

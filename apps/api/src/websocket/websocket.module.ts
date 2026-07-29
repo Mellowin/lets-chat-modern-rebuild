@@ -9,6 +9,7 @@ import { WebsocketEventsService } from './websocket-events.service';
 import { PresenceService } from './presence.service';
 import { WebsocketRedisAdapterService } from './websocket-redis-adapter.service';
 import { presenceStoreProvider } from './presence-store.provider';
+import { ForwardPermissionsHelper } from '../messages/forward-permissions.helper';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { presenceStoreProvider } from './presence-store.provider';
     PresenceService,
     presenceStoreProvider,
     WebsocketRedisAdapterService,
+    ForwardPermissionsHelper,
   ],
   exports: [
     WebsocketEventsService,
