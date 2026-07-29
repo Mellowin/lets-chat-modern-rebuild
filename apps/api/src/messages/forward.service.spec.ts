@@ -350,6 +350,55 @@ describe('ForwardService', () => {
         expect.anything(),
       );
     });
+
+    it('copies each attachment to a distinct forwarded key', async () => {
+      messagesRepository.findByIdWithRelations.mockResolvedValue(
+        baseMessage as any,
+      );
+      (prismaService.attachment.findMany as jest.Mock).mockResolvedValue([
+        {
+          id: 'a1',
+          filename: 'one.pdf',
+          mimeType: 'application/pdf',
+          size: 100,
+          storageKey: 'original/one.pdf',
+          storageBackend: StorageBackend.MINIO,
+          createdAt: new Date(),
+          deletedAt: null,
+        },
+        {
+          id: 'a2',
+          filename: 'two.pdf',
+          mimeType: 'application/pdf',
+          size: 200,
+          storageKey: 'original/two.pdf',
+          storageBackend: StorageBackend.MINIO,
+          createdAt: new Date(),
+          deletedAt: null,
+        },
+      ] as any);
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: otherChannelId,
+        workspaceId,
+      } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+
+      const dto: ForwardMessageDto = {
+        sourceType: 'channel',
+        sourceMessageId: messageId,
+        destinationType: 'channel',
+        destinationId: otherChannelId,
+      };
+
+      await service.forward(dto, userId);
+
+      const calls = (storageService.copyObject as jest.Mock).mock.calls;
+      expect(calls).toHaveLength(2);
+      expect(calls[0][1]).toContain('forwarded/');
+      expect(calls[1][1]).toContain('forwarded/');
+      expect(calls[0][1]).not.toEqual(calls[1][1]);
+    });
   });
 
   describe('cross-chat destinations', () => {

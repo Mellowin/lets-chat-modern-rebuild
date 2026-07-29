@@ -330,10 +330,9 @@ model Attachment {
   originalName   String
   mimeType       String
   size           Int
-  storageKey     String
+  storageKey     String         @unique
   storageBackend StorageBackend
 
-  @@index([storageKey])
   createdById    String         @db.Uuid
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
