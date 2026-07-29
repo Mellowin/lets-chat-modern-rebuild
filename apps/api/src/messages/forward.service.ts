@@ -325,18 +325,10 @@ export class ForwardService {
     sourceChatId: string,
     source: ForwardableMessage,
   ): Prisma.InputJsonValue {
-    const existing = source.forwardedFrom as
-      | Partial<ForwardedFromMetadata>
-      | undefined;
-    if (
-      existing?.sourceType &&
-      existing.sourceMessageId &&
-      existing.sourceChatId &&
-      existing.originalCreatedAt
-    ) {
-      return existing;
-    }
-
+    // Always attribute the forwarded copy to the immediate source message.
+    // Re-forwarding a forward previously kept the root attribution while copying
+    // the intermediate message's full content (including intermediate comments
+    // or edits), which mis-attributed that content to the original author.
     const replySnapshot = source.replyToMessage
       ? {
           id: source.replyToMessage.id,

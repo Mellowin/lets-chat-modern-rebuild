@@ -410,8 +410,8 @@ describe('ForwardService', () => {
   });
 
   describe('attribution', () => {
-    it('preserves original attribution when forwarding an already-forwarded message', async () => {
-      const existingMeta = {
+    it('attributes re-forward to the immediate source message, not the root', async () => {
+      const rootMeta = {
         sourceType: 'direct',
         sourceMessageId: 'orig-msg',
         sourceChatId: 'orig-conv',
@@ -420,10 +420,21 @@ describe('ForwardService', () => {
         originalCreatedAt: '2026-01-01T00:00:00.000Z',
       };
 
-      messagesRepository.findByIdWithRelations.mockResolvedValue({
+      const intermediateSource = {
         ...baseMessage,
-        forwardedFrom: existingMeta,
-      } as any);
+        content: "B's note\n\nA's text",
+        forwardedFrom: rootMeta,
+        author: {
+          id: otherUserId,
+          username: 'bob',
+          displayName: 'Bob',
+          avatarUrl: null,
+        },
+      };
+
+      messagesRepository.findByIdWithRelations.mockResolvedValue(
+        intermediateSource as any,
+      );
       channelsRepository.findActiveById.mockResolvedValue({
         id: otherChannelId,
         workspaceId,
@@ -443,9 +454,81 @@ describe('ForwardService', () => {
       expect(messagesService.create).toHaveBeenCalledWith(
         workspaceId,
         otherChannelId,
-        expect.anything(),
+        expect.objectContaining({ content: "B's note\n\nA's text" }),
         userId,
-        expect.objectContaining(existingMeta),
+        expect.objectContaining({
+          sourceType: 'channel',
+          sourceMessageId: messageId,
+          sourceChatId: channelId,
+          originalAuthorId: otherUserId,
+          originalAuthorName: 'Bob',
+        }),
+      );
+      expect(messagesService.create).not.toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+        expect.objectContaining(rootMeta),
+      );
+    });
+
+    it('attributes combined comment + source content to the immediate source', async () => {
+      const rootMeta = {
+        sourceType: 'direct',
+        sourceMessageId: 'orig-msg',
+        sourceChatId: 'orig-conv',
+        originalAuthorId: 'other-user',
+        originalAuthorName: 'Bob',
+        originalCreatedAt: '2026-01-01T00:00:00.000Z',
+      };
+
+      const intermediateSource = {
+        ...baseMessage,
+        content: "B's note\n\nA's text",
+        forwardedFrom: rootMeta,
+        author: {
+          id: otherUserId,
+          username: 'bob',
+          displayName: 'Bob',
+          avatarUrl: null,
+        },
+      };
+
+      messagesRepository.findByIdWithRelations.mockResolvedValue(
+        intermediateSource as any,
+      );
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: otherChannelId,
+        workspaceId,
+      } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+
+      const dto: ForwardMessageDto = {
+        sourceType: 'channel',
+        sourceMessageId: messageId,
+        destinationType: 'channel',
+        destinationId: otherChannelId,
+        comment: "C's note",
+      };
+
+      await service.forward(dto, userId);
+
+      expect(messagesService.create).toHaveBeenCalledWith(
+        workspaceId,
+        otherChannelId,
+        expect.objectContaining({
+          content: "C's note\n\nB's note\n\nA's text",
+        }),
+        userId,
+        expect.objectContaining({
+          sourceType: 'channel',
+          sourceMessageId: messageId,
+          sourceChatId: channelId,
+          originalAuthorId: otherUserId,
+          originalAuthorName: 'Bob',
+        }),
       );
     });
   });
