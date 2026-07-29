@@ -1844,6 +1844,71 @@ describe('ForwardService', () => {
       );
     });
 
+    it('suppresses mentions copied from the source content', async () => {
+      messagesRepository.findByIdWithRelations.mockResolvedValue({
+        ...baseMessage,
+        content: 'Hello @alice and @bob',
+      } as any);
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: otherChannelId,
+        workspaceId,
+      } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+
+      const dto: ForwardMessageDto = {
+        sourceType: 'channel',
+        sourceMessageId: messageId,
+        destinationType: 'channel',
+        destinationId: otherChannelId,
+      };
+
+      await service.forward(dto, userId);
+
+      expect(messagesService.create).toHaveBeenCalledWith(
+        workspaceId,
+        otherChannelId,
+        expect.objectContaining({
+          content: 'Hello \u200B@alice and \u200B@bob',
+        }),
+        userId,
+        expect.anything(),
+      );
+    });
+
+    it('preserves mentions in the forwarder comment', async () => {
+      messagesRepository.findByIdWithRelations.mockResolvedValue({
+        ...baseMessage,
+        content: 'source text',
+      } as any);
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: otherChannelId,
+        workspaceId,
+      } as any);
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+
+      const dto: ForwardMessageDto = {
+        sourceType: 'channel',
+        sourceMessageId: messageId,
+        destinationType: 'channel',
+        destinationId: otherChannelId,
+        comment: 'Hey @charlie',
+      };
+
+      await service.forward(dto, userId);
+
+      expect(messagesService.create).toHaveBeenCalledWith(
+        workspaceId,
+        otherChannelId,
+        expect.objectContaining({
+          content: 'Hey @charlie\n\nsource text',
+        }),
+        userId,
+        expect.anything(),
+      );
+    });
+
     it('allows attachment-only forwarding with no text', async () => {
       messagesRepository.findByIdWithRelations.mockResolvedValue({
         ...baseMessage,

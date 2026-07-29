@@ -2010,6 +2010,29 @@ describe('DirectConversationsService', () => {
       ).rejects.toBeInstanceOf(NotFoundException);
       expect(repository.updateDirectMessageContent).not.toHaveBeenCalled();
     });
+
+    it('rejects editing a forwarded message', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p-current',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findMessageById.mockResolvedValue(
+        makeMessage({
+          forwardedFrom: {
+            sourceType: 'channel',
+            sourceMessageId: 'other-id',
+          },
+        }),
+      );
+
+      await expect(
+        service.updateMessage(conversationId, messageId, userId, 'updated'),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(repository.updateDirectMessageContent).not.toHaveBeenCalled();
+    });
   });
 
   describe('addReaction', () => {

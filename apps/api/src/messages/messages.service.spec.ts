@@ -888,6 +888,34 @@ describe('MessagesService', () => {
         ),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
+
+    it('throws ForbiddenException when editing a forwarded message', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      messagesRepository.findById.mockResolvedValue({
+        id: messageId,
+        channelId,
+        authorId: userId,
+        deletedAt: null,
+        createdAt: new Date(),
+        forwardedFrom: { sourceType: 'channel', sourceMessageId: 'other-id' },
+      } as unknown as FoundMessage);
+
+      await expect(
+        service.update(
+          workspaceId,
+          channelId,
+          messageId,
+          { content: 'edited' },
+          userId,
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
   });
 
   describe('remove', () => {

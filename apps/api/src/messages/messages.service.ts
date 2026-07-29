@@ -667,6 +667,10 @@ export class MessagesService {
       throw new ForbiddenException('Only the author can edit this message');
     }
 
+    if (message.forwardedFrom != null) {
+      throw new ForbiddenException('Forwarded messages cannot be edited');
+    }
+
     const editWindowMs = 15 * 60 * 1000;
     if (Date.now() - message.createdAt.getTime() > editWindowMs) {
       throw new UnprocessableEntityException('Message edit window has expired');

@@ -356,13 +356,18 @@ export class ForwardService {
 
   private buildContent(sourceContent: string, comment?: string): string {
     const trimmedComment = comment?.trim();
+    // Suppress mentions that originate in the source content; only the
+    // forwarder's optional comment should be able to mention destination members.
+    const safeSourceContent = sourceContent
+      ? this.suppressMentions(sourceContent)
+      : sourceContent;
     let content: string;
     if (!trimmedComment) {
-      content = sourceContent;
-    } else if (!sourceContent) {
+      content = safeSourceContent;
+    } else if (!safeSourceContent) {
       content = trimmedComment;
     } else {
-      content = `${trimmedComment}\n\n${sourceContent}`;
+      content = `${trimmedComment}\n\n${safeSourceContent}`;
     }
 
     if (content.length > MAX_FORWARD_CONTENT_LENGTH) {
@@ -372,6 +377,10 @@ export class ForwardService {
     }
 
     return content;
+  }
+
+  private suppressMentions(content: string): string {
+    return content.replace(/@(\w)/g, '\u200B@$1');
   }
 
   private async buildAttachmentInputs(
