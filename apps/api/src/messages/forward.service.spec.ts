@@ -393,7 +393,8 @@ describe('ForwardService', () => {
 
       await service.forward(dto, userId);
 
-      const calls = (storageService.copyObject as jest.Mock).mock.calls;
+      const calls = (storageService.copyObject as jest.Mock).mock
+        .calls as Array<[string, string]>;
       expect(calls).toHaveLength(2);
       expect(calls[0][1]).toContain('forwarded/');
       expect(calls[1][1]).toContain('forwarded/');
