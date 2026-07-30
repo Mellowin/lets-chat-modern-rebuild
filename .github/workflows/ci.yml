@@ -496,6 +496,9 @@ jobs:
           done
           aws --endpoint-url http://localhost:9002 --region us-east-1 s3 mb s3://letschat-uploads
 
+      - name: Backup/restore checksum regression
+        run: scripts/production/test-checksum-format.sh
+
       - name: Create CI env file for migrations
         run: |
           cat > .env.ci <<EOF

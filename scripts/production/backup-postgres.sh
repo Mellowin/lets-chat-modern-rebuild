@@ -88,8 +88,9 @@ export PGPASSWORD="$DB_PASSWORD"
 pg_dump -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -Fc -f "$LOCAL_DUMP"
 
 # sha256sum with the filename so the checksum file is compatible with
-# `sha256sum -c` during restore.
-sha256sum "$LOCAL_DUMP" > "$LOCAL_CHECKSUM"
+# `sha256sum -c` during restore. Run inside the temporary directory so the
+# recorded filename is a plain basename and not the relative temp path.
+( cd "$TMP_DIR" && sha256sum "$DUMP_NAME" > "$CHECKSUM_NAME" )
 DUMP_CHECKSUM=$(awk '{print $1}' "$LOCAL_CHECKSUM")
 echo "Backup size: $(du -h "$LOCAL_DUMP" | cut -f1)  checksum: ${DUMP_CHECKSUM}"
 

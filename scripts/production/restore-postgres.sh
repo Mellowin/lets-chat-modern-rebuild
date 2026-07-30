@@ -116,9 +116,11 @@ if [[ ! -f "$CHECKSUM_FILE" ]]; then
 fi
 
 pushd "$TMP_DIR" >/dev/null
-EXPECTED_DUMP_NAME=$(awk '{print $2}' "$(basename "$CHECKSUM_FILE")")
-if [[ -z "$EXPECTED_DUMP_NAME" ]]; then
-  echo "Checksum file is malformed. Aborting." >&2
+EXPECTED_DUMP_NAME=$(basename "$SOURCE_URI")
+RECORDED_NAME=$(awk '{print $2}' "$(basename "$CHECKSUM_FILE")")
+RECORDED_NAME="${RECORDED_NAME#\*}"  # strip leading binary-mode marker from sha256sum output
+if [[ -z "$RECORDED_NAME" ]] || [[ "$RECORDED_NAME" != "$EXPECTED_DUMP_NAME" ]] || [[ "$RECORDED_NAME" == */* ]]; then
+  echo "Checksum filename field is invalid or does not match the expected dump name. Aborting." >&2
   exit 1
 fi
 mv "$(basename "$DUMP_FILE")" "$EXPECTED_DUMP_NAME"
