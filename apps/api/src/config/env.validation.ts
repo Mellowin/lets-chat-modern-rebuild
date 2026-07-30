@@ -1,23 +1,62 @@
 import * as Joi from 'joi';
 
-const localhostOriginPrefixes = [
-  'http://localhost',
-  'https://localhost',
-  'http://127.',
-  'https://127.',
-];
+function isValidProductionOrigin(
+  origin: string,
+  allowLocalhost: boolean,
+): { valid: boolean; error?: string } {
+  const trimmed = origin.trim().toLowerCase();
+  if (!trimmed) {
+    return { valid: false, error: 'CORS_ORIGIN contains an empty origin' };
+  }
 
-function isLocalhostOrigin(origin: string): boolean {
-  return localhostOriginPrefixes.some((prefix) =>
-    origin.toLowerCase().startsWith(prefix),
-  );
-}
+  let url: URL;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    return {
+      valid: false,
+      error: `CORS_ORIGIN contains a malformed origin: ${origin}`,
+    };
+  }
 
-function isValidOrigin(origin: string): boolean {
-  return (
-    origin.toLowerCase().startsWith('http://') ||
-    origin.toLowerCase().startsWith('https://')
-  );
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    return {
+      valid: false,
+      error: `CORS_ORIGIN contains an unsupported protocol: ${origin}`,
+    };
+  }
+
+  // Reject userinfo, paths, query strings, fragments, and anything else that
+  // is not a plain origin (scheme://host[:port]).
+  if (url.origin !== trimmed) {
+    return {
+      valid: false,
+      error: `CORS_ORIGIN contains an invalid origin (path/query/fragment/userinfo not allowed): ${origin}`,
+    };
+  }
+
+  const hostname = url.hostname;
+  const isLocalhost =
+    hostname === 'localhost' ||
+    hostname.startsWith('127.') ||
+    hostname === '[::1]' ||
+    hostname === '::1';
+
+  if (url.protocol === 'http:' && !isLocalhost) {
+    return {
+      valid: false,
+      error: `CORS_ORIGIN contains a non-localhost http origin: ${origin}`,
+    };
+  }
+
+  if (isLocalhost && !allowLocalhost) {
+    return {
+      valid: false,
+      error: `CORS_ORIGIN contains a localhost/127. origin which is not allowed in production: ${origin}`,
+    };
+  }
+
+  return { valid: true };
 }
 
 interface EnvVars {
@@ -155,20 +194,9 @@ export const envValidationSchema = Joi.object({
       const origins = value.CORS_ORIGIN.split(',').map((o) => o.trim());
 
       for (const origin of origins) {
-        if (!origin) {
-          errors.push('CORS_ORIGIN contains an empty origin');
-          continue;
-        }
-        if (!isValidOrigin(origin)) {
-          errors.push(
-            'CORS_ORIGIN origins must start with http:// or https://',
-          );
-          continue;
-        }
-        if (!allowLocalhost && isLocalhostOrigin(origin)) {
-          errors.push(
-            'CORS_ORIGIN contains a localhost/127. origin which is not allowed in production',
-          );
+        const result = isValidProductionOrigin(origin, allowLocalhost);
+        if (!result.valid) {
+          errors.push(result.error!);
         }
       }
     }

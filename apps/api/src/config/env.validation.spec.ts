@@ -99,6 +99,53 @@ describe('envValidationSchema', () => {
       expect(error).toBeUndefined();
     });
 
+    it('allows HTTPS origins in CORS_ORIGIN', () => {
+      const { error } = validate({
+        ...prodBase,
+        CORS_ORIGIN: 'https://app.example.com,https://www.example.com',
+      });
+      expect(error).toBeUndefined();
+    });
+
+    it('rejects non-localhost http origins in CORS_ORIGIN', () => {
+      const { error } = validate({
+        ...prodBase,
+        CORS_ORIGIN: 'http://app.example.com',
+      });
+      expect(error).toBeDefined();
+      expect(error?.message).toContain('CORS_ORIGIN');
+      expect(error?.message).toContain('http://app.example.com');
+    });
+
+    it('rejects origins with paths', () => {
+      const { error } = validate({
+        ...prodBase,
+        CORS_ORIGIN: 'https://app.example.com/path',
+      });
+      expect(error).toBeDefined();
+      expect(error?.message).toContain('CORS_ORIGIN');
+      expect(error?.message).toContain('path');
+    });
+
+    it('rejects origins with userinfo', () => {
+      const { error } = validate({
+        ...prodBase,
+        CORS_ORIGIN: 'https://user:pass@app.example.com',
+      });
+      expect(error).toBeDefined();
+      expect(error?.message).toContain('CORS_ORIGIN');
+    });
+
+    it('rejects malformed origins in CORS_ORIGIN', () => {
+      const { error } = validate({
+        ...prodBase,
+        CORS_ORIGIN: 'not a url',
+      });
+      expect(error).toBeDefined();
+      expect(error?.message).toContain('CORS_ORIGIN');
+      expect(error?.message).toContain('malformed');
+    });
+
     it('rejects localhost origins in CORS_ORIGIN', () => {
       const { error } = validate({
         ...prodBase,
@@ -135,6 +182,7 @@ describe('envValidationSchema', () => {
       });
       expect(error).toBeDefined();
       expect(error?.message).toContain('CORS_ORIGIN');
+      expect(error?.message).toContain('ftp');
     });
 
     it('rejects empty origins in CORS_ORIGIN', () => {

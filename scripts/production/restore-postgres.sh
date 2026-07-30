@@ -108,20 +108,35 @@ DUMP_FILE="$TMP_DIR/backup.dump"
 CHECKSUM_FILE="$TMP_DIR/backup.dump.sha256"
 
 aws s3 cp "$SOURCE_URI" "$DUMP_FILE" --endpoint-url "$S3_ENDPOINT" --no-progress
-aws s3 cp "${SOURCE_URI}.sha256" "$CHECKSUM_FILE" --endpoint-url "$S3_ENDPOINT" --no-progress || true
+aws s3 cp "${SOURCE_URI}.sha256" "$CHECKSUM_FILE" --endpoint-url "$S3_ENDPOINT" --no-progress
 
-if [[ -f "$CHECKSUM_FILE" ]]; then
-  pushd "$TMP_DIR" >/dev/null
-  if ! sha256sum -c "$(basename "$CHECKSUM_FILE")" >/dev/null; then
-    echo "Checksum verification failed. Aborting." >&2
-    exit 1
-  fi
-  popd >/dev/null
-  echo "Checksum OK."
+if [[ ! -f "$CHECKSUM_FILE" ]]; then
+  echo "Backup checksum is missing. Aborting." >&2
+  exit 1
 fi
 
+pushd "$TMP_DIR" >/dev/null
+EXPECTED_DUMP_NAME=$(awk '{print $2}' "$(basename "$CHECKSUM_FILE")")
+if [[ -z "$EXPECTED_DUMP_NAME" ]]; then
+  echo "Checksum file is malformed. Aborting." >&2
+  exit 1
+fi
+mv "$(basename "$DUMP_FILE")" "$EXPECTED_DUMP_NAME"
+if ! sha256sum -c "$(basename "$CHECKSUM_FILE")" >/dev/null; then
+  echo "Checksum verification failed. Aborting." >&2
+  exit 1
+fi
+popd >/dev/null
+echo "Checksum OK."
+DUMP_FILE="$TMP_DIR/$EXPECTED_DUMP_NAME"
+
+TOC_FILE="$TMP_DIR/toc.list"
 echo "Backup contents (pg_restore -l):"
-pg_restore -l "$DUMP_FILE" | head -50
+if ! pg_restore -l "$DUMP_FILE" > "$TOC_FILE"; then
+  echo "Failed to read backup table of contents. Aborting." >&2
+  exit 1
+fi
+sed -n '1,50p' "$TOC_FILE"
 
 export PGUSER="$TARGET_USER"
 export PGPASSWORD="$TARGET_PASSWORD"
@@ -133,8 +148,9 @@ dropdb --if-exists "$TARGET_NAME"
 createdb "$TARGET_NAME"
 
 echo "Restoring backup into $TARGET_NAME..."
-pg_restore -d "$TARGET_NAME" -j 2 --no-owner --no-privileges "$DUMP_FILE" || {
-  echo "pg_restore finished with warnings or errors. Review output above." >&2
-}
+if ! pg_restore -d "$TARGET_NAME" -j 2 --no-owner --no-privileges "$DUMP_FILE"; then
+  echo "Restore failed. The target database may be incomplete." >&2
+  exit 1
+fi
 
 echo "Restore into ${TARGET_NAME} completed."

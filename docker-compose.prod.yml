@@ -23,7 +23,7 @@ services:
       - caddy-config:/config
     environment:
       - API_DOMAIN=${API_DOMAIN:?API_DOMAIN is required}
-      - TLS_MODE=${TLS_MODE:-auto}
+      - TLS_AUTO_HTTPS=${TLS_AUTO_HTTPS:-}
       - ACME_EMAIL=${ACME_EMAIL:-}
     networks:
       - frontend
@@ -35,6 +35,32 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+
+  # One-shot migration service. Runs before the API starts and is guaranteed to
+  # complete successfully (or abort the whole stack) thanks to the
+  # service_completed_successfully dependency below.
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      platforms:
+        - linux/amd64
+    image: letschat-api:production
+    restart: 'no'
+    env_file:
+      - .env.production
+    networks:
+      - backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    user: node
+    command:
+      - node
+      - packages/database/node_modules/prisma/build/index.js
+      - migrate
+      - deploy
+      - --schema=packages/database/prisma/schema.prisma
 
   api:
     build:
@@ -52,6 +78,8 @@ services:
       - frontend
       - backend
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:

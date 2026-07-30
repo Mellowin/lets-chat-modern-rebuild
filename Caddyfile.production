@@ -2,11 +2,13 @@
 #
 # Environment variables:
 #   API_DOMAIN       — the public domain that points to this server (required).
-#   TLS_MODE         — "on" for automatic HTTPS (production) or "off" for HTTP
-#                      only (local CI). Defaults to "on".
+#   TLS_AUTO_HTTPS   — empty for automatic HTTPS (production), or the literal
+#                      text "auto_https off" for HTTP-only local validation.
 #   ACME_EMAIL       — optional email address for Let's Encrypt account.
 {
-	auto_https {$TLS_MODE:on}
+	{$TLS_AUTO_HTTPS:}
+	# Leave TLS_AUTO_HTTPS empty for production automatic HTTPS.
+	# Set TLS_AUTO_HTTPS=auto_https off for HTTP-only local validation.
 }
 
 {$API_DOMAIN} {

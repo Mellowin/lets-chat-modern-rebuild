@@ -181,21 +181,24 @@ cd lets-chat-modern-rebuild
 cp /path/to/.env.production .env.production
 ```
 
-Pull the desired image (or build on the server):
+Pull (or build) the desired image, then start the stack. Migrations run
+automatically in a one-shot `migrate` container before the API starts serving
+traffic, and Caddy waits until the API is healthy before accepting requests.
 
 ```bash
-docker compose -f docker-compose.prod.yml --env-file .env.production pull
 docker compose -f docker-compose.prod.yml --env-file .env.production up -d
 ```
 
-Apply migrations **before** the new API version serves traffic. This example
-runs migrations from a local checkout:
+If you ever need to run migrations explicitly without starting the rest of the
+stack, use the dedicated `migrate` service:
 
 ```bash
-docker compose -f docker-compose.prod.yml --env-file .env.production run --rm \
-  -e DATABASE_URL="$DATABASE_URL" \
-  api sh -c 'pnpm --filter @lets-chat/database migrate:deploy'
+docker compose -f docker-compose.prod.yml --env-file .env.production run --rm migrate
 ```
+
+Do not pass `-e DATABASE_URL="$DATABASE_URL"` from the host shell, because an
+empty host variable would overwrite the value loaded by the container from
+`.env.production`.
 
 Wait for health:
 
@@ -206,12 +209,15 @@ curl -fsS https://api.example.com/api/v1/health/ready
 
 ## 7. Rollback
 
-If a deploy is unhealthy:
+If a deploy is unhealthy, revert the API image to the previous known-good tag
+and bring the API back up without re-running the one-shot migration service
+(the database is already at the schema version that the previous image
+expects):
 
 ```bash
-# Revert to the previous image tag
 docker compose -f docker-compose.prod.yml --env-file .env.production down
 docker compose -f docker-compose.prod.yml --env-file .env.production up -d --no-deps api
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --no-deps caddy
 ```
 
 For database rollbacks, restore from a verified backup (see section 9).

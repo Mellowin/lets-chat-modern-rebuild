@@ -185,7 +185,7 @@ describe('StorageService', () => {
       expect(logSpy).toHaveBeenCalledWith('Bucket "bucket" exists');
     });
 
-    it('creates bucket when HeadBucket returns NotFound', async () => {
+    it('does not throw on NotFound and creates the bucket', async () => {
       const notFoundError = Object.assign(new Error('NotFound'), {
         name: 'NotFound',
       });
@@ -197,47 +197,59 @@ describe('StorageService', () => {
       expect(logSpy).toHaveBeenCalledWith('Bucket "bucket" created');
     });
 
-    it('does not throw on 403 Forbidden and logs a warning', async () => {
+    it('throws on Forbidden and logs an error', async () => {
       const forbiddenError = Object.assign(new Error('Forbidden'), {
         name: 'Forbidden',
         $metadata: { httpStatusCode: 403 },
       });
       s3SendMock.mockRejectedValueOnce(forbiddenError);
-      const warnSpy = jest.spyOn(service['logger'], 'warn');
+      const errorSpy = jest.spyOn(service['logger'], 'error');
 
-      await expect(service.onModuleInit()).resolves.not.toThrow();
+      await expect(service.onModuleInit()).rejects.toThrow('Forbidden');
 
-      expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('403 Forbidden'),
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('credentials are invalid'),
       );
     });
 
-    it('does not throw on AccessDenied and logs a warning', async () => {
+    it('throws on AccessDenied', async () => {
       const accessDeniedError = Object.assign(new Error('AccessDenied'), {
         name: 'AccessDenied',
       });
       s3SendMock.mockRejectedValueOnce(accessDeniedError);
-      const warnSpy = jest.spyOn(service['logger'], 'warn');
 
-      await expect(service.onModuleInit()).resolves.not.toThrow();
+      await expect(service.onModuleInit()).rejects.toThrow('AccessDenied');
+    });
 
-      expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('403 Forbidden'),
+    it('throws on InvalidAccessKeyId', async () => {
+      const error = Object.assign(new Error('InvalidAccessKeyId'), {
+        name: 'InvalidAccessKeyId',
+      });
+      s3SendMock.mockRejectedValueOnce(error);
+
+      await expect(service.onModuleInit()).rejects.toThrow(
+        'InvalidAccessKeyId',
       );
     });
 
-    it('does not throw on 403 via $metadata only', async () => {
+    it('throws on SignatureDoesNotMatch', async () => {
+      const error = Object.assign(new Error('SignatureDoesNotMatch'), {
+        name: 'SignatureDoesNotMatch',
+      });
+      s3SendMock.mockRejectedValueOnce(error);
+
+      await expect(service.onModuleInit()).rejects.toThrow(
+        'SignatureDoesNotMatch',
+      );
+    });
+
+    it('throws on 403 via $metadata only', async () => {
       const forbiddenError = Object.assign(new Error('SomeError'), {
         $metadata: { httpStatusCode: 403 },
       });
       s3SendMock.mockRejectedValueOnce(forbiddenError);
-      const warnSpy = jest.spyOn(service['logger'], 'warn');
 
-      await expect(service.onModuleInit()).resolves.not.toThrow();
-
-      expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('403 Forbidden'),
-      );
+      await expect(service.onModuleInit()).rejects.toThrow('SomeError');
     });
 
     it('throws on unexpected HeadBucket errors', async () => {
@@ -273,19 +285,60 @@ describe('StorageService', () => {
       expect(s3SendMock).toHaveBeenCalledWith(expect.any(HeadBucketCommand));
     });
 
-    it('returns ok on 403 Forbidden (bucket exists but no HeadBucket permission)', async () => {
-      const forbiddenError = Object.assign(new Error('Forbidden'), {
-        name: 'Forbidden',
-        $metadata: { httpStatusCode: 403 },
-      });
-      s3SendMock.mockRejectedValueOnce(forbiddenError);
+    it('returns error on NotFound', async () => {
+      const error = Object.assign(new Error('NotFound'), { name: 'NotFound' });
+      s3SendMock.mockRejectedValueOnce(error);
 
       const result = await service.checkHealth();
 
-      expect(result).toBe('ok');
+      expect(result).toBe('error');
     });
 
-    it('returns error on unexpected HeadBucket failure', async () => {
+    it('returns error on AccessDenied', async () => {
+      const error = Object.assign(new Error('AccessDenied'), {
+        name: 'AccessDenied',
+      });
+      s3SendMock.mockRejectedValueOnce(error);
+
+      const result = await service.checkHealth();
+
+      expect(result).toBe('error');
+    });
+
+    it('returns error on InvalidAccessKeyId', async () => {
+      const error = Object.assign(new Error('InvalidAccessKeyId'), {
+        name: 'InvalidAccessKeyId',
+      });
+      s3SendMock.mockRejectedValueOnce(error);
+
+      const result = await service.checkHealth();
+
+      expect(result).toBe('error');
+    });
+
+    it('returns error on SignatureDoesNotMatch', async () => {
+      const error = Object.assign(new Error('SignatureDoesNotMatch'), {
+        name: 'SignatureDoesNotMatch',
+      });
+      s3SendMock.mockRejectedValueOnce(error);
+
+      const result = await service.checkHealth();
+
+      expect(result).toBe('error');
+    });
+
+    it('returns error on 403 via $metadata only', async () => {
+      const error = Object.assign(new Error('SomeError'), {
+        $metadata: { httpStatusCode: 403 },
+      });
+      s3SendMock.mockRejectedValueOnce(error);
+
+      const result = await service.checkHealth();
+
+      expect(result).toBe('error');
+    });
+
+    it('returns error on timeout/network error', async () => {
       s3SendMock.mockRejectedValueOnce(new Error('Network failure'));
 
       const result = await service.checkHealth();
