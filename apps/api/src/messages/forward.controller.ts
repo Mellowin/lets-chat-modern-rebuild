@@ -14,6 +14,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUserResponse } from '../auth/auth.service';
 import { ForwardService } from './forward.service';
 import { ForwardMessageDto } from './dto/forward-message.dto';
+import { StrictThrottle } from '../rate-limiting/rate-limiting.module';
 
 @ApiTags('Messages')
 @Controller('messages/forward')
@@ -23,6 +24,7 @@ export class ForwardController {
   constructor(private readonly forwardService: ForwardService) {}
 
   @Post()
+  @StrictThrottle(30, 60)
   @ApiOperation({
     summary: 'Forward a message to another channel, DM or group',
   })

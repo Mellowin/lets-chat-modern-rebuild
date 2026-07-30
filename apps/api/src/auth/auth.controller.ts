@@ -51,6 +51,7 @@ import { UpdateNotificationPreferencesDto } from './dto/update-notification-pref
 import { JwtAccessGuard } from './guards/jwt-access.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { CurrentSessionId } from './decorators/current-session-id.decorator';
+import { StrictThrottle } from '../rate-limiting/rate-limiting.module';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -61,6 +62,7 @@ export class AuthController {
   ) {}
 
   @Post('register')
+  @StrictThrottle(5, 60)
   @ApiOperation({ summary: 'Register a new user' })
   @ApiBody({ type: RegisterDto })
   @ApiCreatedResponse({ description: 'User registered successfully' })
@@ -72,6 +74,7 @@ export class AuthController {
   }
 
   @Post('login')
+  @StrictThrottle(5, 60)
   @HttpCode(200)
   @ApiOperation({ summary: 'Login existing user' })
   @ApiBody({ type: LoginDto })
@@ -115,6 +118,7 @@ export class AuthController {
   }
 
   @Post('resend-verification')
+  @StrictThrottle(5, 60)
   @HttpCode(200)
   @ApiOperation({ summary: 'Resend verification email' })
   @ApiBody({ type: ResendVerificationDto })
@@ -125,6 +129,7 @@ export class AuthController {
   }
 
   @Post('forgot-password')
+  @StrictThrottle(5, 60)
   @HttpCode(200)
   @ApiOperation({ summary: 'Request password reset' })
   @ApiBody({ type: ForgotPasswordDto })
@@ -135,6 +140,7 @@ export class AuthController {
   }
 
   @Post('reset-password')
+  @StrictThrottle(5, 60)
   @HttpCode(200)
   @ApiOperation({ summary: 'Reset password' })
   @ApiBody({ type: ResetPasswordDto })

@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { ValidationPipe, ConsoleLogger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { join } from 'path';
+import helmet from 'helmet';
 import type { Request, Response, NextFunction } from 'express';
 import { AppModule } from './app.module';
 import { uploadsFallbackMiddleware } from './common/uploads-fallback.middleware';
@@ -21,6 +22,16 @@ async function bootstrap() {
     logger,
   });
 
+  const configService = app.get(ConfigService);
+  const isProduction = configService.get<string>('NODE_ENV') === 'production';
+
+  if (isProduction) {
+    // Trust the first proxy so req.ip reflects X-Forwarded-For.
+    app.set('trust proxy', 1);
+    // Apply security headers before CORS and business routes.
+    app.use(helmet());
+  }
+
   app.useStaticAssets(join(process.cwd(), 'uploads'), {
     prefix: '/uploads',
   });
@@ -29,8 +40,6 @@ async function bootstrap() {
   // 404 response is JSON, which triggers CORB when loaded via <img>. Mount a tiny
   // transparent PNG fallback that returns HTTP 200 with Content-Type: image/png.
   app.use('/uploads', uploadsFallbackMiddleware);
-
-  const configService = app.get(ConfigService);
 
   app.setGlobalPrefix('api/v1');
 
@@ -43,7 +52,12 @@ async function bootstrap() {
   );
 
   const corsOrigin = configService.get<string>('CORS_ORIGIN');
-  const isProduction = configService.get<string>('NODE_ENV') === 'production';
+
+  if (isProduction && (!corsOrigin || !corsOrigin.trim())) {
+    throw new Error(
+      'CORS_ORIGIN is required in production and must contain valid origin(s).',
+    );
+  }
 
   const developmentOrigins = [
     'http://localhost:3000',
@@ -59,12 +73,6 @@ async function bootstrap() {
     : isProduction
       ? productionOrigins
       : developmentOrigins;
-
-  if (isProduction && !corsOrigin) {
-    logger.warn(
-      'CORS_ORIGIN is not set in production. Falling back to localhost origins, which will block real frontend requests.',
-    );
-  }
 
   // Private Network Access support: a public HTTPS frontend (e.g. Vercel)
   // is allowed by Chrome to fetch a local API on localhost/127.0.0.1 only if
@@ -102,9 +110,20 @@ async function bootstrap() {
 
   app.enableShutdownHooks();
 
+  // Ensure SIGTERM/SIGINT result in a clean exit code 0 after NestJS closes
+  // the application and runs all shutdown hooks. Without an explicit exit(0),
+  // Node's default signal handler would terminate with code 128 + signal.
+  const shutdown = async (signal: string) => {
+    logger.log(`${signal} received, shutting down gracefully`);
+    await app.close();
+    process.exit(0);
+  };
+  process.on('SIGTERM', () => void shutdown('SIGTERM'));
+  process.on('SIGINT', () => void shutdown('SIGINT'));
+
   // Swagger/OpenAPI docs are useful in development but increase attack surface
   // in production by enumerating every endpoint. Keep them disabled in prod.
-  if (configService.get<string>('NODE_ENV') !== 'production') {
+  if (!isProduction) {
     const swaggerConfig = new DocumentBuilder()
       .setTitle('Lets Chat API')
       .setVersion('1.0')

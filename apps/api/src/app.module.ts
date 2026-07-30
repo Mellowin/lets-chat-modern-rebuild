@@ -27,6 +27,7 @@ import { SafetyModule } from './safety/safety.module';
 import { AdminDiagnosticsModule } from './admin-diagnostics/admin-diagnostics.module';
 import { DemoModule } from './demo/demo.module';
 import { AppController } from './app.controller';
+import { RateLimitingModule } from './rate-limiting/rate-limiting.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { AppController } from './app.controller';
     SafetyModule,
     AdminDiagnosticsModule,
     DemoModule,
+    RateLimitingModule.forRoot(),
   ],
   controllers: [AppController],
   providers: [

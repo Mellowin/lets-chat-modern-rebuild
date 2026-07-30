@@ -13,6 +13,8 @@ out/
 .env
 .env.local
 .env.*.local
+.env.production
+.env.*.production
 .vapid-keys.tmp
 .vapid-keys.local
 

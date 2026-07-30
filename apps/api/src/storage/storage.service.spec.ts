@@ -263,6 +263,37 @@ describe('StorageService', () => {
     });
   });
 
+  describe('checkHealth', () => {
+    it('returns ok when HeadBucket succeeds', async () => {
+      s3SendMock.mockResolvedValue({});
+
+      const result = await service.checkHealth();
+
+      expect(result).toBe('ok');
+      expect(s3SendMock).toHaveBeenCalledWith(expect.any(HeadBucketCommand));
+    });
+
+    it('returns ok on 403 Forbidden (bucket exists but no HeadBucket permission)', async () => {
+      const forbiddenError = Object.assign(new Error('Forbidden'), {
+        name: 'Forbidden',
+        $metadata: { httpStatusCode: 403 },
+      });
+      s3SendMock.mockRejectedValueOnce(forbiddenError);
+
+      const result = await service.checkHealth();
+
+      expect(result).toBe('ok');
+    });
+
+    it('returns error on unexpected HeadBucket failure', async () => {
+      s3SendMock.mockRejectedValueOnce(new Error('Network failure'));
+
+      const result = await service.checkHealth();
+
+      expect(result).toBe('error');
+    });
+  });
+
   describe('getPresignedUploadUrl', () => {
     it('returns uploadUrl and objectKey', async () => {
       const result = await service.getPresignedUploadUrl(

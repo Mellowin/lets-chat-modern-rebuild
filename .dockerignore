@@ -1,0 +1,39 @@
+# Dependencies and build outputs
+node_modules
+**/node_modules
+**/dist
+*.log
+
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+
+# Version control
+.git
+.gitignore
+
+# Docker artifacts
+Dockerfile*
+docker-compose*.yml
+Caddyfile*
+
+# IDE and OS files
+.idea
+.vscode
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Testing and coverage
+coverage
+.nyc_output
+
+# Temporary files
+*.tmp
+*.temp
+ci_logs
+logs
+visual-qa/screenshots
+backups
