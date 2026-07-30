@@ -1,0 +1,124 @@
+# Production Docker Compose for Lets Chat.
+#
+# This file defines the API, PostgreSQL, Redis, and Caddy reverse proxy stack.
+# It does NOT start external services (Cloudflare R2, Resend, Vercel).
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+#
+# Required .env.production variables include DATABASE_URL, JWT secrets,
+# S3_* credentials, REDIS_URL, CORS_ORIGIN, APP_WEB_URL, MAIL_PROVIDER, etc.
+# See docs/b237-production-runbook.md for the full list.
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile.production:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    environment:
+      - API_DOMAIN=${API_DOMAIN:?API_DOMAIN is required}
+      - TLS_MODE=${TLS_MODE:-auto}
+      - ACME_EMAIL=${ACME_EMAIL:-}
+    networks:
+      - frontend
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:2019/metrics >/dev/null 2>&1']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      platforms:
+        - linux/amd64
+    image: letschat-api:production
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    expose:
+      - '3001'
+    networks:
+      - frontend
+      - backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'node -e "require(\x27http\x27).get(\x27http://localhost:3001/api/v1/health/live\x27, (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on(\x27error\x27, () => process.exit(1))"']
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    # Ensure the API receives SIGTERM for graceful shutdown.
+    init: true
+    stop_grace_period: 30s
+
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - backend
+    # PostgreSQL is intentionally not published externally; only the API can
+    # reach it through the backend network.
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redis-data:/data
+    networks:
+      - backend
+    # Redis is intentionally not published externally.
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+  caddy-data:
+    driver: local
+  caddy-config:
+    driver: local
+
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
+    internal: false

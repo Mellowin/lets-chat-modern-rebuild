@@ -6,12 +6,17 @@
 
 ## 🚀 Live Demo
 
-- **Web:** https://lets-chat-web.vercel.app
-- **API:** https://lets-chat-api-v2.onrender.com/api/v1
-- **WebSocket:** wss://lets-chat-api-v2.onrender.com
-- **Health:** https://lets-chat-api-v2.onrender.com/api/v1/health
+> **The previous Render-hosted backend is offline.** The Vercel frontend still
+> loads, but the public API, database and WebSocket are not currently running.
+> A full production re-deployment is planned under B237.
 
-> Demo access is available on request — the public deployment is open for registration with a throwaway email.
+- **Web (frontend only):** https://lets-chat-web.vercel.app
+- **API / WebSocket:** offline — the Render free Postgres tier expired and the
+  backend infrastructure has been decommissioned.
+
+Local development remains fully functional (see [Quick Start](#quick-start)).
+The planned production architecture is described in
+[`docs/b237-production-runbook.md`](docs/b237-production-runbook.md).
 
 Portfolio guidance:
 
@@ -25,11 +30,12 @@ Portfolio guidance:
 
 ### For Recruiters
 
-- **Live demo:** https://lets-chat-web.vercel.app
+- **Live demo:** https://lets-chat-web.vercel.app (frontend only until B237 deploy)
 - **Screenshots:** see below or [`docs/portfolio-media/screenshots/`](docs/portfolio-media/screenshots/).
 - **Project story:** [`docs/project-story.md`](docs/project-story.md)
 - **Resume bullets:** [`docs/resume-project-blocks.md`](docs/resume-project-blocks.md)
 - **Interview notes:** [`docs/interview-notes.md`](docs/interview-notes.md)
+- **Production runbook:** [`docs/b237-production-runbook.md`](docs/b237-production-runbook.md)
 
 ---
 
@@ -42,7 +48,7 @@ Portfolio guidance:
 | **Real-Time** | Socket.io 4, optional Redis adapter (`WEBSOCKET_REDIS_URL`), in-memory presence |
 | **Storage** | S3-compatible object storage (uploads and downloads through authenticated API proxy) |
 | **Testing** | Jest (API), Vitest + Testing Library (Web), Supertest (E2E) |
-| **CI/CD** | GitHub Actions → Render Deploy Hook; Vercel auto-deploy |
+| **CI/CD** | GitHub Actions; Vercel auto-deploy for frontend; Hetzner VPS + Docker Compose for backend (B237) |
 
 ---
 
@@ -103,6 +109,9 @@ Portfolio guidance:
 - WebSocket events revalidate channel/DM membership on the server.
 - Auth endpoints return generic success messages to avoid account enumeration.
 - Production database migration runs before API deploy.
+- Production image runs as non-root, uses Caddy reverse proxy, Helmet security headers, and rate limiting.
+- Liveness (`/health/live`) and readiness (`/health/ready`) endpoints support zero-downtime checks.
+- Encrypted database backups are uploaded to object storage with checksum verification.
 - Automated smoke and attachment verification scripts run after every deploy.
 
 ---
@@ -163,9 +172,14 @@ secure-collab-platform/
 ├── packages/
 │   ├── shared/              # Shared types & utilities
 │   └── database/            # Prisma schema, client, migrations
-├── docker-compose.yml       # PostgreSQL, Redis, MinIO
-├── scripts/                 # Smoke/verification scripts
+├── docker-compose.yml        # PostgreSQL, Redis, MinIO (local development)
+├── docker-compose.prod.yml   # Production VPS stack: Caddy, API, Postgres, Redis
+├── Caddyfile.production      # Caddy reverse-proxy / TLS configuration
+├── .env.production.example   # Production environment template
+├── scripts/                  # Smoke/verification/backup scripts
+│   └── production/           # Backup, restore and verification scripts
 ├── docs/
+│   ├── b237-production-runbook.md
 │   ├── portfolio-demo.md
 │   ├── demo-script.md
 │   ├── interview-notes.md
@@ -271,20 +285,50 @@ pnpm --filter api typecheck
 
 ## 🚢 Deploy Flow
 
-> **Render is currently disabled** because the free Postgres tier expired. The project is now developed and tested locally with Docker Postgres/Redis/MinIO.
+> **Render is currently disabled** because the free Postgres tier expired. The
+> backend is no longer deployed. B237A prepares the production foundation; B237B
+> will deploy to a Hetzner VPS.
+
+### Current CI (B237A)
 
 ```text
-push main → GitHub Actions (lint/typecheck/test/build + local E2E + local smoke)
+push main / PR → GitHub Actions
+                    ├── lint / typecheck / unit tests
+                    ├── API E2E security smoke tests (PostgreSQL service)
+                    ├── local infrastructure smoke test
+                    └── production artifact checks
+                          ├── production Docker image build
+                          ├── Compose + Caddyfile validation
+                          ├── liveness / readiness smoke test
+                          └── graceful shutdown smoke test
+```
+
+### Planned production deploy (B237B)
+
+```text
+push main → migrations applied to production PostgreSQL
+                ↓
+      Docker image built and pushed to Hetzner VPS
+                ↓
+      docker compose -f docker-compose.prod.yml up -d
                 ↓
       Vercel production deploy (frontend only)
 ```
 
-The Render production migration/deploy jobs and production verifier workflows are still in `.github/workflows/` but are now **manual `workflow_dispatch` only**. They are kept for recovery if a new hosted Postgres + hosted API is configured later.
+Target stack:
 
-A public production deployment later requires:
-- hosted PostgreSQL (Render paid, Supabase, Railway, AWS RDS, Google Cloud SQL, etc.)
-- hosted Node.js API (Render, Railway, Fly.io, AWS, etc.)
-- updated `DATABASE_URL`, deploy hook and API URL environment variables
+| Component | Provider |
+|---|---|
+| Frontend | Vercel |
+| Reverse proxy / TLS | Caddy 2 on Hetzner VPS |
+| API | NestJS + Docker on Hetzner VPS |
+| PostgreSQL | Docker on Hetzner VPS |
+| Redis | Docker on Hetzner VPS |
+| Object storage | Cloudflare R2 |
+| Email | Resend |
+
+See [`docs/b237-production-runbook.md`](docs/b237-production-runbook.md) for the
+full step-by-step deployment guide.
 
 No secrets, credentials, or DB URLs are committed to the repository.
 
@@ -292,11 +336,19 @@ No secrets, credentials, or DB URLs are committed to the repository.
 
 ## ⚠️ Known Limitations
 
-- Render free tier cold start can take ~1 minute after idle.
-- Real email delivery uses Resend by default. If Resend quota or outage occurs, configure `MAIL_FALLBACK_PROVIDER=smtp` plus `SMTP_*` env vars to keep auth emails flowing. `MAIL_PROVIDER=console` is local-dev only and must not be used in production.
-
-- Presence is in-memory; a Redis Socket.io adapter is available via `WEBSOCKET_REDIS_URL` for horizontal scaling, but continuous adapter health is not yet monitored.
-- Push notifications require valid VAPID keys in the API environment; without them the app works normally but push opt-in will report that notifications are not configured.
+- The public backend is offline. A full production re-deployment is planned under B237.
+- The target B237 production stack uses a single Hetzner VPS for the first public
+  beta. This is a single point of failure until horizontal scaling is added.
+- Real email delivery uses Resend by default. If Resend quota or outage occurs,
+  configure `MAIL_FALLBACK_PROVIDER=smtp` plus `SMTP_*` env vars to keep auth
+  emails flowing. `MAIL_PROVIDER=console` is local-dev only and must not be used
+  in production.
+- Presence is in-memory; a Redis Socket.io adapter is available via
+  `WEBSOCKET_REDIS_URL` for horizontal scaling, but continuous adapter health
+  is not yet monitored.
+- Push notifications require valid VAPID keys in the API environment; without
+  them the app works normally but push opt-in will report that notifications are
+  not configured.
 
 ---
 

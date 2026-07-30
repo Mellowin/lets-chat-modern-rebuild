@@ -42,6 +42,7 @@ import { MAX_ATTACHMENT_SIZE_BYTES } from './attachment-validation';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUserResponse } from '../auth/auth.service';
+import { StrictThrottle } from '../rate-limiting/rate-limiting.module';
 
 @ApiTags('Messages')
 @Controller('workspaces/:workspaceId/channels/:channelId/messages')
@@ -187,6 +188,7 @@ export class MessagesController {
   }
 
   @Post('attachments/upload')
+  @StrictThrottle(20, 60)
   @ApiOperation({ summary: 'Upload an attachment through the API proxy' })
   @ApiCreatedResponse({
     description: 'Attachment uploaded',

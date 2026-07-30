@@ -1,0 +1,35 @@
+# Production Caddyfile for Lets Chat.
+#
+# Environment variables:
+#   API_DOMAIN       — the public domain that points to this server (required).
+#   TLS_MODE         — "on" for automatic HTTPS (production) or "off" for HTTP
+#                      only (local CI). Defaults to "on".
+#   ACME_EMAIL       — optional email address for Let's Encrypt account.
+{
+	auto_https {$TLS_MODE:on}
+}
+
+{$API_DOMAIN} {
+	# Limit request body size to slightly above the largest supported total
+	# attachment upload (150 MB) so Caddy rejects oversized payloads early.
+	request_body {
+		max_size 160MB
+	}
+
+	# Reverse proxy to the API container. We explicitly overwrite
+	# X-Forwarded-For with the immediate peer IP so the API can trust a single
+	# proxy hop and clients cannot spoof the chain.
+	reverse_proxy api:3001 {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-Host {host}
+	}
+
+	# Security headers managed primarily by the API (Helmet). Caddy adds a
+	# conservative default referrer policy.
+	header Referrer-Policy "strict-origin-when-cross-origin"
+
+	encode zstd gzip
+}

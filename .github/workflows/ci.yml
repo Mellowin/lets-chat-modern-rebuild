@@ -397,3 +397,157 @@ jobs:
       - name: Tear down local infrastructure
         if: always()
         run: docker compose down
+
+  production-artifacts:
+    name: Production artifact checks
+    needs: [ci, api-e2e]
+    runs-on: ubuntu-latest
+    env:
+      CI_TEST_IMAGE: letschat-api:ci
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build production API Docker image
+        run: docker build -f apps/api/Dockerfile -t "$CI_TEST_IMAGE" .
+
+      - name: Ensure image contains no .env files or development configs
+        run: |
+          FOUND=$(docker run --rm "$CI_TEST_IMAGE" find /app -name '.env*' -o -name '.env.production*' 2>/dev/null | wc -l)
+          if [ "$FOUND" -ne 0 ]; then
+            echo "Found .env files in production image: $FOUND"
+            exit 1
+          fi
+          echo "✅ No .env files baked into image"
+
+      - name: Validate docker-compose.prod.yml configuration
+        run: |
+          # Create a temporary production env file for validation only.
+          cat > .env.production <<EOF
+          POSTGRES_USER=postgres
+          POSTGRES_PASSWORD=postgres
+          POSTGRES_DB=ci_test
+          API_DOMAIN=localhost
+          TLS_MODE=off
+          DATABASE_URL=postgresql://postgres:postgres@postgres:5432/ci_test?schema=public
+          REDIS_URL=redis://redis:6379
+          JWT_ACCESS_SECRET=ci-test-jwt-access-secret-min-32-characters-long
+          JWT_REFRESH_SECRET=ci-test-jwt-refresh-secret-min-32-characters-long
+          S3_ENDPOINT=http://minio:9000
+          S3_REGION=us-east-1
+          S3_ACCESS_KEY=minioadmin
+          S3_SECRET_KEY=minioadmin
+          S3_BUCKET=letschat-uploads
+          S3_FORCE_PATH_STYLE=true
+          CORS_ORIGIN=https://app.example.com
+          APP_WEB_URL=https://app.example.com
+          MAIL_PROVIDER=resend
+          MAIL_FROM=noreply@example.com
+          RESEND_API_KEY=re_ci_test
+          THROTTLER_ENABLED=false
+          EOF
+          docker compose -f docker-compose.prod.yml --env-file .env.production config >/dev/null
+          rm -f .env.production
+
+      - name: Validate Caddyfile.production
+        run: |
+          docker run --rm \
+            -v "$PWD/Caddyfile.production:/etc/caddy/Caddyfile:ro" \
+            -e API_DOMAIN=localhost \
+            -e TLS_MODE=off \
+            caddy:2-alpine \
+            caddy validate --config /etc/caddy/Caddyfile
+
+      - name: Start temporary PostgreSQL, Redis and MinIO
+        run: |
+          docker network create ci-network || true
+          docker run -d --name ci-postgres --network ci-network \
+            -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=ci_test \
+            -p 5433:5432 postgres:15-alpine
+          docker run -d --name ci-redis --network ci-network -p 6380:6379 redis:7-alpine
+          docker run -d --name ci-minio --network ci-network \
+            -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin \
+            -p 9002:9000 minio/minio server /data
+          for i in $(seq 1 30); do
+            docker exec ci-postgres pg_isready -U postgres -d ci_test >/dev/null 2>&1 && break
+            sleep 1
+          done
+
+      - name: Create MinIO bucket
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:9002/minio/health/live >/dev/null && break
+            sleep 1
+          done
+          aws --endpoint-url http://localhost:9002 --region us-east-1 s3 mb s3://letschat-uploads || true
+
+      - name: Apply migrations to temporary database
+        run: |
+          docker run --rm --network ci-network \
+            -v "$PWD:/workspace" -w /workspace \
+            -e DATABASE_URL='postgresql://postgres:postgres@ci-postgres:5432/ci_test?schema=public' \
+            node:22-slim \
+            sh -c "apt-get update && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/* && corepack enable && corepack prepare pnpm@9.1.0 --activate && pnpm install --frozen-lockfile && pnpm --filter @lets-chat/database migrate:deploy"
+
+      - name: Run production API container
+        run: |
+          docker run -d --name ci-api --network ci-network -p 3001:3001 \
+            -e NODE_ENV=production \
+            -e PORT=3001 \
+            -e DATABASE_URL='postgresql://postgres:postgres@ci-postgres:5432/ci_test?schema=public' \
+            -e REDIS_URL='redis://ci-redis:6379' \
+            -e S3_ENDPOINT='http://ci-minio:9000' \
+            -e S3_REGION=us-east-1 \
+            -e S3_ACCESS_KEY=minioadmin \
+            -e S3_SECRET_KEY=minioadmin \
+            -e S3_BUCKET=letschat-uploads \
+            -e S3_FORCE_PATH_STYLE=true \
+            -e JWT_ACCESS_SECRET='ci-test-jwt-access-secret-min-32-characters-long' \
+            -e JWT_REFRESH_SECRET='ci-test-jwt-refresh-secret-min-32-characters-long' \
+            -e CORS_ORIGIN='https://app.example.com' \
+            -e APP_WEB_URL='https://app.example.com' \
+            -e MAIL_PROVIDER=resend \
+            -e MAIL_FROM=noreply@example.com \
+            -e RESEND_API_KEY=re_ci_test \
+            -e THROTTLER_ENABLED=false \
+            "$CI_TEST_IMAGE"
+
+      - name: Wait for liveness and readiness
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:3001/api/v1/health/live >/dev/null && \
+               curl -sf http://localhost:3001/api/v1/health/ready >/dev/null; then
+              echo "✅ API is live and ready (attempt $i)"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "❌ API did not become ready"
+          docker logs ci-api
+          exit 1
+
+      - name: Verify security headers in production mode
+        run: |
+          HEADERS=$(curl -sfI http://localhost:3001/api/v1/health/live)
+          echo "$HEADERS" | grep -i "X-Content-Type-Options: nosniff" || (echo "Missing nosniff header" && exit 1)
+          echo "$HEADERS" | grep -i "X-Frame-Options" || (echo "Missing frame-options header" && exit 1)
+          echo "✅ Security headers present"
+
+      - name: Test graceful shutdown
+        run: |
+          docker stop -t 30 ci-api
+          EXIT_CODE=$(docker inspect ci-api --format='{{.State.ExitCode}}')
+          if [ "$EXIT_CODE" != "0" ]; then
+            echo "❌ API exited with code $EXIT_CODE after SIGTERM"
+            exit 1
+          fi
+          echo "✅ Graceful shutdown OK"
+
+      - name: Clean up containers
+        if: always()
+        run: |
+          docker rm -f ci-api ci-postgres ci-redis ci-minio 2>/dev/null || true
+          docker network rm ci-network 2>/dev/null || true

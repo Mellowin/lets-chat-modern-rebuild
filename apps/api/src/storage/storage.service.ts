@@ -88,6 +88,21 @@ export class StorageService implements OnModuleInit {
     );
   }
 
+  async checkHealth(): Promise<'ok' | 'error'> {
+    try {
+      await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
+      return 'ok';
+    } catch (error) {
+      if (this.isAwsForbiddenError(error)) {
+        // Forbidden means the bucket exists but we lack HeadBucket permission.
+        // Treat as ok because the service is reachable and authenticated.
+        return 'ok';
+      }
+      this.logger.warn('Storage health check failed');
+      return 'error';
+    }
+  }
+
   async getPresignedUploadUrl(
     objectKey: string,
     contentType: string,

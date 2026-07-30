@@ -1,13 +1,16 @@
 import { Controller, Get } from '@nestjs/common';
+import { SkipThrottle } from './rate-limiting/rate-limiting.module';
 
 @Controller()
 export class AppController {
   @Get()
+  @SkipThrottle()
   getRoot() {
     return { status: 'ok', service: 'Lets Chat API' };
   }
 
   @Get('version')
+  @SkipThrottle()
   getVersion() {
     return {
       status: 'ok',

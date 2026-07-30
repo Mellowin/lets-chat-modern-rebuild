@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { DemoService } from './demo.service';
+import { StrictThrottle } from '../rate-limiting/rate-limiting.module';
 
 @Controller('demo')
 export class DemoController {
@@ -19,6 +20,7 @@ export class DemoController {
   }
 
   @Post('session')
+  @StrictThrottle(10, 60)
   @HttpCode(201)
   async createSession(@Req() req: Request) {
     if (!this.demoService.isDemoModeEnabled()) {
