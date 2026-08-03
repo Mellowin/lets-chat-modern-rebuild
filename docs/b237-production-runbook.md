@@ -185,7 +185,17 @@ Pull (or build) the desired image, then start the stack. Migrations run
 automatically in a one-shot `migrate` container before the API starts serving
 traffic, and Caddy waits until the API is healthy before accepting requests.
 
+If you are deploying a pre-built image from a registry:
+
 ```bash
+docker compose -f docker-compose.prod.yml --env-file .env.production pull
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+```
+
+If you build the image directly on the VPS instead:
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.production build
 docker compose -f docker-compose.prod.yml --env-file .env.production up -d
 ```
 
