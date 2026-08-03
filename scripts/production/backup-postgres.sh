@@ -65,13 +65,13 @@ IFS=$'\t' read -r DB_USER DB_PASSWORD DB_HOST DB_PORT DB_NAME <<< "$DB_PARTS"
 TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
 DUMP_NAME="${TIMESTAMP}_${DB_NAME}.dump"
 CHECKSUM_NAME="${DUMP_NAME}.sha256"
-LOCAL_DUMP=$(mktemp "letschat-backup-XXXXXX.dump")
-LOCAL_CHECKSUM="${LOCAL_DUMP}.sha256"
+TMP_DIR=$(mktemp -d "letschat-backup-XXXXXX")
+LOCAL_DUMP="$TMP_DIR/$DUMP_NAME"
+LOCAL_CHECKSUM="$TMP_DIR/$CHECKSUM_NAME"
 
-# Remove temporary files on exit, but only if the upload succeeded or we are
-# exiting because of an error.
+# Remove temporary directory on exit.
 cleanup() {
-  rm -f "$LOCAL_DUMP" "$LOCAL_CHECKSUM"
+  rm -rf "$TMP_DIR"
 }
 trap cleanup EXIT
 
@@ -87,9 +87,12 @@ echo "Starting backup of ${DB_NAME}@${DB_HOST}:${DB_PORT}"
 export PGPASSWORD="$DB_PASSWORD"
 pg_dump -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -Fc -f "$LOCAL_DUMP"
 
-sha256sum "$LOCAL_DUMP" | awk '{print $1}' > "$LOCAL_CHECKSUM"
-DUMMY_CHECK=$(cat "$LOCAL_CHECKSUM")
-echo "Backup size: $(du -h "$LOCAL_DUMP" | cut -f1)  checksum: ${DUMMY_CHECK}"
+# sha256sum with the filename so the checksum file is compatible with
+# `sha256sum -c` during restore. Run inside the temporary directory so the
+# recorded filename is a plain basename and not the relative temp path.
+( cd "$TMP_DIR" && sha256sum "$DUMP_NAME" > "$CHECKSUM_NAME" )
+DUMP_CHECKSUM=$(awk '{print $1}' "$LOCAL_CHECKSUM")
+echo "Backup size: $(du -h "$LOCAL_DUMP" | cut -f1)  checksum: ${DUMP_CHECKSUM}"
 
 aws s3 cp "$LOCAL_DUMP" "s3://${BACKUP_BUCKET}/${BACKUP_PREFIX}/${DUMP_NAME}" \
   --endpoint-url "$S3_ENDPOINT" \

@@ -38,13 +38,39 @@ export class StorageService implements OnModuleInit {
     await this.ensureBucketExists();
   }
 
-  private isAwsForbiddenError(error: unknown): boolean {
+  private isAwsAuthError(error: unknown): boolean {
     if (typeof error !== 'object' || error === null) return false;
     const err = error as Record<string, unknown>;
-    if (err.name === 'Forbidden' || err.name === 'AccessDenied') return true;
+    const authErrorNames = new Set([
+      'Forbidden',
+      'AccessDenied',
+      'InvalidAccessKeyId',
+      'SignatureDoesNotMatch',
+      'ExpiredToken',
+      'TokenRefreshRequired',
+      'UnauthorizedOperation',
+    ]);
+    if (typeof err.name === 'string' && authErrorNames.has(err.name)) {
+      return true;
+    }
+    const code = err.Code;
+    if (typeof code === 'string' && authErrorNames.has(code)) {
+      return true;
+    }
     const metadata = err.$metadata;
     if (typeof metadata !== 'object' || metadata === null) return false;
     return (metadata as Record<string, unknown>).httpStatusCode === 403;
+  }
+
+  private isNotFoundError(error: unknown): boolean {
+    if (error instanceof NotFound) return true;
+    if (typeof error !== 'object' || error === null) return false;
+    const err = error as Record<string, unknown>;
+    if (err.name === 'NotFound') return true;
+    if (err.Code === 'NoSuchBucket') return true;
+    const metadata = err.$metadata;
+    if (typeof metadata !== 'object' || metadata === null) return false;
+    return (metadata as Record<string, unknown>).httpStatusCode === 404;
   }
 
   private async ensureBucketExists() {
@@ -52,12 +78,7 @@ export class StorageService implements OnModuleInit {
       await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
       this.logger.log(`Bucket "${this.bucket}" exists`);
     } catch (error) {
-      if (
-        error instanceof NotFound ||
-        (typeof error === 'object' &&
-          error !== null &&
-          (error as Record<string, unknown>).name === 'NotFound')
-      ) {
+      if (this.isNotFoundError(error)) {
         try {
           await this.client.send(
             new CreateBucketCommand({ Bucket: this.bucket }),
@@ -69,10 +90,11 @@ export class StorageService implements OnModuleInit {
           );
           throw createError;
         }
-      } else if (this.isAwsForbiddenError(error)) {
-        this.logger.warn(
-          `No permission to verify bucket "${this.bucket}" (403 Forbidden). Assuming bucket exists.`,
+      } else if (this.isAwsAuthError(error)) {
+        this.logger.error(
+          `Storage credentials are invalid or not authorized to access bucket "${this.bucket}".`,
         );
+        throw error;
       } else {
         this.logger.error(
           `Failed to check bucket "${this.bucket}": ${(error as Error).message}`,
@@ -93,12 +115,17 @@ export class StorageService implements OnModuleInit {
       await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
       return 'ok';
     } catch (error) {
-      if (this.isAwsForbiddenError(error)) {
-        // Forbidden means the bucket exists but we lack HeadBucket permission.
-        // Treat as ok because the service is reachable and authenticated.
-        return 'ok';
+      // Any auth/credential error, missing bucket, or network failure makes the
+      // storage dependency unhealthy. We intentionally do not mask 403/Forbidden
+      // because it often indicates invalid credentials (InvalidAccessKeyId,
+      // SignatureDoesNotMatch, etc.) or a missing bucket in R2.
+      if (this.isAwsAuthError(error)) {
+        this.logger.warn('Storage health check failed: authentication error');
+      } else if (this.isNotFoundError(error)) {
+        this.logger.warn('Storage health check failed: bucket not found');
+      } else {
+        this.logger.warn('Storage health check failed');
       }
-      this.logger.warn('Storage health check failed');
       return 'error';
     }
   }

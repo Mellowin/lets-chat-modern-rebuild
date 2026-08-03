@@ -431,7 +431,7 @@ jobs:
           POSTGRES_PASSWORD=postgres
           POSTGRES_DB=ci_test
           API_DOMAIN=localhost
-          TLS_MODE=off
+          TLS_AUTO_HTTPS=auto_https off
           DATABASE_URL=postgresql://postgres:postgres@postgres:5432/ci_test?schema=public
           REDIS_URL=redis://redis:6379
           JWT_ACCESS_SECRET=ci-test-jwt-access-secret-min-32-characters-long
@@ -452,12 +452,20 @@ jobs:
           docker compose -f docker-compose.prod.yml --env-file .env.production config >/dev/null
           rm -f .env.production
 
-      - name: Validate Caddyfile.production
+      - name: Validate Caddyfile.production (HTTP test mode)
         run: |
           docker run --rm \
             -v "$PWD/Caddyfile.production:/etc/caddy/Caddyfile:ro" \
             -e API_DOMAIN=localhost \
-            -e TLS_MODE=off \
+            -e TLS_AUTO_HTTPS='auto_https off' \
+            caddy:2-alpine \
+            caddy validate --config /etc/caddy/Caddyfile
+
+      - name: Validate Caddyfile.production (HTTPS production mode)
+        run: |
+          docker run --rm \
+            -v "$PWD/Caddyfile.production:/etc/caddy/Caddyfile:ro" \
+            -e API_DOMAIN=example.com \
             caddy:2-alpine \
             caddy validate --config /etc/caddy/Caddyfile
 
@@ -477,20 +485,33 @@ jobs:
           done
 
       - name: Create MinIO bucket
+        env:
+          AWS_ACCESS_KEY_ID: minioadmin
+          AWS_SECRET_ACCESS_KEY: minioadmin
+          AWS_DEFAULT_REGION: us-east-1
         run: |
           for i in $(seq 1 30); do
             curl -sf http://localhost:9002/minio/health/live >/dev/null && break
             sleep 1
           done
-          aws --endpoint-url http://localhost:9002 --region us-east-1 s3 mb s3://letschat-uploads || true
+          aws --endpoint-url http://localhost:9002 --region us-east-1 s3 mb s3://letschat-uploads
+
+      - name: Backup/restore checksum regression
+        run: scripts/production/test-checksum-format.sh
+
+      - name: Create CI env file for migrations
+        run: |
+          cat > .env.ci <<EOF
+          DATABASE_URL=postgresql://postgres:postgres@ci-postgres:5432/ci_test?schema=public
+          EOF
 
       - name: Apply migrations to temporary database
         run: |
           docker run --rm --network ci-network \
-            -v "$PWD:/workspace" -w /workspace \
-            -e DATABASE_URL='postgresql://postgres:postgres@ci-postgres:5432/ci_test?schema=public' \
-            node:22-slim \
-            sh -c "apt-get update && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/* && corepack enable && corepack prepare pnpm@9.1.0 --activate && pnpm install --frozen-lockfile && pnpm --filter @lets-chat/database migrate:deploy"
+            --env-file .env.ci \
+            "$CI_TEST_IMAGE" \
+            node packages/database/node_modules/prisma/build/index.js migrate deploy --schema=packages/database/prisma/schema.prisma
+          rm -f .env.ci
 
       - name: Run production API container
         run: |
