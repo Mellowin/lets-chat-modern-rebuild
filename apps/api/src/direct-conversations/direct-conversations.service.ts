@@ -396,14 +396,14 @@ export class DirectConversationsService {
     let targetUser = null;
 
     if (dto.userId) {
-      targetUser = await this.users.findById(dto.userId);
+      targetUser = await this.users.findActiveById(dto.userId);
     }
 
     if (!targetUser && dto.usernameOrEmail) {
       const trimmed = dto.usernameOrEmail.trim();
-      targetUser = await this.users.findByUsername(trimmed);
+      targetUser = await this.users.findActiveByUsername(trimmed);
       if (!targetUser) {
-        targetUser = await this.users.findByEmail(trimmed);
+        targetUser = await this.users.findActiveByEmail(trimmed);
       }
     }
 

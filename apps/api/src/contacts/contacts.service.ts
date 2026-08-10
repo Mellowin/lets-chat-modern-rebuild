@@ -56,17 +56,17 @@ export class ContactsService {
 
   private async resolveTargetUser(dto: CreateContactDto) {
     if (dto.userId) {
-      const user = await this.users.findById(dto.userId);
+      const user = await this.users.findActiveById(dto.userId);
       if (user) return user;
     }
 
     if (dto.email) {
-      const user = await this.users.findByEmail(dto.email);
+      const user = await this.users.findActiveByEmail(dto.email);
       if (user) return user;
     }
 
     if (dto.username) {
-      const user = await this.users.findByUsername(dto.username);
+      const user = await this.users.findActiveByUsername(dto.username);
       if (user) return user;
     }
 

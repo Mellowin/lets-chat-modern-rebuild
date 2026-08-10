@@ -481,9 +481,9 @@ export class WorkspacesService {
     }
 
     const identifier = dto.identifier.trim();
-    let targetUser = await this.users.findByUsername(identifier);
+    let targetUser = await this.users.findActiveByUsername(identifier);
     if (!targetUser) {
-      targetUser = await this.users.findByEmail(identifier);
+      targetUser = await this.users.findActiveByEmail(identifier);
     }
     if (!targetUser) {
       throw new NotFoundException('User not found');

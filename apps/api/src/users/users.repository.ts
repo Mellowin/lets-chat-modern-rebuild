@@ -99,6 +99,7 @@ export class UsersRepository {
     return this.prisma.user.findMany({
       where: {
         id: { not: excludeUserId },
+        status: 'ACTIVE',
         OR: [
           {
             username: {
@@ -157,6 +158,7 @@ export class UsersRepository {
           in: normalized,
           mode: 'insensitive',
         },
+        status: 'ACTIVE',
       },
     });
   }

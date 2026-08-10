@@ -551,7 +551,7 @@ export class GroupsService {
       throw new NotFoundException('Group not found');
     }
 
-    const targetUser = await this.users.findById(dto.userId);
+    const targetUser = await this.users.findActiveById(dto.userId);
     if (!targetUser) {
       throw new NotFoundException('User not found');
     }
