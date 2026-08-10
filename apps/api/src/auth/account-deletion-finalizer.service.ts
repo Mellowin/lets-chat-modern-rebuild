@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@lets-chat/database';
 import { randomBytes } from 'crypto';
@@ -12,8 +17,12 @@ import {
 const DEFAULT_RUN_INTERVAL_MS = 60 * 60 * 1000;
 
 @Injectable()
-export class AccountDeletionFinalizerService implements OnModuleInit {
+export class AccountDeletionFinalizerService
+  implements OnModuleInit, OnModuleDestroy
+{
   private readonly logger = new Logger(AccountDeletionFinalizerService.name);
+  private startupTimer: NodeJS.Timeout | null = null;
+  private intervalTimer: NodeJS.Timeout | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -23,17 +32,30 @@ export class AccountDeletionFinalizerService implements OnModuleInit {
 
   onModuleInit() {
     // Run once shortly after startup to handle any backlog, then periodically.
-    setTimeout(() => {
+    this.startupTimer = setTimeout(() => {
       void this.run();
     }, 5000);
+    this.startupTimer.unref();
 
     const intervalMs = this.config.get<number>(
       'ACCOUNT_DELETION_FINALIZER_INTERVAL_MS',
       DEFAULT_RUN_INTERVAL_MS,
     );
-    setInterval(() => {
+    this.intervalTimer = setInterval(() => {
       void this.run();
     }, intervalMs);
+    this.intervalTimer.unref();
+  }
+
+  onModuleDestroy() {
+    if (this.startupTimer) {
+      clearTimeout(this.startupTimer);
+      this.startupTimer = null;
+    }
+    if (this.intervalTimer) {
+      clearInterval(this.intervalTimer);
+      this.intervalTimer = null;
+    }
   }
 
   async run(): Promise<{ processedCount: number }> {

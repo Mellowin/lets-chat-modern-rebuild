@@ -273,4 +273,15 @@ describe('AccountDeletionFinalizerService', () => {
     expect(mock.state.users.get(userId)?.status).toBe('ANONYMIZED');
     expect(mock.state.users.get(userId)?.anonymizedAt).toEqual(first);
   });
+
+  it('cleans up timers on module destroy', async () => {
+    const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
+    const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
+
+    service.onModuleInit();
+    await service.onModuleDestroy();
+
+    expect(clearTimeoutSpy).toHaveBeenCalled();
+    expect(clearIntervalSpy).toHaveBeenCalled();
+  });
 });
