@@ -5,16 +5,20 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Request } from 'express';
+import { Reflector } from '@nestjs/core';
 import { TokenService } from '../token.service';
 import { UsersRepository } from '../../users/users.repository';
 import { AuthUserResponse } from '../auth.service';
 import { isDeletedUser } from '../../common/deleted-user-mapper';
+
+export const ALLOW_PENDING_DELETION = 'allowPendingDeletion';
 
 @Injectable()
 export class JwtAccessGuard implements CanActivate {
   constructor(
     private readonly token: TokenService,
     private readonly users: UsersRepository,
+    private readonly reflector: Reflector,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -38,7 +42,15 @@ export class JwtAccessGuard implements CanActivate {
     }
 
     if (isDeletedUser(user)) {
-      throw new UnauthorizedException('Account unavailable');
+      const allowPendingDeletion = this.reflector.getAllAndOverride<boolean>(
+        ALLOW_PENDING_DELETION,
+        [context.getHandler(), context.getClass()],
+      );
+      if (allowPendingDeletion && user.status === 'PENDING_DELETION') {
+        // Allow retry of an already-scheduled deletion request.
+      } else {
+        throw new UnauthorizedException('Account unavailable');
+      }
     }
 
     (request as Request & { user: AuthUserResponse; sessionId?: string }).user =

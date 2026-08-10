@@ -531,6 +531,7 @@ export async function updateNotificationPreferences(accessToken: string, input: 
 export interface RequestAccountDeletionInput {
   currentPassword: string;
   confirmationPhrase: string;
+  idempotencyKey: string;
 }
 
 export interface RequestAccountDeletionResult {
@@ -547,8 +548,12 @@ export async function requestAccountDeletion(
       "Content-Type": "application/json",
       Accept: "application/json",
       Authorization: `Bearer ${accessToken}`,
+      "Idempotency-Key": input.idempotencyKey,
     },
-    body: JSON.stringify(input),
+    body: JSON.stringify({
+      currentPassword: input.currentPassword,
+      confirmationPhrase: input.confirmationPhrase,
+    }),
   });
 
   if (!res.ok) {

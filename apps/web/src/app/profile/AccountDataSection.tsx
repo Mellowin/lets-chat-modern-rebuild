@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Trash2, Download } from "lucide-react";
 
@@ -46,6 +46,13 @@ function downloadBlob(blob: Blob, filename: string) {
   window.URL.revokeObjectURL(url);
 }
 
+function generateIdempotencyKey(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 export function AccountDataSection({
   accessToken,
   user,
@@ -64,6 +71,12 @@ export function AccountDataSection({
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteState, setDeleteState] = useState<FormState>({ kind: "idle" });
+  const [deleteIdempotencyKey, setDeleteIdempotencyKey] = useState<string | null>(null);
+
+  const openDeleteDialog = useCallback(() => {
+    setDeleteIdempotencyKey(generateIdempotencyKey());
+    setDeleteOpen(true);
+  }, []);
 
   async function handleExport(e: React.FormEvent) {
     e.preventDefault();
@@ -85,7 +98,7 @@ export function AccountDataSection({
 
   async function handleDelete(e: React.FormEvent) {
     e.preventDefault();
-    if (!accessToken) return;
+    if (!accessToken || !deleteIdempotencyKey) return;
     const password = deletePasswordRef.current?.value ?? "";
     const phrase = deletePhraseRef.current?.value ?? "";
     if (phrase !== "DELETE MY ACCOUNT") {
@@ -97,6 +110,7 @@ export function AccountDataSection({
       await requestAccountDeletion(accessToken, {
         currentPassword: password,
         confirmationPhrase: phrase,
+        idempotencyKey: deleteIdempotencyKey,
       });
       setDeleteState({ kind: "success", message: t("profile.deleteAccountRequested") });
       if (deletePasswordRef.current) deletePasswordRef.current.value = "";
@@ -145,7 +159,7 @@ export function AccountDataSection({
             <Button
               type="button"
               variant="danger"
-              onClick={() => setDeleteOpen(true)}
+              onClick={() => openDeleteDialog()}
               data-testid="delete-account-button"
             >
               <Trash2 size={16} className="mr-2" />
@@ -214,7 +228,10 @@ export function AccountDataSection({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+      <Dialog open={deleteOpen} onOpenChange={(open) => {
+        setDeleteOpen(open);
+        if (!open) setDeleteIdempotencyKey(null);
+      }}>
         <DialogContent>
           <form onSubmit={handleDelete}>
             <DialogHeader>

@@ -1,18 +1,23 @@
 import { Test } from '@nestjs/testing';
 import { ModuleRef } from '@nestjs/core';
 import {
+  BadRequestException,
   ForbiddenException,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { UserStatus } from '@lets-chat/database';
-import { AccountDeletionService } from './account-deletion.service';
+import {
+  AccountDeletionService,
+  RequestAccountDeletionResult,
+} from './account-deletion.service';
 import { UsersRepository } from '../users/users.repository';
 import { RefreshTokensRepository } from './refresh-tokens.repository';
 import { PasswordService } from './password.service';
 import { MailService } from '../mail/mail.service';
 import { AuditService } from '../audit/audit.service';
 import { WebsocketEventsService } from '../websocket/websocket-events.service';
+import { AccountDeletionIdempotencyService } from './account-deletion-idempotency.service';
 
 describe('AccountDeletionService', () => {
   let service: AccountDeletionService;
@@ -24,6 +29,7 @@ describe('AccountDeletionService', () => {
   let auditService: jest.Mocked<AuditService>;
 
   const userId = '11111111-1111-1111-1111-111111111111';
+  const idempotencyKey = 'test-idempotency-key';
 
   function makeUser(status: UserStatus = UserStatus.ACTIVE) {
     return {
@@ -110,6 +116,19 @@ describe('AccountDeletionService', () => {
             }),
           },
         },
+        {
+          provide: AccountDeletionIdempotencyService,
+          useValue: {
+            run: jest.fn(
+              (
+                _key: string,
+                _userId: string,
+                _bodyHash: string,
+                operation: () => Promise<RequestAccountDeletionResult>,
+              ) => operation(),
+            ),
+          },
+        },
       ],
     }).compile();
 
@@ -127,9 +146,20 @@ describe('AccountDeletionService', () => {
   });
 
   describe('requestAccountDeletion', () => {
+    it('rejects when idempotency key is missing', async () => {
+      await expect(
+        service.requestAccountDeletion(userId, 'password', 'DELETE MY ACCOUNT'),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
     it('rejects invalid confirmation phrase', async () => {
       await expect(
-        service.requestAccountDeletion(userId, 'password', 'wrong phrase'),
+        service.requestAccountDeletion(
+          userId,
+          'password',
+          'wrong phrase',
+          idempotencyKey,
+        ),
       ).rejects.toBeInstanceOf(ForbiddenException);
     });
 
@@ -137,7 +167,12 @@ describe('AccountDeletionService', () => {
       usersRepository.findById.mockResolvedValue(null);
 
       await expect(
-        service.requestAccountDeletion(userId, 'password', 'DELETE MY ACCOUNT'),
+        service.requestAccountDeletion(
+          userId,
+          'password',
+          'DELETE MY ACCOUNT',
+          idempotencyKey,
+        ),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
@@ -150,6 +185,7 @@ describe('AccountDeletionService', () => {
         userId,
         'password',
         'DELETE MY ACCOUNT',
+        idempotencyKey,
       );
 
       expect(result.scheduledFor).toEqual(
@@ -169,7 +205,12 @@ describe('AccountDeletionService', () => {
       );
 
       await expect(
-        service.requestAccountDeletion(userId, 'password', 'DELETE MY ACCOUNT'),
+        service.requestAccountDeletion(
+          userId,
+          'password',
+          'DELETE MY ACCOUNT',
+          idempotencyKey,
+        ),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
@@ -182,6 +223,7 @@ describe('AccountDeletionService', () => {
           userId,
           'wrongpassword',
           'DELETE MY ACCOUNT',
+          idempotencyKey,
         ),
       ).rejects.toBeInstanceOf(UnauthorizedException);
     });
@@ -194,7 +236,12 @@ describe('AccountDeletionService', () => {
       ]);
 
       await expect(
-        service.requestAccountDeletion(userId, 'password', 'DELETE MY ACCOUNT'),
+        service.requestAccountDeletion(
+          userId,
+          'password',
+          'DELETE MY ACCOUNT',
+          idempotencyKey,
+        ),
       ).rejects.toBeInstanceOf(ForbiddenException);
     });
 
@@ -206,7 +253,12 @@ describe('AccountDeletionService', () => {
       ]);
 
       await expect(
-        service.requestAccountDeletion(userId, 'password', 'DELETE MY ACCOUNT'),
+        service.requestAccountDeletion(
+          userId,
+          'password',
+          'DELETE MY ACCOUNT',
+          idempotencyKey,
+        ),
       ).rejects.toBeInstanceOf(ForbiddenException);
     });
 
@@ -223,6 +275,7 @@ describe('AccountDeletionService', () => {
         userId,
         'password',
         'DELETE MY ACCOUNT',
+        idempotencyKey,
       );
 
       expect(result.scheduledFor).toBeInstanceOf(Date);
@@ -237,6 +290,87 @@ describe('AccountDeletionService', () => {
       expect(
         mailService.sendAccountDeletionCancellationEmail,
       ).toHaveBeenCalled();
+    });
+
+    it('rolls back to ACTIVE when audit recording fails', async () => {
+      usersRepository.findById.mockResolvedValue(makeUser());
+      passwordService.verifyPassword.mockResolvedValue(true);
+      usersRepository.requestAccountDeletion.mockResolvedValue(
+        makeUser(UserStatus.PENDING_DELETION) as NonNullable<
+          Awaited<ReturnType<UsersRepository['requestAccountDeletion']>>
+        >,
+      );
+      auditService.record.mockRejectedValue(new Error('Audit failure'));
+
+      await expect(
+        service.requestAccountDeletion(
+          userId,
+          'password',
+          'DELETE MY ACCOUNT',
+          idempotencyKey,
+        ),
+      ).rejects.toThrow('Audit failure');
+
+      expect(usersRepository.clearDeletionRequest).toHaveBeenCalledWith(userId);
+    });
+
+    it('rolls back to ACTIVE when cancellation email fails', async () => {
+      usersRepository.findById.mockResolvedValue(makeUser());
+      passwordService.verifyPassword.mockResolvedValue(true);
+      usersRepository.requestAccountDeletion.mockResolvedValue(
+        makeUser(UserStatus.PENDING_DELETION) as NonNullable<
+          Awaited<ReturnType<UsersRepository['requestAccountDeletion']>>
+        >,
+      );
+      mailService.sendAccountDeletionCancellationEmail.mockRejectedValue(
+        new Error('Mail failure'),
+      );
+
+      await expect(
+        service.requestAccountDeletion(
+          userId,
+          'password',
+          'DELETE MY ACCOUNT',
+          idempotencyKey,
+        ),
+      ).rejects.toThrow('Mail failure');
+
+      expect(usersRepository.clearDeletionRequest).toHaveBeenCalledWith(userId);
+    });
+
+    it('allows a second request after rollback due to mail failure', async () => {
+      usersRepository.findById.mockResolvedValue(makeUser());
+      passwordService.verifyPassword.mockResolvedValue(true);
+      usersRepository.requestAccountDeletion.mockResolvedValue(
+        makeUser(UserStatus.PENDING_DELETION) as NonNullable<
+          Awaited<ReturnType<UsersRepository['requestAccountDeletion']>>
+        >,
+      );
+      mailService.sendAccountDeletionCancellationEmail
+        .mockRejectedValueOnce(new Error('Mail failure'))
+        .mockResolvedValueOnce(undefined);
+
+      await expect(
+        service.requestAccountDeletion(
+          userId,
+          'password',
+          'DELETE MY ACCOUNT',
+          idempotencyKey,
+        ),
+      ).rejects.toThrow('Mail failure');
+      expect(usersRepository.clearDeletionRequest).toHaveBeenCalledTimes(1);
+
+      // A new idempotency key represents a fresh logical request.
+      const result = await service.requestAccountDeletion(
+        userId,
+        'password',
+        'DELETE MY ACCOUNT',
+        'new-idempotency-key',
+      );
+      expect(result.scheduledFor).toBeInstanceOf(Date);
+      expect(
+        mailService.sendAccountDeletionCancellationEmail,
+      ).toHaveBeenCalledTimes(2);
     });
   });
 

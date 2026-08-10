@@ -13,6 +13,7 @@ import {
   AuditEntityType,
   AuditSeverity,
 } from '../audit/audit.constants';
+import { AvatarUploadService } from './avatar-upload.service';
 
 const DEFAULT_RUN_INTERVAL_MS = 60 * 60 * 1000;
 
@@ -28,6 +29,7 @@ export class AccountDeletionFinalizerService
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly audit: AuditService,
+    private readonly avatarUpload: AvatarUploadService,
   ) {}
 
   onModuleInit() {
@@ -92,6 +94,18 @@ export class AccountDeletionFinalizerService
   }
 
   async finalizeUser(userId: string, now = new Date()): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId, status: 'PENDING_DELETION' },
+      select: { id: true, avatarUrl: true },
+    });
+    if (!user) {
+      return false;
+    }
+
+    if (user.avatarUrl) {
+      await this.avatarUpload.deleteAvatar(user.avatarUrl, userId);
+    }
+
     return this.prisma.$transaction(async (tx) => {
       // Conditional update acts as a DB-level claim: only one instance wins.
       const updateResult = await tx.user.updateMany({

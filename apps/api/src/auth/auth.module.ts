@@ -5,6 +5,7 @@ import { AuthCommonModule } from './auth-common.module';
 import { AuthController } from './auth.controller';
 import { AccountDeletionService } from './account-deletion.service';
 import { AccountDeletionFinalizerService } from './account-deletion-finalizer.service';
+import { AccountDeletionIdempotencyService } from './account-deletion-idempotency.service';
 import { DataExportService } from './data-export.service';
 
 @Module({
@@ -13,12 +14,14 @@ import { DataExportService } from './data-export.service';
   providers: [
     AccountDeletionService,
     AccountDeletionFinalizerService,
+    AccountDeletionIdempotencyService,
     DataExportService,
   ],
   exports: [
     AuthCommonModule,
     AccountDeletionService,
     AccountDeletionFinalizerService,
+    AccountDeletionIdempotencyService,
     DataExportService,
   ],
 })

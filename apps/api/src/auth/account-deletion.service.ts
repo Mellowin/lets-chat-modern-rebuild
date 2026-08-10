@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -17,6 +18,7 @@ import {
   AuditSeverity,
 } from '../audit/audit.constants';
 import { WebsocketEventsService } from '../websocket/websocket-events.service';
+import { AccountDeletionIdempotencyService } from './account-deletion-idempotency.service';
 
 export interface AccountDeletionBlocker {
   ownedWorkspaces: Array<{ id: string; name: string; slug: string }>;
@@ -36,9 +38,34 @@ export class AccountDeletionService {
     private readonly mail: MailService,
     private readonly audit: AuditService,
     private readonly moduleRef: ModuleRef,
+    private readonly idempotency: AccountDeletionIdempotencyService,
   ) {}
 
   async requestAccountDeletion(
+    userId: string,
+    currentPassword: string,
+    confirmationPhrase: string,
+    idempotencyKey?: string,
+  ): Promise<RequestAccountDeletionResult> {
+    if (!idempotencyKey) {
+      throw new BadRequestException('Idempotency-Key header is required');
+    }
+
+    const bodyHash = this.hashRequestBody({
+      currentPassword,
+      confirmationPhrase,
+    });
+
+    return this.idempotency.run(idempotencyKey, userId, bodyHash, () =>
+      this.performRequestAccountDeletion(
+        userId,
+        currentPassword,
+        confirmationPhrase,
+      ),
+    );
+  }
+
+  private async performRequestAccountDeletion(
     userId: string,
     currentPassword: string,
     confirmationPhrase: string,
@@ -95,30 +122,67 @@ export class AccountDeletionService {
 
     await this.users.requestAccountDeletion(userId, tokenHash, scheduledFor);
 
-    await this.refreshTokens.revokeAllForUser(userId);
+    try {
+      await this.refreshTokens.revokeAllForUser(userId);
 
-    // Remove all push subscriptions so deleted accounts stop receiving pushes.
-    await this.users.deletePushSubscriptionsForUser(userId);
+      // Remove all push subscriptions so deleted accounts stop receiving pushes.
+      await this.users.deletePushSubscriptionsForUser(userId);
 
-    this.disconnectUserSockets(userId);
+      this.disconnectUserSockets(userId);
 
-    await this.audit.record({
-      actorId: userId,
-      action: AuditAction.ACCOUNT_DELETION_REQUESTED,
-      entityType: AuditEntityType.USER,
-      entityId: userId,
-      severity: AuditSeverity.CRITICAL,
-      metadata: {
-        scheduledFor: scheduledFor.toISOString(),
-      },
-    });
+      await this.audit.record({
+        actorId: userId,
+        action: AuditAction.ACCOUNT_DELETION_REQUESTED,
+        entityType: AuditEntityType.USER,
+        entityId: userId,
+        severity: AuditSeverity.CRITICAL,
+        metadata: {
+          scheduledFor: scheduledFor.toISOString(),
+        },
+      });
 
-    await this.mail.sendAccountDeletionCancellationEmail({
-      to: user.email,
-      token: rawToken,
-    });
+      await this.mail.sendAccountDeletionCancellationEmail({
+        to: user.email,
+        token: rawToken,
+      });
+    } catch (error) {
+      await this.rollbackAccountDeletionRequest(userId, error);
+      throw error;
+    }
 
     return { scheduledFor };
+  }
+
+  private hashRequestBody(body: {
+    currentPassword: string;
+    confirmationPhrase: string;
+  }): string {
+    return createHash('sha256').update(JSON.stringify(body)).digest('hex');
+  }
+
+  private async rollbackAccountDeletionRequest(
+    userId: string,
+    originalError: unknown,
+  ): Promise<void> {
+    try {
+      await this.users.clearDeletionRequest(userId);
+    } catch (rollbackError) {
+      // If the rollback itself fails, the user could remain stuck in
+      // PENDING_DELETION without a cancellation token. Log both errors and
+      // throw the rollback failure so callers know the state is unsafe.
+      const rollbackMessage =
+        rollbackError instanceof Error
+          ? rollbackError.message
+          : String(rollbackError);
+      const originalMessage =
+        originalError instanceof Error
+          ? originalError.message
+          : String(originalError);
+      throw new Error(
+        `Account deletion request failed and rollback also failed. ` +
+          `Original: ${originalMessage}; Rollback: ${rollbackMessage}`,
+      );
+    }
   }
 
   async cancelAccountDeletion(token: string): Promise<{ success: boolean }> {

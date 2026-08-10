@@ -91,12 +91,7 @@ export class DirectConversationsService {
       createdAt: conversation.createdAt,
       updatedAt: conversation.updatedAt,
       otherParticipant: otherParticipant
-        ? {
-            id: otherParticipant.id,
-            username: otherParticipant.username,
-            displayName: otherParticipant.displayName,
-            avatarUrl: otherParticipant.avatarUrl,
-          }
+        ? this.mapParticipantResponse(otherParticipant)
         : null,
       lastMessage: lastMessage
         ? {
@@ -111,6 +106,31 @@ export class DirectConversationsService {
       isOnline: otherParticipant
         ? await this.presence.isUserTracked(otherParticipant.id)
         : false,
+    };
+  }
+
+  private mapParticipantResponse(participant: {
+    id: string;
+    username: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+    status?: string;
+  }) {
+    if (isDeletedUser(participant)) {
+      return {
+        id: participant.id,
+        username: '',
+        displayName: DELETED_USER_DISPLAY_NAME,
+        avatarUrl: null,
+        isDeleted: true,
+      };
+    }
+    return {
+      id: participant.id,
+      username: participant.username,
+      displayName: participant.displayName,
+      avatarUrl: participant.avatarUrl,
+      isDeleted: false,
     };
   }
 

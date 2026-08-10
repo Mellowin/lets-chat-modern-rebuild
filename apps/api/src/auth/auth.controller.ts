@@ -15,6 +15,7 @@ import {
   MaxFileSizeValidator,
   FileTypeValidator,
   Res,
+  Headers,
 } from '@nestjs/common';
 import type { Response } from 'express';
 import {
@@ -57,6 +58,7 @@ import { UpdateInterfaceLanguageDto } from './dto/update-interface-language.dto'
 import { UpdateNotificationPreferencesDto } from './dto/update-notification-preferences.dto';
 
 import { JwtAccessGuard } from './guards/jwt-access.guard';
+import { AllowPendingDeletion } from './decorators/allow-pending-deletion.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { CurrentSessionId } from './decorators/current-session-id.decorator';
 import { StrictThrottle } from '../rate-limiting/rate-limiting.module';
@@ -391,6 +393,7 @@ export class AuthController {
 
   @Post('account-deletion/request')
   @UseGuards(JwtAccessGuard)
+  @AllowPendingDeletion()
   @StrictThrottle(3, 60)
   @HttpCode(200)
   @ApiBearerAuth()
@@ -404,11 +407,13 @@ export class AuthController {
   async requestAccountDeletion(
     @CurrentUser() user: AuthUserResponse,
     @Body() dto: RequestAccountDeletionDto,
+    @Headers('idempotency-key') idempotencyKey?: string,
   ) {
     return this.accountDeletion.requestAccountDeletion(
       user.id,
       dto.currentPassword,
       dto.confirmationPhrase,
+      idempotencyKey,
     );
   }
 

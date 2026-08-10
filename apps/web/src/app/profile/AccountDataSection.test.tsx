@@ -85,6 +85,7 @@ describe("AccountDataSection", () => {
       expect(requestAccountDeletion).toHaveBeenCalledWith("token", {
         currentPassword: "password",
         confirmationPhrase: "DELETE MY ACCOUNT",
+        idempotencyKey: expect.any(String),
       });
     });
   });

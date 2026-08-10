@@ -51,6 +51,7 @@ function makeConversation(
           username: 'alice',
           displayName: null,
           avatarUrl: null,
+          status: UserStatus.ACTIVE,
         },
       },
       {
@@ -64,6 +65,7 @@ function makeConversation(
           username: 'bob',
           displayName: 'Bob',
           avatarUrl: null,
+          status: UserStatus.ACTIVE,
         },
       },
     ],
@@ -441,6 +443,31 @@ describe('DirectConversationsService', () => {
         'bob@example.com',
       );
     });
+
+    it('masks deleted participant when returning existing conversation', async () => {
+      const conv = makeConversation();
+      conv.participants[1].user = {
+        ...conv.participants[1].user,
+        status: UserStatus.ANONYMIZED,
+      };
+      usersRepository.findById.mockResolvedValue({
+        id: otherUserId,
+        username: 'bob',
+        displayName: 'Bob',
+        avatarUrl: null,
+      } as Awaited<ReturnType<UsersRepository['findById']>>);
+      repository.findByKey.mockResolvedValue(conv);
+      repository.countUnreadMessages.mockResolvedValue(0);
+
+      const result = await service.create({ userId: otherUserId }, userId);
+      expect(result.otherParticipant).toEqual({
+        id: otherUserId,
+        username: '',
+        displayName: 'Deleted user',
+        avatarUrl: null,
+        isDeleted: true,
+      });
+    });
   });
 
   describe('list', () => {
@@ -483,6 +510,7 @@ describe('DirectConversationsService', () => {
               username: 'alice',
               displayName: null,
               avatarUrl: null,
+              status: UserStatus.ACTIVE,
             },
           },
           {
@@ -496,6 +524,7 @@ describe('DirectConversationsService', () => {
               username: 'bob',
               displayName: 'Bob',
               avatarUrl: null,
+              status: UserStatus.ACTIVE,
             },
           },
         ],
@@ -528,6 +557,40 @@ describe('DirectConversationsService', () => {
 
       const result = await service.list(userId);
       expect(result[0].isOnline).toBe(false);
+    });
+
+    it('masks deleted other participant in conversation list', async () => {
+      const conv = makeConversation();
+      conv.participants[1].user = {
+        ...conv.participants[1].user,
+        status: UserStatus.ANONYMIZED,
+      };
+      repository.listForUser.mockResolvedValue([conv]);
+      repository.countUnreadMessages.mockResolvedValue(0);
+
+      const result = await service.list(userId);
+      expect(result[0].otherParticipant).toEqual({
+        id: otherUserId,
+        username: '',
+        displayName: 'Deleted user',
+        avatarUrl: null,
+        isDeleted: true,
+      });
+    });
+
+    it('masks pending-deletion other participant in conversation list', async () => {
+      const conv = makeConversation();
+      conv.participants[1].user = {
+        ...conv.participants[1].user,
+        status: UserStatus.PENDING_DELETION,
+      };
+      repository.listForUser.mockResolvedValue([conv]);
+      repository.countUnreadMessages.mockResolvedValue(0);
+
+      const result = await service.list(userId);
+      expect(result[0].otherParticipant?.isDeleted).toBe(true);
+      expect(result[0].otherParticipant?.username).toBe('');
+      expect(result[0].otherParticipant?.displayName).toBe('Deleted user');
     });
   });
 

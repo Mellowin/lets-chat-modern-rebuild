@@ -13,6 +13,7 @@ import path from "node:path";
 import { execSync } from "node:child_process";
 
 const API_BASE = "http://localhost:3001/api/v1";
+const API_ORIGIN = "http://localhost:3001";
 const WEB_BASE = "http://localhost:3000";
 const MAILPIT_BASE = "http://localhost:8025";
 
@@ -36,8 +37,8 @@ async function screenshot(page, name) {
   return p;
 }
 
-async function api(method, path, body, token) {
-  const headers = { Accept: "application/json", "Content-Type": "application/json" };
+async function api(method, path, body, token, extraHeaders = {}) {
+  const headers = { Accept: "application/json", "Content-Type": "application/json", ...extraHeaders };
   if (token) headers.Authorization = `Bearer ${token}`;
   const res = await fetch(`${API_BASE}${path}`, { method, headers, body: body ? JSON.stringify(body) : undefined });
   const text = await res.text();
@@ -63,6 +64,16 @@ async function getLatestEmailTo(address, subjectContains, timeoutMs = 60000) {
   throw new Error(`Email to ${address} with subject "${subjectContains}" not received in time`);
 }
 
+async function countEmailsTo(address, subjectContains) {
+  const res = await fetch(`${MAILPIT_BASE}/api/v1/messages`);
+  if (!res.ok) throw new Error(`Failed to fetch mailpit messages: ${res.status}`);
+  const inbox = await res.json();
+  return (inbox.messages || []).filter((msg) => {
+    const to = (msg.To || []).map((t) => t.Address).join(",");
+    return to.includes(address) && msg.Subject.includes(subjectContains);
+  }).length;
+}
+
 async function getEmailText(id) {
   const res = await fetch(`${MAILPIT_BASE}/api/v1/message/${id}`);
   if (!res.ok) throw new Error(`Failed to fetch email text: ${res.status}`);
@@ -76,6 +87,44 @@ function extractToken(text, prefix) {
   const generic = text.match(/token=([a-f0-9]{64})/);
   if (generic) return generic[1];
   throw new Error(`Token not found in email text (prefix ${prefix})`);
+}
+
+async function uploadAvatar(accessToken) {
+  // 1x1 transparent PNG.
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+  const blob = new Blob([png], { type: "image/png" });
+  const formData = new FormData();
+  formData.append("avatar", blob, "avatar.png");
+  const res = await fetch(`${API_BASE}/auth/me/avatar/upload`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: formData,
+  });
+  const text = await res.text();
+  let data;
+  try { data = text ? JSON.parse(text) : {}; } catch { data = text; }
+  if (!res.ok) throw new Error(`Avatar upload failed: ${res.status} ${JSON.stringify(data)}`);
+  return data.avatarUrl;
+}
+
+async function requestAccountDeletionApi(accessToken, password, idempotencyKey) {
+  return api("POST", "/auth/account-deletion/request", {
+    currentPassword: password,
+    confirmationPhrase: "DELETE MY ACCOUNT",
+  }, accessToken, { "Idempotency-Key": idempotencyKey });
+}
+
+function avatarFileExists(avatarUrl) {
+  if (!avatarUrl || !avatarUrl.startsWith("/uploads/avatars/")) return false;
+  const relativePath = avatarUrl.slice("/uploads/".length);
+  const filePath = path.join("apps/api/uploads", relativePath);
+  return fs.existsSync(filePath);
+}
+
+async function fetchAvatarStatus(avatarUrl) {
+  if (!avatarUrl || !avatarUrl.startsWith("/uploads/avatars/")) return null;
+  const res = await fetch(`${API_ORIGIN}${avatarUrl}`);
+  return res.status;
 }
 
 async function createVerifiedAccount(suffix) {
@@ -127,6 +176,13 @@ async function main() {
   const reply = await api("POST", `/direct-conversations/${conversationId}/messages`, { content: "Reply from user A before deletion" }, userA.accessToken);
   if (reply.status !== 201) throw new Error(`Reply failed: ${reply.status} ${JSON.stringify(reply.data)}`);
   console.log("Reply sent.");
+
+  // Upload avatar for user A so we can verify it is removed after finalization.
+  console.log("Uploading avatar for user A...");
+  const avatarUrl = await uploadAvatar(userA.accessToken);
+  const avatarStatusBefore = await fetchAvatarStatus(avatarUrl);
+  if (avatarStatusBefore !== 200) throw new Error(`Avatar upload did not produce accessible URL: status ${avatarStatusBefore}`);
+  console.log(`Avatar uploaded at ${avatarUrl}`);
 
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
@@ -197,6 +253,33 @@ async function main() {
   await sleep(1000);
   await screenshot(page, "04-delete-wrong-password");
   results.push("Delete account wrong password rejected");
+
+  // API-level idempotency test: first request schedules deletion, retry with the
+  // same key returns the same scheduledFor without sending another email.
+  // The profile UI deletion attempts above consume the rate limit, so wait for reset.
+  console.log("Waiting 62s for deletion-request rate limit reset before idempotency test...");
+  await sleep(62000);
+  console.log("Idempotent deletion request via API...");
+  const idempotencyKey = `b238a-${Date.now()}`;
+  const firstDeletion = await requestAccountDeletionApi(userA.accessToken, PASSWORD, idempotencyKey);
+  if (firstDeletion.status !== 200) {
+    throw new Error(`First deletion request failed: ${firstDeletion.status} ${JSON.stringify(firstDeletion.data)}`);
+  }
+  const firstScheduledFor = firstDeletion.data.scheduledFor;
+  const emailCountAfterFirst = await countEmailsTo(userA.email, "Cancel your Lets Chat account deletion");
+
+  const retryDeletion = await requestAccountDeletionApi(userA.accessToken, PASSWORD, idempotencyKey);
+  if (retryDeletion.status !== 200) {
+    throw new Error(`Retry deletion request failed: ${retryDeletion.status} ${JSON.stringify(retryDeletion.data)}`);
+  }
+  if (retryDeletion.data.scheduledFor !== firstScheduledFor) {
+    throw new Error(`Idempotency retry changed scheduledFor: ${firstScheduledFor} -> ${retryDeletion.data.scheduledFor}`);
+  }
+  const emailCountAfterRetry = await countEmailsTo(userA.email, "Cancel your Lets Chat account deletion");
+  if (emailCountAfterRetry !== emailCountAfterFirst) {
+    throw new Error(`Idempotency retry sent another cancellation email: ${emailCountAfterFirst} -> ${emailCountAfterRetry}`);
+  }
+  results.push("Idempotent deletion request retry returned same result without duplicate email");
 
   // Wait for account-deletion request rate limit window to reset (3 req / 60s).
   console.log("Waiting 62s for deletion-request rate limit reset...");
@@ -308,6 +391,47 @@ async function main() {
     throw new Error(`Expected Deleted user, got ${JSON.stringify(author)}`);
   }
   results.push("Old DM author shows Deleted user");
+
+  // 13a. DM conversation header shows Deleted user and old avatar file is gone.
+  console.log("Checking DM header and avatar cleanup...");
+  if (avatarFileExists(avatarUrl)) {
+    throw new Error(`Old avatar file still exists after finalization: ${avatarUrl}`);
+  }
+  results.push("Old avatar file removed after finalization");
+
+  // The API serves a safe transparent PNG fallback for missing /uploads paths,
+  // so the HTTP status stays 200. The original uploaded image is no longer returned.
+  const avatarStatusAfter = await fetchAvatarStatus(avatarUrl);
+  if (avatarStatusAfter !== 200) {
+    throw new Error(`Unexpected avatar fallback status after finalization: ${avatarStatusAfter}`);
+  }
+  results.push("Old avatar URL returns safe fallback after finalization");
+
+  if (author.avatarUrl !== null) {
+    throw new Error(`Expected anonymized author avatarUrl to be null, got ${author.avatarUrl}`);
+  }
+  results.push("Anonymized author avatarUrl is null");
+
+  const dmList = await api("GET", "/direct-conversations", null, userB.accessToken);
+  if (dmList.status !== 200) throw new Error(`DM list failed: ${dmList.status}`);
+  const conv = (dmList.data || []).find((c) => c.id === conversationId);
+  if (!conv) throw new Error("Conversation not found in DM list after finalization");
+  if (!conv.otherParticipant?.isDeleted || conv.otherParticipant?.displayName !== "Deleted user" || conv.otherParticipant?.username !== "") {
+    throw new Error(`Expected Deleted user header, got ${JSON.stringify(conv.otherParticipant)}`);
+  }
+  results.push("DM conversation header shows Deleted user");
+
+  const allResponses = JSON.stringify(dmAfter.data) + JSON.stringify(dmList.data);
+  if (allResponses.includes(`deleted_${userA.userId}`)) {
+    throw new Error("Internal deleted username leaked in API response");
+  }
+  if (allResponses.includes(userA.username)) {
+    throw new Error("Old username leaked in API response after finalization");
+  }
+  if (allResponses.includes(userA.email)) {
+    throw new Error("Old email leaked in API response after finalization");
+  }
+  results.push("Old PII and internal deleted identifiers are not visible");
 
   // 14. Legal pages
   console.log("Legal pages...");

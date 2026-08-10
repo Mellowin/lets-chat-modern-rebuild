@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@lets-chat/database';
 import { AccountDeletionFinalizerService } from './account-deletion-finalizer.service';
 import { AuditService } from '../audit/audit.service';
+import { AvatarUploadService } from './avatar-upload.service';
 
 function createMockPrisma() {
   const state = {
@@ -151,6 +152,12 @@ function createMockPrisma() {
     state,
     prisma: {
       user: {
+        findUnique: jest.fn(({ where }: { where: any }) => {
+          const user = state.users.get(where.id);
+          if (!user) return null;
+          if (where.status && user.status !== where.status) return null;
+          return user;
+        }),
         findMany: jest.fn(({ where }: { where: any }) => {
           return Array.from(state.users.values()).filter((u) => {
             if (where.status && u.status !== where.status) return false;
@@ -174,10 +181,14 @@ describe('AccountDeletionFinalizerService', () => {
   let service: AccountDeletionFinalizerService;
   let mock: ReturnType<typeof createMockPrisma>;
   let auditService: jest.Mocked<AuditService>;
+  let avatarUpload: jest.Mocked<AvatarUploadService>;
 
   beforeEach(async () => {
     mock = createMockPrisma();
     auditService = { record: jest.fn().mockResolvedValue(undefined) } as any;
+    avatarUpload = {
+      deleteAvatar: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<AvatarUploadService>;
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -193,6 +204,10 @@ describe('AccountDeletionFinalizerService', () => {
         {
           provide: ConfigService,
           useValue: { get: jest.fn() },
+        },
+        {
+          provide: AvatarUploadService,
+          useValue: avatarUpload,
         },
       ],
     }).compile();
@@ -283,5 +298,37 @@ describe('AccountDeletionFinalizerService', () => {
 
     expect(clearTimeoutSpy).toHaveBeenCalled();
     expect(clearIntervalSpy).toHaveBeenCalled();
+  });
+
+  it('deletes uploaded avatar before anonymizing user', async () => {
+    const now = new Date();
+    const userId = 'u1';
+    const avatarUrl = `/uploads/avatars/${userId}/avatar.png`;
+    mock.state.users.set(userId, {
+      id: userId,
+      status: 'PENDING_DELETION',
+      deletionScheduledFor: new Date(now.getTime() - 1000),
+      avatarUrl,
+    });
+
+    await service.run();
+
+    expect(avatarUpload.deleteAvatar).toHaveBeenCalledWith(avatarUrl, userId);
+  });
+
+  it('does not fail when avatarUrl is already null', async () => {
+    const now = new Date();
+    const userId = 'u1';
+    mock.state.users.set(userId, {
+      id: userId,
+      status: 'PENDING_DELETION',
+      deletionScheduledFor: new Date(now.getTime() - 1000),
+      avatarUrl: null,
+    });
+
+    const result = await service.run();
+
+    expect(result.processedCount).toBe(1);
+    expect(avatarUpload.deleteAvatar).not.toHaveBeenCalled();
   });
 });
