@@ -96,17 +96,18 @@ export class AccountDeletionFinalizerService
   async finalizeUser(userId: string, now = new Date()): Promise<boolean> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId, status: 'PENDING_DELETION' },
-      select: { id: true, avatarUrl: true },
+      select: { id: true, avatarUrl: true, deletionScheduledFor: true },
     });
     if (!user) {
       return false;
     }
 
-    if (user.avatarUrl) {
-      await this.avatarUpload.deleteAvatar(user.avatarUrl, userId);
+    // Do not touch files or PII until the grace period has actually passed.
+    if (user.deletionScheduledFor && user.deletionScheduledFor > now) {
+      return false;
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const success = await this.prisma.$transaction(async (tx) => {
       // Conditional update acts as a DB-level claim: only one instance wins.
       const updateResult = await tx.user.updateMany({
         where: {
@@ -189,6 +190,24 @@ export class AccountDeletionFinalizerService
 
       return true;
     });
+
+    if (success) {
+      // Remove all historical avatar files for this user after the DB state is
+      // safely committed. A missing directory is fine; other users are untouched.
+      try {
+        await this.avatarUpload.deleteAllAvatarsForUser(userId);
+      } catch (error) {
+        this.logger.error(
+          {
+            userId,
+            error: error instanceof Error ? error.message : String(error),
+          },
+          'Failed to delete avatar files after finalization',
+        );
+      }
+    }
+
+    return success;
   }
 
   async recordFinalizationAudit(userId: string): Promise<void> {

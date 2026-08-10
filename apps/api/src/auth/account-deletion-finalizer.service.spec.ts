@@ -188,6 +188,7 @@ describe('AccountDeletionFinalizerService', () => {
     auditService = { record: jest.fn().mockResolvedValue(undefined) } as any;
     avatarUpload = {
       deleteAvatar: jest.fn().mockResolvedValue(undefined),
+      deleteAllAvatarsForUser: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<AvatarUploadService>;
 
     const moduleRef = await Test.createTestingModule({
@@ -254,6 +255,7 @@ describe('AccountDeletionFinalizerService', () => {
     expect(mock.tx.groupMember.updateMany).toHaveBeenCalled();
     expect(mock.tx.attachment.updateMany).toHaveBeenCalled();
     expect(auditService.record).toHaveBeenCalled();
+    expect(avatarUpload.deleteAllAvatarsForUser).toHaveBeenCalledWith(userId);
   });
 
   it('does not finalize a user before the scheduled date', async () => {
@@ -269,6 +271,7 @@ describe('AccountDeletionFinalizerService', () => {
 
     expect(result.processedCount).toBe(0);
     expect(mock.state.users.get(userId)?.status).toBe('PENDING_DELETION');
+    expect(avatarUpload.deleteAllAvatarsForUser).not.toHaveBeenCalled();
   });
 
   it('is idempotent when run twice for the same user', async () => {
@@ -300,7 +303,7 @@ describe('AccountDeletionFinalizerService', () => {
     expect(clearIntervalSpy).toHaveBeenCalled();
   });
 
-  it('deletes uploaded avatar before anonymizing user', async () => {
+  it('deletes all uploaded avatars after anonymizing user', async () => {
     const now = new Date();
     const userId = 'u1';
     const avatarUrl = `/uploads/avatars/${userId}/avatar.png`;
@@ -313,10 +316,11 @@ describe('AccountDeletionFinalizerService', () => {
 
     await service.run();
 
-    expect(avatarUpload.deleteAvatar).toHaveBeenCalledWith(avatarUrl, userId);
+    expect(avatarUpload.deleteAllAvatarsForUser).toHaveBeenCalledWith(userId);
+    expect(avatarUpload.deleteAvatar).not.toHaveBeenCalled();
   });
 
-  it('does not fail when avatarUrl is already null', async () => {
+  it('does not fail when avatarUrl is already null and still cleans up directory', async () => {
     const now = new Date();
     const userId = 'u1';
     mock.state.users.set(userId, {
@@ -329,6 +333,6 @@ describe('AccountDeletionFinalizerService', () => {
     const result = await service.run();
 
     expect(result.processedCount).toBe(1);
-    expect(avatarUpload.deleteAvatar).not.toHaveBeenCalled();
+    expect(avatarUpload.deleteAllAvatarsForUser).toHaveBeenCalledWith(userId);
   });
 });

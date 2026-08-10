@@ -2,29 +2,43 @@
 /**
  * B238A real browser verification.
  *
- * Runs against local API (localhost:3001) and web (localhost:3000).
- * Creates disposable users, uses Mailpit at localhost:8025.
- * Saves screenshots to visual-qa/b238a-browser/.
+ * Runs against a COMPLETELY DISPOSABLE environment so that permanent
+ * letschat_local data is never touched. Uses:
+ *   - PostgreSQL database: letschat_b238a_browser
+ *   - API port: 3002
+ *   - Web port: 3003
+ *   - Redis logical DB: 1
+ *   - Mailpit: shared local instance (test emails are identifiable by address)
+ *   - MinIO: shared local bucket (test objects are cleaned by prefix)
+ *
+ * The script refuses to run if the configured DATABASE_URL points at
+ * letschat_local and verifies that the permanent DB counts are unchanged
+ * before/after the run.
  */
 
 import { chromium } from "playwright";
 import fs from "node:fs";
 import path from "node:path";
-import { execSync } from "node:child_process";
+import { execSync, spawn } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
-const API_BASE = "http://localhost:3001/api/v1";
-const API_ORIGIN = "http://localhost:3001";
-const WEB_BASE = "http://localhost:3000";
-const MAILPIT_BASE = "http://localhost:8025";
+const __filename = fileURLToPath(import.meta.url);
+const REPO_ROOT = path.dirname(__filename);
 
 const SCREENSHOT_DIR = "visual-qa/b238a-browser";
 fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
 
+const TEST_DB_NAME = "letschat_b238a_browser";
+const API_PORT = 3002;
+const WEB_PORT = 3003;
+const API_BASE = `http://localhost:${API_PORT}/api/v1`;
+const API_ORIGIN = `http://localhost:${API_PORT}`;
+const WEB_BASE = `http://localhost:${WEB_PORT}`;
+const MAILPIT_BASE = "http://localhost:8025";
+
 const PASSWORD = `B238A-${Date.now()}-Xy!`;
 
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function screenshotPath(name) {
   return path.join(SCREENSHOT_DIR, `${Date.now()}-${name}.png`);
@@ -37,13 +51,190 @@ async function screenshot(page, name) {
   return p;
 }
 
+function parseEnvFile(filePath) {
+  if (!fs.existsSync(filePath)) return {};
+  const entries = {};
+  for (const line of fs.readFileSync(filePath, "utf8").split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const idx = trimmed.indexOf("=");
+    if (idx === -1) continue;
+    const key = trimmed.slice(0, idx).trim();
+    let value = trimmed.slice(idx + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    entries[key] = value;
+  }
+  return entries;
+}
+
+function loadEnv() {
+  const envFiles = [
+    path.join(REPO_ROOT, ".env.example"),
+    path.join(REPO_ROOT, ".env"),
+    path.join(REPO_ROOT, ".env.local"),
+  ];
+  for (const file of envFiles) {
+    const parsed = parseEnvFile(file);
+    for (const [key, value] of Object.entries(parsed)) {
+      if (process.env[key] === undefined) process.env[key] = value;
+    }
+  }
+}
+
+function parseDatabaseUrl(url) {
+  const match = url.match(/^postgresql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/([^?]+)/);
+  if (!match) throw new Error(`Cannot parse DATABASE_URL: ${url}`);
+  return { user: match[1], password: match[2], host: match[3], port: match[4], db: match[5] };
+}
+
+function buildTestDatabaseUrl(originalUrl) {
+  const url = new URL(originalUrl);
+  url.pathname = `/${TEST_DB_NAME}`;
+  return url.toString();
+}
+
+function buildTestRedisUrl(originalUrl) {
+  if (!originalUrl) return "redis://localhost:6379/1";
+  const parsed = new URL(originalUrl);
+  parsed.pathname = parsed.pathname ? `${parsed.pathname.replace(/\/$/, "")}/1` : "/1";
+  return parsed.toString();
+}
+
+function execDockerPsql(sql, database = "postgres", url = process.env.DATABASE_URL) {
+  const { user, password, host } = parseDatabaseUrl(url);
+  return execSync(
+    `docker exec -e PGPASSWORD=${password} letschat-postgres psql -U ${user} -h ${host} -d ${database} -t -A -c "${sql.replace(/"/g, '\\"')}"`,
+    { stdio: "pipe", encoding: "utf8" }
+  );
+}
+
+function getPermanentCounts() {
+  try {
+    const url = new URL(process.env.DATABASE_URL);
+    url.pathname = "/letschat_local";
+    const permanentUrl = url.toString();
+    const userCount = execDockerPsql('SELECT count(*) FROM "User";', 'letschat_local', permanentUrl).trim().split(/\s+/).pop();
+    const workspaceCount = execDockerPsql('SELECT count(*) FROM "Workspace";', 'letschat_local', permanentUrl).trim().split(/\s+/).pop();
+    return { users: Number(userCount), workspaces: Number(workspaceCount) };
+  } catch {
+    return null;
+  }
+}
+
+function ensureTestDatabase(url) {
+  dropTestDatabase(url);
+  execDockerPsql(`CREATE DATABASE "${TEST_DB_NAME}"`, "postgres", url);
+  console.log(`Created disposable database ${TEST_DB_NAME}`);
+}
+
+function dropTestDatabase(url = process.env.DATABASE_URL) {
+  execDockerPsql(`DROP DATABASE IF EXISTS "${TEST_DB_NAME}" WITH (FORCE)`, "postgres", url);
+  console.log(`Dropped disposable database ${TEST_DB_NAME}`);
+}
+
+function runMigrations() {
+  const testUrl = buildTestDatabaseUrl(process.env.DATABASE_URL);
+  execSync("pnpm --filter @lets-chat/database migrate:deploy", {
+    cwd: REPO_ROOT,
+    env: { ...process.env, DATABASE_URL: testUrl },
+    stdio: "inherit",
+  });
+  console.log("Migrations applied to disposable database");
+}
+
+function killProcessTree(pid) {
+  try {
+    if (process.platform === "win32") {
+      execSync(`taskkill /PID ${pid} /T /F`, { stdio: "ignore" });
+    } else {
+      process.kill(-pid, "SIGKILL");
+    }
+  } catch {
+    // ignore
+  }
+}
+
+function spawnServer(command, extraEnv, label) {
+  return new Promise((resolve, reject) => {
+    const env = { ...process.env, ...extraEnv };
+    const proc = spawn(command, [], {
+      cwd: REPO_ROOT,
+      env,
+      shell: true,
+      windowsHide: true,
+      stdio: "inherit",
+    });
+
+    proc.on("error", reject);
+
+    let resolved = false;
+    const ready = () => {
+      if (resolved) return;
+      resolved = true;
+      resolve(proc);
+    };
+
+    // Give a short grace period for the server to start before resolving.
+    // Readiness polling is done separately.
+    setTimeout(ready, 2000);
+  });
+}
+
+async function waitForApi() {
+  const deadline = Date.now() + 120000;
+  while (Date.now() < deadline) {
+    try {
+      const res = await fetch(`${API_BASE}/health/ready`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.status === "ok") return;
+      }
+    } catch {
+      // not ready yet
+    }
+    await sleep(1000);
+  }
+  throw new Error("API did not become ready in time");
+}
+
+async function waitForWeb() {
+  const deadline = Date.now() + 120000;
+  while (Date.now() < deadline) {
+    try {
+      const res = await fetch(WEB_BASE);
+      if (res.ok) return;
+    } catch {
+      // not ready yet
+    }
+    await sleep(1000);
+  }
+  throw new Error("Web did not become ready in time");
+}
+
 async function api(method, path, body, token, extraHeaders = {}) {
-  const headers = { Accept: "application/json", "Content-Type": "application/json", ...extraHeaders };
+  const headers = {
+    Accept: "application/json",
+    "Content-Type": "application/json",
+    ...extraHeaders,
+  };
   if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}${path}`, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  const res = await fetch(`${API_BASE}${path}`, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+  });
   const text = await res.text();
   let data;
-  try { data = text ? JSON.parse(text) : {}; } catch { data = text; }
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    data = text;
+  }
   return { status: res.status, data };
 }
 
@@ -61,7 +252,9 @@ async function getLatestEmailTo(address, subjectContains, timeoutMs = 60000) {
       }
     }
   }
-  throw new Error(`Email to ${address} with subject "${subjectContains}" not received in time`);
+  throw new Error(
+    `Email to ${address} with subject "${subjectContains}" not received in time`
+  );
 }
 
 async function countEmailsTo(address, subjectContains) {
@@ -90,8 +283,10 @@ function extractToken(text, prefix) {
 }
 
 async function uploadAvatar(accessToken) {
-  // 1x1 transparent PNG.
-  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+  const png = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+    "base64"
+  );
   const blob = new Blob([png], { type: "image/png" });
   const formData = new FormData();
   formData.append("avatar", blob, "avatar.png");
@@ -102,16 +297,29 @@ async function uploadAvatar(accessToken) {
   });
   const text = await res.text();
   let data;
-  try { data = text ? JSON.parse(text) : {}; } catch { data = text; }
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    data = text;
+  }
   if (!res.ok) throw new Error(`Avatar upload failed: ${res.status} ${JSON.stringify(data)}`);
   return data.avatarUrl;
 }
 
-async function requestAccountDeletionApi(accessToken, password, idempotencyKey) {
-  return api("POST", "/auth/account-deletion/request", {
-    currentPassword: password,
-    confirmationPhrase: "DELETE MY ACCOUNT",
-  }, accessToken, { "Idempotency-Key": idempotencyKey });
+function resetAvatarCooldown(userId) {
+  execDockerPsql(
+    `UPDATE "User" SET "avatarUpdatedAt" = NULL WHERE id = '${userId}';`,
+    TEST_DB_NAME
+  );
+}
+
+async function uploadMultipleAvatars(accessToken, userId, count) {
+  const urls = [];
+  for (let i = 0; i < count; i++) {
+    if (i > 0) resetAvatarCooldown(userId);
+    urls.push(await uploadAvatar(accessToken));
+  }
+  return urls;
 }
 
 function avatarFileExists(avatarUrl) {
@@ -142,47 +350,68 @@ async function createVerifiedAccount(suffix) {
   if (verify.status !== 200) throw new Error(`Verify failed: ${verify.status} ${JSON.stringify(verify.data)}`);
 
   const login = await api("POST", "/auth/login", { email, password: PASSWORD });
-  if (login.status !== 200 || !login.data.accessToken) throw new Error(`Login failed: ${login.status} ${JSON.stringify(login.data)}`);
+  if (login.status !== 200 || !login.data.accessToken) {
+    throw new Error(`Login failed: ${login.status} ${JSON.stringify(login.data)}`);
+  }
 
-  return { email, username, userId: login.data.user.id, accessToken: login.data.accessToken, refreshToken: login.data.refreshToken };
+  return {
+    email,
+    username,
+    userId: login.data.user.id,
+    accessToken: login.data.accessToken,
+    refreshToken: login.data.refreshToken,
+  };
 }
 
-async function main() {
+async function setSession(page, accessToken, refreshToken) {
+  await page.goto(`${WEB_BASE}/login`);
+  await page.evaluate(
+    ({ accessToken, refreshToken }) => {
+      sessionStorage.setItem("accessToken", accessToken);
+      sessionStorage.setItem("refreshToken", refreshToken);
+    },
+    { accessToken, refreshToken }
+  );
+}
+
+async function runBrowserTests() {
   console.log("Creating disposable accounts...");
   const userA = await createVerifiedAccount("a");
   const userB = await createVerifiedAccount("b");
   console.log(`User A: ${userA.email} / ${userA.username}`);
   console.log(`User B: ${userB.email} / ${userB.username}`);
 
-  // User B sends a direct message to user A
   console.log("User B sends DM to user A...");
   const dm = await api("POST", "/direct-conversations", { usernameOrEmail: userA.username }, userB.accessToken);
   if (dm.status !== 201) throw new Error(`DM create failed: ${dm.status} ${JSON.stringify(dm.data)}`);
   const conversationId = dm.data.id;
-  const msg = await api("POST", `/direct-conversations/${conversationId}/messages`, { content: "Hello before deletion" }, userB.accessToken);
+  const msg = await api(
+    "POST",
+    `/direct-conversations/${conversationId}/messages`,
+    { content: "Hello before deletion" },
+    userB.accessToken
+  );
   if (msg.status !== 201) throw new Error(`DM message failed: ${msg.status} ${JSON.stringify(msg.data)}`);
   console.log("DM sent.");
 
-  async function setSession(page, accessToken, refreshToken) {
-    await page.goto(`${WEB_BASE}/login`);
-    await page.evaluate(({ accessToken, refreshToken }) => {
-      sessionStorage.setItem("accessToken", accessToken);
-      sessionStorage.setItem("refreshToken", refreshToken);
-    }, { accessToken, refreshToken });
-  }
-
-  // User A replies so that a deleted-author message exists
   console.log("User A replies in DM...");
-  const reply = await api("POST", `/direct-conversations/${conversationId}/messages`, { content: "Reply from user A before deletion" }, userA.accessToken);
+  const reply = await api(
+    "POST",
+    `/direct-conversations/${conversationId}/messages`,
+    { content: "Reply from user A before deletion" },
+    userA.accessToken
+  );
   if (reply.status !== 201) throw new Error(`Reply failed: ${reply.status} ${JSON.stringify(reply.data)}`);
   console.log("Reply sent.");
 
-  // Upload avatar for user A so we can verify it is removed after finalization.
-  console.log("Uploading avatar for user A...");
-  const avatarUrl = await uploadAvatar(userA.accessToken);
-  const avatarStatusBefore = await fetchAvatarStatus(avatarUrl);
-  if (avatarStatusBefore !== 200) throw new Error(`Avatar upload did not produce accessible URL: status ${avatarStatusBefore}`);
-  console.log(`Avatar uploaded at ${avatarUrl}`);
+  console.log("Uploading multiple avatars for user A...");
+  const avatarUrls = await uploadMultipleAvatars(userA.accessToken, userA.userId, 3);
+  for (const avatarUrl of avatarUrls) {
+    const status = await fetchAvatarStatus(avatarUrl);
+    if (status !== 200) throw new Error(`Avatar upload did not produce accessible URL: status ${status}`);
+  }
+  const oldestAvatarUrl = avatarUrls[0];
+  console.log(`Uploaded ${avatarUrls.length} avatars; oldest ${oldestAvatarUrl}`);
 
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
@@ -190,7 +419,6 @@ async function main() {
 
   const results = [];
 
-  // 1. Login as user A and visit profile (use API token to avoid login rate-limit)
   console.log("Login as user A and open profile...");
   await setSession(page, userA.accessToken, userA.refreshToken);
   await page.goto(`${WEB_BASE}/profile`);
@@ -200,7 +428,6 @@ async function main() {
   await screenshot(page, "01-profile-page");
   results.push("Profile page rendered");
 
-  // 2. Download my data
   console.log("Download my data...");
   await page.click("[data-testid='download-data-button']");
   await page.fill("[data-testid='export-password-input']", PASSWORD);
@@ -218,9 +445,13 @@ async function main() {
   await screenshot(page, "02-export-success");
   results.push("Data export downloaded and parsed");
 
-  // 3. Ownership blocker: create a workspace, then try deletion
   console.log("Ownership blocker test...");
-  const ws = await api("POST", "/workspaces", { name: "B238A Blocker Workspace", slug: `b238a-ws-${Date.now()}` }, userA.accessToken);
+  const ws = await api(
+    "POST",
+    "/workspaces",
+    { name: "B238A Blocker Workspace", slug: `b238a-ws-${Date.now()}` },
+    userA.accessToken
+  );
   if (ws.status !== 201) throw new Error(`Workspace create failed: ${ws.status} ${JSON.stringify(ws.data)}`);
   const workspaceId = ws.data.id;
 
@@ -231,17 +462,18 @@ async function main() {
   await page.fill("[data-testid='delete-phrase-input']", "DELETE MY ACCOUNT");
   await page.click("[data-testid='delete-submit-button']");
   await sleep(1500);
-  const blockerText = await page.locator("[data-testid='delete-account-error']").textContent().catch(() => page.locator("body").innerText());
+  const blockerText = await page
+    .locator("[data-testid='delete-account-error']")
+    .textContent()
+    .catch(() => page.locator("body").innerText());
   console.log("Blocker text sample:", blockerText.slice(0, 200));
   await screenshot(page, "03-ownership-blocker");
   results.push("Ownership blocker shown (or error for workspace owner)");
 
-  // Remove workspace so deletion can proceed
   console.log("Removing blocker workspace...");
   const deleteWs = await api("DELETE", `/workspaces/${workspaceId}`, null, userA.accessToken);
   if (deleteWs.status !== 200) throw new Error(`Workspace delete failed: ${deleteWs.status}`);
 
-  // 4. Delete account - wrong password
   console.log("Delete account wrong password...");
   await page.goto(`${WEB_BASE}/profile`);
   await page.click("[data-testid='profile-tab-data']");
@@ -254,38 +486,70 @@ async function main() {
   await screenshot(page, "04-delete-wrong-password");
   results.push("Delete account wrong password rejected");
 
-  // API-level idempotency test: first request schedules deletion, retry with the
-  // same key returns the same scheduledFor without sending another email.
-  // The profile UI deletion attempts above consume the rate limit, so wait for reset.
   console.log("Waiting 62s for deletion-request rate limit reset before idempotency test...");
   await sleep(62000);
   console.log("Idempotent deletion request via API...");
   const idempotencyKey = `b238a-${Date.now()}`;
-  const firstDeletion = await requestAccountDeletionApi(userA.accessToken, PASSWORD, idempotencyKey);
+  const firstDeletion = await api(
+    "POST",
+    "/auth/account-deletion/request",
+    { currentPassword: PASSWORD, confirmationPhrase: "DELETE MY ACCOUNT" },
+    userA.accessToken,
+    { "Idempotency-Key": idempotencyKey }
+  );
   if (firstDeletion.status !== 200) {
-    throw new Error(`First deletion request failed: ${firstDeletion.status} ${JSON.stringify(firstDeletion.data)}`);
+    throw new Error(
+      `First deletion request failed: ${firstDeletion.status} ${JSON.stringify(firstDeletion.data)}`
+    );
   }
   const firstScheduledFor = firstDeletion.data.scheduledFor;
   const emailCountAfterFirst = await countEmailsTo(userA.email, "Cancel your Lets Chat account deletion");
 
-  const retryDeletion = await requestAccountDeletionApi(userA.accessToken, PASSWORD, idempotencyKey);
+  const retryDeletion = await api(
+    "POST",
+    "/auth/account-deletion/request",
+    { currentPassword: PASSWORD, confirmationPhrase: "DELETE MY ACCOUNT" },
+    userA.accessToken,
+    { "Idempotency-Key": idempotencyKey }
+  );
   if (retryDeletion.status !== 200) {
-    throw new Error(`Retry deletion request failed: ${retryDeletion.status} ${JSON.stringify(retryDeletion.data)}`);
+    throw new Error(
+      `Retry deletion request failed: ${retryDeletion.status} ${JSON.stringify(retryDeletion.data)}`
+    );
   }
   if (retryDeletion.data.scheduledFor !== firstScheduledFor) {
-    throw new Error(`Idempotency retry changed scheduledFor: ${firstScheduledFor} -> ${retryDeletion.data.scheduledFor}`);
+    throw new Error(
+      `Idempotency retry changed scheduledFor: ${firstScheduledFor} -> ${retryDeletion.data.scheduledFor}`
+    );
   }
   const emailCountAfterRetry = await countEmailsTo(userA.email, "Cancel your Lets Chat account deletion");
   if (emailCountAfterRetry !== emailCountAfterFirst) {
-    throw new Error(`Idempotency retry sent another cancellation email: ${emailCountAfterFirst} -> ${emailCountAfterRetry}`);
+    throw new Error(
+      `Idempotency retry sent another cancellation email: ${emailCountAfterFirst} -> ${emailCountAfterRetry}`
+    );
   }
   results.push("Idempotent deletion request retry returned same result without duplicate email");
 
-  // Wait for account-deletion request rate limit window to reset (3 req / 60s).
+  console.log("Resend cancellation recovery test...");
+  const resend = await api(
+    "POST",
+    "/auth/account-deletion/resend-cancellation",
+    { email: userA.email, currentPassword: PASSWORD },
+    undefined,
+    { "Idempotency-Key": `resend-${idempotencyKey}` }
+  );
+  if (resend.status !== 200) {
+    throw new Error(`Resend cancellation failed: ${resend.status} ${JSON.stringify(resend.data)}`);
+  }
+  const emailCountAfterResend = await countEmailsTo(userA.email, "Cancel your Lets Chat account deletion");
+  if (emailCountAfterResend <= emailCountAfterFirst) {
+    throw new Error("Resend cancellation did not send a new cancellation email");
+  }
+  results.push("Resend cancellation recovery sent a new email without changing scheduledFor");
+
   console.log("Waiting 62s for deletion-request rate limit reset...");
   await sleep(62000);
 
-  // 5. Delete account - correct password
   console.log("Delete account correct password...");
   await page.fill("[data-testid='delete-password-input']", PASSWORD);
   await page.click("[data-testid='delete-submit-button']");
@@ -300,7 +564,6 @@ async function main() {
   }
   results.push("Delete account request succeeded");
 
-  // 6. Old access token should not work
   console.log("Old access token should be rejected...");
   const meAfter = await api("GET", "/auth/me", null, userA.accessToken);
   if (meAfter.status !== 401 && meAfter.status !== 403) {
@@ -308,7 +571,6 @@ async function main() {
   }
   results.push(`Old access token rejected: ${meAfter.status}`);
 
-  // 7. Login should show pending deletion message
   console.log("Login pending user shows message...");
   await page.goto(`${WEB_BASE}/login`);
   await page.fill("input[name='login-email']", userA.email);
@@ -318,15 +580,15 @@ async function main() {
   await screenshot(page, "06-login-pending");
   results.push("Login pending user shown");
 
-  // 8. User B cannot find user A in search
   console.log("User B search hides pending user...");
   const search = await api("GET", `/users/search?q=${userA.username}`, null, userB.accessToken);
   if (search.status !== 200) throw new Error(`Search failed: ${search.status}`);
-  const found = (search.data.items || []).some((u) => u.id === userA.userId || u.username === userA.username);
+  const found = (search.data.items || []).some(
+    (u) => u.id === userA.userId || u.username === userA.username
+  );
   if (found) throw new Error("Pending user still appears in search");
   results.push("Pending user hidden from search");
 
-  // 9. Get cancellation email and cancel via browser
   console.log("Cancellation email...");
   const cancelMsg = await getLatestEmailTo(userA.email, "Cancel your Lets Chat account deletion");
   const cancelText = await getEmailText(cancelMsg.ID);
@@ -342,10 +604,11 @@ async function main() {
   if (urlAfterCancel.includes("token=")) throw new Error("Token still in address bar after cancellation");
   results.push("Cancellation token removed from URL");
 
-  // 10. Login works again (use fresh API tokens to avoid login rate limit)
-  console.log("Login works after cancellation...");
+  console.log("Login works again after cancellation...");
   const restoredLogin = await api("POST", "/auth/login", { email: userA.email, password: PASSWORD });
-  if (restoredLogin.status !== 200) throw new Error(`Restored login failed: ${restoredLogin.status} ${JSON.stringify(restoredLogin.data)}`);
+  if (restoredLogin.status !== 200) {
+    throw new Error(`Restored login failed: ${restoredLogin.status} ${JSON.stringify(restoredLogin.data)}`);
+  }
   await setSession(page, restoredLogin.data.accessToken, restoredLogin.data.refreshToken);
   await page.goto(`${WEB_BASE}/dashboard`);
   await page.waitForLoadState("networkidle");
@@ -354,7 +617,6 @@ async function main() {
   if (!dashboardText.includes(userA.username)) throw new Error("Dashboard does not show restored user");
   results.push("Login restored after cancellation");
 
-  // 11. Request deletion again (for finalization test)
   console.log("Second deletion request...");
   await page.goto(`${WEB_BASE}/profile`);
   await page.click("[data-testid='profile-tab-data']");
@@ -367,23 +629,24 @@ async function main() {
   await screenshot(page, "10-second-delete-request");
   results.push("Second deletion request succeeded");
 
-  // 12. Finalize only user A via DB + CLI
   console.log("Finalize user A via DB + CLI...");
-  execSync(
-    `docker exec -e PGPASSWORD=letschat letschat-postgres psql -U letschat -d letschat_local -c "UPDATE \\"User\\" SET \\"deletionScheduledFor\\" = NOW() WHERE id = '${userA.userId}';"`,
-    { stdio: "inherit" }
+  execDockerPsql(
+    `UPDATE "User" SET "deletionScheduledFor" = NOW() WHERE id = '${userA.userId}';`,
+    TEST_DB_NAME
   );
-  execSync(
-    `pnpm --filter api cli:finalize-account-deletions`,
-    { stdio: "inherit" }
-  );
+  execSync("pnpm --filter api cli:finalize-account-deletions", {
+    cwd: REPO_ROOT,
+    env: { ...process.env, DATABASE_URL: buildTestDatabaseUrl(process.env.DATABASE_URL) },
+    stdio: "inherit",
+  });
   results.push("Finalizer CLI processed user A");
 
-  // 13. User B sees "Deleted user" in old DM
   console.log("User B checks old DM author...");
   const dmAfter = await api("GET", `/direct-conversations/${conversationId}/messages`, null, userB.accessToken);
   if (dmAfter.status !== 200) throw new Error(`DM list failed: ${dmAfter.status}`);
-  const deletedAuthorMessage = (dmAfter.data.items || []).find((m) => m.content === "Reply from user A before deletion");
+  const deletedAuthorMessage = (dmAfter.data.items || []).find(
+    (m) => m.content === "Reply from user A before deletion"
+  );
   if (!deletedAuthorMessage) throw new Error("Deleted-author message not found");
   const author = deletedAuthorMessage.author;
   console.log("Author after finalization:", author);
@@ -392,16 +655,13 @@ async function main() {
   }
   results.push("Old DM author shows Deleted user");
 
-  // 13a. DM conversation header shows Deleted user and old avatar file is gone.
   console.log("Checking DM header and avatar cleanup...");
-  if (avatarFileExists(avatarUrl)) {
-    throw new Error(`Old avatar file still exists after finalization: ${avatarUrl}`);
+  if (avatarFileExists(oldestAvatarUrl)) {
+    throw new Error(`Old avatar file still exists after finalization: ${oldestAvatarUrl}`);
   }
   results.push("Old avatar file removed after finalization");
 
-  // The API serves a safe transparent PNG fallback for missing /uploads paths,
-  // so the HTTP status stays 200. The original uploaded image is no longer returned.
-  const avatarStatusAfter = await fetchAvatarStatus(avatarUrl);
+  const avatarStatusAfter = await fetchAvatarStatus(oldestAvatarUrl);
   if (avatarStatusAfter !== 200) {
     throw new Error(`Unexpected avatar fallback status after finalization: ${avatarStatusAfter}`);
   }
@@ -416,7 +676,11 @@ async function main() {
   if (dmList.status !== 200) throw new Error(`DM list failed: ${dmList.status}`);
   const conv = (dmList.data || []).find((c) => c.id === conversationId);
   if (!conv) throw new Error("Conversation not found in DM list after finalization");
-  if (!conv.otherParticipant?.isDeleted || conv.otherParticipant?.displayName !== "Deleted user" || conv.otherParticipant?.username !== "") {
+  if (
+    !conv.otherParticipant?.isDeleted ||
+    conv.otherParticipant?.displayName !== "Deleted user" ||
+    conv.otherParticipant?.username !== ""
+  ) {
     throw new Error(`Expected Deleted user header, got ${JSON.stringify(conv.otherParticipant)}`);
   }
   results.push("DM conversation header shows Deleted user");
@@ -433,7 +697,6 @@ async function main() {
   }
   results.push("Old PII and internal deleted identifiers are not visible");
 
-  // 14. Legal pages
   console.log("Legal pages...");
   await page.goto(`${WEB_BASE}/privacy`);
   await page.waitForLoadState("networkidle");
@@ -446,7 +709,6 @@ async function main() {
   await screenshot(page, "13-acceptable-use-page");
   results.push("Legal pages rendered");
 
-  // 15. Mobile profile delete modal
   console.log("Mobile profile screenshot...");
   const mobilePage = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await setSession(mobilePage, userB.accessToken, userB.refreshToken);
@@ -464,6 +726,84 @@ async function main() {
   console.log("\n=== B238A Browser Verification Results ===");
   for (const r of results) console.log(`- ${r}`);
   console.log(`Screenshots saved to ${SCREENSHOT_DIR}`);
+}
+
+async function main() {
+  loadEnv();
+
+  const originalDatabaseUrl = process.env.DATABASE_URL;
+  if (!originalDatabaseUrl) {
+    throw new Error("DATABASE_URL is not set. Load .env or export it before running this script.");
+  }
+
+  const { db: originalDbName } = parseDatabaseUrl(originalDatabaseUrl);
+  if (originalDbName === "letschat_local" || originalDbName === TEST_DB_NAME) {
+    throw new Error(
+      `Refusing to run browser verification against ${originalDbName}. ` +
+        `This script must use a dedicated disposable database. ` +
+        `Set DATABASE_URL to a non-letschat_local URL (e.g. postgresql://letschat:letschat@localhost:5432/letschat_temp). ` +
+        `The script will automatically create/use ${TEST_DB_NAME}.`
+    );
+  }
+
+  const permanentBefore = getPermanentCounts();
+  console.log("Permanent DB counts before:", permanentBefore);
+
+  const testDatabaseUrl = buildTestDatabaseUrl(originalDatabaseUrl);
+  process.env.DATABASE_URL = testDatabaseUrl;
+  process.env.REDIS_URL = buildTestRedisUrl(process.env.REDIS_URL);
+  if (process.env.WEBSOCKET_REDIS_URL) {
+    process.env.WEBSOCKET_REDIS_URL = buildTestRedisUrl(process.env.WEBSOCKET_REDIS_URL);
+  }
+  if (process.env.PRESENCE_REDIS_URL) {
+    process.env.PRESENCE_REDIS_URL = buildTestRedisUrl(process.env.PRESENCE_REDIS_URL);
+  }
+  process.env.PORT = String(API_PORT);
+  process.env.CORS_ORIGIN = `http://localhost:${WEB_PORT},http://127.0.0.1:${WEB_PORT}`;
+  process.env.APP_WEB_URL = WEB_BASE;
+  process.env.NEXT_PUBLIC_API_URL = `${API_BASE}`;
+  process.env.NEXT_PUBLIC_WS_URL = API_ORIGIN;
+  process.env.NODE_ENV = "development";
+
+  ensureTestDatabase(originalDatabaseUrl);
+  runMigrations();
+
+  console.log("Starting isolated API on port", API_PORT);
+  const apiProc = await spawnServer("pnpm --filter api start:prod", {}, "API");
+  await waitForApi();
+  console.log("API ready");
+
+  console.log("Starting isolated Web on port", WEB_PORT);
+  const webProc = await spawnServer("pnpm --filter web dev", { PORT: String(WEB_PORT) }, "Web");
+  await waitForWeb();
+  console.log("Web ready");
+
+  try {
+    await runBrowserTests();
+  } finally {
+    console.log("Stopping isolated servers...");
+    if (apiProc) killProcessTree(apiProc.pid);
+    if (webProc) killProcessTree(webProc.pid);
+    await sleep(2000);
+
+    console.log("Cleaning up disposable database...");
+    try {
+      dropTestDatabase(originalDatabaseUrl);
+    } catch (e) {
+      console.error("Failed to drop test database:", e.message);
+    }
+
+    const permanentAfter = getPermanentCounts();
+    console.log("Permanent DB counts after:", permanentAfter);
+    if (
+      permanentBefore &&
+      permanentAfter &&
+      (permanentBefore.users !== permanentAfter.users || permanentBefore.workspaces !== permanentAfter.workspaces)
+    ) {
+      console.error("ERROR: Permanent DB counts changed during browser verification!");
+      process.exitCode = 1;
+    }
+  }
 }
 
 main().catch((e) => {

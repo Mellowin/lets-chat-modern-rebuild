@@ -41,6 +41,7 @@ import { DataExportService } from './data-export.service';
 import { RequestAccountDeletionDto } from './dto/request-account-deletion.dto';
 import { CancelAccountDeletionDto } from './dto/cancel-account-deletion.dto';
 import { RequestDataExportDto } from './dto/request-data-export.dto';
+import { ResendAccountDeletionCancellationDto } from './dto/resend-account-deletion-cancellation.dto';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
@@ -331,6 +332,7 @@ export class AuthController {
           new MaxFileSizeValidator({ maxSize: 2 * 1024 * 1024 }),
           new FileTypeValidator({
             fileType: /^image\/(jpeg|png|webp)$/,
+            fallbackToMimetype: true,
           }),
         ],
       }),
@@ -428,6 +430,23 @@ export class AuthController {
   @ApiTooManyRequestsResponse({ description: 'Rate limit exceeded' })
   async cancelAccountDeletion(@Body() dto: CancelAccountDeletionDto) {
     return this.accountDeletion.cancelAccountDeletion(dto.token);
+  }
+
+  @Post('account-deletion/resend-cancellation')
+  @StrictThrottle(3, 60)
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Resend account deletion cancellation link' })
+  @ApiBody({ type: ResendAccountDeletionCancellationDto })
+  @ApiOkResponse({ description: 'Request processed' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiTooManyRequestsResponse({ description: 'Rate limit exceeded' })
+  async resendAccountDeletionCancellation(
+    @Body() dto: ResendAccountDeletionCancellationDto,
+  ) {
+    return this.accountDeletion.resendAccountDeletionCancellation(
+      dto.email,
+      dto.currentPassword,
+    );
   }
 
   @Post('data-export')

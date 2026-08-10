@@ -81,7 +81,8 @@ export class AccountDeletionService {
 
     if (user.status === 'PENDING_DELETION') {
       // Idempotent replay: return the previously scheduled deletion time without
-      // generating a new token or sending another email.
+      // generating a new token or sending another email. This branch also covers
+      // retries after a successful operation when the idempotency row is already stored.
       if (!user.deletionScheduledFor) {
         throw new NotFoundException('User not found');
       }
@@ -183,6 +184,72 @@ export class AccountDeletionService {
           `Original: ${originalMessage}; Rollback: ${rollbackMessage}`,
       );
     }
+  }
+
+  async resendAccountDeletionCancellation(
+    email: string,
+    currentPassword: string,
+  ): Promise<{ success: boolean }> {
+    const user = await this.users.findByEmail(email);
+
+    // Generic public response for all non-matching or non-pending cases.
+    if (!user || user.status !== 'PENDING_DELETION') {
+      return { success: true };
+    }
+
+    const passwordValid = await this.password.verifyPassword(
+      currentPassword,
+      user.passwordHash,
+    );
+    if (!passwordValid) {
+      return { success: true };
+    }
+
+    if (!user.deletionScheduledFor) {
+      return { success: true };
+    }
+
+    const oldTokenHash = user.deletionCancellationTokenHash;
+    const rawToken = this.generateDeletionToken();
+    const newTokenHash = this.hashDeletionToken(rawToken);
+
+    try {
+      await this.users.updateDeletionCancellationToken(
+        user.id,
+        newTokenHash,
+        user.deletionScheduledFor,
+      );
+
+      await this.audit.record({
+        actorId: user.id,
+        action: AuditAction.ACCOUNT_DELETION_CANCELLATION_RESENT,
+        entityType: AuditEntityType.USER,
+        entityId: user.id,
+        severity: AuditSeverity.CRITICAL,
+      });
+
+      await this.mail.sendAccountDeletionCancellationEmail({
+        to: user.email,
+        token: rawToken,
+      });
+    } catch (error) {
+      // Restore the previous cancellation token so a mail failure does not leave
+      // the user without a working cancellation path. If the old token was expired,
+      // the user can retry this endpoint again.
+      await this.users
+        .updateDeletionCancellationToken(
+          user.id,
+          oldTokenHash,
+          user.deletionScheduledFor,
+        )
+        .catch(() => {
+          // Best-effort restore; if this also fails, the recovery message below
+          // is the only actionable signal left.
+        });
+      throw error;
+    }
+
+    return { success: true };
   }
 
   async cancelAccountDeletion(token: string): Promise<{ success: boolean }> {

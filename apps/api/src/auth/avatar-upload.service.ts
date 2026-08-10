@@ -23,6 +23,11 @@ export class AvatarUploadService {
     return `/uploads/avatars/${userId}/${filename}`;
   }
 
+  /**
+   * Delete a single uploaded avatar file given its URL.
+   * Only files stored under /uploads/avatars/<userId>/ are removed;
+   * default or external avatars are ignored.
+   */
   async deleteAvatar(avatarUrl: string, userId: string): Promise<void> {
     const prefix = `/uploads/avatars/${userId}/`;
     if (!avatarUrl.startsWith(prefix)) {
@@ -43,6 +48,30 @@ export class AvatarUploadService {
       const code = (error as NodeJS.ErrnoException).code;
       if (code === 'ENOENT') {
         // Already deleted: idempotent no-op.
+        return;
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Delete every uploaded avatar file for a specific user.
+   * The directory path is derived from a trusted userId only, so a malformed
+   * userId cannot escape the avatars root. Missing directories are safe.
+   */
+  async deleteAllAvatarsForUser(userId: string): Promise<void> {
+    if (!userId || userId.includes('..') || userId.includes('/')) {
+      // Reject empty or path-like userIds.
+      return;
+    }
+
+    const userDir = join(this.uploadDir, userId);
+    try {
+      await fs.rm(userDir, { recursive: true, force: true });
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === 'ENOENT') {
+        // No avatar directory: idempotent no-op.
         return;
       }
       throw error;

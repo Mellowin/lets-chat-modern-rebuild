@@ -17,6 +17,7 @@ export const AuditAction = {
   DEMO_SESSION_CREATED: 'demo.session.created',
   ACCOUNT_DELETION_REQUESTED: 'account_deletion.requested',
   ACCOUNT_DELETION_CANCELLED: 'account_deletion.cancelled',
+  ACCOUNT_DELETION_CANCELLATION_RESENT: 'account_deletion.cancellation_resent',
   ACCOUNT_DELETION_FINALIZED: 'account_deletion.finalized',
   USER_DATA_EXPORTED: 'user_data.exported',
 

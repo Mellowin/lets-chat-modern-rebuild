@@ -414,6 +414,20 @@ export class UsersRepository {
     });
   }
 
+  async updateDeletionCancellationToken(
+    userId: string,
+    tokenHash: string | null,
+    scheduledFor: Date,
+  ) {
+    return this.prisma.user.update({
+      where: { id: userId, status: 'PENDING_DELETION' },
+      data: {
+        deletionCancellationTokenHash: tokenHash,
+        deletionCancellationExpiresAt: scheduledFor,
+      },
+    });
+  }
+
   async anonymizeUser(
     userId: string,
     anonymizedEmail: string,

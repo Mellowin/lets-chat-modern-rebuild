@@ -55,6 +55,7 @@ describe('AccountDeletionService', () => {
           provide: UsersRepository,
           useValue: {
             findById: jest.fn(),
+            findByEmail: jest.fn(),
             findActiveWorkspaceOwnerships: jest.fn().mockResolvedValue([]),
             findActiveGroupsWhereUserIsOnlyOwner: jest
               .fn()
@@ -62,6 +63,7 @@ describe('AccountDeletionService', () => {
             requestAccountDeletion: jest.fn(),
             findByDeletionCancellationTokenHash: jest.fn(),
             clearDeletionRequest: jest.fn(),
+            updateDeletionCancellationToken: jest.fn(),
             deletePushSubscriptionsForUser: jest
               .fn()
               .mockResolvedValue({ count: 0 }),
@@ -435,6 +437,122 @@ describe('AccountDeletionService', () => {
       expect(
         mailService.sendAccountDeletionCancelledConfirmationEmail,
       ).toHaveBeenCalled();
+    });
+  });
+
+  describe('resendAccountDeletionCancellation', () => {
+    it('returns generic success for unknown email', async () => {
+      usersRepository.findByEmail.mockResolvedValue(null);
+
+      const result = await service.resendAccountDeletionCancellation(
+        'missing@example.com',
+        'password',
+      );
+
+      expect(result.success).toBe(true);
+      expect(
+        usersRepository.updateDeletionCancellationToken,
+      ).not.toHaveBeenCalled();
+      expect(
+        mailService.sendAccountDeletionCancellationEmail,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('returns generic success for non-pending user', async () => {
+      usersRepository.findByEmail.mockResolvedValue(makeUser());
+
+      const result = await service.resendAccountDeletionCancellation(
+        'user@example.com',
+        'password',
+      );
+
+      expect(result.success).toBe(true);
+      expect(
+        usersRepository.updateDeletionCancellationToken,
+      ).not.toHaveBeenCalled();
+      expect(
+        mailService.sendAccountDeletionCancellationEmail,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('returns generic success for wrong password', async () => {
+      usersRepository.findByEmail.mockResolvedValue(
+        makeUser(UserStatus.PENDING_DELETION),
+      );
+      passwordService.verifyPassword.mockResolvedValue(false);
+
+      const result = await service.resendAccountDeletionCancellation(
+        'user@example.com',
+        'wrongpassword',
+      );
+
+      expect(result.success).toBe(true);
+      expect(
+        usersRepository.updateDeletionCancellationToken,
+      ).not.toHaveBeenCalled();
+      expect(
+        mailService.sendAccountDeletionCancellationEmail,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('generates a new token and sends email for pending user', async () => {
+      const scheduledFor = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      usersRepository.findByEmail.mockResolvedValue({
+        ...makeUser(UserStatus.PENDING_DELETION),
+        deletionScheduledFor: scheduledFor,
+      } as never);
+      passwordService.verifyPassword.mockResolvedValue(true);
+      usersRepository.updateDeletionCancellationToken.mockResolvedValue(
+        makeUser(UserStatus.PENDING_DELETION) as never,
+      );
+
+      const result = await service.resendAccountDeletionCancellation(
+        'user@example.com',
+        'password',
+      );
+
+      expect(result.success).toBe(true);
+      expect(
+        usersRepository.updateDeletionCancellationToken,
+      ).toHaveBeenCalledWith(userId, expect.any(String), scheduledFor);
+      expect(auditService.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'account_deletion.cancellation_resent',
+        }),
+      );
+      expect(
+        mailService.sendAccountDeletionCancellationEmail,
+      ).toHaveBeenCalled();
+    });
+
+    it('restores the previous token hash when mail fails', async () => {
+      const scheduledFor = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      usersRepository.findByEmail.mockResolvedValue({
+        ...makeUser(UserStatus.PENDING_DELETION),
+        deletionScheduledFor: scheduledFor,
+        deletionCancellationTokenHash: 'old-hash',
+      } as never);
+      passwordService.verifyPassword.mockResolvedValue(true);
+      usersRepository.updateDeletionCancellationToken.mockResolvedValue(
+        makeUser(UserStatus.PENDING_DELETION) as never,
+      );
+      mailService.sendAccountDeletionCancellationEmail.mockRejectedValue(
+        new Error('Mail failure'),
+      );
+
+      await expect(
+        service.resendAccountDeletionCancellation(
+          'user@example.com',
+          'password',
+        ),
+      ).rejects.toThrow('Mail failure');
+
+      expect(
+        usersRepository.updateDeletionCancellationToken,
+      ).toHaveBeenCalledTimes(2);
+      expect(
+        usersRepository.updateDeletionCancellationToken,
+      ).toHaveBeenLastCalledWith(userId, 'old-hash', scheduledFor);
     });
   });
 });

@@ -84,4 +84,34 @@ describe('AvatarUploadService', () => {
       ),
     ).resolves.toBeUndefined();
   });
+
+  it('deletes all avatar files for a user', async () => {
+    const file = {
+      buffer: Buffer.from('png'),
+      mimetype: 'image/png',
+      originalname: 'avatar.png',
+      size: 1234,
+    };
+    await service.save(file, userId);
+    await service.save(file, userId);
+    await service.save(file, userId);
+
+    await service.deleteAllAvatarsForUser(userId);
+
+    await expect(
+      fs.access(join(service['uploadDir'], userId)),
+    ).rejects.toThrow();
+  });
+
+  it('is idempotent when the user avatar directory is missing', async () => {
+    await expect(
+      service.deleteAllAvatarsForUser(userId),
+    ).resolves.toBeUndefined();
+  });
+
+  it('does not delete avatars for a malformed userId', async () => {
+    await expect(
+      service.deleteAllAvatarsForUser('../other-user'),
+    ).resolves.toBeUndefined();
+  });
 });

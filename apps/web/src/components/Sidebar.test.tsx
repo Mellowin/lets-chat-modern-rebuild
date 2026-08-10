@@ -1196,7 +1196,9 @@ describe("Sidebar — global unread", () => {
     await waitFor(() => {
       expect(screen.getByTestId("sidebar-global-unread")).toBeInTheDocument();
     });
-    expect(document.title).toBe("(5) lets-chat");
+    await waitFor(() => {
+      expect(document.title).toBe("(5) lets-chat");
+    });
   });
 
   it("resets document title to lets-chat when unread becomes 0", async () => {
