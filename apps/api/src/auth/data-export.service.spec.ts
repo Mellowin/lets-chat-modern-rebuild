@@ -14,16 +14,22 @@ function createMockPrisma() {
     workspaceMember: { findMany: jest.fn().mockResolvedValue([]) },
     channelMember: { findMany: jest.fn().mockResolvedValue([]) },
     groupMember: { findMany: jest.fn().mockResolvedValue([]) },
-    message: { findMany: jest.fn().mockResolvedValue([]) },
-    directMessage: { findMany: jest.fn().mockResolvedValue([]) },
-    groupMessage: { findMany: jest.fn().mockResolvedValue([]) },
+    workspace: { findMany: jest.fn().mockResolvedValue([]) },
+    channel: { findMany: jest.fn().mockResolvedValue([]) },
+    groupConversation: { findMany: jest.fn().mockResolvedValue([]) },
     reaction: { findMany: jest.fn().mockResolvedValue([]) },
     directMessageReaction: { findMany: jest.fn().mockResolvedValue([]) },
+    pinnedChannelMessage: { findMany: jest.fn().mockResolvedValue([]) },
+    pinnedDirectMessage: { findMany: jest.fn().mockResolvedValue([]) },
+    pinnedGroupMessage: { findMany: jest.fn().mockResolvedValue([]) },
     userContact: { findMany: jest.fn().mockResolvedValue([]) },
     userBlock: { findMany: jest.fn().mockResolvedValue([]) },
     userReport: { findMany: jest.fn().mockResolvedValue([]) },
     attachment: { findMany: jest.fn().mockResolvedValue([]) },
     refreshToken: { findMany: jest.fn().mockResolvedValue([]) },
+    message: { findMany: jest.fn().mockResolvedValue([]) },
+    directMessage: { findMany: jest.fn().mockResolvedValue([]) },
+    groupMessage: { findMany: jest.fn().mockResolvedValue([]) },
   };
 }
 
@@ -33,6 +39,7 @@ describe('DataExportService', () => {
   let passwordService: jest.Mocked<PasswordService>;
   let auditService: jest.Mocked<AuditService>;
   let res: Partial<Response>;
+  let chunks: string[];
 
   const userId = '11111111-1111-1111-1111-111111111111';
 
@@ -62,10 +69,22 @@ describe('DataExportService', () => {
     passwordService = { verifyPassword: jest.fn() } as any;
     auditService = { record: jest.fn().mockResolvedValue(undefined) } as any;
 
+    chunks = [];
     res = {
       setHeader: jest.fn().mockReturnThis(),
       status: jest.fn().mockReturnThis(),
-      send: jest.fn().mockReturnThis(),
+      write: jest.fn().mockImplementation((chunk: string | Buffer, _encoding?: string | (() => void), cb?: () => void) => {
+        if (typeof chunk === 'string') {
+          chunks.push(chunk);
+        } else if (Buffer.isBuffer(chunk)) {
+          chunks.push(chunk.toString('utf8'));
+        }
+        if (typeof cb === 'function') cb();
+        return true;
+      }),
+      end: jest.fn().mockImplementation((cb?: () => void) => {
+        if (typeof cb === 'function') cb();
+      }),
     } as any;
 
     const moduleRef = await Test.createTestingModule({
@@ -92,6 +111,10 @@ describe('DataExportService', () => {
   afterEach(() => {
     jest.clearAllMocks();
   });
+
+  function parseStreamedExport(): Record<string, unknown> {
+    return JSON.parse(chunks.join(''));
+  }
 
   it('rejects export when user is not found', async () => {
     prisma.user.findUnique.mockResolvedValue(null);
@@ -136,14 +159,46 @@ describe('DataExportService', () => {
       'Cache-Control',
       'no-store, no-cache, must-revalidate',
     );
-    expect(res.send).toHaveBeenCalled();
+    expect(res.end).toHaveBeenCalled();
 
-    const payload = JSON.parse((res.send as jest.Mock).mock.calls[0][0]);
+    const payload = parseStreamedExport();
     expect(payload.exportFormatVersion).toBe('1.0.0');
     expect(payload.profile).toBeDefined();
-    expect(payload.profile.passwordHash).toBeUndefined();
-    expect(payload.profile.emailVerificationTokenHash).toBeUndefined();
+    expect((payload.profile as Record<string, unknown>).passwordHash).toBeUndefined();
+    expect((payload.profile as Record<string, unknown>).emailVerificationTokenHash).toBeUndefined();
     expect(payload.reports).toHaveLength(1);
     expect(auditService.record).toHaveBeenCalled();
+  });
+
+  it('streams more than 10000 channel messages without truncation', async () => {
+    const total = 10_001;
+    const user = makeUser();
+    prisma.user.findUnique.mockResolvedValue(user as any);
+    passwordService.verifyPassword.mockResolvedValue(true);
+
+    prisma.message.findMany.mockImplementation((args: any) => {
+      const cursor = args.cursor?.id ?? args.where?.id?.gt ?? null;
+      const take = args.take ?? 1000;
+      let start = 0;
+      if (cursor) {
+        const cursorNum = parseInt(cursor.split('-')[0], 10);
+        start = cursorNum + 1;
+      }
+      const batch: Array<{ id: string; channelId: string; content: string }> = [];
+      for (let i = start; i < Math.min(start + take, total); i++) {
+        batch.push({
+          id: `${String(i).padStart(8, '0')}-0000-0000-0000-000000000000`,
+          channelId: '00000000-0000-0000-0000-000000000001',
+          content: `message ${i}`,
+        });
+      }
+      return Promise.resolve(batch);
+    });
+
+    await service.exportUserData(userId, 'password', res as Response);
+
+    const payload = parseStreamedExport();
+    expect(Array.isArray(payload.messages)).toBe(true);
+    expect((payload.messages as unknown[]).length).toBe(total);
   });
 });
