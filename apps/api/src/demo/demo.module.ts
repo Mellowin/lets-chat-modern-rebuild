@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@lets-chat/database';
-import { AuthModule } from '../auth/auth.module';
+import { AuthCommonModule } from '../auth/auth-common.module';
 import { UsersModule } from '../users/users.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { ChannelsModule } from '../channels/channels.module';
@@ -12,7 +12,7 @@ import { DemoService } from './demo.service';
 @Module({
   imports: [
     DatabaseModule,
-    AuthModule,
+    AuthCommonModule,
     UsersModule,
     WorkspacesModule,
     ChannelsModule,

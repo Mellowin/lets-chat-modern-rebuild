@@ -1,33 +1,25 @@
-import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
+import { Module, forwardRef } from '@nestjs/common';
 import { UsersModule } from '../users/users.module';
 import { MailModule } from '../mail/mail.module';
-import { PasswordService } from './password.service';
-import { TokenService } from './token.service';
-import { AuthService } from './auth.service';
+import { AuthCommonModule } from './auth-common.module';
 import { AuthController } from './auth.controller';
-import { AvatarUploadService } from './avatar-upload.service';
-import { JwtAccessGuard } from './guards/jwt-access.guard';
-import { RefreshTokensRepository } from './refresh-tokens.repository';
+import { AccountDeletionService } from './account-deletion.service';
+import { AccountDeletionFinalizerService } from './account-deletion-finalizer.service';
+import { DataExportService } from './data-export.service';
 
 @Module({
-  imports: [JwtModule.register({}), UsersModule, MailModule],
+  imports: [AuthCommonModule, forwardRef(() => UsersModule), MailModule],
   controllers: [AuthController],
   providers: [
-    PasswordService,
-    TokenService,
-    AuthService,
-    AvatarUploadService,
-    JwtAccessGuard,
-    RefreshTokensRepository,
+    AccountDeletionService,
+    AccountDeletionFinalizerService,
+    DataExportService,
   ],
   exports: [
-    PasswordService,
-    TokenService,
-    AuthService,
-    AvatarUploadService,
-    JwtAccessGuard,
-    RefreshTokensRepository,
+    AuthCommonModule,
+    AccountDeletionService,
+    AccountDeletionFinalizerService,
+    DataExportService,
   ],
 })
 export class AuthModule {}

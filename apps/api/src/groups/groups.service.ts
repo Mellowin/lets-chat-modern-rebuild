@@ -19,6 +19,10 @@ import { BlocksService } from '../safety/blocks.service';
 import { MentionsService } from '../common/mentions.service';
 import { mapAttachmentResponse } from '../messages/messages.service';
 import {
+  isDeletedUser,
+  DELETED_USER_DISPLAY_NAME,
+} from '../common/deleted-user-mapper';
+import {
   ForwardPermissionsHelper,
   ForwardedFromPayload,
 } from '../messages/forward-permissions.helper';
@@ -77,6 +81,7 @@ export class GroupsService {
         username: string;
         displayName: string | null;
         avatarUrl: string | null;
+        status?: string;
       };
       mentions?: unknown;
       attachments?: Array<{
@@ -95,6 +100,7 @@ export class GroupsService {
           username: string;
           displayName: string | null;
           avatarUrl: string | null;
+          status?: string;
         };
       } | null;
       pin?: {
@@ -129,6 +135,7 @@ export class GroupsService {
         username: string;
         displayName: string | null;
         avatarUrl: string | null;
+        status?: string;
       };
       mentions?: unknown;
       attachments?: Array<{
@@ -147,6 +154,7 @@ export class GroupsService {
           username: string;
           displayName: string | null;
           avatarUrl: string | null;
+          status?: string;
         };
       } | null;
       pin?: {
@@ -164,7 +172,7 @@ export class GroupsService {
       content: message.content,
       createdAt: message.createdAt,
       updatedAt: message.updatedAt,
-      author: message.author,
+      author: this.mapAuthorResponse(message.author),
       attachments: (message.attachments ?? []).map(mapAttachmentResponse),
       mentions: this.normalizeMentions(message.mentions),
       replyToMessageId: message.replyToMessageId ?? null,
@@ -172,7 +180,7 @@ export class GroupsService {
         ? {
             id: message.replyToMessage.id,
             content: message.replyToMessage.content,
-            author: message.replyToMessage.author,
+            author: this.mapAuthorResponse(message.replyToMessage.author),
           }
         : null,
       isPinned: !!message.pin,
@@ -183,6 +191,31 @@ export class GroupsService {
           }
         : undefined,
       forwardedFrom,
+    };
+  }
+
+  private mapAuthorResponse(author: {
+    id: string;
+    username: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+    status?: string;
+  }) {
+    if (isDeletedUser(author)) {
+      return {
+        id: author.id,
+        username: '',
+        displayName: DELETED_USER_DISPLAY_NAME,
+        avatarUrl: null,
+        isDeleted: true,
+      };
+    }
+    return {
+      id: author.id,
+      username: author.username,
+      displayName: author.displayName,
+      avatarUrl: author.avatarUrl,
+      isDeleted: false,
     };
   }
 
@@ -281,6 +314,7 @@ export class GroupsService {
         username: string;
         displayName: string | null;
         avatarUrl: string | null;
+        status?: string;
       } | null;
       message: {
         id: string;
@@ -291,6 +325,7 @@ export class GroupsService {
           username: string;
           displayName: string | null;
           avatarUrl: string | null;
+          status?: string;
         };
         attachments: Array<{ id: string }>;
         replyToMessage?: {
@@ -301,6 +336,7 @@ export class GroupsService {
             username: string;
             displayName: string | null;
             avatarUrl: string | null;
+            status?: string;
           };
         } | null;
         forwardedFrom?: unknown;
@@ -325,6 +361,7 @@ export class GroupsService {
         username: string;
         displayName: string | null;
         avatarUrl: string | null;
+        status?: string;
       } | null;
       message: {
         id: string;
@@ -335,6 +372,7 @@ export class GroupsService {
           username: string;
           displayName: string | null;
           avatarUrl: string | null;
+          status?: string;
         };
         attachments: Array<{ id: string }>;
         replyToMessage?: {
@@ -345,6 +383,7 @@ export class GroupsService {
             username: string;
             displayName: string | null;
             avatarUrl: string | null;
+            status?: string;
           };
         } | null;
         forwardedFrom?: unknown;

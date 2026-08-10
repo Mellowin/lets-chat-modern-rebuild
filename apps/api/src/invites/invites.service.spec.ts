@@ -6,7 +6,7 @@ import {
   GoneException,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, WorkspaceRole } from '@lets-chat/database';
+import { Prisma, WorkspaceRole, UserStatus } from '@lets-chat/database';
 import { createHash } from 'crypto';
 import { InvitesService } from './invites.service';
 
@@ -145,6 +145,12 @@ describe('InvitesService', () => {
       role: UserRole.USER,
       contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
       ...overrides,
+      status: UserStatus.ACTIVE,
+      deletionRequestedAt: null,
+      deletionScheduledFor: null,
+      deletionCancellationTokenHash: null,
+      deletionCancellationExpiresAt: null,
+      anonymizedAt: null,
     };
   }
 

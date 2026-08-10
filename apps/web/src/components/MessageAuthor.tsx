@@ -9,11 +9,23 @@ export interface MessageAuthorProps {
     username: string;
     displayName?: string | null;
     avatarUrl?: string | null;
+    isDeleted?: boolean;
   };
 }
 
 export function MessageAuthor({ author }: MessageAuthorProps) {
   const { t } = useLocale();
+  if (author.isDeleted) {
+    return (
+      <div className="flex items-center gap-2.5">
+        <Avatar src={null} name={t("messageAuthor.deletedUser")} size="md" alt={t("messageAuthor.deletedUser")} />
+        <div className="flex min-w-0 flex-col">
+          <span className="text-sm font-semibold text-foreground truncate">{t("messageAuthor.deletedUser")}</span>
+        </div>
+      </div>
+    );
+  }
+
   const name = author.displayName || author.username || t("messageAuthor.unknownUser");
   const showUsername = author.displayName && author.username;
 

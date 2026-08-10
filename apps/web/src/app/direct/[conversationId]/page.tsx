@@ -199,6 +199,21 @@ function DirectAttachmentFileCard({
   onDownload: (msg: DirectMessage, att: DirectMessageAttachment) => void;
 }) {
   const { t } = useLocale();
+  if (attachment.isDeleted) {
+    return (
+      <div
+        data-testid={`direct-message-attachment-removed-${message.id}-${attachment.id}`}
+        className="flex w-full max-w-[16rem] sm:max-w-[20rem] items-center gap-3 rounded-xl border border-dashed border-border/80 bg-muted/40 px-3 py-2 text-left"
+      >
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-border/60">
+          <FileIcon size={18} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-muted-foreground">{t("channel.attachmentRemoved")}</p>
+        </div>
+      </div>
+    );
+  }
   const { icon: Icon, labelKey } = getAttachmentTypeInfo(attachment.mimeType);
 
   return (
@@ -239,9 +254,10 @@ function DirectAttachmentImagePreview({
   const { t } = useLocale();
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !attachment.isDeleted);
 
   useEffect(() => {
+    if (attachment.isDeleted) return;
     let cancelled = false;
     let createdUrl: string | null = null;
 
@@ -272,7 +288,19 @@ function DirectAttachmentImagePreview({
       cancelled = true;
       if (createdUrl) URL.revokeObjectURL(createdUrl);
     };
-  }, [accessToken, conversationId, messageId, attachment.id]);
+  }, [accessToken, conversationId, messageId, attachment.id, attachment.isDeleted]);
+
+  if (attachment.isDeleted) {
+    return (
+      <div
+        data-testid={`direct-message-attachment-image-removed-${messageId}-${attachment.id}`}
+        className="flex min-h-[8rem] max-w-[16rem] items-center gap-2 rounded-lg border border-dashed border-border/80 bg-muted/40 px-3 py-2 text-xs"
+      >
+        <ImageIcon size={16} className="text-muted-foreground" />
+        <span className="text-muted-foreground">{t("channel.attachmentRemoved")}</span>
+      </div>
+    );
+  }
 
   return (
     <button

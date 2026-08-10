@@ -6,6 +6,7 @@ import {
   Bell,
   ChevronLeft,
   ShieldAlert,
+  Database,
   Eye,
   EyeOff,
   Globe,
@@ -46,6 +47,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { PushNotificationsSection } from "./PushNotificationsSection";
 import { NotificationPreferencesSection } from "./NotificationPreferencesSection";
 import { PwaInstallSection } from "./PwaInstallSection";
+import { AccountDataSection } from "./AccountDataSection";
+import { LegalLinks } from "@/components/LegalLinks";
 
 type FormState =
   | { kind: "idle" }
@@ -58,7 +61,7 @@ const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 const LOCALE_OPTIONS: Locale[] = ["en", "uk", "ru"];
 
-type TabKey = "account" | "security" | "sessions" | "language" | "notifications" | "app" | "safety";
+type TabKey = "account" | "security" | "sessions" | "language" | "notifications" | "app" | "safety" | "data";
 
 function Alert({
   variant,
@@ -413,6 +416,11 @@ export default function ProfilePage() {
       key: "safety",
       label: t("safety.title"),
       icon: <ShieldAlert size={16} />,
+    },
+    {
+      key: "data",
+      label: t("profile.dataAndAccount"),
+      icon: <Database size={16} />,
     },
   ];
 
@@ -1159,6 +1167,12 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       )}
+
+      {activeTab === "data" && (
+        <AccountDataSection accessToken={accessToken} user={user} />
+      )}
+
+      <LegalLinks className="justify-center" />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { Module, forwardRef } from '@nestjs/common';
-import { AuthModule } from '../auth/auth.module';
+import { AuthCommonModule } from '../auth/auth-common.module';
 import { UsersModule } from '../users/users.module';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { ChannelsModule } from '../channels/channels.module';
@@ -33,7 +33,7 @@ import { ForwardController } from './forward.controller';
 
 @Module({
   imports: [
-    AuthModule,
+    AuthCommonModule,
     UsersModule,
     WorkspacesModule,
     ChannelsModule,

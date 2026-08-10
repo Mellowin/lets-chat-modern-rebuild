@@ -4,6 +4,8 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import type { AuthUserResponse } from './auth.service';
 import { AvatarUploadService } from './avatar-upload.service';
+import { AccountDeletionService } from './account-deletion.service';
+import { DataExportService } from './data-export.service';
 import { JwtAccessGuard } from './guards/jwt-access.guard';
 
 describe('AuthController', () => {
@@ -26,6 +28,8 @@ describe('AuthController', () => {
     channelMessageNotificationsEnabled: true,
     role: 'USER',
     createdAt: new Date(),
+    status: 'ACTIVE',
+    isDeleted: false,
   };
 
   beforeEach(async () => {
@@ -60,6 +64,19 @@ describe('AuthController', () => {
           provide: AvatarUploadService,
           useValue: {
             save: jest.fn(),
+          },
+        },
+        {
+          provide: AccountDeletionService,
+          useValue: {
+            requestDeletion: jest.fn(),
+            cancelDeletion: jest.fn(),
+          },
+        },
+        {
+          provide: DataExportService,
+          useValue: {
+            exportUserData: jest.fn(),
           },
         },
       ],

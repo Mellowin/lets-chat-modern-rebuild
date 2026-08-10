@@ -44,6 +44,12 @@ enum UserRole {
   ADMIN
 }
 
+enum UserStatus {
+  ACTIVE
+  PENDING_DELETION
+  ANONYMIZED
+}
+
 enum ContactPrivacySetting {
   EVERYONE
   REQUESTS_ONLY
@@ -65,17 +71,18 @@ enum StorageBackend {
 // ── Models ──────────────────────────────────────────────────────────
 
 model User {
-  id                String    @id @default(uuid()) @db.Uuid
+  id                String     @id @default(uuid()) @db.Uuid
   email             String
   username          String
   passwordHash      String
   displayName       String?
   avatarUrl         String?
   avatarUpdatedAt   DateTime?
-  interfaceLanguage String    @default("en")
-  role              UserRole  @default(USER)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  interfaceLanguage String     @default("en")
+  role              UserRole   @default(USER)
+  status            UserStatus @default(ACTIVE)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
   deletedAt         DateTime?
 
   // Email verification
@@ -89,18 +96,25 @@ model User {
   passwordResetExpiresAt DateTime?
   passwordResetSentAt    DateTime?
 
+  // Email change
+  pendingEmail         String?
+  emailChangeTokenHash String?
+  emailChangeExpiresAt DateTime?
+  emailChangeSentAt    DateTime?
+
+  // Account deletion lifecycle
+  deletionRequestedAt              DateTime?
+  deletionScheduledFor             DateTime?
+  deletionCancellationTokenHash    String?
+  deletionCancellationExpiresAt      DateTime?
+  anonymizedAt                     DateTime?
+
   // Notification preferences
   pushNotificationsEnabled          Boolean @default(true)
   mentionNotificationsEnabled       Boolean @default(true)
   directMessageNotificationsEnabled Boolean @default(true)
   groupMessageNotificationsEnabled  Boolean @default(true)
   channelMessageNotificationsEnabled Boolean @default(true)
-
-  // Email change
-  pendingEmail         String?
-  emailChangeTokenHash String?
-  emailChangeExpiresAt DateTime?
-  emailChangeSentAt    DateTime?
 
   // Contact privacy
   contactPrivacySetting ContactPrivacySetting @default(REQUESTS_ONLY)
@@ -149,6 +163,9 @@ model User {
   @@index([username])
   @@index([passwordResetTokenHash])
   @@index([emailChangeTokenHash])
+  @@index([status, deletionScheduledFor])
+  @@index([deletionCancellationTokenHash])
+  @@index([anonymizedAt])
 }
 
 model Workspace {

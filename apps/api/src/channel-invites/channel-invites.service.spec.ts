@@ -10,6 +10,7 @@ import {
   ChannelType,
   ChannelRole,
   WorkspaceRole,
+  UserStatus,
 } from '@lets-chat/database';
 import { ChannelInvitesService } from './channel-invites.service';
 import { ChannelInvitesRepository } from './channel-invites.repository';
@@ -180,6 +181,12 @@ describe('ChannelInvitesService', () => {
       role: UserRole.USER,
       contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
       ...overrides,
+      status: UserStatus.ACTIVE,
+      deletionRequestedAt: null,
+      deletionScheduledFor: null,
+      deletionCancellationTokenHash: null,
+      deletionCancellationExpiresAt: null,
+      anonymizedAt: null,
     };
   }
 

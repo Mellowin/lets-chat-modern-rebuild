@@ -6,7 +6,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { Prisma } from '@lets-chat/database';
+import { Prisma, UserStatus } from '@lets-chat/database';
 import { AuthService, AuthUserResponse } from './auth.service';
 
 import { UsersRepository } from '../users/users.repository';
@@ -118,6 +118,12 @@ describe('AuthService', () => {
       channelMessageNotificationsEnabled: true,
       role: UserRole.USER,
       contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
+      status: UserStatus.ACTIVE,
+      deletionRequestedAt: null,
+      deletionScheduledFor: null,
+      deletionCancellationTokenHash: null,
+      deletionCancellationExpiresAt: null,
+      anonymizedAt: null,
     };
 
     usersRepository.updateDisplayName.mockResolvedValue(user);
@@ -162,6 +168,12 @@ describe('AuthService', () => {
       channelMessageNotificationsEnabled: true,
       role: UserRole.USER,
       contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
+      status: UserStatus.ACTIVE,
+      deletionRequestedAt: null,
+      deletionScheduledFor: null,
+      deletionCancellationTokenHash: null,
+      deletionCancellationExpiresAt: null,
+      anonymizedAt: null,
     };
 
     const servicePrivate = service as unknown as {
@@ -205,6 +217,12 @@ describe('AuthService', () => {
       channelMessageNotificationsEnabled: true,
       role: UserRole.USER,
       contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
+      status: UserStatus.ACTIVE,
+      deletionRequestedAt: null,
+      deletionScheduledFor: null,
+      deletionCancellationTokenHash: null,
+      deletionCancellationExpiresAt: null,
+      anonymizedAt: null,
     };
 
     const servicePrivate = service as unknown as {
@@ -248,6 +266,12 @@ describe('AuthService', () => {
       channelMessageNotificationsEnabled: true,
       role: UserRole.USER,
       contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
+      status: UserStatus.ACTIVE,
+      deletionRequestedAt: null,
+      deletionScheduledFor: null,
+      deletionCancellationTokenHash: null,
+      deletionCancellationExpiresAt: null,
+      anonymizedAt: null,
     };
 
     usersRepository.updateInterfaceLanguage.mockResolvedValue(user);
@@ -292,6 +316,12 @@ describe('AuthService', () => {
       channelMessageNotificationsEnabled: true,
       role: UserRole.USER,
       contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
+      status: UserStatus.ACTIVE,
+      deletionRequestedAt: null,
+      deletionScheduledFor: null,
+      deletionCancellationTokenHash: null,
+      deletionCancellationExpiresAt: null,
+      anonymizedAt: null,
     };
 
     usersRepository.updateAvatar.mockResolvedValue(user);
@@ -340,6 +370,12 @@ describe('AuthService', () => {
       channelMessageNotificationsEnabled: true,
       role: UserRole.USER,
       contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
+      status: UserStatus.ACTIVE,
+      deletionRequestedAt: null,
+      deletionScheduledFor: null,
+      deletionCancellationTokenHash: null,
+      deletionCancellationExpiresAt: null,
+      anonymizedAt: null,
     };
 
     usersRepository.updateAvatar.mockResolvedValue(user);
@@ -391,6 +427,12 @@ describe('AuthService — email verification', () => {
     channelMessageNotificationsEnabled: true,
     role: UserRole.USER,
     contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
+    status: UserStatus.ACTIVE,
+    deletionRequestedAt: null,
+    deletionScheduledFor: null,
+    deletionCancellationTokenHash: null,
+    deletionCancellationExpiresAt: null,
+    anonymizedAt: null,
     ...overrides,
   });
 
@@ -865,6 +907,12 @@ describe('AuthService — password reset', () => {
     channelMessageNotificationsEnabled: true,
     role: UserRole.USER,
     contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
+    status: UserStatus.ACTIVE,
+    deletionRequestedAt: null,
+    deletionScheduledFor: null,
+    deletionCancellationTokenHash: null,
+    deletionCancellationExpiresAt: null,
+    anonymizedAt: null,
     ...overrides,
   });
 
@@ -1325,6 +1373,12 @@ describe('AuthService — change password', () => {
     channelMessageNotificationsEnabled: true,
     role: UserRole.USER,
     contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
+    status: UserStatus.ACTIVE,
+    deletionRequestedAt: null,
+    deletionScheduledFor: null,
+    deletionCancellationTokenHash: null,
+    deletionCancellationExpiresAt: null,
+    anonymizedAt: null,
     ...overrides,
   });
 

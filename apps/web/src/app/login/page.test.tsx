@@ -128,7 +128,10 @@ describe("LoginPage", () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
-      contactPrivacySetting: "EVERYONE" as const, },
+      contactPrivacySetting: "EVERYONE" as const,
+  status: "ACTIVE" as const,
+  isDeleted: false as const
+},
       accessToken: "at",
       refreshToken: "rt",
     };
@@ -224,7 +227,10 @@ describe("LoginPage", () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
-      contactPrivacySetting: "EVERYONE" as const, },
+      contactPrivacySetting: "EVERYONE" as const,
+  status: "ACTIVE" as const,
+  isDeleted: false as const
+},
         accessToken: "at",
         refreshToken: "rt",
       });
@@ -263,7 +269,10 @@ describe("LoginPage", () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
-      contactPrivacySetting: "EVERYONE" as const, },
+      contactPrivacySetting: "EVERYONE" as const,
+  status: "ACTIVE" as const,
+  isDeleted: false as const
+},
         accessToken: "at",
         refreshToken: "rt",
       });

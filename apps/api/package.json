@@ -22,6 +22,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json --runInBand",
     "push:generate-vapid-keys": "web-push generate-vapid-keys",
     "cleanup:attachments": "node scripts/cleanup-orphaned-attachments.mjs",
+    "cli:finalize-account-deletions": "ts-node scripts/finalize-account-deletions.ts",
     "demo:cleanup": "ts-node scripts/demo-cleanup.ts",
     "seed:verifier-accounts": "ts-node scripts/seed-verifier-accounts.ts",
     "setup:local-account": "ts-node scripts/setup-local-account.ts"

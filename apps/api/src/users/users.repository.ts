@@ -23,15 +23,34 @@ export class UsersRepository {
     return value.trim();
   }
 
+  private activeWhere() {
+    return { status: 'ACTIVE' as const };
+  }
+
   async findById(id: string) {
     return this.prisma.user.findUnique({
       where: { id },
     });
   }
 
+  async findActiveById(id: string) {
+    return this.prisma.user.findFirst({
+      where: { id, ...this.activeWhere() },
+    });
+  }
+
   async findByEmail(email: string) {
     return this.prisma.user.findFirst({
       where: { email: this.normalizeEmail(email) },
+    });
+  }
+
+  async findActiveByEmail(email: string) {
+    return this.prisma.user.findFirst({
+      where: {
+        email: this.normalizeEmail(email),
+        ...this.activeWhere(),
+      },
     });
   }
 
@@ -42,6 +61,18 @@ export class UsersRepository {
           equals: this.normalizeUsername(username),
           mode: 'insensitive',
         },
+      },
+    });
+  }
+
+  async findActiveByUsername(username: string) {
+    return this.prisma.user.findFirst({
+      where: {
+        username: {
+          equals: this.normalizeUsername(username),
+          mode: 'insensitive',
+        },
+        ...this.activeWhere(),
       },
     });
   }
@@ -270,6 +301,149 @@ export class UsersRepository {
     return this.prisma.user.update({
       where: { id: userId },
       data: { contactPrivacySetting },
+    });
+  }
+
+  async findByDeletionCancellationTokenHash(tokenHash: string) {
+    return this.prisma.user.findFirst({
+      where: {
+        deletionCancellationTokenHash: tokenHash,
+        status: 'PENDING_DELETION',
+      },
+    });
+  }
+
+  async findActiveWorkspaceOwnerships(userId: string) {
+    return this.prisma.workspace.findMany({
+      where: {
+        ownerId: userId,
+        deletedAt: null,
+        permanentlyDeletedAt: null,
+      },
+      select: { id: true, name: true, slug: true },
+    });
+  }
+
+  async deletePushSubscriptionsForUser(userId: string) {
+    return this.prisma.pushSubscription.deleteMany({
+      where: { userId },
+    });
+  }
+
+  async findActiveGroupsWhereUserIsOnlyOwner(userId: string) {
+    const groups = await this.prisma.groupConversation.findMany({
+      where: {
+        archivedAt: null,
+        members: {
+          some: {
+            userId,
+            role: 'OWNER',
+            leftAt: null,
+          },
+        },
+      },
+      include: {
+        members: {
+          where: { leftAt: null },
+          select: { id: true, userId: true, role: true },
+        },
+      },
+    });
+
+    return groups
+      .filter((group) => {
+        const owners = group.members.filter((m) => m.role === 'OWNER');
+        return owners.length === 1 && owners[0].userId === userId;
+      })
+      .map((group) => ({
+        id: group.id,
+        name: group.name,
+        memberId: group.members.find((m) => m.userId === userId)!.id,
+      }));
+  }
+
+  async findPendingDeletionUsersDueForFinalization(now: Date) {
+    return this.prisma.user.findMany({
+      where: {
+        status: 'PENDING_DELETION',
+        deletionScheduledFor: { lte: now },
+      },
+    });
+  }
+
+  async requestAccountDeletion(
+    userId: string,
+    tokenHash: string,
+    scheduledFor: Date,
+  ) {
+    return this.prisma.user.update({
+      where: { id: userId, status: 'ACTIVE' },
+      data: {
+        status: 'PENDING_DELETION',
+        deletionRequestedAt: new Date(),
+        deletionScheduledFor: scheduledFor,
+        deletionCancellationTokenHash: tokenHash,
+        deletionCancellationExpiresAt: scheduledFor,
+        emailVerificationTokenHash: null,
+        emailVerificationExpiresAt: null,
+        emailVerificationSentAt: null,
+        passwordResetTokenHash: null,
+        passwordResetExpiresAt: null,
+        passwordResetSentAt: null,
+        pendingEmail: null,
+        emailChangeTokenHash: null,
+        emailChangeExpiresAt: null,
+        emailChangeSentAt: null,
+      },
+    });
+  }
+
+  async clearDeletionRequest(userId: string) {
+    return this.prisma.user.update({
+      where: { id: userId, status: 'PENDING_DELETION' },
+      data: {
+        status: 'ACTIVE',
+        deletionRequestedAt: null,
+        deletionScheduledFor: null,
+        deletionCancellationTokenHash: null,
+        deletionCancellationExpiresAt: null,
+        deletedAt: null,
+      },
+    });
+  }
+
+  async anonymizeUser(
+    userId: string,
+    anonymizedEmail: string,
+    anonymizedUsername: string,
+    invalidPasswordHash: string,
+  ) {
+    return this.prisma.user.update({
+      where: { id: userId, status: 'PENDING_DELETION' },
+      data: {
+        status: 'ANONYMIZED',
+        deletedAt: new Date(),
+        anonymizedAt: new Date(),
+        email: anonymizedEmail,
+        username: anonymizedUsername,
+        displayName: null,
+        avatarUrl: null,
+        passwordHash: invalidPasswordHash,
+        emailVerificationTokenHash: null,
+        emailVerificationExpiresAt: null,
+        emailVerificationSentAt: null,
+        passwordResetTokenHash: null,
+        passwordResetExpiresAt: null,
+        passwordResetSentAt: null,
+        pendingEmail: null,
+        emailChangeTokenHash: null,
+        emailChangeExpiresAt: null,
+        emailChangeSentAt: null,
+        deletionRequestedAt: null,
+        deletionScheduledFor: null,
+        deletionCancellationTokenHash: null,
+        deletionCancellationExpiresAt: null,
+      },
     });
   }
 }

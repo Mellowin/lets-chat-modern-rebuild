@@ -31,6 +31,10 @@ import {
 } from '../messages/attachments.service';
 import { StorageService } from '../storage/storage.service';
 import { AttachmentsRepository } from '../messages/attachments.repository';
+import {
+  isDeletedUser,
+  DELETED_USER_DISPLAY_NAME,
+} from '../common/deleted-user-mapper';
 import { DirectConversationsRepository } from './direct-conversations.repository';
 import { StorageBackend, Prisma } from '@lets-chat/database';
 import { randomUUID } from 'crypto';
@@ -160,18 +164,18 @@ export class DirectConversationsService {
               : message.replyToMessage.content,
             author: message.replyToMessage.deletedAt
               ? null
-              : message.replyToMessage.author,
+              : this.mapAuthorResponse(message.replyToMessage.author),
           }
         : null,
       createdAt: message.createdAt,
       updatedAt: message.updatedAt,
       editedAt: message.editedAt,
-      author: message.author,
+      author: this.mapAuthorResponse(message.author),
       parent: message.parent
         ? {
             id: message.parent.id,
             content: message.parent.content,
-            author: message.parent.author,
+            author: this.mapAuthorResponse(message.parent.author),
           }
         : null,
       reactions: reactions ?? [],
@@ -196,6 +200,31 @@ export class DirectConversationsService {
           }
         : undefined,
       forwardedFrom,
+    };
+  }
+
+  private mapAuthorResponse(author: {
+    id: string;
+    username: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+    status?: string;
+  }) {
+    if (isDeletedUser(author)) {
+      return {
+        id: author.id,
+        username: '',
+        displayName: DELETED_USER_DISPLAY_NAME,
+        avatarUrl: null,
+        isDeleted: true,
+      };
+    }
+    return {
+      id: author.id,
+      username: author.username,
+      displayName: author.displayName,
+      avatarUrl: author.avatarUrl,
+      isDeleted: false,
     };
   }
 
@@ -234,6 +263,7 @@ export class DirectConversationsService {
         username: string;
         displayName: string | null;
         avatarUrl: string | null;
+        status?: string;
       } | null;
       message: {
         id: string;
@@ -244,6 +274,7 @@ export class DirectConversationsService {
           username: string;
           displayName: string | null;
           avatarUrl: string | null;
+          status?: string;
         } | null;
         attachments: Array<{ id: string }>;
         replyToMessage?: {
@@ -255,6 +286,7 @@ export class DirectConversationsService {
             username: string;
             displayName: string | null;
             avatarUrl: string | null;
+            status?: string;
           } | null;
         } | null;
         forwardedFrom?: unknown;
@@ -279,6 +311,7 @@ export class DirectConversationsService {
         username: string;
         displayName: string | null;
         avatarUrl: string | null;
+        status?: string;
       } | null;
       message: {
         id: string;
@@ -289,6 +322,7 @@ export class DirectConversationsService {
           username: string;
           displayName: string | null;
           avatarUrl: string | null;
+          status?: string;
         } | null;
         attachments: Array<{ id: string }>;
         replyToMessage?: {
@@ -300,6 +334,7 @@ export class DirectConversationsService {
             username: string;
             displayName: string | null;
             avatarUrl: string | null;
+            status?: string;
           } | null;
         } | null;
         forwardedFrom?: unknown;

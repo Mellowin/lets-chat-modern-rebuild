@@ -45,7 +45,9 @@ function mockAuth(role: string | null) {
     loginSuccess: vi.fn(),
     setUser: vi.fn(),
     logout: vi.fn(),
-  } as unknown as ReturnType<typeof useAuth>);
+    status: "ACTIVE" as const,
+    isDeleted: false as const
+} as unknown as ReturnType<typeof useAuth>);
 }
 
 function makeHealth(

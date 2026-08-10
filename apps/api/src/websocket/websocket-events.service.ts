@@ -529,6 +529,10 @@ export class WebsocketEventsService {
     }
   }
 
+  disconnectUser(userId: string) {
+    return this.gateway.disconnectUser(userId);
+  }
+
   private withAnonymousForwardedFrom<
     T extends { forwardedFrom?: ForwardedFromPayload },
   >(payload: T): T {

@@ -18,6 +18,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useLocale } from "@/lib/locale";
 import { localizeApiError } from "@/lib/api-errors";
 import { useResendCooldown } from "@/lib/use-resend-cooldown";
+import { LegalLinks } from "@/components/LegalLinks";
 import { Button } from "@/components/ui/Button";
 import {
   Card,
@@ -335,6 +336,8 @@ export default function LoginPage() {
           </p>
         </CardContent>
       </Card>
+
+      <LegalLinks className="justify-center" />
     </div>
   );
 }

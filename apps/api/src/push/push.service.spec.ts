@@ -175,6 +175,8 @@ describe('PushService', () => {
             channelMessageNotificationsEnabled: true,
             role: 'USER',
             pushSubscriptions: [mockSubscription],
+            status: 'ACTIVE',
+            isDeleted: false,
           },
         },
         {
@@ -194,6 +196,8 @@ describe('PushService', () => {
                 endpoint: 'https://push.example/2',
               },
             ],
+            status: 'ACTIVE',
+            isDeleted: false,
           },
         },
       ]);
@@ -262,6 +266,8 @@ describe('PushService', () => {
             channelMessageNotificationsEnabled: true,
             role: 'USER',
             pushSubscriptions: [mockSubscription],
+            status: 'ACTIVE',
+            isDeleted: false,
           },
         },
       ]);
@@ -308,6 +314,8 @@ describe('PushService', () => {
               channelMessageNotificationsEnabled: true,
               role: 'USER',
               pushSubscriptions: [],
+              status: 'ACTIVE',
+              isDeleted: false,
             },
           },
           {
@@ -320,6 +328,8 @@ describe('PushService', () => {
               channelMessageNotificationsEnabled: true,
               role: 'USER',
               pushSubscriptions: [mockSubscription],
+              status: 'ACTIVE',
+              isDeleted: false,
             },
           },
         ],
@@ -400,6 +410,8 @@ describe('PushService', () => {
             channelMessageNotificationsEnabled: true,
             role: 'USER',
             pushSubscriptions: [makeGroupSubscription('user-b', 'sub-b')],
+            status: 'ACTIVE',
+            isDeleted: false,
           },
         },
         {
@@ -414,6 +426,8 @@ describe('PushService', () => {
             channelMessageNotificationsEnabled: true,
             role: 'USER',
             pushSubscriptions: [makeGroupSubscription('user-c', 'sub-c')],
+            status: 'ACTIVE',
+            isDeleted: false,
           },
         },
       ]);
@@ -451,6 +465,8 @@ describe('PushService', () => {
             channelMessageNotificationsEnabled: true,
             role: 'USER',
             pushSubscriptions: [makeGroupSubscription('user-b', 'sub-b')],
+            status: 'ACTIVE',
+            isDeleted: false,
           },
         },
       ]);
@@ -503,6 +519,8 @@ describe('PushService', () => {
             channelMessageNotificationsEnabled: true,
             role: 'USER',
             pushSubscriptions: [makeGroupSubscription('user-b', 'sub-b')],
+            status: 'ACTIVE',
+            isDeleted: false,
           },
         },
       ]);
@@ -620,6 +638,8 @@ describe('PushService', () => {
             channelMessageNotificationsEnabled: true,
             role: 'USER',
             pushSubscriptions: [makeGroupSubscription('user-b', 'sub-b')],
+            status: 'ACTIVE',
+            isDeleted: false,
           },
         },
       ]);

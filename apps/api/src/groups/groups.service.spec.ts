@@ -22,6 +22,7 @@ import {
   UserRole,
   ContactPrivacySetting,
   StorageBackend,
+  UserStatus,
 } from '@lets-chat/database';
 
 const userId = '11111111-1111-1111-1111-111111111111';
@@ -88,6 +89,12 @@ function makeUser(
     role: UserRole.USER,
     contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
     ...overrides,
+    status: UserStatus.ACTIVE,
+    deletionRequestedAt: null,
+    deletionScheduledFor: null,
+    deletionCancellationTokenHash: null,
+    deletionCancellationExpiresAt: null,
+    anonymizedAt: null,
   };
 }
 
@@ -137,6 +144,8 @@ function makeMessage(
       username: 'alice',
       displayName: 'Alice',
       avatarUrl: null,
+
+      status: UserStatus.ACTIVE,
     },
     attachments: [],
     replyToMessage: null,
@@ -160,6 +169,7 @@ function makePin(
       username: 'alice',
       displayName: 'Alice',
       avatarUrl: null,
+      status: UserStatus.ACTIVE,
     },
     message: {
       id: messageId,
@@ -175,6 +185,8 @@ function makePin(
         username: 'alice',
         displayName: 'Alice',
         avatarUrl: null,
+
+        status: UserStatus.ACTIVE,
       },
       attachments: [],
       replyToMessage: null,
@@ -969,6 +981,7 @@ describe('GroupsService', () => {
               size: 5678,
               storageKey: 'attachments/user/image.png',
               storageBackend: StorageBackend.MINIO,
+              deletedAt: null,
               createdAt: new Date(),
             },
           ],
@@ -1028,6 +1041,7 @@ describe('GroupsService', () => {
               size: 5678,
               storageKey: 'attachments/user/image.png',
               storageBackend: StorageBackend.MINIO,
+              deletedAt: null,
               createdAt: new Date(),
             },
           ],

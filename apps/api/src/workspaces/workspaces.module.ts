@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { AuthModule } from '../auth/auth.module';
+import { AuthCommonModule } from '../auth/auth-common.module';
 import { UsersModule } from '../users/users.module';
 import { AuditModule } from '../audit/audit.module';
 import { WorkspacesService } from './workspaces.service';
@@ -9,7 +9,7 @@ import { ChannelsRepository } from '../channels/channels.repository';
 import { ChannelInvitesRepository } from '../channel-invites/channel-invites.repository';
 
 @Module({
-  imports: [AuthModule, UsersModule, AuditModule],
+  imports: [AuthCommonModule, UsersModule, AuditModule],
   controllers: [WorkspacesController],
   providers: [
     WorkspacesService,

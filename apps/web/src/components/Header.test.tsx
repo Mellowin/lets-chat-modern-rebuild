@@ -38,7 +38,10 @@ describe("Header — global unread", () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
-      contactPrivacySetting: "EVERYONE", } });
+      contactPrivacySetting: "EVERYONE",
+  status: "ACTIVE" as const,
+  isDeleted: false as const
+} });
     render(<Header />);
     expect(screen.queryByTestId("header-global-unread")).not.toBeInTheDocument();
   });
@@ -50,7 +53,10 @@ describe("Header — global unread", () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
-      contactPrivacySetting: "EVERYONE", } });
+      contactPrivacySetting: "EVERYONE",
+  status: "ACTIVE" as const,
+  isDeleted: false as const
+} });
     render(<Header />);
     act(() => {
       window.dispatchEvent(new CustomEvent("global-unread:changed", { detail: { total: 5 } }));
@@ -65,7 +71,10 @@ describe("Header — global unread", () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
-      contactPrivacySetting: "EVERYONE", } });
+      contactPrivacySetting: "EVERYONE",
+  status: "ACTIVE" as const,
+  isDeleted: false as const
+} });
     render(<Header />);
     act(() => {
       window.dispatchEvent(new CustomEvent("global-unread:changed", { detail: { total: 150 } }));
@@ -80,7 +89,10 @@ describe("Header — global unread", () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
-      contactPrivacySetting: "EVERYONE", } });
+      contactPrivacySetting: "EVERYONE",
+  status: "ACTIVE" as const,
+  isDeleted: false as const
+} });
     render(<Header />);
     act(() => {
       window.dispatchEvent(new CustomEvent("global-unread:changed", { detail: { total: 5 } }));
@@ -113,7 +125,9 @@ describe("Header — global search", () => {
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
       contactPrivacySetting: "EVERYONE",
-      },
+        status: "ACTIVE" as const,
+        isDeleted: false as const
+},
     });
     render(<Header />);
     expect(screen.getByTestId("global-search-open-button")).toBeInTheDocument();

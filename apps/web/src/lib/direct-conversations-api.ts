@@ -64,6 +64,7 @@ export interface DirectMessageAttachment {
   sizeBytes: number;
   kind: "image" | "file";
   createdAt: string;
+  isDeleted?: boolean;
   url?: string;
   thumbnailUrl?: string;
 }

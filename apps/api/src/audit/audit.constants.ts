@@ -15,6 +15,10 @@ export const AuditAction = {
   PASSWORD_RESET_COMPLETED: 'auth.password_reset.completed',
   SESSION_REVOKED: 'auth.session.revoked',
   DEMO_SESSION_CREATED: 'demo.session.created',
+  ACCOUNT_DELETION_REQUESTED: 'account_deletion.requested',
+  ACCOUNT_DELETION_CANCELLED: 'account_deletion.cancelled',
+  ACCOUNT_DELETION_FINALIZED: 'account_deletion.finalized',
+  USER_DATA_EXPORTED: 'user_data.exported',
 
   // Workspace
   WORKSPACE_CREATED: 'workspace.created',

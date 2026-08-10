@@ -54,7 +54,10 @@ function TestConsumer() {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
-      contactPrivacySetting: "EVERYONE", },
+      contactPrivacySetting: "EVERYONE",
+  status: "ACTIVE" as const,
+  isDeleted: false as const
+},
             accessToken: "at",
             refreshToken: "rt",
           })
@@ -71,7 +74,10 @@ function TestConsumer() {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
-      contactPrivacySetting: "EVERYONE", })
+      contactPrivacySetting: "EVERYONE",
+  status: "ACTIVE" as const,
+  isDeleted: false as const
+})
         }
       >
         SetUser
@@ -130,7 +136,9 @@ describe("AuthProvider", () => {
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
       contactPrivacySetting: "EVERYONE",
-    });
+      status: "ACTIVE" as const,
+      isDeleted: false as const
+});
 
     render(
       <AuthProvider>
@@ -178,7 +186,10 @@ describe("AuthProvider", () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
-      contactPrivacySetting: "EVERYONE", },
+      contactPrivacySetting: "EVERYONE",
+  status: "ACTIVE" as const,
+  isDeleted: false as const
+},
       accessToken: validAccessToken,
       refreshToken: "new-refresh-token",
     });
@@ -198,7 +209,9 @@ describe("AuthProvider", () => {
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
       contactPrivacySetting: "EVERYONE",
-    });
+      status: "ACTIVE" as const,
+      isDeleted: false as const
+});
 
     render(
       <AuthProvider>
@@ -248,7 +261,10 @@ describe("AuthProvider", () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
-      contactPrivacySetting: "EVERYONE", },
+      contactPrivacySetting: "EVERYONE",
+  status: "ACTIVE" as const,
+  isDeleted: false as const
+},
       accessToken: "refreshed-access-token",
       refreshToken: "new-refresh-token",
     });
@@ -268,7 +284,9 @@ describe("AuthProvider", () => {
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
       contactPrivacySetting: "EVERYONE",
-    });
+      status: "ACTIVE" as const,
+      isDeleted: false as const
+});
 
     render(
       <AuthProvider>
@@ -324,7 +342,9 @@ describe("AuthProvider", () => {
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
       contactPrivacySetting: "EVERYONE",
-    });
+      status: "ACTIVE" as const,
+      isDeleted: false as const
+});
     vi.mocked(apiLogout).mockResolvedValueOnce({ success: true });
 
     render(
@@ -368,7 +388,9 @@ describe("AuthProvider", () => {
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
       contactPrivacySetting: "EVERYONE",
-    });
+      status: "ACTIVE" as const,
+      isDeleted: false as const
+});
     vi.mocked(apiLogout).mockRejectedValueOnce(new Error("Network error"));
 
     render(
@@ -411,7 +433,9 @@ describe("AuthProvider", () => {
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
       contactPrivacySetting: "EVERYONE",
-    });
+      status: "ACTIVE" as const,
+      isDeleted: false as const
+});
 
     render(
       <AuthProvider>
@@ -449,7 +473,9 @@ describe("AuthProvider", () => {
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
       contactPrivacySetting: "EVERYONE",
-    });
+      status: "ACTIVE" as const,
+      isDeleted: false as const
+});
 
     function LocaleConsumer() {
       const { locale, t } = useLocale();
@@ -501,7 +527,10 @@ describe("AuthProvider", () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
-      contactPrivacySetting: "EVERYONE", },
+      contactPrivacySetting: "EVERYONE",
+  status: "ACTIVE" as const,
+  isDeleted: false as const
+},
                 accessToken: "at",
                 refreshToken: "rt",
               })

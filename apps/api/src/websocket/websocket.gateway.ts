@@ -10,6 +10,7 @@ import { Server, Socket } from 'socket.io';
 import { NotFoundException } from '@nestjs/common';
 import { TokenService } from '../auth/token.service';
 import { UsersRepository } from '../users/users.repository';
+import { isDeletedUser } from '../common/deleted-user-mapper';
 import { ChannelsService } from '../channels/channels.service';
 import { DirectConversationsRepository } from '../direct-conversations/direct-conversations.repository';
 import { GroupsRepository } from '../groups/groups.repository';
@@ -174,6 +175,16 @@ export class WebsocketGateway
         return;
       }
 
+      if (isDeletedUser(user)) {
+        this.logger.warn(
+          { socketId, userId: payload.sub },
+          'Socket connection rejected: account unavailable',
+        );
+        socket.emit('auth:error', { message: 'Account unavailable' });
+        socket.disconnect(true);
+        return;
+      }
+
       this.getSocketData(socket).user = {
         id: user.id,
         email: user.email,
@@ -293,6 +304,21 @@ export class WebsocketGateway
 
   broadcastToRoom(room: string, event: string, payload: unknown) {
     this.server.to(room).emit(event, payload);
+  }
+
+  disconnectUser(userId: string): void {
+    const room = `user:${userId}`;
+    try {
+      this.server.to(room).emit('auth:expired', {
+        message: 'Account unavailable',
+      });
+      this.server.in(room).disconnectSockets(true);
+    } catch (error) {
+      this.logger.warn(
+        { userId, error: (error as Error).message },
+        'Failed to disconnect user sockets',
+      );
+    }
   }
 
   @SubscribeMessage('channel:join')

@@ -33,6 +33,7 @@ const authorSelect = {
   username: true,
   displayName: true,
   avatarUrl: true,
+  status: true,
 } as const;
 
 const groupMessageInclude = {
@@ -40,7 +41,6 @@ const groupMessageInclude = {
     select: authorSelect,
   },
   attachments: {
-    where: { deletedAt: null },
     select: {
       id: true,
       filename: true,
@@ -48,6 +48,7 @@ const groupMessageInclude = {
       size: true,
       storageKey: true,
       storageBackend: true,
+      deletedAt: true,
       createdAt: true,
     },
   },
@@ -526,12 +527,12 @@ export class GroupsRepository {
               select: authorSelect,
             },
             attachments: {
-              where: { deletedAt: null },
               select: {
                 id: true,
                 filename: true,
                 mimeType: true,
                 size: true,
+                deletedAt: true,
                 createdAt: true,
               },
             },
@@ -576,12 +577,12 @@ export class GroupsRepository {
               select: authorSelect,
             },
             attachments: {
-              where: { deletedAt: null },
               select: {
                 id: true,
                 filename: true,
                 mimeType: true,
                 size: true,
+                deletedAt: true,
                 createdAt: true,
               },
             },

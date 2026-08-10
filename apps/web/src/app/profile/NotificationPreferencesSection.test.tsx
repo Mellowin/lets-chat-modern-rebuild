@@ -33,7 +33,9 @@ describe("NotificationPreferencesSection", () => {
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
       contactPrivacySetting: "EVERYONE",
-    });
+      status: "ACTIVE" as const,
+      isDeleted: false as const
+});
 
     render(<NotificationPreferencesSection />);
 
@@ -52,7 +54,9 @@ describe("NotificationPreferencesSection", () => {
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
       contactPrivacySetting: "EVERYONE",
-    });
+      status: "ACTIVE" as const,
+      isDeleted: false as const
+});
     mockUpdateNotificationPreferences.mockResolvedValue({
       pushNotificationsEnabled: false,
       mentionNotificationsEnabled: true,
@@ -60,7 +64,9 @@ describe("NotificationPreferencesSection", () => {
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
       contactPrivacySetting: "EVERYONE",
-    });
+      status: "ACTIVE" as const,
+      isDeleted: false as const
+});
 
     render(<NotificationPreferencesSection />);
 

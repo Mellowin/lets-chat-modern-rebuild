@@ -1,5 +1,5 @@
 import { Module, forwardRef } from '@nestjs/common';
-import { AuthModule } from '../auth/auth.module';
+import { AuthCommonModule } from '../auth/auth-common.module';
 import { MessagesModule } from '../messages/messages.module';
 import { UsersModule } from '../users/users.module';
 import { WebsocketModule } from '../websocket/websocket.module';
@@ -17,7 +17,7 @@ import { GroupInvitesRepository } from './group-invites.repository';
 
 @Module({
   imports: [
-    AuthModule,
+    AuthCommonModule,
     UsersModule,
     forwardRef(() => WebsocketModule),
     PushModule,

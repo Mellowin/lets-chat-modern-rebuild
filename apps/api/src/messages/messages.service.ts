@@ -31,6 +31,10 @@ import {
   decodePinCursor,
   encodePinCursor,
 } from '../common/cursor-pagination';
+import {
+  isDeletedUser,
+  DELETED_USER_DISPLAY_NAME,
+} from '../common/deleted-user-mapper';
 
 export type AttachmentKind = 'image' | 'file';
 
@@ -45,7 +49,9 @@ export function mapAttachmentResponse(attachment: {
   mimeType: string;
   size: number;
   createdAt: Date;
+  deletedAt?: Date | null;
 }) {
+  const isDeleted = attachment.deletedAt != null;
   return {
     id: attachment.id,
     fileName: attachment.filename,
@@ -53,6 +59,7 @@ export function mapAttachmentResponse(attachment: {
     sizeBytes: attachment.size,
     kind: classifyAttachmentKind(attachment.mimeType),
     createdAt: attachment.createdAt,
+    isDeleted,
   };
 }
 
@@ -83,6 +90,7 @@ export class MessagesService {
         username: string;
         displayName: string | null;
         avatarUrl: string | null;
+        status?: string;
       };
       reactions: Array<{ emoji: string; userId: string }>;
       attachments: Array<{
@@ -102,6 +110,7 @@ export class MessagesService {
           username: string;
           displayName: string | null;
           avatarUrl: string | null;
+          status?: string;
         };
       } | null;
       pin?: {
@@ -135,6 +144,7 @@ export class MessagesService {
         username: string;
         displayName: string | null;
         avatarUrl: string | null;
+        status?: string;
       };
       reactions: Array<{ emoji: string; userId: string }>;
       attachments: Array<{
@@ -154,6 +164,7 @@ export class MessagesService {
           username: string;
           displayName: string | null;
           avatarUrl: string | null;
+          status?: string;
         };
       } | null;
       pin?: {
@@ -205,19 +216,44 @@ export class MessagesService {
               : message.replyToMessage.content,
             author: message.replyToMessage.deletedAt
               ? null
-              : message.replyToMessage.author,
+              : this.mapAuthorResponse(message.replyToMessage.author),
           }
         : null,
       createdAt: message.createdAt,
       updatedAt: message.updatedAt,
       editedAt: message.editedAt,
-      author: message.author,
+      author: this.mapAuthorResponse(message.author),
       reactions,
       attachments,
       mentions: this.normalizeMentions(message.mentions),
       isPinned,
       pin,
       forwardedFrom,
+    };
+  }
+
+  private mapAuthorResponse(author: {
+    id: string;
+    username: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+    status?: string;
+  }) {
+    if (isDeletedUser(author)) {
+      return {
+        id: author.id,
+        username: '',
+        displayName: DELETED_USER_DISPLAY_NAME,
+        avatarUrl: null,
+        isDeleted: true,
+      };
+    }
+    return {
+      id: author.id,
+      username: author.username,
+      displayName: author.displayName,
+      avatarUrl: author.avatarUrl,
+      isDeleted: false,
     };
   }
 

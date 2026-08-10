@@ -10,6 +10,7 @@ import {
   PrismaService,
   UserRole,
   ContactPrivacySetting,
+  UserStatus,
 } from '@lets-chat/database';
 
 const userId = '11111111-1111-1111-1111-111111111111';
@@ -49,6 +50,12 @@ function makeUser(
     role: UserRole.USER,
     contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
     ...overrides,
+    status: UserStatus.ACTIVE,
+    deletionRequestedAt: null,
+    deletionScheduledFor: null,
+    deletionCancellationTokenHash: null,
+    deletionCancellationExpiresAt: null,
+    anonymizedAt: null,
   };
 }
 

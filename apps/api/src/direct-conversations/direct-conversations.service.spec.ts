@@ -23,6 +23,7 @@ import {
   UserRole,
   ContactPrivacySetting,
   StorageBackend,
+  UserStatus,
 } from '@lets-chat/database';
 
 const userId = '11111111-1111-1111-1111-111111111111';
@@ -92,6 +93,8 @@ function makeMessage(
       username: 'alice',
       displayName: null,
       avatarUrl: null,
+
+      status: UserStatus.ACTIVE,
     },
     parent: null,
     replyToMessage: null,
@@ -118,6 +121,7 @@ function makePin(
         username: 'alice',
         displayName: null,
         avatarUrl: null,
+        status: UserStatus.ACTIVE,
       },
       message: makeMessage(),
     };
@@ -550,6 +554,8 @@ describe('DirectConversationsService', () => {
             username: 'bob',
             displayName: 'Bob',
             avatarUrl: null,
+
+            status: UserStatus.ACTIVE,
           },
           authorId: otherUserId,
         }),
@@ -691,6 +697,8 @@ describe('DirectConversationsService', () => {
             username: 'bob',
             displayName: 'Bob',
             avatarUrl: null,
+
+            status: UserStatus.ACTIVE,
           },
         }),
       ]);
@@ -723,6 +731,8 @@ describe('DirectConversationsService', () => {
             username: 'bob',
             displayName: 'Bob',
             avatarUrl: null,
+
+            status: UserStatus.ACTIVE,
           },
         }),
       ]);
@@ -755,6 +765,8 @@ describe('DirectConversationsService', () => {
             username: 'bob',
             displayName: 'Bob',
             avatarUrl: null,
+
+            status: UserStatus.ACTIVE,
           },
         }),
       ]);
@@ -805,6 +817,8 @@ describe('DirectConversationsService', () => {
             username: 'bob',
             displayName: 'Bob',
             avatarUrl: null,
+
+            status: UserStatus.ACTIVE,
           },
         }),
       ]);
@@ -1324,6 +1338,7 @@ describe('DirectConversationsService', () => {
               size: 1234,
               storageKey: 'attachments/user/doc.pdf',
               storageBackend: StorageBackend.MINIO,
+              deletedAt: null,
               createdAt: new Date(),
             },
           ],
@@ -1399,6 +1414,7 @@ describe('DirectConversationsService', () => {
               size: 1234,
               storageKey: 'attachments/user/doc.pdf',
               storageBackend: StorageBackend.MINIO,
+              deletedAt: null,
               createdAt: new Date(),
             },
           ],
@@ -1484,6 +1500,8 @@ describe('DirectConversationsService', () => {
               username: 'bob',
               displayName: 'Bob',
               avatarUrl: null,
+
+              status: UserStatus.ACTIVE,
             },
           },
         }),
@@ -2099,6 +2117,12 @@ describe('DirectConversationsService', () => {
         emailChangeTokenHash: null,
         emailChangeExpiresAt: null,
         emailChangeSentAt: null,
+        status: UserStatus.ACTIVE,
+        deletionRequestedAt: null,
+        deletionScheduledFor: null,
+        deletionCancellationTokenHash: null,
+        deletionCancellationExpiresAt: null,
+        anonymizedAt: null,
       });
 
       const result = await service.addReaction(
@@ -2253,6 +2277,12 @@ describe('DirectConversationsService', () => {
         emailChangeTokenHash: null,
         emailChangeExpiresAt: null,
         emailChangeSentAt: null,
+        status: UserStatus.ACTIVE,
+        deletionRequestedAt: null,
+        deletionScheduledFor: null,
+        deletionCancellationTokenHash: null,
+        deletionCancellationExpiresAt: null,
+        anonymizedAt: null,
       });
 
       const result = await service.addReaction(
@@ -2331,6 +2361,12 @@ describe('DirectConversationsService', () => {
         emailChangeTokenHash: null,
         emailChangeExpiresAt: null,
         emailChangeSentAt: null,
+        status: UserStatus.ACTIVE,
+        deletionRequestedAt: null,
+        deletionScheduledFor: null,
+        deletionCancellationTokenHash: null,
+        deletionCancellationExpiresAt: null,
+        anonymizedAt: null,
       });
 
       const result = await service.addReaction(
@@ -2417,6 +2453,12 @@ describe('DirectConversationsService', () => {
         emailChangeTokenHash: null,
         emailChangeExpiresAt: null,
         emailChangeSentAt: null,
+        status: UserStatus.ACTIVE,
+        deletionRequestedAt: null,
+        deletionScheduledFor: null,
+        deletionCancellationTokenHash: null,
+        deletionCancellationExpiresAt: null,
+        anonymizedAt: null,
       });
 
       const result = await service.addReaction(
@@ -2501,6 +2543,12 @@ describe('DirectConversationsService', () => {
         emailChangeTokenHash: null,
         emailChangeExpiresAt: null,
         emailChangeSentAt: null,
+        status: UserStatus.ACTIVE,
+        deletionRequestedAt: null,
+        deletionScheduledFor: null,
+        deletionCancellationTokenHash: null,
+        deletionCancellationExpiresAt: null,
+        anonymizedAt: null,
       });
 
       const result = await service.addReaction(
@@ -2584,6 +2632,12 @@ describe('DirectConversationsService', () => {
         emailChangeTokenHash: null,
         emailChangeExpiresAt: null,
         emailChangeSentAt: null,
+        status: UserStatus.ACTIVE,
+        deletionRequestedAt: null,
+        deletionScheduledFor: null,
+        deletionCancellationTokenHash: null,
+        deletionCancellationExpiresAt: null,
+        anonymizedAt: null,
       });
 
       await service.addReaction(
@@ -2670,6 +2724,12 @@ describe('DirectConversationsService', () => {
         emailChangeTokenHash: null,
         emailChangeExpiresAt: null,
         emailChangeSentAt: null,
+        status: UserStatus.ACTIVE,
+        deletionRequestedAt: null,
+        deletionScheduledFor: null,
+        deletionCancellationTokenHash: null,
+        deletionCancellationExpiresAt: null,
+        anonymizedAt: null,
       });
 
       await service.addReaction(
@@ -2795,6 +2855,12 @@ describe('DirectConversationsService', () => {
         emailChangeTokenHash: null,
         emailChangeExpiresAt: null,
         emailChangeSentAt: null,
+        status: UserStatus.ACTIVE,
+        deletionRequestedAt: null,
+        deletionScheduledFor: null,
+        deletionCancellationTokenHash: null,
+        deletionCancellationExpiresAt: null,
+        anonymizedAt: null,
       });
 
       await service.removeReaction(conversationId, messageId, '👍', userId);
@@ -2885,6 +2951,12 @@ describe('DirectConversationsService', () => {
         emailChangeTokenHash: null,
         emailChangeExpiresAt: null,
         emailChangeSentAt: null,
+        status: UserStatus.ACTIVE,
+        deletionRequestedAt: null,
+        deletionScheduledFor: null,
+        deletionCancellationTokenHash: null,
+        deletionCancellationExpiresAt: null,
+        anonymizedAt: null,
       });
 
       await service.removeReaction(conversationId, messageId, '👍', userId);

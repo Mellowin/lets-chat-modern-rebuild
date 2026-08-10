@@ -15,6 +15,8 @@ export interface AuthUser {
   avatarUpdatedAt: string | null;
   interfaceLanguage: "en" | "uk" | "ru";
   role: "USER" | "MODERATOR" | "ADMIN";
+  status: "ACTIVE" | "PENDING_DELETION" | "ANONYMIZED";
+  isDeleted: boolean;
   createdAt: string;
   pushNotificationsEnabled: boolean;
   mentionNotificationsEnabled: boolean;
@@ -524,4 +526,77 @@ export async function updateNotificationPreferences(accessToken: string, input: 
   }
 
   return res.json() as Promise<NotificationPreferences>;
+}
+
+export interface RequestAccountDeletionInput {
+  currentPassword: string;
+  confirmationPhrase: string;
+}
+
+export interface RequestAccountDeletionResult {
+  scheduledFor: string;
+}
+
+export async function requestAccountDeletion(
+  accessToken: string,
+  input: RequestAccountDeletionInput,
+): Promise<RequestAccountDeletionResult> {
+  const res = await authFetch(`${API_BASE}/auth/account-deletion/request`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to request account deletion: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<RequestAccountDeletionResult>;
+}
+
+export interface CancelAccountDeletionInput {
+  token: string;
+}
+
+export async function cancelAccountDeletion(input: CancelAccountDeletionInput): Promise<{ success: boolean }> {
+  const res = await fetchWithTimeout(`${API_BASE}/auth/account-deletion/cancel`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(input),
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to cancel account deletion: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<{ success: boolean }>;
+}
+
+export interface RequestDataExportInput {
+  currentPassword: string;
+}
+
+export async function requestDataExport(
+  accessToken: string,
+  input: RequestDataExportInput,
+): Promise<Blob> {
+  const res = await authFetch(`${API_BASE}/auth/data-export`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to export data: ${res.status} ${res.statusText}`));
+  }
+
+  return res.blob();
 }
