@@ -178,6 +178,9 @@ describe('DirectConversationsService', () => {
             findById: jest.fn(),
             findByUsername: jest.fn(),
             findByEmail: jest.fn(),
+            findActiveById: jest.fn(),
+            findActiveByUsername: jest.fn(),
+            findActiveByEmail: jest.fn(),
           },
         },
         {
@@ -257,6 +260,9 @@ describe('DirectConversationsService', () => {
     service = moduleRef.get(DirectConversationsService);
     repository = moduleRef.get(DirectConversationsRepository);
     usersRepository = moduleRef.get(UsersRepository);
+    usersRepository.findActiveById = usersRepository.findById;
+    usersRepository.findActiveByUsername = usersRepository.findByUsername;
+    usersRepository.findActiveByEmail = usersRepository.findByEmail;
     websocketEvents = moduleRef.get(WebsocketEventsService);
     presence = moduleRef.get(PresenceService);
     forwardPermissions = moduleRef.get(ForwardPermissionsHelper);

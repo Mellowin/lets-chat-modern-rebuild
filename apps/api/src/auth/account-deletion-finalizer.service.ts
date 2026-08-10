@@ -47,7 +47,7 @@ export class AccountDeletionFinalizerService
     this.intervalTimer.unref();
   }
 
-  onModuleDestroy() {
+  onModuleDestroy(): Promise<void> {
     if (this.startupTimer) {
       clearTimeout(this.startupTimer);
       this.startupTimer = null;
@@ -56,6 +56,7 @@ export class AccountDeletionFinalizerService
       clearInterval(this.intervalTimer);
       this.intervalTimer = null;
     }
+    return Promise.resolve();
   }
 
   async run(): Promise<{ processedCount: number }> {

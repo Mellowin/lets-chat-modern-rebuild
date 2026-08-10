@@ -109,6 +109,9 @@ describe('ContactsService', () => {
             findById: jest.fn(),
             findByUsername: jest.fn(),
             findByEmail: jest.fn(),
+            findActiveById: jest.fn(),
+            findActiveByUsername: jest.fn(),
+            findActiveByEmail: jest.fn(),
           },
         },
         {
@@ -161,6 +164,9 @@ describe('ContactsService', () => {
     service = moduleRef.get(ContactsService);
     contactsRepository = moduleRef.get(ContactsRepository);
     usersRepository = moduleRef.get(UsersRepository);
+    usersRepository.findActiveById = usersRepository.findById;
+    usersRepository.findActiveByUsername = usersRepository.findByUsername;
+    usersRepository.findActiveByEmail = usersRepository.findByEmail;
     directConversations = moduleRef.get(DirectConversationsService);
   });
 

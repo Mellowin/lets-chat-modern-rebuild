@@ -64,10 +64,7 @@ export class DataExportService {
   private async streamExport(userId: string, res: Response): Promise<void> {
     const filename = `lets-chat-data-export-${new Date().toISOString().slice(0, 10)}.json`;
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${filename}"`,
-    );
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.status(200);
@@ -126,10 +123,20 @@ export class DataExportService {
       createdWorkspaces,
       false,
     );
-    await this.writeJsonObjectField(res, 'createdChannels', createdChannels, false);
+    await this.writeJsonObjectField(
+      res,
+      'createdChannels',
+      createdChannels,
+      false,
+    );
     await this.writeJsonObjectField(res, 'createdGroups', createdGroups, false);
     await this.writeJsonObjectField(res, 'reactions', reactions, false);
-    await this.writeJsonObjectField(res, 'directReactions', directReactions, false);
+    await this.writeJsonObjectField(
+      res,
+      'directReactions',
+      directReactions,
+      false,
+    );
     await this.writeJsonObjectField(res, 'contacts', contacts, false);
     await this.writeJsonObjectField(res, 'blocks', blocks, false);
     await this.writeJsonObjectField(res, 'reports', reports, false);
@@ -414,23 +421,24 @@ export class DataExportService {
     await this.streamArray(res, async (emit) => {
       let lastId: string | null = null;
       while (true) {
-        const batch: Array<{ id: string } & Record<string, unknown>> = await this.prisma.pinnedChannelMessage.findMany({
-          where: {
-            pinnedByUserId: userId,
-            ...(lastId ? { id: { gt: lastId } } : {}),
-          },
-          orderBy: { id: 'asc' },
-          take: this.BATCH_SIZE,
-          select: {
-            id: true,
-            messageId: true,
-            channelId: true,
-            pinnedAt: true,
-          },
-        });
+        const batch: Array<{ id: string } & Record<string, unknown>> =
+          await this.prisma.pinnedChannelMessage.findMany({
+            where: {
+              pinnedByUserId: userId,
+              ...(lastId ? { id: { gt: lastId } } : {}),
+            },
+            orderBy: { id: 'asc' },
+            take: this.BATCH_SIZE,
+            select: {
+              id: true,
+              messageId: true,
+              channelId: true,
+              pinnedAt: true,
+            },
+          });
         if (batch.length === 0) break;
         for (const item of batch) {
-          await emit(item as JsonValue);
+          await emit(item);
         }
         lastId = batch[batch.length - 1].id;
       }
@@ -444,23 +452,24 @@ export class DataExportService {
     await this.streamArray(res, async (emit) => {
       let lastId: string | null = null;
       while (true) {
-        const batch: Array<{ id: string } & Record<string, unknown>> = await this.prisma.pinnedDirectMessage.findMany({
-          where: {
-            pinnedByUserId: userId,
-            ...(lastId ? { id: { gt: lastId } } : {}),
-          },
-          orderBy: { id: 'asc' },
-          take: this.BATCH_SIZE,
-          select: {
-            id: true,
-            messageId: true,
-            conversationId: true,
-            pinnedAt: true,
-          },
-        });
+        const batch: Array<{ id: string } & Record<string, unknown>> =
+          await this.prisma.pinnedDirectMessage.findMany({
+            where: {
+              pinnedByUserId: userId,
+              ...(lastId ? { id: { gt: lastId } } : {}),
+            },
+            orderBy: { id: 'asc' },
+            take: this.BATCH_SIZE,
+            select: {
+              id: true,
+              messageId: true,
+              conversationId: true,
+              pinnedAt: true,
+            },
+          });
         if (batch.length === 0) break;
         for (const item of batch) {
-          await emit(item as JsonValue);
+          await emit(item);
         }
         lastId = batch[batch.length - 1].id;
       }
@@ -474,23 +483,24 @@ export class DataExportService {
     await this.streamArray(res, async (emit) => {
       let lastId: string | null = null;
       while (true) {
-        const batch: Array<{ id: string } & Record<string, unknown>> = await this.prisma.pinnedGroupMessage.findMany({
-          where: {
-            pinnedByUserId: userId,
-            ...(lastId ? { id: { gt: lastId } } : {}),
-          },
-          orderBy: { id: 'asc' },
-          take: this.BATCH_SIZE,
-          select: {
-            id: true,
-            messageId: true,
-            groupId: true,
-            pinnedAt: true,
-          },
-        });
+        const batch: Array<{ id: string } & Record<string, unknown>> =
+          await this.prisma.pinnedGroupMessage.findMany({
+            where: {
+              pinnedByUserId: userId,
+              ...(lastId ? { id: { gt: lastId } } : {}),
+            },
+            orderBy: { id: 'asc' },
+            take: this.BATCH_SIZE,
+            select: {
+              id: true,
+              messageId: true,
+              groupId: true,
+              pinnedAt: true,
+            },
+          });
         if (batch.length === 0) break;
         for (const item of batch) {
-          await emit(item as JsonValue);
+          await emit(item);
         }
         lastId = batch[batch.length - 1].id;
       }
@@ -501,29 +511,30 @@ export class DataExportService {
     await this.streamArray(res, async (emit) => {
       let lastId: string | null = null;
       while (true) {
-        const batch: Array<{ id: string } & Record<string, unknown>> = await this.prisma.message.findMany({
-          where: {
-            authorId: userId,
-            deletedAt: null,
-            ...(lastId ? { id: { gt: lastId } } : {}),
-          },
-          orderBy: { id: 'asc' },
-          take: this.BATCH_SIZE,
-          select: {
-            id: true,
-            channelId: true,
-            content: true,
-            parentId: true,
-            replyToMessageId: true,
-            createdAt: true,
-            updatedAt: true,
-            editedAt: true,
-            mentions: true,
-          },
-        });
+        const batch: Array<{ id: string } & Record<string, unknown>> =
+          await this.prisma.message.findMany({
+            where: {
+              authorId: userId,
+              deletedAt: null,
+              ...(lastId ? { id: { gt: lastId } } : {}),
+            },
+            orderBy: { id: 'asc' },
+            take: this.BATCH_SIZE,
+            select: {
+              id: true,
+              channelId: true,
+              content: true,
+              parentId: true,
+              replyToMessageId: true,
+              createdAt: true,
+              updatedAt: true,
+              editedAt: true,
+              mentions: true,
+            },
+          });
         if (batch.length === 0) break;
         for (const item of batch) {
-          await emit(item as JsonValue);
+          await emit(item);
         }
         lastId = batch[batch.length - 1].id;
       }
@@ -537,29 +548,30 @@ export class DataExportService {
     await this.streamArray(res, async (emit) => {
       let lastId: string | null = null;
       while (true) {
-        const batch: Array<{ id: string } & Record<string, unknown>> = await this.prisma.directMessage.findMany({
-          where: {
-            authorId: userId,
-            deletedAt: null,
-            ...(lastId ? { id: { gt: lastId } } : {}),
-          },
-          orderBy: { id: 'asc' },
-          take: this.BATCH_SIZE,
-          select: {
-            id: true,
-            conversationId: true,
-            content: true,
-            parentId: true,
-            replyToMessageId: true,
-            createdAt: true,
-            updatedAt: true,
-            editedAt: true,
-            mentions: true,
-          },
-        });
+        const batch: Array<{ id: string } & Record<string, unknown>> =
+          await this.prisma.directMessage.findMany({
+            where: {
+              authorId: userId,
+              deletedAt: null,
+              ...(lastId ? { id: { gt: lastId } } : {}),
+            },
+            orderBy: { id: 'asc' },
+            take: this.BATCH_SIZE,
+            select: {
+              id: true,
+              conversationId: true,
+              content: true,
+              parentId: true,
+              replyToMessageId: true,
+              createdAt: true,
+              updatedAt: true,
+              editedAt: true,
+              mentions: true,
+            },
+          });
         if (batch.length === 0) break;
         for (const item of batch) {
-          await emit(item as JsonValue);
+          await emit(item);
         }
         lastId = batch[batch.length - 1].id;
       }
@@ -573,26 +585,27 @@ export class DataExportService {
     await this.streamArray(res, async (emit) => {
       let lastId: string | null = null;
       while (true) {
-        const batch: Array<{ id: string } & Record<string, unknown>> = await this.prisma.groupMessage.findMany({
-          where: {
-            authorId: userId,
-            ...(lastId ? { id: { gt: lastId } } : {}),
-          },
-          orderBy: { id: 'asc' },
-          take: this.BATCH_SIZE,
-          select: {
-            id: true,
-            groupId: true,
-            content: true,
-            replyToMessageId: true,
-            createdAt: true,
-            updatedAt: true,
-            mentions: true,
-          },
-        });
+        const batch: Array<{ id: string } & Record<string, unknown>> =
+          await this.prisma.groupMessage.findMany({
+            where: {
+              authorId: userId,
+              ...(lastId ? { id: { gt: lastId } } : {}),
+            },
+            orderBy: { id: 'asc' },
+            take: this.BATCH_SIZE,
+            select: {
+              id: true,
+              groupId: true,
+              content: true,
+              replyToMessageId: true,
+              createdAt: true,
+              updatedAt: true,
+              mentions: true,
+            },
+          });
         if (batch.length === 0) break;
         for (const item of batch) {
-          await emit(item as JsonValue);
+          await emit(item);
         }
         lastId = batch[batch.length - 1].id;
       }

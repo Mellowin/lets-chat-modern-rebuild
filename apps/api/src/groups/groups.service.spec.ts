@@ -247,6 +247,9 @@ describe('GroupsService', () => {
             findById: jest.fn(),
             findByUsername: jest.fn(),
             findByEmail: jest.fn(),
+            findActiveById: jest.fn(),
+            findActiveByUsername: jest.fn(),
+            findActiveByEmail: jest.fn(),
             search: jest.fn(),
           },
         },
@@ -319,6 +322,9 @@ describe('GroupsService', () => {
     service = moduleRef.get(GroupsService);
     groupsRepository = moduleRef.get(GroupsRepository);
     usersRepository = moduleRef.get(UsersRepository);
+    usersRepository.findActiveById = usersRepository.findById;
+    usersRepository.findActiveByUsername = usersRepository.findByUsername;
+    usersRepository.findActiveByEmail = usersRepository.findByEmail;
     websocketEvents = moduleRef.get(WebsocketEventsService);
     pushService = moduleRef.get(PushService);
     forwardPermissions = moduleRef.get(ForwardPermissionsHelper);

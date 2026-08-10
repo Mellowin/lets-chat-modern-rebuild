@@ -85,6 +85,9 @@ describe('WorkspacesService', () => {
             findById: jest.fn(),
             findByEmail: jest.fn(),
             findByUsername: jest.fn(),
+            findActiveById: jest.fn(),
+            findActiveByEmail: jest.fn(),
+            findActiveByUsername: jest.fn(),
             createUser: jest.fn(),
           },
         },
@@ -113,6 +116,9 @@ describe('WorkspacesService', () => {
     service = moduleRef.get(WorkspacesService);
     workspacesRepository = moduleRef.get(WorkspacesRepository);
     usersRepository = moduleRef.get(UsersRepository);
+    usersRepository.findActiveById = usersRepository.findById;
+    usersRepository.findActiveByEmail = usersRepository.findByEmail;
+    usersRepository.findActiveByUsername = usersRepository.findByUsername;
     channelsRepository = moduleRef.get(ChannelsRepository);
     channelInvitesRepository = moduleRef.get(ChannelInvitesRepository);
     auditService = moduleRef.get(AuditService);

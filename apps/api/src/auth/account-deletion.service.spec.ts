@@ -157,7 +157,9 @@ describe('AccountDeletionService', () => {
       );
       expect(usersRepository.requestAccountDeletion).not.toHaveBeenCalled();
       expect(refreshTokensRepository.revokeAllForUser).not.toHaveBeenCalled();
-      expect(mailService.sendAccountDeletionCancellationEmail).not.toHaveBeenCalled();
+      expect(
+        mailService.sendAccountDeletionCancellationEmail,
+      ).not.toHaveBeenCalled();
       expect(auditService.record).not.toHaveBeenCalled();
     });
 

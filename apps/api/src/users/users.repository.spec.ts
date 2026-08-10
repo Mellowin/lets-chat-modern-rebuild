@@ -1,7 +1,7 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
 import { UsersRepository } from './users.repository';
 
 describe('UsersRepository discovery filtering', () => {
-  let repository: UsersRepository;
   const activeUsers = [
     {
       id: 'a1',
@@ -31,13 +31,13 @@ describe('UsersRepository discovery filtering', () => {
     } as any;
   }
 
-  beforeEach(() => {
-    repository = new UsersRepository(createMockPrisma(activeUsers));
-  });
-
   describe('search', () => {
     it('filters out PENDING_DELETION users', async () => {
-      const pending = { ...activeUsers[0], id: 'p1', status: 'PENDING_DELETION' };
+      const pending = {
+        ...activeUsers[0],
+        id: 'p1',
+        status: 'PENDING_DELETION',
+      };
       const prisma = createMockPrisma([activeUsers[1], pending]);
       const repo = new UsersRepository(prisma);
 

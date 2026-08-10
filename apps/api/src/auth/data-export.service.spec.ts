@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call */
 import { Test } from '@nestjs/testing';
 import type { Response } from 'express';
 import { PrismaService } from '@lets-chat/database';
@@ -73,15 +73,23 @@ describe('DataExportService', () => {
     res = {
       setHeader: jest.fn().mockReturnThis(),
       status: jest.fn().mockReturnThis(),
-      write: jest.fn().mockImplementation((chunk: string | Buffer, _encoding?: string | (() => void), cb?: () => void) => {
-        if (typeof chunk === 'string') {
-          chunks.push(chunk);
-        } else if (Buffer.isBuffer(chunk)) {
-          chunks.push(chunk.toString('utf8'));
-        }
-        if (typeof cb === 'function') cb();
-        return true;
-      }),
+      write: jest
+        .fn()
+        .mockImplementation(
+          (
+            chunk: string | Buffer,
+            _encoding?: string | (() => void),
+            cb?: () => void,
+          ) => {
+            if (typeof chunk === 'string') {
+              chunks.push(chunk);
+            } else if (Buffer.isBuffer(chunk)) {
+              chunks.push(chunk.toString('utf8'));
+            }
+            if (typeof cb === 'function') cb();
+            return true;
+          },
+        ),
       end: jest.fn().mockImplementation((cb?: () => void) => {
         if (typeof cb === 'function') cb();
       }),
@@ -164,8 +172,12 @@ describe('DataExportService', () => {
     const payload = parseStreamedExport();
     expect(payload.exportFormatVersion).toBe('1.0.0');
     expect(payload.profile).toBeDefined();
-    expect((payload.profile as Record<string, unknown>).passwordHash).toBeUndefined();
-    expect((payload.profile as Record<string, unknown>).emailVerificationTokenHash).toBeUndefined();
+    expect(
+      (payload.profile as Record<string, unknown>).passwordHash,
+    ).toBeUndefined();
+    expect(
+      (payload.profile as Record<string, unknown>).emailVerificationTokenHash,
+    ).toBeUndefined();
     expect(payload.reports).toHaveLength(1);
     expect(auditService.record).toHaveBeenCalled();
   });
@@ -184,7 +196,8 @@ describe('DataExportService', () => {
         const cursorNum = parseInt(cursor.split('-')[0], 10);
         start = cursorNum + 1;
       }
-      const batch: Array<{ id: string; channelId: string; content: string }> = [];
+      const batch: Array<{ id: string; channelId: string; content: string }> =
+        [];
       for (let i = start; i < Math.min(start + take, total); i++) {
         batch.push({
           id: `${String(i).padStart(8, '0')}-0000-0000-0000-000000000000`,

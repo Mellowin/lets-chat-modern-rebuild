@@ -73,6 +73,9 @@ describe('ChannelInvitesService', () => {
           useValue: {
             findByEmail: jest.fn(),
             findByUsername: jest.fn(),
+            findActiveById: jest.fn(),
+            findActiveByEmail: jest.fn(),
+            findActiveByUsername: jest.fn(),
           },
         },
         {
@@ -89,6 +92,9 @@ describe('ChannelInvitesService', () => {
     channelsRepository = moduleRef.get(ChannelsRepository);
     workspacesRepository = moduleRef.get(WorkspacesRepository);
     usersRepository = moduleRef.get(UsersRepository);
+    usersRepository.findActiveById = usersRepository.findById;
+    usersRepository.findActiveByEmail = usersRepository.findByEmail;
+    usersRepository.findActiveByUsername = usersRepository.findByUsername;
     auditService = moduleRef.get(AuditService);
   });
 
