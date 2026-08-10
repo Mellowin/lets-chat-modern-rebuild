@@ -34,6 +34,10 @@ describe('AccountDeletionService', () => {
       displayName: null,
       avatarUrl: null,
       status,
+      deletionScheduledFor:
+        status === UserStatus.PENDING_DELETION
+          ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+          : null,
     } as Awaited<ReturnType<UsersRepository['findById']>>;
   }
 
@@ -137,9 +141,29 @@ describe('AccountDeletionService', () => {
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
-    it('rejects when user is not ACTIVE', async () => {
+    it('is idempotent for PENDING_DELETION user and does not send another email', async () => {
       usersRepository.findById.mockResolvedValue(
         makeUser(UserStatus.PENDING_DELETION),
+      );
+
+      const result = await service.requestAccountDeletion(
+        userId,
+        'password',
+        'DELETE MY ACCOUNT',
+      );
+
+      expect(result.scheduledFor).toEqual(
+        (await usersRepository.findById(userId))?.deletionScheduledFor,
+      );
+      expect(usersRepository.requestAccountDeletion).not.toHaveBeenCalled();
+      expect(refreshTokensRepository.revokeAllForUser).not.toHaveBeenCalled();
+      expect(mailService.sendAccountDeletionCancellationEmail).not.toHaveBeenCalled();
+      expect(auditService.record).not.toHaveBeenCalled();
+    });
+
+    it('rejects when user is ANONYMIZED', async () => {
+      usersRepository.findById.mockResolvedValue(
+        makeUser(UserStatus.ANONYMIZED),
       );
 
       await expect(

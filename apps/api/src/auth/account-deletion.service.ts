@@ -48,7 +48,20 @@ export class AccountDeletionService {
     }
 
     const user = await this.users.findById(userId);
-    if (!user || user.status !== 'ACTIVE') {
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.status === 'PENDING_DELETION') {
+      // Idempotent replay: return the previously scheduled deletion time without
+      // generating a new token or sending another email.
+      if (!user.deletionScheduledFor) {
+        throw new NotFoundException('User not found');
+      }
+      return { scheduledFor: user.deletionScheduledFor };
+    }
+
+    if (user.status !== 'ACTIVE') {
       throw new NotFoundException('User not found');
     }
 
