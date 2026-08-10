@@ -10,13 +10,13 @@ export function LegalLinks({ className = "" }: { className?: string }) {
       className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground ${className}`}
       aria-label="Legal"
     >
-      <Link href="/legal/privacy" className="hover:text-foreground hover:underline">
+      <Link href="/privacy" className="hover:text-foreground hover:underline">
         {t("legal.privacyTitle")}
       </Link>
-      <Link href="/legal/terms" className="hover:text-foreground hover:underline">
+      <Link href="/terms" className="hover:text-foreground hover:underline">
         {t("legal.termsTitle")}
       </Link>
-      <Link href="/legal/acceptable-use" className="hover:text-foreground hover:underline">
+      <Link href="/acceptable-use" className="hover:text-foreground hover:underline">
         {t("legal.acceptableUseTitle")}
       </Link>
     </nav>

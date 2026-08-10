@@ -1,7 +1,7 @@
 "use client";
 
 import { useLocale } from "@/lib/locale";
-import { LegalPage } from "../LegalPage";
+import { LegalPage } from "@/components/legal/LegalPage";
 
 export default function PrivacyPage() {
   const { t } = useLocale();
