@@ -1,6 +1,7 @@
 import { getApiBase } from "./env";
 import { fetchWithTimeout, ApiTimeoutError, isApiTimeoutError } from "./fetch-timeout";
 import { authFetch } from "./auth-fetch";
+import { parseApiErrorResponse } from "./api-errors";
 
 const API_BASE = getApiBase();
 
@@ -554,7 +555,10 @@ export async function requestAccountDeletion(
   });
 
   if (!res.ok) {
-    throw new Error(await parseErrorMessage(res, `Failed to request account deletion: ${res.status} ${res.statusText}`));
+    throw await parseApiErrorResponse(
+      res,
+      `Failed to request account deletion: ${res.status} ${res.statusText}`,
+    );
   }
 
   return res.json() as Promise<RequestAccountDeletionResult>;

@@ -11,7 +11,7 @@ import {
 } from "@/lib/auth-api";
 import { AUTH_EVENTS } from "@/lib/auth-fetch";
 import { useLocale } from "@/lib/locale";
-import { localizeApiError } from "@/lib/api-errors";
+import { localizeApiError, ApiError, type AccountDeletionBlockers } from "@/lib/api-errors";
 import { Button } from "@/components/ui/Button";
 import {
   Card,
@@ -73,9 +73,11 @@ export function AccountDataSection({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteState, setDeleteState] = useState<FormState>({ kind: "idle" });
   const [deleteIdempotencyKey, setDeleteIdempotencyKey] = useState<string | null>(null);
+  const [deleteBlockers, setDeleteBlockers] = useState<AccountDeletionBlockers | null>(null);
 
   const openDeleteDialog = useCallback(() => {
     setDeleteIdempotencyKey(generateIdempotencyKey());
+    setDeleteBlockers(null);
     setDeleteOpen(true);
   }, []);
 
@@ -124,8 +126,16 @@ export function AccountDataSection({
         router.push("/login?deleted=1");
       }, 1500);
     } catch (err) {
-      const message = localizeApiError(err, "profile.deleteAccountFailed", t);
-      setDeleteState({ kind: "error", message });
+      if (err instanceof ApiError && err.code === "ACCOUNT_DELETION_OWNERSHIP_BLOCKED" && err.blockers) {
+        setDeleteBlockers(err.blockers);
+        setDeleteState({
+          kind: "error",
+          message: t("profile.deleteAccountOwnershipBlockers"),
+        });
+      } else {
+        const message = localizeApiError(err, "profile.deleteAccountFailed", t);
+        setDeleteState({ kind: "error", message });
+      }
     }
   }
 
@@ -232,7 +242,10 @@ export function AccountDataSection({
 
       <Dialog open={deleteOpen} onOpenChange={(open) => {
         setDeleteOpen(open);
-        if (!open) setDeleteIdempotencyKey(null);
+        if (!open) {
+          setDeleteIdempotencyKey(null);
+          setDeleteBlockers(null);
+        }
       }}>
         <DialogContent>
           <form onSubmit={handleDelete}>
@@ -276,6 +289,42 @@ export function AccountDataSection({
                   {t("profile.deleteAccountConfirmationPhraseHint")}
                 </p>
               </div>
+              {deleteBlockers &&
+                (deleteBlockers.workspaces.length > 0 ||
+                  deleteBlockers.groups.length > 0) && (
+                  <div
+                    className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-400"
+                    data-testid="delete-account-blockers"
+                  >
+                    <p className="font-medium">
+                      {t("profile.deleteAccountOwnershipBlockers")}
+                    </p>
+                    {deleteBlockers.workspaces.length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-xs font-medium opacity-90">
+                          {t("profile.deleteAccountOwnedWorkspaces")}
+                        </p>
+                        <ul className="mt-1 list-inside list-disc">
+                          {deleteBlockers.workspaces.map((workspace) => (
+                            <li key={workspace.id}>{workspace.name}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {deleteBlockers.groups.length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-xs font-medium opacity-90">
+                          {t("profile.deleteAccountOwnedGroups")}
+                        </p>
+                        <ul className="mt-1 list-inside list-disc">
+                          {deleteBlockers.groups.map((group) => (
+                            <li key={group.id}>{group.name}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
               {deleteState.kind === "error" && (
                 <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-400">
                   {deleteState.message}

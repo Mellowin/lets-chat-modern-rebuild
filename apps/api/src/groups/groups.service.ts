@@ -45,6 +45,7 @@ import {
 import { CreateGroupDto } from './dto/create-group.dto';
 import { UpdateGroupDto } from './dto/update-group.dto';
 import { AddGroupMemberDto } from './dto/add-group-member.dto';
+import { TransferGroupOwnershipDto } from './dto/transfer-group-ownership.dto';
 import { CreateGroupMessageDto } from './dto/create-group-message.dto';
 import { ListGroupMessagesQueryDto } from './dto/list-group-messages-query.dto';
 import { GroupMessageContextQueryDto } from './dto/message-context-query.dto';
@@ -633,6 +634,69 @@ export class GroupsService {
     });
 
     return { success: true };
+  }
+
+  async transferOwnership(
+    groupId: string,
+    currentUserId: string,
+    dto: TransferGroupOwnershipDto,
+  ) {
+    await this.requireOwner(groupId, currentUserId);
+
+    await this.requireGroupAccessible(groupId, currentUserId);
+
+    const targetMember = await this.groups.findActiveMember(
+      groupId,
+      dto.memberId,
+    );
+    if (!targetMember) {
+      throw new NotFoundException('Member not found');
+    }
+    if (targetMember.role === 'OWNER') {
+      throw new BadRequestException('Target member is already the owner');
+    }
+    if (targetMember.userId === currentUserId) {
+      throw new BadRequestException('Cannot transfer ownership to yourself');
+    }
+
+    const targetUser = await this.users.findById(targetMember.userId);
+    if (!targetUser || targetUser.status !== 'ACTIVE') {
+      throw new ForbiddenException(
+        'Cannot transfer ownership to a user with pending or deleted account',
+      );
+    }
+
+    await this.groups.transferOwnership(
+      groupId,
+      currentUserId,
+      targetMember.userId,
+    );
+
+    const updated = await this.groups.findById(groupId);
+    const response = await this.toGroupResponse(updated, currentUserId);
+    if (!response) {
+      throw new NotFoundException('Group not found');
+    }
+    this.websocketEvents.broadcastGroupConversationUpdated(
+      groupId,
+      response,
+      updated?.members.map((m) => m.user.id) ?? [],
+    );
+
+    await this.audit?.record({
+      actorId: currentUserId,
+      action: AuditAction.GROUP_OWNERSHIP_TRANSFERRED,
+      entityType: AuditEntityType.GROUP,
+      entityId: groupId,
+      groupId,
+      severity: AuditSeverity.WARNING,
+      metadata: {
+        oldOwnerUserId: currentUserId,
+        newOwnerUserId: targetMember.userId,
+      },
+    });
+
+    return response;
   }
 
   async getMessageContext(

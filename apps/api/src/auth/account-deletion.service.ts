@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { createHash, randomBytes } from 'crypto';
+import { PrismaService } from '@lets-chat/database';
 import { UsersRepository } from '../users/users.repository';
 import { RefreshTokensRepository } from './refresh-tokens.repository';
 import { PasswordService } from './password.service';
@@ -21,9 +22,9 @@ import {
 import { WebsocketEventsService } from '../websocket/websocket-events.service';
 import { AccountDeletionIdempotencyService } from './account-deletion-idempotency.service';
 
-export interface AccountDeletionBlocker {
-  ownedWorkspaces: Array<{ id: string; name: string; slug: string }>;
-  soleOwnedGroups: Array<{ id: string; name: string; memberId: string }>;
+export interface AccountDeletionBlockers {
+  workspaces: Array<{ id: string; name: string; slug: string }>;
+  groups: Array<{ id: string; name: string; memberId: string }>;
 }
 
 export interface RequestAccountDeletionResult {
@@ -35,6 +36,7 @@ export class AccountDeletionService {
   private readonly logger = new Logger(AccountDeletionService.name);
 
   constructor(
+    private readonly prisma: PrismaService,
     private readonly users: UsersRepository,
     private readonly refreshTokens: RefreshTokensRepository,
     private readonly password: PasswordService,
@@ -104,27 +106,31 @@ export class AccountDeletionService {
       throw new UnauthorizedException('Current password is incorrect');
     }
 
-    const ownedWorkspaces =
-      await this.users.findActiveWorkspaceOwnerships(userId);
-    const soleOwnedGroups =
-      await this.users.findActiveGroupsWhereUserIsOnlyOwner(userId);
-
-    if (ownedWorkspaces.length > 0 || soleOwnedGroups.length > 0) {
-      throw new ForbiddenException({
-        message:
-          'Transfer workspace and group ownership before deleting your account',
-        blockers: {
-          ownedWorkspaces,
-          soleOwnedGroups,
-        },
-      });
-    }
-
     const rawToken = this.generateDeletionToken();
     const tokenHash = this.hashDeletionToken(rawToken);
     const scheduledFor = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-    await this.users.requestAccountDeletion(userId, tokenHash, scheduledFor);
+    const scheduleResult = await this.users.scheduleDeletionWithOwnershipCheck(
+      userId,
+      tokenHash,
+      scheduledFor,
+    );
+
+    if (scheduleResult.type === 'not_active') {
+      throw new NotFoundException('User not found');
+    }
+
+    if (scheduleResult.type === 'blockers') {
+      throw new ForbiddenException({
+        message:
+          'Transfer workspace and group ownership before deleting your account',
+        code: 'ACCOUNT_DELETION_OWNERSHIP_BLOCKED',
+        blockers: {
+          workspaces: scheduleResult.workspaces,
+          groups: scheduleResult.groups,
+        },
+      });
+    }
 
     try {
       await this.audit.record({
@@ -294,19 +300,59 @@ export class AccountDeletionService {
       );
     }
 
-    await this.users.clearDeletionRequest(user.id);
+    // Critical state transition and audit must be atomic. The confirmation
+    // email is a post-commit side effect and must not roll back cancellation.
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        const cleared = await tx.user.updateMany({
+          where: { id: user.id, status: 'PENDING_DELETION' },
+          data: {
+            status: 'ACTIVE',
+            deletionRequestedAt: null,
+            deletionScheduledFor: null,
+            deletionCancellationTokenHash: null,
+            deletionCancellationExpiresAt: null,
+            deletedAt: null,
+          },
+        });
+        if (cleared.count === 0) {
+          throw new Error('Cancellation state changed during transaction');
+        }
 
-    await this.audit.record({
-      actorId: user.id,
-      action: AuditAction.ACCOUNT_DELETION_CANCELLED,
-      entityType: AuditEntityType.USER,
-      entityId: user.id,
-      severity: AuditSeverity.CRITICAL,
-    });
+        await tx.auditLog.create({
+          data: {
+            actorId: user.id,
+            action: AuditAction.ACCOUNT_DELETION_CANCELLED,
+            entityType: AuditEntityType.USER,
+            entityId: user.id,
+            severity: AuditSeverity.CRITICAL,
+          },
+        });
+      });
+    } catch (error) {
+      this.logger.error(
+        {
+          userId: user.id,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'Failed to atomically cancel account deletion; token remains usable',
+      );
+      throw error;
+    }
 
-    await this.mail.sendAccountDeletionCancelledConfirmationEmail({
-      to: user.email,
-    });
+    try {
+      await this.mail.sendAccountDeletionCancelledConfirmationEmail({
+        to: user.email,
+      });
+    } catch (error) {
+      this.logger.error(
+        {
+          userId: user.id,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'Confirmation email failed after cancellation; user is ACTIVE and can sign in',
+      );
+    }
 
     return { success: true };
   }

@@ -400,6 +400,106 @@ export class UsersRepository {
     });
   }
 
+  async scheduleDeletionWithOwnershipCheck(
+    userId: string,
+    tokenHash: string,
+    scheduledFor: Date,
+  ): Promise<
+    | { type: 'scheduled' }
+    | {
+        type: 'blockers';
+        workspaces: Array<{ id: string; name: string; slug: string }>;
+        groups: Array<{ id: string; name: string; memberId: string }>;
+      }
+    | { type: 'not_active' }
+  > {
+    return this.prisma.$transaction(
+      async (tx) => {
+        // Lock the user row to serialize against ownership transfers targeting this user.
+        const lockedUsers = await tx.$queryRawUnsafe<
+          Array<{ id: string; status: string }>
+        >(
+          `SELECT id, status FROM "User" WHERE id = $1::uuid AND status = 'ACTIVE' FOR UPDATE`,
+          userId,
+        );
+        if (!lockedUsers || lockedUsers.length === 0) {
+          return { type: 'not_active' };
+        }
+
+        const ownedWorkspaces = await tx.workspace.findMany({
+          where: {
+            ownerId: userId,
+            deletedAt: null,
+            permanentlyDeletedAt: null,
+          },
+          select: { id: true, name: true, slug: true },
+        });
+
+        const groups = await tx.groupConversation.findMany({
+          where: {
+            archivedAt: null,
+            members: {
+              some: {
+                userId,
+                role: 'OWNER',
+                leftAt: null,
+              },
+            },
+          },
+          include: {
+            members: {
+              where: { leftAt: null },
+              select: { id: true, userId: true, role: true },
+            },
+          },
+        });
+
+        const soleOwnedGroups = groups
+          .filter((group) => {
+            const owners = group.members.filter((m) => m.role === 'OWNER');
+            return owners.length === 1 && owners[0].userId === userId;
+          })
+          .map((group) => ({
+            id: group.id,
+            name: group.name,
+            memberId: group.members.find((m) => m.userId === userId)!.id,
+          }));
+
+        if (ownedWorkspaces.length > 0 || soleOwnedGroups.length > 0) {
+          return {
+            type: 'blockers',
+            workspaces: ownedWorkspaces,
+            groups: soleOwnedGroups,
+          };
+        }
+
+        await tx.user.update({
+          where: { id: userId, status: 'ACTIVE' },
+          data: {
+            status: 'PENDING_DELETION',
+            deletionRequestedAt: new Date(),
+            deletionScheduledFor: scheduledFor,
+            deletionCancellationTokenHash: tokenHash,
+            deletionCancellationExpiresAt: scheduledFor,
+            emailVerificationTokenHash: null,
+            emailVerificationExpiresAt: null,
+            emailVerificationSentAt: null,
+            passwordResetTokenHash: null,
+            passwordResetExpiresAt: null,
+            passwordResetSentAt: null,
+            pendingEmail: null,
+            emailChangeTokenHash: null,
+            emailChangeExpiresAt: null,
+            emailChangeSentAt: null,
+          },
+        });
+
+        return { type: 'scheduled' };
+      },
+      { maxWait: 10_000, timeout: 30_000 },
+    );
+  }
+
   async clearDeletionRequest(userId: string) {
     return this.prisma.user.update({
       where: { id: userId, status: 'PENDING_DELETION' },

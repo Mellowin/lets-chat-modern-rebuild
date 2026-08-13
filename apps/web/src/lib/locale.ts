@@ -128,6 +128,8 @@ export type TranslationKey =
   | "profile.deleteAccountMessagesRetained"
   | "profile.deleteAccountAttachmentsRemoved"
   | "profile.deleteAccountOwnershipBlockers"
+  | "profile.deleteAccountOwnedWorkspaces"
+  | "profile.deleteAccountOwnedGroups"
   | "profile.deleteAccountPasswordLabel"
   | "profile.deleteAccountConfirmationPhraseLabel"
   | "profile.deleteAccountConfirmationPhraseHint"
@@ -1871,6 +1873,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.deleteAccountMessagesRetained": "Your messages, replies and reactions will remain in conversations under “Deleted user” to keep discussion history intact.",
     "profile.deleteAccountAttachmentsRemoved": "Your attachments will be removed and eventually deleted from storage.",
     "profile.deleteAccountOwnershipBlockers": "Transfer ownership of the workspaces or groups listed below before you can delete your account.",
+    "profile.deleteAccountOwnedWorkspaces": "Workspaces you own",
+    "profile.deleteAccountOwnedGroups": "Groups you are the sole owner of",
     "profile.deleteAccountPasswordLabel": "Current password",
     "profile.deleteAccountConfirmationPhraseLabel": "Confirmation",
     "profile.deleteAccountConfirmationPhraseHint": "Type DELETE MY ACCOUNT to confirm.",
@@ -2837,6 +2841,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.deleteAccountMessagesRetained": "Ваші повідомлення, відповіді та реакції залишаться в розмовах під ім’ям «Видалений користувач», щоб зберегти історію обговорень.",
     "profile.deleteAccountAttachmentsRemoved": "Ваші вкладення будуть позначені для видалення та згодом видалені зі сховища.",
     "profile.deleteAccountOwnershipBlockers": "Перед видаленням передайте власника робочих просторів або груп, перелічених нижче.",
+    "profile.deleteAccountOwnedWorkspaces": "Робочі простори, якими ви володієте",
+    "profile.deleteAccountOwnedGroups": "Групи, в яких ви єдиний власник",
     "profile.deleteAccountPasswordLabel": "Поточний пароль",
     "profile.deleteAccountConfirmationPhraseLabel": "Підтвердження",
     "profile.deleteAccountConfirmationPhraseHint": "Введіть DELETE MY ACCOUNT для підтвердження.",
@@ -3803,6 +3809,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.deleteAccountMessagesRetained": "Ваши сообщения, ответы и реакции останутся в переписках под именем «Удалённый пользователь», чтобы сохранить историю обсуждений.",
     "profile.deleteAccountAttachmentsRemoved": "Ваши вложения будут помечены для удаления и со временем удалены из хранилища.",
     "profile.deleteAccountOwnershipBlockers": "Перед удалением передайте владение рабочими пространствами или группами, перечисленными ниже.",
+    "profile.deleteAccountOwnedWorkspaces": "Рабочие пространства, которыми вы владеете",
+    "profile.deleteAccountOwnedGroups": "Группы, в которых вы единственный владелец",
     "profile.deleteAccountPasswordLabel": "Текущий пароль",
     "profile.deleteAccountConfirmationPhraseLabel": "Подтверждение",
     "profile.deleteAccountConfirmationPhraseHint": "Введите DELETE MY ACCOUNT для подтверждения.",

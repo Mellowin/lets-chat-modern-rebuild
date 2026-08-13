@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import { AccountDataSection } from "./AccountDataSection";
 import { requestAccountDeletion, requestDataExport } from "@/lib/auth-api";
+import { ApiError } from "@/lib/api-errors";
 
 vi.mock("@/lib/auth-api", () => ({
   requestAccountDeletion: vi.fn(),
@@ -76,11 +77,19 @@ describe("AccountDataSection", () => {
     expect(requestAccountDeletion).not.toHaveBeenCalled();
   });
 
-  it("submits delete request with correct phrase", async () => {
-    vi.mocked(requestAccountDeletion).mockResolvedValue({ scheduledFor: "2024-01-08T00:00:00Z" });
-    const dispatchSpy = vi.spyOn(window, "dispatchEvent");
-    window.sessionStorage.setItem("accessToken", "old-access");
-    window.sessionStorage.setItem("refreshToken", "old-refresh");
+  it("shows ownership blockers when delete request is blocked", async () => {
+    vi.mocked(requestAccountDeletion).mockRejectedValue(
+      new ApiError(
+        403,
+        "ACCOUNT_DELETION_OWNERSHIP_BLOCKED",
+        "Transfer workspace and group ownership before deleting your account",
+        {
+          workspaces: [{ id: "ws-1", name: "Blocked Workspace", slug: "blocked-ws" }],
+          groups: [{ id: "grp-1", name: "Blocked Group", memberId: "m-1" }],
+        },
+      ),
+    );
+
     render(<AccountDataSection accessToken="token" user={user} />);
 
     await userEvent.click(screen.getByTestId("delete-account-button"));
@@ -89,22 +98,9 @@ describe("AccountDataSection", () => {
     await userEvent.click(screen.getByTestId("delete-submit-button"));
 
     await waitFor(() => {
-      expect(requestAccountDeletion).toHaveBeenCalledWith("token", {
-        currentPassword: "password",
-        confirmationPhrase: "DELETE MY ACCOUNT",
-        idempotencyKey: expect.any(String),
-      });
+      expect(screen.getByTestId("delete-account-blockers")).toBeInTheDocument();
     });
-
-    await waitFor(
-      () => {
-        expect(window.sessionStorage.getItem("accessToken")).toBeNull();
-        expect(window.sessionStorage.getItem("refreshToken")).toBeNull();
-        expect(dispatchSpy).toHaveBeenCalledWith(
-          expect.objectContaining({ type: "auth:session-expired" }),
-        );
-      },
-      { timeout: 3000 },
-    );
+    expect(screen.getByText("Blocked Workspace")).toBeInTheDocument();
+    expect(screen.getByText("Blocked Group")).toBeInTheDocument();
   });
 });

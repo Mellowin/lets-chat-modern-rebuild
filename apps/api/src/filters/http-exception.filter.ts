@@ -13,6 +13,7 @@ interface ErrorResponse {
   code: string;
   message: string;
   details?: unknown;
+  blockers?: unknown;
   requestId: string;
   timestamp: string;
   path: string;
@@ -38,7 +39,15 @@ export class HttpExceptionFilter implements ExceptionFilter {
     let code = 'INTERNAL_SERVER_ERROR';
     let message = 'Internal server error';
     let details: unknown;
+    const extraFields: Record<string, unknown> = {};
 
+    // Only these well-known, intentionally-public fields are forwarded to the
+    // client for specific error codes. This prevents arbitrary exception payloads
+    // from leaking internal details, stack traces, or sensitive metadata.
+    const PUBLIC_EXTRA_FIELDS: Record<string, string[]> = {
+      VALIDATION_ERROR: ['details'],
+      ACCOUNT_DELETION_OWNERSHIP_BLOCKED: ['blockers'],
+    };
     if (exception instanceof HttpException) {
       statusCode = exception.getStatus();
       const response = exception.getResponse();
@@ -60,6 +69,13 @@ export class HttpExceptionFilter implements ExceptionFilter {
           code = 'VALIDATION_ERROR';
           message = 'Validation failed';
           details = resp.message;
+        }
+
+        // Only whitelisted public fields are forwarded for the matched error code.
+        for (const key of PUBLIC_EXTRA_FIELDS[code] ?? []) {
+          if (key in resp) {
+            extraFields[key] = resp[key];
+          }
         }
       }
     } else {
@@ -86,6 +102,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       code,
       message,
       ...(details !== undefined && { details }),
+      ...extraFields,
       requestId,
       timestamp,
       path,

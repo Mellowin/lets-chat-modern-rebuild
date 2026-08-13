@@ -7,6 +7,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { UserStatus } from '@lets-chat/database';
+import { PrismaService } from '@lets-chat/database';
 import {
   AccountDeletionService,
   RequestAccountDeletionResult,
@@ -19,6 +20,15 @@ import { AuditService } from '../audit/audit.service';
 import { WebsocketEventsService } from '../websocket/websocket-events.service';
 import { AccountDeletionIdempotencyService } from './account-deletion-idempotency.service';
 
+const mockTx = {
+  user: {
+    updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+  },
+  auditLog: {
+    create: jest.fn().mockResolvedValue({}),
+  },
+};
+
 describe('AccountDeletionService', () => {
   let service: AccountDeletionService;
   let usersRepository: jest.Mocked<UsersRepository>;
@@ -27,6 +37,7 @@ describe('AccountDeletionService', () => {
   let mailService: jest.Mocked<MailService>;
   let websocketEvents: jest.Mocked<WebsocketEventsService>;
   let auditService: jest.Mocked<AuditService>;
+  let prismaService: jest.Mocked<PrismaService>;
 
   const userId = '11111111-1111-1111-1111-111111111111';
   const idempotencyKey = 'test-idempotency-key';
@@ -60,7 +71,7 @@ describe('AccountDeletionService', () => {
             findActiveGroupsWhereUserIsOnlyOwner: jest
               .fn()
               .mockResolvedValue([]),
-            requestAccountDeletion: jest.fn(),
+            scheduleDeletionWithOwnershipCheck: jest.fn(),
             findByDeletionCancellationTokenHash: jest.fn(),
             clearDeletionRequest: jest.fn(),
             updateDeletionCancellationToken: jest.fn(),
@@ -119,6 +130,14 @@ describe('AccountDeletionService', () => {
           },
         },
         {
+          provide: PrismaService,
+          useValue: {
+            $transaction: jest.fn(
+              (callback: (tx: unknown) => Promise<unknown>) => callback(mockTx),
+            ),
+          },
+        },
+        {
           provide: AccountDeletionIdempotencyService,
           useValue: {
             run: jest.fn(
@@ -141,6 +160,7 @@ describe('AccountDeletionService', () => {
     mailService = moduleRef.get(MailService);
     websocketEvents = moduleRef.get(WebsocketEventsService);
     auditService = moduleRef.get(AuditService);
+    prismaService = moduleRef.get(PrismaService);
   });
 
   afterEach(() => {
@@ -193,7 +213,9 @@ describe('AccountDeletionService', () => {
       expect(result.scheduledFor).toEqual(
         (await usersRepository.findById(userId))?.deletionScheduledFor,
       );
-      expect(usersRepository.requestAccountDeletion).not.toHaveBeenCalled();
+      expect(
+        usersRepository.scheduleDeletionWithOwnershipCheck,
+      ).not.toHaveBeenCalled();
       expect(refreshTokensRepository.revokeAllForUser).not.toHaveBeenCalled();
       expect(
         mailService.sendAccountDeletionCancellationEmail,
@@ -233,9 +255,11 @@ describe('AccountDeletionService', () => {
     it('rejects when user owns an active workspace', async () => {
       usersRepository.findById.mockResolvedValue(makeUser());
       passwordService.verifyPassword.mockResolvedValue(true);
-      usersRepository.findActiveWorkspaceOwnerships.mockResolvedValue([
-        { id: 'ws1', name: 'Workspace', slug: 'workspace' },
-      ]);
+      usersRepository.scheduleDeletionWithOwnershipCheck.mockResolvedValue({
+        type: 'blockers',
+        workspaces: [{ id: 'ws1', name: 'Workspace', slug: 'workspace' }],
+        groups: [],
+      });
 
       await expect(
         service.requestAccountDeletion(
@@ -245,14 +269,20 @@ describe('AccountDeletionService', () => {
           idempotencyKey,
         ),
       ).rejects.toBeInstanceOf(ForbiddenException);
+
+      expect(
+        usersRepository.scheduleDeletionWithOwnershipCheck,
+      ).toHaveBeenCalledWith(userId, expect.any(String), expect.any(Date));
     });
 
     it('rejects when user is the sole owner of an active group', async () => {
       usersRepository.findById.mockResolvedValue(makeUser());
       passwordService.verifyPassword.mockResolvedValue(true);
-      usersRepository.findActiveGroupsWhereUserIsOnlyOwner.mockResolvedValue([
-        { id: 'g1', name: 'Group', memberId: 'm1' },
-      ]);
+      usersRepository.scheduleDeletionWithOwnershipCheck.mockResolvedValue({
+        type: 'blockers',
+        workspaces: [],
+        groups: [{ id: 'g1', name: 'Group', memberId: 'm1' }],
+      });
 
       await expect(
         service.requestAccountDeletion(
@@ -267,11 +297,9 @@ describe('AccountDeletionService', () => {
     it('schedules deletion and revokes sessions on success', async () => {
       usersRepository.findById.mockResolvedValue(makeUser());
       passwordService.verifyPassword.mockResolvedValue(true);
-      usersRepository.requestAccountDeletion.mockResolvedValue(
-        makeUser(UserStatus.PENDING_DELETION) as NonNullable<
-          Awaited<ReturnType<UsersRepository['requestAccountDeletion']>>
-        >,
-      );
+      usersRepository.scheduleDeletionWithOwnershipCheck.mockResolvedValue({
+        type: 'scheduled',
+      });
 
       const result = await service.requestAccountDeletion(
         userId,
@@ -281,6 +309,9 @@ describe('AccountDeletionService', () => {
       );
 
       expect(result.scheduledFor).toBeInstanceOf(Date);
+      expect(
+        usersRepository.scheduleDeletionWithOwnershipCheck,
+      ).toHaveBeenCalledWith(userId, expect.any(String), expect.any(Date));
       expect(refreshTokensRepository.revokeAllForUser).toHaveBeenCalledWith(
         userId,
       );
@@ -297,11 +328,9 @@ describe('AccountDeletionService', () => {
     it('rolls back to ACTIVE when audit recording fails', async () => {
       usersRepository.findById.mockResolvedValue(makeUser());
       passwordService.verifyPassword.mockResolvedValue(true);
-      usersRepository.requestAccountDeletion.mockResolvedValue(
-        makeUser(UserStatus.PENDING_DELETION) as NonNullable<
-          Awaited<ReturnType<UsersRepository['requestAccountDeletion']>>
-        >,
-      );
+      usersRepository.scheduleDeletionWithOwnershipCheck.mockResolvedValue({
+        type: 'scheduled',
+      });
       auditService.record.mockRejectedValue(new Error('Audit failure'));
 
       await expect(
@@ -324,11 +353,9 @@ describe('AccountDeletionService', () => {
     it('rolls back to ACTIVE when cancellation email fails', async () => {
       usersRepository.findById.mockResolvedValue(makeUser());
       passwordService.verifyPassword.mockResolvedValue(true);
-      usersRepository.requestAccountDeletion.mockResolvedValue(
-        makeUser(UserStatus.PENDING_DELETION) as NonNullable<
-          Awaited<ReturnType<UsersRepository['requestAccountDeletion']>>
-        >,
-      );
+      usersRepository.scheduleDeletionWithOwnershipCheck.mockResolvedValue({
+        type: 'scheduled',
+      });
       mailService.sendAccountDeletionCancellationEmail.mockRejectedValue(
         new Error('Mail failure'),
       );
@@ -353,11 +380,9 @@ describe('AccountDeletionService', () => {
     it('does not roll back when a post-commit side effect fails', async () => {
       usersRepository.findById.mockResolvedValue(makeUser());
       passwordService.verifyPassword.mockResolvedValue(true);
-      usersRepository.requestAccountDeletion.mockResolvedValue(
-        makeUser(UserStatus.PENDING_DELETION) as NonNullable<
-          Awaited<ReturnType<UsersRepository['requestAccountDeletion']>>
-        >,
-      );
+      usersRepository.scheduleDeletionWithOwnershipCheck.mockResolvedValue({
+        type: 'scheduled',
+      });
       refreshTokensRepository.revokeAllForUser.mockRejectedValue(
         new Error('revoke failed'),
       );
@@ -383,11 +408,9 @@ describe('AccountDeletionService', () => {
     it('allows a second request after rollback due to mail failure', async () => {
       usersRepository.findById.mockResolvedValue(makeUser());
       passwordService.verifyPassword.mockResolvedValue(true);
-      usersRepository.requestAccountDeletion.mockResolvedValue(
-        makeUser(UserStatus.PENDING_DELETION) as NonNullable<
-          Awaited<ReturnType<UsersRepository['requestAccountDeletion']>>
-        >,
-      );
+      usersRepository.scheduleDeletionWithOwnershipCheck.mockResolvedValue({
+        type: 'scheduled',
+      });
       mailService.sendAccountDeletionCancellationEmail
         .mockRejectedValueOnce(new Error('Mail failure'))
         .mockResolvedValueOnce(undefined);
@@ -453,7 +476,7 @@ describe('AccountDeletionService', () => {
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
-    it('cancels deletion and sends confirmation email', async () => {
+    it('cancels deletion atomically and sends confirmation email', async () => {
       const user = {
         ...makeUser(UserStatus.PENDING_DELETION),
         deletionCancellationExpiresAt: new Date(Date.now() + 10000),
@@ -463,20 +486,84 @@ describe('AccountDeletionService', () => {
       usersRepository.findByDeletionCancellationTokenHash.mockResolvedValue(
         user,
       );
-      usersRepository.clearDeletionRequest.mockResolvedValue(
-        makeUser() as NonNullable<
-          Awaited<ReturnType<UsersRepository['clearDeletionRequest']>>
-        >,
+
+      const result = await service.cancelAccountDeletion('valid-token');
+
+      expect(result.success).toBe(true);
+      expect(prismaService.$transaction).toHaveBeenCalled();
+      expect(mockTx.user.updateMany).toHaveBeenCalledWith({
+        where: { id: userId, status: 'PENDING_DELETION' },
+        data: {
+          status: 'ACTIVE',
+          deletionRequestedAt: null,
+          deletionScheduledFor: null,
+          deletionCancellationTokenHash: null,
+          deletionCancellationExpiresAt: null,
+          deletedAt: null,
+        },
+      });
+      expect(mockTx.auditLog.create).toHaveBeenCalledWith({
+        data: {
+          actorId: userId,
+          action: 'account_deletion.cancelled',
+          entityType: 'user',
+          entityId: userId,
+          severity: 'critical',
+        },
+      });
+      expect(usersRepository.clearDeletionRequest).not.toHaveBeenCalled();
+      expect(auditService.record).not.toHaveBeenCalled();
+      expect(
+        mailService.sendAccountDeletionCancelledConfirmationEmail,
+      ).toHaveBeenCalled();
+    });
+
+    it('does not cancel when atomic transaction fails', async () => {
+      const user = {
+        ...makeUser(UserStatus.PENDING_DELETION),
+        deletionCancellationExpiresAt: new Date(Date.now() + 10000),
+      } as Awaited<
+        ReturnType<UsersRepository['findByDeletionCancellationTokenHash']>
+      >;
+      usersRepository.findByDeletionCancellationTokenHash.mockResolvedValue(
+        user,
+      );
+      prismaService.$transaction.mockRejectedValueOnce(
+        new Error('Transaction failure'),
+      );
+
+      await expect(
+        service.cancelAccountDeletion('valid-token'),
+      ).rejects.toThrow('Transaction failure');
+
+      expect(
+        mailService.sendAccountDeletionCancelledConfirmationEmail,
+      ).not.toHaveBeenCalled();
+      expect(usersRepository.clearDeletionRequest).not.toHaveBeenCalled();
+    });
+
+    it('returns success even when confirmation email fails after cancellation', async () => {
+      const user = {
+        ...makeUser(UserStatus.PENDING_DELETION),
+        deletionCancellationExpiresAt: new Date(Date.now() + 10000),
+      } as Awaited<
+        ReturnType<UsersRepository['findByDeletionCancellationTokenHash']>
+      >;
+      usersRepository.findByDeletionCancellationTokenHash.mockResolvedValue(
+        user,
+      );
+      mailService.sendAccountDeletionCancelledConfirmationEmail.mockRejectedValue(
+        new Error('Mail failure'),
       );
 
       const result = await service.cancelAccountDeletion('valid-token');
 
       expect(result.success).toBe(true);
-      expect(usersRepository.clearDeletionRequest).toHaveBeenCalledWith(userId);
-      expect(auditService.record).toHaveBeenCalled();
+      expect(prismaService.$transaction).toHaveBeenCalled();
       expect(
         mailService.sendAccountDeletionCancelledConfirmationEmail,
       ).toHaveBeenCalled();
+      expect(usersRepository.clearDeletionRequest).not.toHaveBeenCalled();
     });
   });
 

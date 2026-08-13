@@ -343,22 +343,39 @@ export class GroupsRepository {
     fromUserId: string,
     toUserId: string,
   ) {
-    await this.prisma.groupMember.updateMany({
-      where: {
-        groupId,
-        userId: fromUserId,
-        role: 'OWNER',
-        leftAt: null,
-      },
-      data: { role: 'MEMBER' },
-    });
-    await this.prisma.groupMember.updateMany({
-      where: {
-        groupId,
-        userId: toUserId,
-        leftAt: null,
-      },
-      data: { role: 'OWNER' },
+    return this.prisma.$transaction(async (tx) => {
+      // Lock the target user row to serialize against account deletion scheduling.
+      const lockedUsers = await tx.$queryRawUnsafe<
+        Array<{ id: string; status: string }>
+      >(
+        `SELECT id, status FROM "User" WHERE id = $1::uuid AND status = 'ACTIVE' FOR UPDATE`,
+        toUserId,
+      );
+      if (!lockedUsers || lockedUsers.length === 0) {
+        throw new Error('TARGET_USER_NOT_ACTIVE');
+      }
+
+      if (lockedUsers[0].status !== 'ACTIVE') {
+        throw new Error('TARGET_USER_NOT_ACTIVE');
+      }
+
+      await tx.groupMember.updateMany({
+        where: {
+          groupId,
+          userId: fromUserId,
+          role: 'OWNER',
+          leftAt: null,
+        },
+        data: { role: 'MEMBER' },
+      });
+      await tx.groupMember.updateMany({
+        where: {
+          groupId,
+          userId: toUserId,
+          leftAt: null,
+        },
+        data: { role: 'OWNER' },
+      });
     });
   }
 

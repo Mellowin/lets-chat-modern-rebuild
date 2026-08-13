@@ -50,6 +50,7 @@ export const AuditAction = {
   GROUP_MEMBER_ADDED: 'group.member.added',
   GROUP_MEMBER_REMOVED: 'group.member.removed',
   GROUP_MEMBER_LEFT: 'group.member.left',
+  GROUP_OWNERSHIP_TRANSFERRED: 'group.ownership.transferred',
   GROUP_INVITE_LINK_CREATED: 'group.invite_link.created',
   GROUP_INVITE_LINK_REVOKED: 'group.invite_link.revoked',
   GROUP_INVITE_LINK_USED: 'group.invite_link.used',
