@@ -283,6 +283,12 @@ export type TranslationKey =
   | "auth.emailNotVerified"
   | "auth.signInAfterVerification"
   | "auth.backToSignIn"
+  | "auth.accountDeletionPending"
+  | "auth.accountDeletionPendingHint"
+  | "auth.resendCancellationLink"
+  | "auth.resendingCancellationLink"
+  | "auth.resendCancellationSuccess"
+  | "auth.resendCancellationHint"
   | "auth.loading"
   | "auth.tryDemo"
   | "auth.demoLoading"
@@ -1112,6 +1118,12 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "auth.emailNotVerified": "Please verify your email before signing in.",
     "auth.signInAfterVerification": "You can now sign in with your verified email.",
     "auth.backToSignIn": "Back to sign in",
+    "auth.accountDeletionPending": "Account deletion is pending",
+    "auth.accountDeletionPendingHint": "You requested to delete this account. Check your email for the cancellation link, or resend it to {arg0}.",
+    "auth.resendCancellationLink": "Resend cancellation link",
+    "auth.resendingCancellationLink": "Sending…",
+    "auth.resendCancellationSuccess": "If the account exists and deletion is pending, a cancellation link has been sent.",
+    "auth.resendCancellationHint": "Check your inbox for the cancellation link. You can also check your spam folder.",
     "auth.loading": "Loading…",
     "auth.tryDemo": "Try live demo",
     "auth.demoLoading": "Starting demo…",
@@ -2072,6 +2084,12 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "auth.emailNotVerified": "Будь ласка, підтвердьте email перед входом.",
     "auth.signInAfterVerification": "Тепер ви можете увійти з підтвердженим email.",
     "auth.backToSignIn": "Назад до входу",
+    "auth.accountDeletionPending": "Видалення облікового запису очікує",
+    "auth.accountDeletionPendingHint": "Ви подали запит на видалення цього облікового запису. Перевірте email для посилання на скасування, або надішліть його повторно на {arg0}.",
+    "auth.resendCancellationLink": "Надіслати посилання на скасування",
+    "auth.resendingCancellationLink": "Надсилаємо…",
+    "auth.resendCancellationSuccess": "Якщо обліковий запис існує та очікує видалення, посилання на скасування надіслано.",
+    "auth.resendCancellationHint": "Перевірте поштову скриньку для посилання на скасування. Також перевірте папку спам.",
     "auth.loading": "Завантаження…",
     "auth.tryDemo": "Спробувати демо",
     "auth.demoLoading": "Запуск демо…",
@@ -3032,6 +3050,12 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "auth.emailNotVerified": "Пожалуйста, подтвердите email перед входом.",
     "auth.signInAfterVerification": "Теперь вы можете войти с подтверждённым email.",
     "auth.backToSignIn": "Назад ко входу",
+    "auth.accountDeletionPending": "Удаление аккаунта ожидает",
+    "auth.accountDeletionPendingHint": "Вы запросили удаление этого аккаунта. Проверьте email со ссылкой для отмены, или отправьте её повторно на {arg0}.",
+    "auth.resendCancellationLink": "Отправить ссылку для отмены",
+    "auth.resendingCancellationLink": "Отправляем…",
+    "auth.resendCancellationSuccess": "Если аккаунт существует и ожидает удаления, ссылка для отмены отправлена.",
+    "auth.resendCancellationHint": "Проверьте почту со ссылкой для отмены. Также проверьте папку спам.",
     "auth.loading": "Загрузка…",
     "auth.tryDemo": "Попробовать демо",
     "auth.demoLoading": "Запуск демо…",

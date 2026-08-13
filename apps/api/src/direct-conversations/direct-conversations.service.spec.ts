@@ -2192,6 +2192,7 @@ describe('DirectConversationsService', () => {
         deletionCancellationTokenHash: null,
         deletionCancellationExpiresAt: null,
         anonymizedAt: null,
+        avatarCleanupCompletedAt: null,
       });
 
       const result = await service.addReaction(
@@ -2352,6 +2353,7 @@ describe('DirectConversationsService', () => {
         deletionCancellationTokenHash: null,
         deletionCancellationExpiresAt: null,
         anonymizedAt: null,
+        avatarCleanupCompletedAt: null,
       });
 
       const result = await service.addReaction(
@@ -2436,6 +2438,7 @@ describe('DirectConversationsService', () => {
         deletionCancellationTokenHash: null,
         deletionCancellationExpiresAt: null,
         anonymizedAt: null,
+        avatarCleanupCompletedAt: null,
       });
 
       const result = await service.addReaction(
@@ -2528,6 +2531,7 @@ describe('DirectConversationsService', () => {
         deletionCancellationTokenHash: null,
         deletionCancellationExpiresAt: null,
         anonymizedAt: null,
+        avatarCleanupCompletedAt: null,
       });
 
       const result = await service.addReaction(
@@ -2618,6 +2622,7 @@ describe('DirectConversationsService', () => {
         deletionCancellationTokenHash: null,
         deletionCancellationExpiresAt: null,
         anonymizedAt: null,
+        avatarCleanupCompletedAt: null,
       });
 
       const result = await service.addReaction(
@@ -2707,6 +2712,7 @@ describe('DirectConversationsService', () => {
         deletionCancellationTokenHash: null,
         deletionCancellationExpiresAt: null,
         anonymizedAt: null,
+        avatarCleanupCompletedAt: null,
       });
 
       await service.addReaction(
@@ -2799,6 +2805,7 @@ describe('DirectConversationsService', () => {
         deletionCancellationTokenHash: null,
         deletionCancellationExpiresAt: null,
         anonymizedAt: null,
+        avatarCleanupCompletedAt: null,
       });
 
       await service.addReaction(
@@ -2930,6 +2937,7 @@ describe('DirectConversationsService', () => {
         deletionCancellationTokenHash: null,
         deletionCancellationExpiresAt: null,
         anonymizedAt: null,
+        avatarCleanupCompletedAt: null,
       });
 
       await service.removeReaction(conversationId, messageId, '👍', userId);
@@ -3026,6 +3034,7 @@ describe('DirectConversationsService', () => {
         deletionCancellationTokenHash: null,
         deletionCancellationExpiresAt: null,
         anonymizedAt: null,
+        avatarCleanupCompletedAt: null,
       });
 
       await service.removeReaction(conversationId, messageId, '👍', userId);

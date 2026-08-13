@@ -49,7 +49,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
         const resp = response as Record<string, unknown>;
         message = (resp.message as string) || message;
         code =
-          (resp.error as string)?.replace(/\s+/g, '_').toUpperCase() || code;
+          (resp.code as string) ||
+          (resp.error as string)?.replace(/\s+/g, '_').toUpperCase() ||
+          code;
 
         if (
           statusCode === HttpStatus.BAD_REQUEST &&

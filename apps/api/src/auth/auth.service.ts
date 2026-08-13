@@ -174,9 +174,11 @@ export class AuthService {
     }
 
     if (user.status === 'PENDING_DELETION') {
-      throw new ForbiddenException(
-        'Account deletion is pending. Use the cancellation link sent by email.',
-      );
+      throw new ForbiddenException({
+        message:
+          'Account deletion is pending. Use the cancellation link sent by email.',
+        code: 'ACCOUNT_DELETION_PENDING',
+      });
     }
 
     if (user.status === 'ANONYMIZED') {

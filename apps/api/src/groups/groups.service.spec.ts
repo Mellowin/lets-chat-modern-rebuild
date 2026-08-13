@@ -95,6 +95,7 @@ function makeUser(
     deletionCancellationTokenHash: null,
     deletionCancellationExpiresAt: null,
     anonymizedAt: null,
+    avatarCleanupCompletedAt: null,
   };
 }
 

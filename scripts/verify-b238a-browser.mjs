@@ -245,7 +245,12 @@ async function getLatestEmailTo(address, subjectContains, timeoutMs = 60000) {
     const res = await fetch(`${MAILPIT_BASE}/api/v1/messages`);
     if (!res.ok) continue;
     const inbox = await res.json();
-    for (const msg of inbox.messages || []) {
+    const sorted = (inbox.messages || []).slice().sort((a, b) => {
+      const da = a.Date ? new Date(a.Date).getTime() : 0;
+      const db = b.Date ? new Date(b.Date).getTime() : 0;
+      return db - da;
+    });
+    for (const msg of sorted) {
       const to = (msg.To || []).map((t) => t.Address).join(",");
       if (to.includes(address) && msg.Subject.includes(subjectContains)) {
         return msg;
@@ -327,6 +332,11 @@ function avatarFileExists(avatarUrl) {
   const relativePath = avatarUrl.slice("/uploads/".length);
   const filePath = path.join("apps/api/uploads", relativePath);
   return fs.existsSync(filePath);
+}
+
+function avatarUserDirectoryExists(userId) {
+  const dirPath = path.join("apps/api/uploads/avatars", userId);
+  return fs.existsSync(dirPath) && fs.statSync(dirPath).isDirectory();
 }
 
 async function fetchAvatarStatus(avatarUrl) {
@@ -580,6 +590,23 @@ async function runBrowserTests() {
   await screenshot(page, "06-login-pending");
   results.push("Login pending user shown");
 
+  console.log("Pending login resend cancellation link...");
+  const emailCountBeforeResend = await countEmailsTo(
+    userA.email,
+    "Cancel your Lets Chat account deletion"
+  );
+  await page.click("[data-testid='resend-cancellation-link']");
+  await sleep(2000);
+  await screenshot(page, "06b-resend-cancellation");
+  const emailCountAfterResendClick = await countEmailsTo(
+    userA.email,
+    "Cancel your Lets Chat account deletion"
+  );
+  if (emailCountAfterResendClick <= emailCountBeforeResend) {
+    throw new Error("Resend cancellation link did not send a new email");
+  }
+  results.push("Pending login resend cancellation link sent a new email");
+
   console.log("User B search hides pending user...");
   const search = await api("GET", `/users/search?q=${userA.username}`, null, userB.accessToken);
   if (search.status !== 200) throw new Error(`Search failed: ${search.status}`);
@@ -656,16 +683,21 @@ async function runBrowserTests() {
   results.push("Old DM author shows Deleted user");
 
   console.log("Checking DM header and avatar cleanup...");
-  if (avatarFileExists(oldestAvatarUrl)) {
-    throw new Error(`Old avatar file still exists after finalization: ${oldestAvatarUrl}`);
+  for (const avatarUrl of avatarUrls) {
+    if (avatarFileExists(avatarUrl)) {
+      throw new Error(`Old avatar file still exists after finalization: ${avatarUrl}`);
+    }
+    const status = await fetchAvatarStatus(avatarUrl);
+    if (status !== 200) {
+      throw new Error(`Unexpected avatar fallback status for ${avatarUrl} after finalization: ${status}`);
+    }
   }
-  results.push("Old avatar file removed after finalization");
+  results.push("All old avatar files removed and URLs return safe fallback after finalization");
 
-  const avatarStatusAfter = await fetchAvatarStatus(oldestAvatarUrl);
-  if (avatarStatusAfter !== 200) {
-    throw new Error(`Unexpected avatar fallback status after finalization: ${avatarStatusAfter}`);
+  if (avatarUserDirectoryExists(userA.userId)) {
+    throw new Error(`User avatar directory still exists after finalization: ${userA.userId}`);
   }
-  results.push("Old avatar URL returns safe fallback after finalization");
+  results.push("User avatar directory removed after finalization");
 
   if (author.avatarUrl !== null) {
     throw new Error(`Expected anonymized author avatarUrl to be null, got ${author.avatarUrl}`);
@@ -721,6 +753,34 @@ async function runBrowserTests() {
   await screenshot(mobilePage, "14-mobile-delete-modal");
   results.push("Mobile delete modal rendered");
 
+  console.log("Same-user idempotency key reused with different body returns 409...");
+  const conflictKey = `b238a-conflict-${Date.now()}`;
+  const conflictFirst = await api(
+    "POST",
+    "/auth/account-deletion/request",
+    { currentPassword: PASSWORD, confirmationPhrase: "DELETE MY ACCOUNT" },
+    userB.accessToken,
+    { "Idempotency-Key": conflictKey }
+  );
+  if (conflictFirst.status !== 200) {
+    throw new Error(
+      `First idempotency request failed: ${conflictFirst.status} ${JSON.stringify(conflictFirst.data)}`
+    );
+  }
+  const conflictSecond = await api(
+    "POST",
+    "/auth/account-deletion/request",
+    { currentPassword: "Different1!", confirmationPhrase: "DELETE MY ACCOUNT" },
+    userB.accessToken,
+    { "Idempotency-Key": conflictKey }
+  );
+  if (conflictSecond.status !== 409) {
+    throw new Error(
+      `Expected 409 for idempotency key reused with different body, got ${conflictSecond.status}`
+    );
+  }
+  results.push("Same-user idempotency key reused with different body returns 409");
+
   await browser.close();
 
   console.log("\n=== B238A Browser Verification Results ===");
@@ -764,6 +824,7 @@ async function main() {
   process.env.NEXT_PUBLIC_API_URL = `${API_BASE}`;
   process.env.NEXT_PUBLIC_WS_URL = API_ORIGIN;
   process.env.NODE_ENV = "development";
+  process.env.THROTTLER_ENABLED = "false";
 
   ensureTestDatabase(originalDatabaseUrl);
   runMigrations();

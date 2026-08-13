@@ -13,6 +13,7 @@ import { TokenService } from './../src/auth/token.service';
 import { PasswordService } from './../src/auth/password.service';
 import { AccountDeletionFinalizerService } from './../src/auth/account-deletion-finalizer.service';
 import { MailService } from './../src/mail/mail.service';
+import { AvatarUploadService } from './../src/auth/avatar-upload.service';
 
 interface AccountDeletionResponse {
   scheduledFor: string;
@@ -597,6 +598,146 @@ describe('AccountDeletion E2E', () => {
       await expect(
         fs.access(join(process.cwd(), 'uploads', 'avatars', user.id)),
       ).resolves.toBeUndefined();
+    });
+
+    it('returns 409 when the same idempotency key is reused with a different body after cancellation', async () => {
+      const idempotencyKey = randomUUID();
+      const callsBefore =
+        mailService.sendAccountDeletionCancellationEmail.mock.calls.length;
+
+      await request(app.getHttpServer())
+        .post('/auth/account-deletion/request')
+        .set('Authorization', `Bearer ${token}`)
+        .set('Idempotency-Key', idempotencyKey)
+        .send({
+          currentPassword: user.password,
+          confirmationPhrase: 'DELETE MY ACCOUNT',
+        })
+        .expect(200);
+
+      const cancellationEmail =
+        mailService.sendAccountDeletionCancellationEmail.mock.calls[
+          callsBefore
+        ][0];
+      const rawToken = cancellationEmail.token;
+
+      await request(app.getHttpServer())
+        .post('/auth/account-deletion/cancel')
+        .send({ token: rawToken })
+        .expect(200);
+
+      const loginAfterCancel = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email: user.email, password: user.password });
+      expect(loginAfterCancel.status).toBe(200);
+      const newToken = loginAfterCancel.body.accessToken as string;
+
+      const retry = await request(app.getHttpServer())
+        .post('/auth/account-deletion/request')
+        .set('Authorization', `Bearer ${newToken}`)
+        .set('Idempotency-Key', idempotencyKey)
+        .send({
+          currentPassword: 'wrong-password',
+          confirmationPhrase: 'DELETE MY ACCOUNT',
+        });
+      expect(retry.status).toBe(409);
+      expect(
+        mailService.sendAccountDeletionCancellationEmail.mock.calls.length -
+          callsBefore,
+      ).toBe(1);
+    });
+
+    it('serializes two concurrent instances on the same DB with the same key and body', async () => {
+      const idempotencyKey = randomUUID();
+      const callsBefore =
+        mailService.sendAccountDeletionCancellationEmail.mock.calls.length;
+
+      const freshModule = await Test.createTestingModule({
+        imports: [AppModule],
+      })
+        .overrideProvider(StorageService)
+        .useValue({})
+        .overrideProvider(MailService)
+        .useValue(mailService)
+        .compile();
+      const freshApp: INestApplication<App> =
+        freshModule.createNestApplication();
+      await freshApp.init();
+
+      try {
+        const [first, second] = await Promise.all([
+          request(app.getHttpServer())
+            .post('/auth/account-deletion/request')
+            .set('Authorization', `Bearer ${token}`)
+            .set('Idempotency-Key', idempotencyKey)
+            .send({
+              currentPassword: user.password,
+              confirmationPhrase: 'DELETE MY ACCOUNT',
+            }),
+          request(freshApp.getHttpServer())
+            .post('/auth/account-deletion/request')
+            .set('Authorization', `Bearer ${token}`)
+            .set('Idempotency-Key', idempotencyKey)
+            .send({
+              currentPassword: user.password,
+              confirmationPhrase: 'DELETE MY ACCOUNT',
+            }),
+        ]);
+
+        expect(first.status).toBe(200);
+        expect(second.status).toBe(200);
+        expect((first.body as AccountDeletionResponse).scheduledFor).toBe(
+          (second.body as AccountDeletionResponse).scheduledFor,
+        );
+        expect(
+          mailService.sendAccountDeletionCancellationEmail.mock.calls.length -
+            callsBefore,
+        ).toBe(1);
+      } finally {
+        await freshApp.close();
+      }
+    });
+
+    it('retries avatar cleanup after a failed first finalizer run', async () => {
+      const avatarUpload = app.get(AvatarUploadService);
+      const deleteAll = jest
+        .spyOn(avatarUpload, 'deleteAllAvatarsForUser')
+        .mockRejectedValueOnce(new Error('disk read error'));
+
+      await uploadAvatar(token);
+
+      const idempotencyKey = randomUUID();
+      await request(app.getHttpServer())
+        .post('/auth/account-deletion/request')
+        .set('Authorization', `Bearer ${token}`)
+        .set('Idempotency-Key', idempotencyKey)
+        .send({
+          currentPassword: user.password,
+          confirmationPhrase: 'DELETE MY ACCOUNT',
+        })
+        .expect(200);
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { deletionScheduledFor: new Date(Date.now() - 1000) },
+      });
+
+      const first = await finalizer.run();
+      expect(first.processedCount).toBe(1);
+      // The in-run retry pass succeeds after the initial attempt fails.
+      expect(first.cleanedAvatars).toBe(1);
+
+      deleteAll.mockRestore();
+
+      const second = await finalizer.run();
+      expect(second.processedCount).toBe(0);
+      expect(second.cleanedAvatars).toBe(0);
+
+      const finalized = await prisma.user.findUnique({
+        where: { id: user.id },
+      });
+      expect(finalized?.status).toBe('ANONYMIZED');
+      expect(finalized?.avatarCleanupCompletedAt).toBeInstanceOf(Date);
     });
   });
 });

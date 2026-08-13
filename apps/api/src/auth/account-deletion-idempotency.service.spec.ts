@@ -6,20 +6,53 @@ import { AccountDeletionIdempotencyService } from './account-deletion-idempotenc
 describe('AccountDeletionIdempotencyService', () => {
   let service: AccountDeletionIdempotencyService;
   let prisma: {
+    $transaction: jest.Mock;
+    $executeRawUnsafe: jest.Mock;
     accountDeletionIdempotency: {
       findUnique: jest.Mock;
       create: jest.Mock;
+      update: jest.Mock;
+      updateMany: jest.Mock;
+      delete: jest.Mock;
+      deleteMany: jest.Mock;
+    };
+  };
+  let tx: {
+    $executeRawUnsafe: jest.Mock;
+    accountDeletionIdempotency: {
+      findUnique: jest.Mock;
+      create: jest.Mock;
+      update: jest.Mock;
+      updateMany: jest.Mock;
       delete: jest.Mock;
       deleteMany: jest.Mock;
     };
   };
 
   beforeEach(() => {
-    prisma = {
+    tx = {
+      $executeRawUnsafe: jest.fn().mockResolvedValue(undefined),
       accountDeletionIdempotency: {
         findUnique: jest.fn(),
         create: jest.fn(),
-        delete: jest.fn().mockResolvedValue(undefined),
+        update: jest.fn(),
+        updateMany: jest.fn(),
+        delete: jest.fn(),
+        deleteMany: jest.fn(),
+      },
+    };
+
+    prisma = {
+      $transaction: jest.fn((callback: (tx: unknown) => Promise<unknown>) =>
+        callback(tx),
+      ),
+      $executeRawUnsafe: jest.fn(),
+      accountDeletionIdempotency: {
+        findUnique: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        updateMany: jest.fn(),
+        delete: jest.fn(),
         deleteMany: jest.fn(),
       },
     };
@@ -39,6 +72,7 @@ describe('AccountDeletionIdempotencyService', () => {
 
   function makeRow(
     bodyHash: string,
+    status: 'PENDING' | 'COMPLETED' = 'COMPLETED',
     expiresAt = new Date(Date.now() + 60 * 60 * 1000),
   ) {
     return {
@@ -46,6 +80,7 @@ describe('AccountDeletionIdempotencyService', () => {
       userId: 'user-1',
       idempotencyKey: 'key-1',
       bodyHash,
+      status,
       scheduledFor: new Date('2026-01-01T00:00:00Z'),
       expiresAt,
       createdAt: new Date(),
@@ -54,33 +89,49 @@ describe('AccountDeletionIdempotencyService', () => {
   }
 
   it('runs the operation and returns the result on first call', async () => {
+    tx.accountDeletionIdempotency.findUnique.mockResolvedValue(null);
+    tx.accountDeletionIdempotency.create.mockResolvedValue(undefined);
+    tx.accountDeletionIdempotency.update.mockResolvedValue(undefined);
+
     const op = operation();
     const result = await service.run('key-1', 'user-1', 'body-1', op);
     expect(result.scheduledFor).toEqual(new Date('2026-01-01T00:00:00Z'));
     expect(op).toHaveBeenCalledTimes(1);
-    expect(prisma.accountDeletionIdempotency.create).toHaveBeenCalledWith({
+    expect(tx.accountDeletionIdempotency.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         userId: 'user-1',
         idempotencyKey: 'key-1',
         bodyHash: 'body-1',
+        status: 'PENDING',
+      }),
+    });
+    expect(prisma.accountDeletionIdempotency.update).toHaveBeenCalledWith({
+      where: {
+        userId_idempotencyKey: {
+          userId: 'user-1',
+          idempotencyKey: 'key-1',
+        },
+      },
+      data: expect.objectContaining({
+        status: 'COMPLETED',
         scheduledFor: new Date('2026-01-01T00:00:00Z'),
       }),
     });
   });
 
   it('returns cached result for the same user and body without re-running', async () => {
-    const op = operation();
-    prisma.accountDeletionIdempotency.findUnique.mockResolvedValue(
+    tx.accountDeletionIdempotency.findUnique.mockResolvedValue(
       makeRow('body-1'),
     );
 
+    const op = operation();
     const result = await service.run('key-1', 'user-1', 'body-1', op);
     expect(result.scheduledFor).toEqual(new Date('2026-01-01T00:00:00Z'));
     expect(op).not.toHaveBeenCalled();
   });
 
   it('does not share results between different users with the same raw key', async () => {
-    prisma.accountDeletionIdempotency.findUnique.mockImplementation(
+    tx.accountDeletionIdempotency.findUnique.mockImplementation(
       (args: {
         where: {
           userId_idempotencyKey: { userId: string; idempotencyKey: string };
@@ -92,6 +143,8 @@ describe('AccountDeletionIdempotencyService', () => {
         return Promise.resolve(null);
       },
     );
+    tx.accountDeletionIdempotency.create.mockResolvedValue(undefined);
+    tx.accountDeletionIdempotency.update.mockResolvedValue(undefined);
 
     const opForUser1 = jest.fn().mockResolvedValue({
       scheduledFor: new Date('2026-01-01T00:00:00Z'),
@@ -110,7 +163,7 @@ describe('AccountDeletionIdempotencyService', () => {
   });
 
   it('rejects when the same key is reused with a different body', async () => {
-    prisma.accountDeletionIdempotency.findUnique.mockResolvedValue(
+    tx.accountDeletionIdempotency.findUnique.mockResolvedValue(
       makeRow('body-1'),
     );
 
@@ -120,21 +173,31 @@ describe('AccountDeletionIdempotencyService', () => {
   });
 
   it('does not cache results when the operation fails', async () => {
-    prisma.accountDeletionIdempotency.findUnique.mockResolvedValue(null);
+    tx.accountDeletionIdempotency.findUnique.mockResolvedValue(null);
+    tx.accountDeletionIdempotency.create.mockResolvedValue(undefined);
+    tx.accountDeletionIdempotency.delete.mockResolvedValue(undefined);
+
     const op = jest.fn().mockRejectedValue(new Error('boom'));
     await expect(service.run('key-1', 'user-1', 'body-1', op)).rejects.toThrow(
       'boom',
     );
 
-    expect(prisma.accountDeletionIdempotency.create).not.toHaveBeenCalled();
-
-    const retryOp = operation();
-    const result = await service.run('key-1', 'user-1', 'body-1', retryOp);
-    expect(result.scheduledFor).toEqual(new Date('2026-01-01T00:00:00Z'));
-    expect(retryOp).toHaveBeenCalledTimes(1);
+    expect(tx.accountDeletionIdempotency.create).toHaveBeenCalled();
+    expect(prisma.accountDeletionIdempotency.delete).toHaveBeenCalledWith({
+      where: {
+        userId_idempotencyKey: {
+          userId: 'user-1',
+          idempotencyKey: 'key-1',
+        },
+      },
+    });
   });
 
   it('deduplicates concurrent requests with the same scoped key', async () => {
+    tx.accountDeletionIdempotency.findUnique.mockResolvedValue(null);
+    tx.accountDeletionIdempotency.create.mockResolvedValue(undefined);
+    tx.accountDeletionIdempotency.update.mockResolvedValue(undefined);
+
     let calls = 0;
     const op = jest.fn(async () => {
       calls++;
@@ -151,7 +214,11 @@ describe('AccountDeletionIdempotencyService', () => {
     expect(calls).toBe(1);
   });
 
-  it('does not deduplicate concurrent requests with the same raw key but different users', async () => {
+  it('returns 409 when concurrent requests share the same scoped key but have different bodies', async () => {
+    tx.accountDeletionIdempotency.findUnique.mockResolvedValue(null);
+    tx.accountDeletionIdempotency.create.mockResolvedValue(undefined);
+    tx.accountDeletionIdempotency.update.mockResolvedValue(undefined);
+
     let calls = 0;
     const op = jest.fn(async () => {
       calls++;
@@ -159,47 +226,61 @@ describe('AccountDeletionIdempotencyService', () => {
       return { scheduledFor: new Date('2026-01-01T00:00:00Z') };
     });
 
-    const [first, second] = await Promise.all([
+    const [first, second] = await Promise.allSettled([
       service.run('key-1', 'user-1', 'body-1', op),
-      service.run('key-1', 'user-2', 'body-1', op),
+      service.run('key-1', 'user-1', 'body-2', op),
     ]);
 
-    expect(calls).toBe(2);
-    expect(first).toEqual({ scheduledFor: new Date('2026-01-01T00:00:00Z') });
-    expect(second).toEqual({ scheduledFor: new Date('2026-01-01T00:00:00Z') });
+    expect(first.status).toBe('fulfilled');
+    expect(second.status).toBe('rejected');
+    if (second.status === 'rejected') {
+      expect(second.reason).toBeInstanceOf(ConflictException);
+    }
+    expect(calls).toBe(1);
   });
 
-  it('ignores duplicate-key errors when recording results', async () => {
-    const op = operation();
-    prisma.accountDeletionIdempotency.create.mockRejectedValue({
-      code: 'P2002',
-    });
+  it('abandons a PENDING claim on operation failure so retries can proceed', async () => {
+    tx.accountDeletionIdempotency.findUnique.mockResolvedValue(null);
+    tx.accountDeletionIdempotency.create.mockResolvedValue(undefined);
+    tx.accountDeletionIdempotency.delete.mockResolvedValue(undefined);
 
-    const result = await service.run('key-1', 'user-1', 'body-1', op);
-    expect(result.scheduledFor).toEqual(new Date('2026-01-01T00:00:00Z'));
-  });
-
-  it('deletes expired rows on lookup', async () => {
-    prisma.accountDeletionIdempotency.findUnique.mockResolvedValue(
-      makeRow('body-1', new Date(Date.now() - 1000)),
+    const op = jest.fn().mockRejectedValue(new Error('transient'));
+    await expect(service.run('key-1', 'user-1', 'body-1', op)).rejects.toThrow(
+      'transient',
     );
 
-    const op = operation();
-    await service.run('key-1', 'user-1', 'body-1', op);
-    expect(prisma.accountDeletionIdempotency.delete).toHaveBeenCalledWith({
-      where: { id: 'row-1' },
-    });
+    // Simulate a retry from another instance: the PENDING row should have been
+    // removed, so the retry is allowed to create a new claim.
+    tx.accountDeletionIdempotency.findUnique.mockResolvedValue(null);
+    tx.accountDeletionIdempotency.create.mockResolvedValue(undefined);
+    tx.accountDeletionIdempotency.update.mockResolvedValue(undefined);
+
+    const retryOp = operation();
+    const result = await service.run('key-1', 'user-1', 'body-1', retryOp);
+    expect(result.scheduledFor).toEqual(new Date('2026-01-01T00:00:00Z'));
+    expect(retryOp).toHaveBeenCalledTimes(1);
   });
 
-  it('cleans up expired rows on demand', async () => {
-    prisma.accountDeletionIdempotency.deleteMany.mockResolvedValue({
-      count: 3,
+  it('acquires an abandoned PENDING row and completes the operation', async () => {
+    const oldCreatedAt = new Date(Date.now() - 60_000);
+    tx.accountDeletionIdempotency.findUnique.mockResolvedValue({
+      ...makeRow('body-1', 'PENDING'),
+      createdAt: oldCreatedAt,
     });
-    await (
-      service as unknown as { cleanupExpired: () => Promise<void> }
-    ).cleanupExpired();
-    expect(prisma.accountDeletionIdempotency.deleteMany).toHaveBeenCalledWith({
-      where: { expiresAt: { lte: expect.any(Date) } },
+    tx.accountDeletionIdempotency.updateMany.mockResolvedValue({ count: 1 });
+    tx.accountDeletionIdempotency.update.mockResolvedValue(undefined);
+
+    const op = operation();
+    const result = await service.run('key-1', 'user-1', 'body-1', op);
+    expect(result.scheduledFor).toEqual(new Date('2026-01-01T00:00:00Z'));
+    expect(op).toHaveBeenCalledTimes(1);
+    expect(tx.accountDeletionIdempotency.updateMany).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        id: 'row-1',
+        status: 'PENDING',
+        createdAt: { lte: expect.any(Date) },
+      }),
+      data: { createdAt: expect.any(Date) },
     });
   });
 });

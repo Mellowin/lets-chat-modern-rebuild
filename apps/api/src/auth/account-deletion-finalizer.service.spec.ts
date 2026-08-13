@@ -167,8 +167,19 @@ function createMockPrisma() {
                 u.deletionScheduledFor > where.deletionScheduledFor.lte)
             )
               return false;
+            if (
+              where.avatarCleanupCompletedAt === null &&
+              u.avatarCleanupCompletedAt != null
+            )
+              return false;
             return true;
           });
+        }),
+        update: jest.fn(({ where, data }: { where: any; data: any }) => {
+          const user = state.users.get(where.id);
+          if (!user) return null;
+          Object.assign(user, data);
+          return user;
         }),
       },
       $transaction: jest.fn((fn: any) => fn(tx)),
@@ -244,6 +255,7 @@ describe('AccountDeletionFinalizerService', () => {
     const result = await service.run();
 
     expect(result.processedCount).toBe(1);
+    expect(result.cleanedAvatars).toBe(0);
     const finalized = mock.state.users.get(userId);
     expect(finalized?.status).toBe('ANONYMIZED');
     expect(finalized?.deletedAt).toBeInstanceOf(Date);
@@ -333,6 +345,55 @@ describe('AccountDeletionFinalizerService', () => {
     const result = await service.run();
 
     expect(result.processedCount).toBe(1);
+    expect(result.cleanedAvatars).toBe(0);
     expect(avatarUpload.deleteAllAvatarsForUser).toHaveBeenCalledWith(userId);
+  });
+
+  it('retries avatar cleanup on a subsequent finalizer run after the first attempt fails', async () => {
+    const now = new Date();
+    const userId = 'u1';
+    mock.state.users.set(userId, {
+      id: userId,
+      status: 'PENDING_DELETION',
+      deletionScheduledFor: new Date(now.getTime() - 1000),
+      avatarUrl: '/uploads/avatars/u1/avatar.png',
+    });
+
+    avatarUpload.deleteAllAvatarsForUser
+      .mockRejectedValueOnce(new Error('disk read error'))
+      .mockRejectedValueOnce(new Error('disk read error'))
+      .mockResolvedValueOnce(undefined);
+
+    const first = await service.run();
+    expect(first.processedCount).toBe(1);
+    expect(first.cleanedAvatars).toBe(0);
+
+    const second = await service.run();
+    expect(second.cleanedAvatars).toBe(1);
+    expect(avatarUpload.deleteAllAvatarsForUser).toHaveBeenCalledTimes(3);
+
+    const finalized = mock.state.users.get(userId);
+    expect(finalized?.avatarCleanupCompletedAt).toBeInstanceOf(Date);
+  });
+
+  it('marks avatar cleanup complete when the directory is already gone', async () => {
+    const userId = 'u1';
+    mock.state.users.set(userId, {
+      id: userId,
+      status: 'ANONYMIZED',
+      deletionScheduledFor: null,
+      avatarUrl: null,
+      avatarCleanupCompletedAt: null,
+    });
+
+    const error = new Error('directory missing') as NodeJS.ErrnoException;
+    error.code = 'ENOENT';
+    avatarUpload.deleteAllAvatarsForUser.mockRejectedValueOnce(error);
+
+    const result = await service.run();
+    expect(result.cleanedAvatars).toBe(1);
+    expect(
+      mock.state.users.get(userId)?.avatarCleanupCompletedAt,
+    ).toBeInstanceOf(Date);
   });
 });

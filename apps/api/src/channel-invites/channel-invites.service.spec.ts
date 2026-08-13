@@ -193,6 +193,7 @@ describe('ChannelInvitesService', () => {
       deletionCancellationTokenHash: null,
       deletionCancellationExpiresAt: null,
       anonymizedAt: null,
+      avatarCleanupCompletedAt: null,
     };
   }
 

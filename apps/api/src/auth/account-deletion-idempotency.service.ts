@@ -3,17 +3,10 @@ import {
   Injectable,
   Logger,
   OnModuleDestroy,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { PrismaService } from '@lets-chat/database';
 import { RequestAccountDeletionResult } from './account-deletion.service';
-
-interface IdempotencyEntry {
-  userId: string;
-  idempotencyKey: string;
-  bodyHash: string;
-  scheduledFor: Date;
-  expiresAt: Date;
-}
 
 class Deferred<T> {
   readonly promise: Promise<T>;
@@ -40,18 +33,26 @@ class Deferred<T> {
  * Durable idempotency store for account deletion requests.
  *
  * Each raw idempotency key is scoped to a concrete user + request body hash and
- * persisted to PostgreSQL. This survives API restarts and makes retries safe.
+ * persisted to PostgreSQL. A PostgreSQL advisory lock scoped to the user+key pair
+ * makes the lookup-and-claim step atomic across multiple API instances, so only
+ * one instance can execute the destructive operation for a given key at a time.
  * In-flight operations are deduplicated per instance via a promise map keyed by
- * the scoped key, so two different users sharing the same raw key can never
- * share a result.
+ * the scoped key, so two different users sharing the same raw key can never share
+ * a result and two requests with the same key but different bodies receive 409.
  */
 @Injectable()
 export class AccountDeletionIdempotencyService implements OnModuleDestroy {
   private readonly logger = new Logger(AccountDeletionIdempotencyService.name);
   private readonly TTL_MS = 60 * 60 * 1000;
+  private readonly PENDING_POLL_MS = 100;
+  private readonly PENDING_POLL_MAX_ATTEMPTS = 300; // 30 seconds total
+  private readonly PENDING_ABANDON_MS = 30_000;
   private readonly inFlight = new Map<
     string,
-    Promise<RequestAccountDeletionResult>
+    {
+      bodyHash: string;
+      deferred: Deferred<RequestAccountDeletionResult>;
+    }
   >();
   private cleanupTimer: NodeJS.Timeout | null = null;
 
@@ -81,32 +82,29 @@ export class AccountDeletionIdempotencyService implements OnModuleDestroy {
   ): Promise<RequestAccountDeletionResult> {
     const scopedKey = `${userId}:${idempotencyKey}`;
 
-    const inFlightPromise = this.inFlight.get(scopedKey);
-    if (inFlightPromise) {
-      return inFlightPromise;
+    const inFlight = this.inFlight.get(scopedKey);
+    if (inFlight) {
+      if (inFlight.bodyHash !== bodyHash) {
+        return Promise.reject(
+          new ConflictException(
+            'Idempotency key reused with a different request',
+          ),
+        );
+      }
+      return inFlight.deferred.promise;
     }
 
-    // Register the in-flight promise synchronously so concurrent callers with the
-    // same scoped key wait on the same result and are never accidentally deduplicated
-    // with a different user.
     const deferred = new Deferred<RequestAccountDeletionResult>();
-    this.inFlight.set(scopedKey, deferred.promise);
+    this.inFlight.set(scopedKey, { bodyHash, deferred });
 
     void (async () => {
       try {
-        const cached = await this.findValid(idempotencyKey, userId, bodyHash);
-        if (cached === 'mismatch') {
-          throw new ConflictException(
-            'Idempotency key reused with a different request',
-          );
-        }
-        if (cached) {
-          deferred.resolve({ scheduledFor: cached.scheduledFor });
-          return;
-        }
-
-        const result = await operation();
-        await this.recordResult(idempotencyKey, userId, bodyHash, result);
+        const result = await this.executeWithLock(
+          idempotencyKey,
+          userId,
+          bodyHash,
+          operation,
+        );
         deferred.resolve(result);
       } catch (error) {
         deferred.reject(error);
@@ -118,74 +116,163 @@ export class AccountDeletionIdempotencyService implements OnModuleDestroy {
     return deferred.promise;
   }
 
-  private async findValid(
+  private async executeWithLock(
     idempotencyKey: string,
     userId: string,
     bodyHash: string,
-  ): Promise<IdempotencyEntry | 'mismatch' | null> {
-    const entry = await this.prisma.accountDeletionIdempotency.findUnique({
-      where: {
-        userId_idempotencyKey: {
-          userId,
-          idempotencyKey,
+    operation: () => Promise<RequestAccountDeletionResult>,
+  ): Promise<RequestAccountDeletionResult> {
+    const expiresAt = new Date(Date.now() + this.TTL_MS);
+    const lockInput = `${userId}:${idempotencyKey}`;
+
+    for (let attempt = 0; attempt < this.PENDING_POLL_MAX_ATTEMPTS; attempt++) {
+      const decision = await this.prisma.$transaction(
+        async (tx) => {
+          // Serialize all operations for this user+key pair across instances.
+          await tx.$executeRawUnsafe(
+            'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
+            lockInput,
+          );
+
+          const existing = await tx.accountDeletionIdempotency.findUnique({
+            where: {
+              userId_idempotencyKey: {
+                userId,
+                idempotencyKey,
+              },
+            },
+          });
+
+          if (existing) {
+            if (existing.bodyHash !== bodyHash) {
+              return { type: 'mismatch' as const };
+            }
+            if (existing.status === 'COMPLETED') {
+              return {
+                type: 'completed' as const,
+                scheduledFor: existing.scheduledFor,
+              };
+            }
+
+            // PENDING row: claim it if the previous owner appears to have crashed.
+            const abandonedBefore = new Date(
+              Date.now() - this.PENDING_ABANDON_MS,
+            );
+            if (existing.createdAt <= abandonedBefore) {
+              const claimed = await tx.accountDeletionIdempotency.updateMany({
+                where: {
+                  id: existing.id,
+                  status: 'PENDING',
+                  createdAt: { lte: abandonedBefore },
+                },
+                data: { createdAt: new Date() },
+              });
+              if (claimed.count > 0) {
+                return { type: 'claimed' as const };
+              }
+            }
+
+            return { type: 'pending' as const };
+          }
+
+          // No row yet: claim the serialization point by creating a PENDING row.
+          await tx.accountDeletionIdempotency.create({
+            data: {
+              userId,
+              idempotencyKey,
+              bodyHash,
+              status: 'PENDING',
+              scheduledFor: new Date(0),
+              expiresAt,
+            },
+          });
+          return { type: 'claimed' as const };
         },
-      },
-    });
+        { maxWait: 10_000, timeout: 30_000 },
+      );
 
-    if (!entry) {
-      return null;
+      if (decision.type === 'mismatch') {
+        throw new ConflictException(
+          'Idempotency key reused with a different request',
+        );
+      }
+      if (decision.type === 'completed') {
+        return { scheduledFor: decision.scheduledFor };
+      }
+      if (decision.type === 'claimed') {
+        try {
+          const result = await operation();
+          await this.complete(userId, idempotencyKey, result, expiresAt);
+          return result;
+        } catch (error) {
+          await this.abandon(userId, idempotencyKey);
+          throw error;
+        }
+      }
+
+      // Another instance owns the PENDING row; wait for it to complete.
+      await new Promise((resolve) => setTimeout(resolve, this.PENDING_POLL_MS));
     }
 
-    if (entry.expiresAt <= new Date()) {
-      await this.prisma.accountDeletionIdempotency
-        .delete({
-          where: { id: entry.id },
-        })
-        .catch(() => {
-          // Ignore concurrent deletion.
-        });
-      return null;
-    }
-
-    if (entry.bodyHash !== bodyHash) {
-      return 'mismatch';
-    }
-
-    return entry;
+    throw new ServiceUnavailableException(
+      'Idempotency operation timed out waiting for another request',
+    );
   }
 
-  private async recordResult(
-    idempotencyKey: string,
+  private async complete(
     userId: string,
-    bodyHash: string,
+    idempotencyKey: string,
     result: RequestAccountDeletionResult,
+    expiresAt: Date,
   ): Promise<void> {
     try {
-      await this.prisma.accountDeletionIdempotency.create({
+      await this.prisma.accountDeletionIdempotency.update({
+        where: {
+          userId_idempotencyKey: {
+            userId,
+            idempotencyKey,
+          },
+        },
         data: {
-          userId,
-          idempotencyKey,
-          bodyHash,
+          status: 'COMPLETED',
           scheduledFor: result.scheduledFor,
-          expiresAt: new Date(Date.now() + this.TTL_MS),
+          expiresAt,
         },
       });
     } catch (error) {
-      // Another instance won the race. The durable row is already stored,
-      // so this is a safe no-op.
-      const code = (error as { code?: string }).code;
-      if (code === 'P2002') {
-        return;
-      }
+      // Unique constraint violations should not happen here because we hold the
+      // claim. If another instance somehow completed the row, that is also safe.
       this.logger.error(
         {
           userId,
           idempotencyKey,
           error: error instanceof Error ? error.message : String(error),
         },
-        'Failed to record idempotency result',
+        'Failed to mark idempotency row as completed',
       );
       throw error;
+    }
+  }
+
+  private async abandon(userId: string, idempotencyKey: string): Promise<void> {
+    try {
+      await this.prisma.accountDeletionIdempotency.delete({
+        where: {
+          userId_idempotencyKey: {
+            userId,
+            idempotencyKey,
+          },
+        },
+      });
+    } catch (error) {
+      this.logger.warn(
+        {
+          userId,
+          idempotencyKey,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'Failed to abandon idempotency claim',
+      );
     }
   }
 

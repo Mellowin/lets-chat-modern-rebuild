@@ -91,12 +91,9 @@ async function parseErrorMessage(res: Response, fallback: string): Promise<strin
     if (body?.message) message = body.message;
     else if (body?.error) message = body.error;
 
-    // Include backend error codes for mail-provider failures so the UI can map
+    // Include backend error codes for known application states so the UI can map
     // them to user-friendly messages even when the human-readable text changes.
-    if (
-      typeof body?.code === "string" &&
-      body.code.startsWith("MAIL_PROVIDER")
-    ) {
+    if (typeof body?.code === "string") {
       message = `${body.code}: ${message}`;
     }
   } catch {
@@ -576,6 +573,27 @@ export async function cancelAccountDeletion(input: CancelAccountDeletionInput): 
 
   if (!res.ok) {
     throw new Error(await parseErrorMessage(res, `Failed to cancel account deletion: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<{ success: boolean }>;
+}
+
+export interface ResendAccountDeletionCancellationInput {
+  email: string;
+  currentPassword: string;
+}
+
+export async function resendAccountDeletionCancellation(
+  input: ResendAccountDeletionCancellationInput,
+): Promise<{ success: boolean }> {
+  const res = await fetchWithTimeout(`${API_BASE}/auth/account-deletion/resend-cancellation`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(input),
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to resend cancellation link: ${res.status} ${res.statusText}`));
   }
 
   return res.json() as Promise<{ success: boolean }>;

@@ -61,7 +61,7 @@ export class AccountDeletionFinalizerService
     return Promise.resolve();
   }
 
-  async run(): Promise<{ processedCount: number }> {
+  async run(): Promise<{ processedCount: number; cleanedAvatars: number }> {
     const now = new Date();
     const dueUsers = await this.prisma.user.findMany({
       where: {
@@ -90,7 +90,32 @@ export class AccountDeletionFinalizerService
       }
     }
 
-    return { processedCount };
+    let cleanedAvatars = 0;
+    const incompleteCleanups = await this.prisma.user.findMany({
+      where: {
+        status: 'ANONYMIZED',
+        avatarCleanupCompletedAt: null,
+      },
+      select: { id: true },
+    });
+    for (const { id } of incompleteCleanups) {
+      try {
+        const cleaned = await this.cleanupAvatar(id);
+        if (cleaned) {
+          cleanedAvatars++;
+        }
+      } catch (error) {
+        this.logger.error(
+          {
+            userId: id,
+            error: error instanceof Error ? error.message : String(error),
+          },
+          'Failed to retry avatar cleanup',
+        );
+      }
+    }
+
+    return { processedCount, cleanedAvatars };
   }
 
   async finalizeUser(userId: string, now = new Date()): Promise<boolean> {
@@ -192,22 +217,59 @@ export class AccountDeletionFinalizerService
     });
 
     if (success) {
-      // Remove all historical avatar files for this user after the DB state is
-      // safely committed. A missing directory is fine; other users are untouched.
+      // Mark avatar cleanup as pending, then attempt it. If this fails, the
+      // periodic finalizer will retry for ANONYMIZED users with incomplete cleanup.
       try {
-        await this.avatarUpload.deleteAllAvatarsForUser(userId);
+        await this.cleanupAvatar(userId);
       } catch (error) {
         this.logger.error(
           {
             userId,
             error: error instanceof Error ? error.message : String(error),
           },
-          'Failed to delete avatar files after finalization',
+          'Avatar cleanup failed during finalization; will retry',
         );
       }
     }
 
     return success;
+  }
+
+  async cleanupAvatar(userId: string): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        status: true,
+        avatarCleanupCompletedAt: true,
+      },
+    });
+    if (
+      !user ||
+      user.status !== 'ANONYMIZED' ||
+      user.avatarCleanupCompletedAt
+    ) {
+      return false;
+    }
+
+    try {
+      await this.avatarUpload.deleteAllAvatarsForUser(userId);
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { avatarCleanupCompletedAt: new Date() },
+      });
+      return true;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === 'ENOENT') {
+        // Directory already gone; mark cleanup complete idempotently.
+        await this.prisma.user.update({
+          where: { id: userId },
+          data: { avatarCleanupCompletedAt: new Date() },
+        });
+        return true;
+      }
+      throw error;
+    }
   }
 
   async recordFinalizationAudit(userId: string): Promise<void> {

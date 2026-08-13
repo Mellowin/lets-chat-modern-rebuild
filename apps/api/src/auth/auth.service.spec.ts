@@ -124,6 +124,7 @@ describe('AuthService', () => {
       deletionCancellationTokenHash: null,
       deletionCancellationExpiresAt: null,
       anonymizedAt: null,
+      avatarCleanupCompletedAt: null,
     };
 
     usersRepository.updateDisplayName.mockResolvedValue(user);
@@ -174,6 +175,7 @@ describe('AuthService', () => {
       deletionCancellationTokenHash: null,
       deletionCancellationExpiresAt: null,
       anonymizedAt: null,
+      avatarCleanupCompletedAt: null,
     };
 
     const servicePrivate = service as unknown as {
@@ -223,6 +225,7 @@ describe('AuthService', () => {
       deletionCancellationTokenHash: null,
       deletionCancellationExpiresAt: null,
       anonymizedAt: null,
+      avatarCleanupCompletedAt: null,
     };
 
     const servicePrivate = service as unknown as {
@@ -272,6 +275,7 @@ describe('AuthService', () => {
       deletionCancellationTokenHash: null,
       deletionCancellationExpiresAt: null,
       anonymizedAt: null,
+      avatarCleanupCompletedAt: null,
     };
 
     usersRepository.updateInterfaceLanguage.mockResolvedValue(user);
@@ -322,6 +326,7 @@ describe('AuthService', () => {
       deletionCancellationTokenHash: null,
       deletionCancellationExpiresAt: null,
       anonymizedAt: null,
+      avatarCleanupCompletedAt: null,
     };
 
     usersRepository.updateAvatar.mockResolvedValue(user);
@@ -376,6 +381,7 @@ describe('AuthService', () => {
       deletionCancellationTokenHash: null,
       deletionCancellationExpiresAt: null,
       anonymizedAt: null,
+      avatarCleanupCompletedAt: null,
     };
 
     usersRepository.updateAvatar.mockResolvedValue(user);
@@ -433,6 +439,7 @@ describe('AuthService — email verification', () => {
     deletionCancellationTokenHash: null,
     deletionCancellationExpiresAt: null,
     anonymizedAt: null,
+    avatarCleanupCompletedAt: null,
     ...overrides,
   });
 
@@ -913,6 +920,7 @@ describe('AuthService — password reset', () => {
     deletionCancellationTokenHash: null,
     deletionCancellationExpiresAt: null,
     anonymizedAt: null,
+    avatarCleanupCompletedAt: null,
     ...overrides,
   });
 
@@ -1379,6 +1387,7 @@ describe('AuthService — change password', () => {
     deletionCancellationTokenHash: null,
     deletionCancellationExpiresAt: null,
     anonymizedAt: null,
+    avatarCleanupCompletedAt: null,
     ...overrides,
   });
 
