@@ -151,17 +151,21 @@ describe('DataExportService', () => {
     const user = makeUser();
     prisma.user.findUnique.mockResolvedValue(user as any);
     passwordService.verifyPassword.mockResolvedValue(true);
-    prisma.userReport.findMany.mockResolvedValue([
-      {
-        id: 'r1',
-        reporterId: userId,
-        reason: 'spam',
-        details: 'annoying',
-        status: 'OPEN',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    ] as any);
+    prisma.userReport.findMany.mockImplementation((args: any) => {
+      const cursor = args.where?.id?.gt ?? null;
+      if (cursor) return Promise.resolve([]);
+      return Promise.resolve([
+        {
+          id: 'r1',
+          reporterId: userId,
+          reason: 'spam',
+          details: 'annoying',
+          status: 'OPEN',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ] as any);
+    });
 
     await service.exportUserData(userId, 'password', res as Response);
 
@@ -193,52 +197,64 @@ describe('DataExportService', () => {
     prisma.user.findUnique.mockResolvedValue(user as any);
     passwordService.verifyPassword.mockResolvedValue(true);
 
-    prisma.notification.findMany.mockResolvedValue([
-      {
-        id: 'n1',
-        type: 'MENTION',
-        title: 'Mention',
-        body: 'You were mentioned',
-        entityType: 'message',
-        entityId: 'm1',
-        workspaceId: null,
-        channelId: null,
-        isRead: false,
-        readAt: null,
-        createdAt: new Date(),
-      },
-    ] as any);
-    prisma.pushSubscription.findMany.mockResolvedValue([
-      {
-        id: 'p1',
-        endpoint: 'https://push.example.com/1',
-        userAgent: 'Mozilla/5.0',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    ] as any);
+    prisma.notification.findMany.mockImplementation((args: any) => {
+      const cursor = args.where?.id?.gt ?? null;
+      if (cursor) return Promise.resolve([]);
+      return Promise.resolve([
+        {
+          id: 'n1',
+          type: 'MENTION',
+          title: 'Mention',
+          body: 'You were mentioned',
+          entityType: 'message',
+          entityId: 'm1',
+          workspaceId: null,
+          channelId: null,
+          isRead: false,
+          readAt: null,
+          createdAt: new Date(),
+        },
+      ] as any);
+    });
+    prisma.pushSubscription.findMany.mockImplementation((args: any) => {
+      const cursor = args.where?.id?.gt ?? null;
+      if (cursor) return Promise.resolve([]);
+      return Promise.resolve([
+        {
+          id: 'p1',
+          endpoint: 'https://push.example.com/1',
+          userAgent: 'Mozilla/5.0',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ] as any);
+    });
     prisma.contactRequest.findMany.mockResolvedValue([]);
     prisma.invitation.findMany.mockResolvedValue([]);
     prisma.channelInvitation.findMany.mockResolvedValue([]);
-    prisma.auditLog.findMany.mockResolvedValue([
-      {
-        id: 'al1',
-        actorId: userId,
-        targetUserId: null,
-        action: 'auth.login.success',
-        entityType: 'user',
-        entityId: userId,
-        workspaceId: null,
-        channelId: null,
-        groupId: null,
-        severity: 'info',
-        requestId: null,
-        metadata: null,
-        ipAddress: '127.0.0.1',
-        userAgent: 'Mozilla/5.0',
-        createdAt: new Date(),
-      },
-    ] as any);
+    prisma.auditLog.findMany.mockImplementation((args: any) => {
+      const cursor = args.where?.id?.gt ?? null;
+      if (cursor) return Promise.resolve([]);
+      return Promise.resolve([
+        {
+          id: 'al1',
+          actorId: userId,
+          targetUserId: null,
+          action: 'auth.login.success',
+          entityType: 'user',
+          entityId: userId,
+          workspaceId: null,
+          channelId: null,
+          groupId: null,
+          severity: 'info',
+          requestId: null,
+          metadata: null,
+          ipAddress: '127.0.0.1',
+          userAgent: 'Mozilla/5.0',
+          createdAt: new Date(),
+        },
+      ] as any);
+    });
 
     await service.exportUserData(userId, 'password', res as Response);
 
@@ -274,27 +290,26 @@ describe('DataExportService', () => {
     );
   });
 
-  it('streams more than 10000 channel messages without truncation', async () => {
+  it('streams more than 10000 notifications without truncation', async () => {
     const total = 10_001;
     const user = makeUser();
     prisma.user.findUnique.mockResolvedValue(user as any);
     passwordService.verifyPassword.mockResolvedValue(true);
 
-    prisma.message.findMany.mockImplementation((args: any) => {
-      const cursor = args.cursor?.id ?? args.where?.id?.gt ?? null;
+    prisma.notification.findMany.mockImplementation((args: any) => {
+      const cursor = args.where?.id?.gt ?? null;
       const take = args.take ?? 1000;
       let start = 0;
       if (cursor) {
         const cursorNum = parseInt(cursor.split('-')[0], 10);
-        start = cursorNum + 1;
+        start = cursorNum;
       }
-      const batch: Array<{ id: string; channelId: string; content: string }> =
-        [];
+      const batch: Array<{ id: string; type: string; body: string }> = [];
       for (let i = start; i < Math.min(start + take, total); i++) {
         batch.push({
-          id: `${String(i).padStart(8, '0')}-0000-0000-0000-000000000000`,
-          channelId: '00000000-0000-0000-0000-000000000001',
-          content: `message ${i}`,
+          id: `${String(i + 1).padStart(8, '0')}-0000-0000-0000-000000000000`,
+          type: 'MENTION',
+          body: `notification ${i}`,
         });
       }
       return Promise.resolve(batch);
@@ -303,7 +318,7 @@ describe('DataExportService', () => {
     await service.exportUserData(userId, 'password', res as Response);
 
     const payload = parseStreamedExport();
-    expect(Array.isArray(payload.messages)).toBe(true);
-    expect((payload.messages as unknown[]).length).toBe(total);
+    expect(Array.isArray(payload.notifications)).toBe(true);
+    expect((payload.notifications as unknown[]).length).toBe(total);
   });
 });

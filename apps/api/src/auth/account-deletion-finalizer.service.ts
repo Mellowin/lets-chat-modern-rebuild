@@ -152,7 +152,12 @@ export class AccountDeletionFinalizerService
   async finalizeUser(userId: string, now = new Date()): Promise<boolean> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId, status: 'PENDING_DELETION' },
-      select: { id: true, avatarUrl: true, deletionScheduledFor: true },
+      select: {
+        id: true,
+        email: true,
+        avatarUrl: true,
+        deletionScheduledFor: true,
+      },
     });
     if (!user) {
       return false;
@@ -220,6 +225,29 @@ export class AccountDeletionFinalizerService
       await tx.userBlock.deleteMany({
         where: { OR: [{ blockerId: userId }, { blockedId: userId }] },
       });
+
+      // Revoke pending invitations addressed to the email being freed.
+      // This prevents a later account registered with the same address from
+      // accepting invitations intended for the deleted account.
+      const originalEmail = user.email;
+      if (originalEmail) {
+        await tx.invitation.updateMany({
+          where: {
+            invitedEmail: originalEmail,
+            usedById: null,
+            deletedAt: null,
+          },
+          data: { deletedAt: now },
+        });
+        await tx.channelInvitation.updateMany({
+          where: {
+            invitedEmail: originalEmail,
+            usedById: null,
+            deletedAt: null,
+          },
+          data: { deletedAt: now },
+        });
+      }
 
       // Soft-delete workspace and channel memberships.
       await tx.workspaceMember.updateMany({

@@ -287,6 +287,9 @@ export class AccountDeletionIdempotencyService implements OnModuleDestroy {
         },
         data: {
           lastHeartbeatAt: new Date(),
+          // Keep live PENDING rows alive as long as the owning request is still
+          // running. cleanupExpired only removes rows whose expiresAt has passed.
+          expiresAt: new Date(Date.now() + this.TTL_MS),
         },
       });
     } catch (error) {

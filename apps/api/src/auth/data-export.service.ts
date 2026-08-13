@@ -70,31 +70,6 @@ export class DataExportService {
     res.status(200);
 
     const profile = await this.loadProfile(userId);
-    const workspaceMemberships = await this.loadWorkspaceMemberships(userId);
-    const channelMemberships = await this.loadChannelMemberships(userId);
-    const groupMemberships = await this.loadGroupMemberships(userId);
-    const createdWorkspaces = await this.loadCreatedWorkspaces(userId);
-    const createdChannels = await this.loadCreatedChannels(userId);
-    const createdGroups = await this.loadCreatedGroups(userId);
-    const reactions = await this.loadReactions(userId);
-    const directReactions = await this.loadDirectReactions(userId);
-    const contacts = await this.loadContacts(userId);
-    const blocks = await this.loadBlocks(userId);
-    const reports = await this.loadReports(userId);
-    const attachments = await this.loadAttachments(userId);
-    const sessions = await this.loadSessions(userId);
-    const notifications = await this.loadNotifications(userId);
-    const pushSubscriptions = await this.loadPushSubscriptions(userId);
-    const sentContactRequests = await this.loadSentContactRequests(userId);
-    const receivedContactRequests =
-      await this.loadReceivedContactRequests(userId);
-    const sentInvitations = await this.loadSentInvitations(userId);
-    const acceptedInvitations = await this.loadAcceptedInvitations(userId);
-    const sentChannelInvitations =
-      await this.loadSentChannelInvitations(userId);
-    const acceptedChannelInvitations =
-      await this.loadAcceptedChannelInvitations(userId);
-    const auditLogs = await this.loadAuditLogs(userId);
 
     await this.write(res, '{');
     await this.writeJsonObjectField(res, 'exportFormatVersion', '1.0.0', true);
@@ -111,93 +86,459 @@ export class DataExportService {
       false,
     );
     await this.writeJsonObjectField(res, 'profile', profile, false);
-    await this.writeJsonObjectField(
-      res,
-      'workspaceMemberships',
-      workspaceMemberships,
-      false,
+
+    await this.streamEntityArray(res, 'workspaceMemberships', (lastId) =>
+      this.prisma.workspaceMember.findMany({
+        where: {
+          userId,
+          deletedAt: null,
+          ...(lastId ? { id: { gt: lastId } } : {}),
+        },
+        orderBy: { id: 'asc' },
+        take: this.BATCH_SIZE,
+        select: {
+          id: true,
+          workspaceId: true,
+          role: true,
+          createdAt: true,
+          workspace: { select: { name: true, slug: true } },
+        },
+      }),
     );
-    await this.writeJsonObjectField(
-      res,
-      'channelMemberships',
-      channelMemberships,
-      false,
+
+    await this.streamEntityArray(res, 'channelMemberships', (lastId) =>
+      this.prisma.channelMember.findMany({
+        where: {
+          userId,
+          deletedAt: null,
+          ...(lastId ? { id: { gt: lastId } } : {}),
+        },
+        orderBy: { id: 'asc' },
+        take: this.BATCH_SIZE,
+        select: {
+          id: true,
+          channelId: true,
+          role: true,
+          createdAt: true,
+          channel: { select: { name: true, slug: true, type: true } },
+        },
+      }),
     );
-    await this.writeJsonObjectField(
-      res,
-      'groupMemberships',
-      groupMemberships,
-      false,
+
+    await this.streamEntityArray(res, 'groupMemberships', (lastId) =>
+      this.prisma.groupMember.findMany({
+        where: {
+          userId,
+          leftAt: null,
+          ...(lastId ? { id: { gt: lastId } } : {}),
+        },
+        orderBy: { id: 'asc' },
+        take: this.BATCH_SIZE,
+        select: {
+          id: true,
+          groupId: true,
+          role: true,
+          joinedAt: true,
+          group: { select: { name: true, createdAt: true } },
+        },
+      }),
     );
-    await this.writeJsonObjectField(
-      res,
-      'createdWorkspaces',
-      createdWorkspaces,
-      false,
+
+    await this.streamEntityArray(res, 'createdWorkspaces', (lastId) =>
+      this.prisma.workspace.findMany({
+        where: {
+          ownerId: userId,
+          deletedAt: null,
+          ...(lastId ? { id: { gt: lastId } } : {}),
+        },
+        orderBy: { id: 'asc' },
+        take: this.BATCH_SIZE,
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          description: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
     );
-    await this.writeJsonObjectField(
-      res,
-      'createdChannels',
-      createdChannels,
-      false,
+
+    await this.streamEntityArray(res, 'createdChannels', (lastId) =>
+      this.prisma.channel.findMany({
+        where: {
+          createdById: userId,
+          deletedAt: null,
+          ...(lastId ? { id: { gt: lastId } } : {}),
+        },
+        orderBy: { id: 'asc' },
+        take: this.BATCH_SIZE,
+        select: {
+          id: true,
+          workspaceId: true,
+          name: true,
+          slug: true,
+          type: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
     );
-    await this.writeJsonObjectField(res, 'createdGroups', createdGroups, false);
-    await this.writeJsonObjectField(res, 'reactions', reactions, false);
-    await this.writeJsonObjectField(
-      res,
-      'directReactions',
-      directReactions,
-      false,
+
+    await this.streamEntityArray(res, 'createdGroups', (lastId) =>
+      this.prisma.groupConversation.findMany({
+        where: {
+          createdById: userId,
+          archivedAt: null,
+          ...(lastId ? { id: { gt: lastId } } : {}),
+        },
+        orderBy: { id: 'asc' },
+        take: this.BATCH_SIZE,
+        select: {
+          id: true,
+          name: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
     );
-    await this.writeJsonObjectField(res, 'contacts', contacts, false);
-    await this.writeJsonObjectField(res, 'blocks', blocks, false);
-    await this.writeJsonObjectField(res, 'reports', reports, false);
-    await this.writeJsonObjectField(res, 'attachments', attachments, false);
-    await this.writeJsonObjectField(res, 'sessions', sessions, false);
-    await this.writeJsonObjectField(res, 'notifications', notifications, false);
-    await this.writeJsonObjectField(
-      res,
-      'pushSubscriptions',
-      pushSubscriptions,
-      false,
+
+    await this.streamEntityArray(res, 'reactions', (lastId) =>
+      this.prisma.reaction.findMany({
+        where: {
+          userId,
+          deletedAt: null,
+          ...(lastId ? { id: { gt: lastId } } : {}),
+        },
+        orderBy: { id: 'asc' },
+        take: this.BATCH_SIZE,
+        select: {
+          id: true,
+          messageId: true,
+          emoji: true,
+          createdAt: true,
+        },
+      }),
     );
-    await this.writeJsonObjectField(
-      res,
-      'sentContactRequests',
-      sentContactRequests,
-      false,
+
+    await this.streamEntityArray(res, 'directReactions', (lastId) =>
+      this.prisma.directMessageReaction.findMany({
+        where: {
+          userId,
+          ...(lastId ? { id: { gt: lastId } } : {}),
+        },
+        orderBy: { id: 'asc' },
+        take: this.BATCH_SIZE,
+        select: {
+          id: true,
+          messageId: true,
+          emoji: true,
+          createdAt: true,
+        },
+      }),
     );
-    await this.writeJsonObjectField(
-      res,
-      'receivedContactRequests',
-      receivedContactRequests,
-      false,
+
+    await this.streamEntityArray(res, 'contacts', (lastId) =>
+      this.prisma.userContact.findMany({
+        where: {
+          ownerUserId: userId,
+          deletedAt: null,
+          ...(lastId ? { id: { gt: lastId } } : {}),
+        },
+        orderBy: { id: 'asc' },
+        take: this.BATCH_SIZE,
+        select: {
+          id: true,
+          contactUserId: true,
+          nickname: true,
+          createdAt: true,
+        },
+      }),
     );
-    await this.writeJsonObjectField(
-      res,
-      'sentInvitations',
-      sentInvitations,
-      false,
+
+    await this.streamEntityArray(res, 'blocks', (lastId) =>
+      this.prisma.userBlock.findMany({
+        where: {
+          blockerId: userId,
+          deletedAt: null,
+          ...(lastId ? { id: { gt: lastId } } : {}),
+        },
+        orderBy: { id: 'asc' },
+        take: this.BATCH_SIZE,
+        select: {
+          id: true,
+          blockedId: true,
+          reason: true,
+          createdAt: true,
+        },
+      }),
     );
-    await this.writeJsonObjectField(
-      res,
-      'acceptedInvitations',
-      acceptedInvitations,
-      false,
+
+    await this.streamEntityArray(res, 'reports', (lastId) =>
+      this.prisma.userReport.findMany({
+        where: {
+          reporterId: userId,
+          ...(lastId ? { id: { gt: lastId } } : {}),
+        },
+        orderBy: { id: 'asc' },
+        take: this.BATCH_SIZE,
+        select: {
+          id: true,
+          reportedUserId: true,
+          messageId: true,
+          directConversationId: true,
+          groupId: true,
+          reason: true,
+          details: true,
+          status: true,
+          reviewedAt: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
     );
-    await this.writeJsonObjectField(
-      res,
-      'sentChannelInvitations',
-      sentChannelInvitations,
-      false,
+
+    await this.streamEntityArray(res, 'attachments', (lastId) =>
+      this.prisma.attachment.findMany({
+        where: {
+          createdById: userId,
+          deletedAt: null,
+          ...(lastId ? { id: { gt: lastId } } : {}),
+        },
+        orderBy: { id: 'asc' },
+        take: this.BATCH_SIZE,
+        select: {
+          id: true,
+          filename: true,
+          originalName: true,
+          mimeType: true,
+          size: true,
+          storageKey: true,
+          storageBackend: true,
+          messageId: true,
+          directMessageId: true,
+          groupMessageId: true,
+          createdAt: true,
+        },
+      }),
     );
-    await this.writeJsonObjectField(
-      res,
-      'acceptedChannelInvitations',
-      acceptedChannelInvitations,
-      false,
+
+    await this.streamEntityArray(res, 'sessions', (lastId) =>
+      this.prisma.refreshToken.findMany({
+        where: {
+          userId,
+          ...(lastId ? { id: { gt: lastId } } : {}),
+        },
+        orderBy: { id: 'asc' },
+        take: this.BATCH_SIZE,
+        select: {
+          id: true,
+          createdAt: true,
+          expiresAt: true,
+          revokedAt: true,
+          ipAddress: true,
+          userAgent: true,
+        },
+      }),
     );
-    await this.writeJsonObjectField(res, 'auditLogs', auditLogs, false);
+
+    await this.streamEntityArray(res, 'notifications', (lastId) =>
+      this.prisma.notification.findMany({
+        where: {
+          userId,
+          ...(lastId ? { id: { gt: lastId } } : {}),
+        },
+        orderBy: { id: 'asc' },
+        take: this.BATCH_SIZE,
+        select: {
+          id: true,
+          type: true,
+          title: true,
+          body: true,
+          entityType: true,
+          entityId: true,
+          workspaceId: true,
+          channelId: true,
+          isRead: true,
+          readAt: true,
+          createdAt: true,
+        },
+      }),
+    );
+
+    await this.streamEntityArray(res, 'pushSubscriptions', (lastId) =>
+      this.prisma.pushSubscription.findMany({
+        where: {
+          userId,
+          ...(lastId ? { id: { gt: lastId } } : {}),
+        },
+        orderBy: { id: 'asc' },
+        take: this.BATCH_SIZE,
+        select: {
+          id: true,
+          endpoint: true,
+          userAgent: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
+    );
+
+    await this.streamEntityArray(res, 'sentContactRequests', (lastId) =>
+      this.prisma.contactRequest.findMany({
+        where: {
+          fromUserId: userId,
+          ...(lastId ? { id: { gt: lastId } } : {}),
+        },
+        orderBy: { id: 'asc' },
+        take: this.BATCH_SIZE,
+        select: {
+          id: true,
+          toUserId: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+          declinedAt: true,
+        },
+      }),
+    );
+
+    await this.streamEntityArray(res, 'receivedContactRequests', (lastId) =>
+      this.prisma.contactRequest.findMany({
+        where: {
+          toUserId: userId,
+          ...(lastId ? { id: { gt: lastId } } : {}),
+        },
+        orderBy: { id: 'asc' },
+        take: this.BATCH_SIZE,
+        select: {
+          id: true,
+          fromUserId: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+          declinedAt: true,
+        },
+      }),
+    );
+
+    await this.streamEntityArray(res, 'sentInvitations', (lastId) =>
+      this.prisma.invitation.findMany({
+        where: {
+          invitedById: userId,
+          ...(lastId ? { id: { gt: lastId } } : {}),
+        },
+        orderBy: { id: 'asc' },
+        take: this.BATCH_SIZE,
+        select: {
+          id: true,
+          workspaceId: true,
+          role: true,
+          invitedEmail: true,
+          maxUses: true,
+          usesCount: true,
+          usedById: true,
+          usedAt: true,
+          createdAt: true,
+          deletedAt: true,
+        },
+      }),
+    );
+
+    await this.streamEntityArray(res, 'acceptedInvitations', (lastId) =>
+      this.prisma.invitation.findMany({
+        where: {
+          usedById: userId,
+          ...(lastId ? { id: { gt: lastId } } : {}),
+        },
+        orderBy: { id: 'asc' },
+        take: this.BATCH_SIZE,
+        select: {
+          id: true,
+          workspaceId: true,
+          invitedById: true,
+          role: true,
+          invitedEmail: true,
+          maxUses: true,
+          usesCount: true,
+          usedAt: true,
+          createdAt: true,
+          deletedAt: true,
+        },
+      }),
+    );
+
+    await this.streamEntityArray(res, 'sentChannelInvitations', (lastId) =>
+      this.prisma.channelInvitation.findMany({
+        where: {
+          invitedById: userId,
+          ...(lastId ? { id: { gt: lastId } } : {}),
+        },
+        orderBy: { id: 'asc' },
+        take: this.BATCH_SIZE,
+        select: {
+          id: true,
+          workspaceId: true,
+          channelId: true,
+          role: true,
+          invitedEmail: true,
+          usedById: true,
+          usedAt: true,
+          createdAt: true,
+          deletedAt: true,
+        },
+      }),
+    );
+
+    await this.streamEntityArray(res, 'acceptedChannelInvitations', (lastId) =>
+      this.prisma.channelInvitation.findMany({
+        where: {
+          usedById: userId,
+          ...(lastId ? { id: { gt: lastId } } : {}),
+        },
+        orderBy: { id: 'asc' },
+        take: this.BATCH_SIZE,
+        select: {
+          id: true,
+          workspaceId: true,
+          channelId: true,
+          invitedById: true,
+          role: true,
+          invitedEmail: true,
+          usedAt: true,
+          createdAt: true,
+          deletedAt: true,
+        },
+      }),
+    );
+
+    await this.streamEntityArray(res, 'auditLogs', (lastId) =>
+      this.prisma.auditLog.findMany({
+        where: {
+          OR: [{ actorId: userId }, { targetUserId: userId }],
+          ...(lastId ? { id: { gt: lastId } } : {}),
+        },
+        orderBy: { id: 'asc' },
+        take: this.BATCH_SIZE,
+        select: {
+          id: true,
+          actorId: true,
+          targetUserId: true,
+          action: true,
+          entityType: true,
+          entityId: true,
+          workspaceId: true,
+          channelId: true,
+          groupId: true,
+          severity: true,
+          requestId: true,
+          metadata: true,
+          ipAddress: true,
+          userAgent: true,
+          createdAt: true,
+        },
+      }),
+    );
 
     await this.write(res, ',"pinnedChannelMessages":');
     await this.streamPinnedChannelMessages(userId, res);
@@ -289,339 +630,26 @@ export class DataExportService {
     return safeProfile;
   }
 
-  private loadWorkspaceMemberships(userId: string) {
-    return this.prisma.workspaceMember.findMany({
-      where: { userId, deletedAt: null },
-      select: {
-        id: true,
-        workspaceId: true,
-        role: true,
-        createdAt: true,
-        workspace: { select: { name: true, slug: true } },
-      },
-    });
-  }
-
-  private loadChannelMemberships(userId: string) {
-    return this.prisma.channelMember.findMany({
-      where: { userId, deletedAt: null },
-      select: {
-        id: true,
-        channelId: true,
-        role: true,
-        createdAt: true,
-        channel: { select: { name: true, slug: true, type: true } },
-      },
-    });
-  }
-
-  private loadGroupMemberships(userId: string) {
-    return this.prisma.groupMember.findMany({
-      where: { userId, leftAt: null },
-      select: {
-        id: true,
-        groupId: true,
-        role: true,
-        joinedAt: true,
-        group: { select: { name: true, createdAt: true } },
-      },
-    });
-  }
-
-  private loadCreatedWorkspaces(userId: string) {
-    return this.prisma.workspace.findMany({
-      where: { ownerId: userId, deletedAt: null },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        description: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
-  }
-
-  private loadCreatedChannels(userId: string) {
-    return this.prisma.channel.findMany({
-      where: { createdById: userId, deletedAt: null },
-      select: {
-        id: true,
-        workspaceId: true,
-        name: true,
-        slug: true,
-        type: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
-  }
-
-  private loadCreatedGroups(userId: string) {
-    return this.prisma.groupConversation.findMany({
-      where: { createdById: userId, archivedAt: null },
-      select: {
-        id: true,
-        name: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
-  }
-
-  private loadReactions(userId: string) {
-    return this.prisma.reaction.findMany({
-      where: { userId, deletedAt: null },
-      select: {
-        id: true,
-        messageId: true,
-        emoji: true,
-        createdAt: true,
-      },
-    });
-  }
-
-  private loadDirectReactions(userId: string) {
-    return this.prisma.directMessageReaction.findMany({
-      where: { userId },
-      select: {
-        id: true,
-        messageId: true,
-        emoji: true,
-        createdAt: true,
-      },
-    });
-  }
-
-  private loadContacts(userId: string) {
-    return this.prisma.userContact.findMany({
-      where: { ownerUserId: userId, deletedAt: null },
-      select: {
-        id: true,
-        contactUserId: true,
-        nickname: true,
-        createdAt: true,
-      },
-    });
-  }
-
-  private loadBlocks(userId: string) {
-    return this.prisma.userBlock.findMany({
-      where: { blockerId: userId, deletedAt: null },
-      select: {
-        id: true,
-        blockedId: true,
-        reason: true,
-        createdAt: true,
-      },
-    });
-  }
-
-  private loadReports(userId: string) {
-    return this.prisma.userReport.findMany({
-      where: { reporterId: userId },
-      select: {
-        id: true,
-        reportedUserId: true,
-        messageId: true,
-        directConversationId: true,
-        groupId: true,
-        reason: true,
-        details: true,
-        status: true,
-        reviewedAt: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
-  }
-
-  private loadAttachments(userId: string) {
-    return this.prisma.attachment.findMany({
-      where: { createdById: userId, deletedAt: null },
-      select: {
-        id: true,
-        filename: true,
-        originalName: true,
-        mimeType: true,
-        size: true,
-        storageKey: true,
-        storageBackend: true,
-        messageId: true,
-        directMessageId: true,
-        groupMessageId: true,
-        createdAt: true,
-      },
-    });
-  }
-
-  private loadSessions(userId: string) {
-    return this.prisma.refreshToken.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        createdAt: true,
-        expiresAt: true,
-        revokedAt: true,
-        ipAddress: true,
-        userAgent: true,
-      },
-    });
-  }
-
-  private loadNotifications(userId: string) {
-    return this.prisma.notification.findMany({
-      where: { userId },
-      select: {
-        id: true,
-        type: true,
-        title: true,
-        body: true,
-        entityType: true,
-        entityId: true,
-        workspaceId: true,
-        channelId: true,
-        isRead: true,
-        readAt: true,
-        createdAt: true,
-      },
-    });
-  }
-
-  private loadPushSubscriptions(userId: string) {
-    return this.prisma.pushSubscription.findMany({
-      where: { userId },
-      select: {
-        id: true,
-        endpoint: true,
-        userAgent: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
-  }
-
-  private loadSentContactRequests(userId: string) {
-    return this.prisma.contactRequest.findMany({
-      where: { fromUserId: userId },
-      select: {
-        id: true,
-        toUserId: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-        declinedAt: true,
-      },
-    });
-  }
-
-  private loadReceivedContactRequests(userId: string) {
-    return this.prisma.contactRequest.findMany({
-      where: { toUserId: userId },
-      select: {
-        id: true,
-        fromUserId: true,
-        status: true,
-        createdAt: true,
-        updatedAt: true,
-        declinedAt: true,
-      },
-    });
-  }
-
-  private loadSentInvitations(userId: string) {
-    return this.prisma.invitation.findMany({
-      where: { invitedById: userId },
-      select: {
-        id: true,
-        workspaceId: true,
-        role: true,
-        invitedEmail: true,
-        maxUses: true,
-        usesCount: true,
-        usedById: true,
-        usedAt: true,
-        createdAt: true,
-        deletedAt: true,
-      },
-    });
-  }
-
-  private loadAcceptedInvitations(userId: string) {
-    return this.prisma.invitation.findMany({
-      where: { usedById: userId },
-      select: {
-        id: true,
-        workspaceId: true,
-        invitedById: true,
-        role: true,
-        invitedEmail: true,
-        maxUses: true,
-        usesCount: true,
-        usedAt: true,
-        createdAt: true,
-        deletedAt: true,
-      },
-    });
-  }
-
-  private loadSentChannelInvitations(userId: string) {
-    return this.prisma.channelInvitation.findMany({
-      where: { invitedById: userId },
-      select: {
-        id: true,
-        workspaceId: true,
-        channelId: true,
-        role: true,
-        invitedEmail: true,
-        usedById: true,
-        usedAt: true,
-        createdAt: true,
-        deletedAt: true,
-      },
-    });
-  }
-
-  private loadAcceptedChannelInvitations(userId: string) {
-    return this.prisma.channelInvitation.findMany({
-      where: { usedById: userId },
-      select: {
-        id: true,
-        workspaceId: true,
-        channelId: true,
-        invitedById: true,
-        role: true,
-        invitedEmail: true,
-        usedAt: true,
-        createdAt: true,
-        deletedAt: true,
-      },
-    });
-  }
-
-  private loadAuditLogs(userId: string) {
-    return this.prisma.auditLog.findMany({
-      where: {
-        OR: [{ actorId: userId }, { targetUserId: userId }],
-      },
-      select: {
-        id: true,
-        actorId: true,
-        targetUserId: true,
-        action: true,
-        entityType: true,
-        entityId: true,
-        workspaceId: true,
-        channelId: true,
-        groupId: true,
-        severity: true,
-        requestId: true,
-        metadata: true,
-        ipAddress: true,
-        userAgent: true,
-        createdAt: true,
-      },
+  private async streamEntityArray<T extends { id: string }>(
+    res: Response,
+    key: string,
+    fetch: (lastId: string | null) => Promise<T[]>,
+  ): Promise<void> {
+    await this.write(res, `,"${key}":`);
+    await this.streamArray(res, async (emit) => {
+      let lastId: string | null = null;
+      while (true) {
+        const batch = await fetch(lastId);
+        if (batch.length === 0) break;
+        const batchLastId = batch[batch.length - 1].id;
+        // Defensive guard: if the cursor did not advance, stop to avoid an
+        // infinite loop (e.g., a broken mock or corrupted DB page).
+        if (batchLastId === lastId) break;
+        for (const item of batch) {
+          await emit(item);
+        }
+        lastId = batchLastId;
+      }
     });
   }
 

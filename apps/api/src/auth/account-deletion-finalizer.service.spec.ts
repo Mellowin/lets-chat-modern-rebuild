@@ -23,6 +23,16 @@ function createMockPrisma() {
       storageKey?: string;
       deletedAt?: Date | null;
     }>,
+    invitations: [] as Array<{
+      invitedEmail?: string;
+      usedById?: string | null;
+      deletedAt?: Date | null;
+    }>,
+    channelInvitations: [] as Array<{
+      invitedEmail?: string;
+      usedById?: string | null;
+      deletedAt?: Date | null;
+    }>,
   };
 
   function cloneState() {
@@ -39,6 +49,8 @@ function createMockPrisma() {
       channelMembers: state.channelMembers.map((m) => ({ ...m })),
       groupMembers: state.groupMembers.map((m) => ({ ...m })),
       attachments: state.attachments.map((a) => ({ ...a })),
+      invitations: state.invitations.map((i) => ({ ...i })),
+      channelInvitations: state.channelInvitations.map((i) => ({ ...i })),
     };
   }
 
@@ -55,7 +67,13 @@ function createMockPrisma() {
         ) {
           return { count: 0 };
         }
-        Object.assign(user, data, { status: 'ANONYMIZED' });
+        // Replace the stored user object instead of mutating the one returned by
+        // findUnique, matching real Prisma behavior.
+        state.users.set(where.id, {
+          ...user,
+          ...data,
+          status: 'ANONYMIZED',
+        });
         return { count: 1 };
       }),
     },
@@ -162,6 +180,38 @@ function createMockPrisma() {
         for (const a of state.attachments) {
           if (a.createdById === where.createdById && a.deletedAt == null) {
             a.deletedAt = data.deletedAt;
+            count++;
+          }
+        }
+        return { count };
+      }),
+    },
+    invitation: {
+      updateMany: jest.fn(({ where, data }: { where: any; data: any }) => {
+        let count = 0;
+        for (const inv of state.invitations) {
+          if (
+            inv.invitedEmail === where.invitedEmail &&
+            inv.usedById == null &&
+            inv.deletedAt == null
+          ) {
+            inv.deletedAt = data.deletedAt;
+            count++;
+          }
+        }
+        return { count };
+      }),
+    },
+    channelInvitation: {
+      updateMany: jest.fn(({ where, data }: { where: any; data: any }) => {
+        let count = 0;
+        for (const inv of state.channelInvitations) {
+          if (
+            inv.invitedEmail === where.invitedEmail &&
+            inv.usedById == null &&
+            inv.deletedAt == null
+          ) {
+            inv.deletedAt = data.deletedAt;
             count++;
           }
         }
@@ -279,10 +329,53 @@ describe('AccountDeletionFinalizerService', () => {
     jest.clearAllMocks();
   });
 
-  it('does nothing when no users are due', async () => {
+  it('revokes pending invitations addressed to the deleted email', async () => {
+    const now = new Date();
+    const userId = 'u1';
+    const email = 'old@example.com';
+    mock.state.users.set(userId, {
+      id: userId,
+      email,
+      status: 'PENDING_DELETION',
+      deletionScheduledFor: new Date(now.getTime() - 1000),
+    });
+    mock.state.invitations.push(
+      { invitedEmail: email, usedById: null, deletedAt: null },
+      { invitedEmail: email, usedById: 'other-user', deletedAt: null },
+      { invitedEmail: 'other@example.com', usedById: null, deletedAt: null },
+    );
+    mock.state.channelInvitations.push(
+      { invitedEmail: email, usedById: null, deletedAt: null },
+      { invitedEmail: email, usedById: null, deletedAt: now },
+    );
+
     const result = await service.run();
-    expect(result.processedCount).toBe(0);
-    expect(result.cleanedAttachments).toBe(0);
+    const deletedInvitations = mock.state.invitations.filter(
+      (i) => i.invitedEmail === email && i.deletedAt != null,
+    );
+    const pendingInvitations = mock.state.invitations.filter(
+      (i) => i.invitedEmail === email && i.deletedAt == null,
+    );
+    const deletedChannelInvitations = mock.state.channelInvitations.filter(
+      (i) => i.invitedEmail === email && i.deletedAt != null,
+    );
+
+    expect(result.processedCount).toBe(1);
+    expect(deletedInvitations).toHaveLength(1);
+    expect(pendingInvitations).toHaveLength(1);
+    expect(deletedChannelInvitations).toHaveLength(2);
+    expect(mock.tx.invitation.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ invitedEmail: email, usedById: null }),
+        data: expect.objectContaining({ deletedAt: now }),
+      }),
+    );
+    expect(mock.tx.channelInvitation.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ invitedEmail: email, usedById: null }),
+        data: expect.objectContaining({ deletedAt: now }),
+      }),
+    );
   });
 
   it('finalizes a pending user whose grace period has passed', async () => {

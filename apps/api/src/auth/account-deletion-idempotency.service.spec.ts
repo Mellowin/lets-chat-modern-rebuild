@@ -177,6 +177,43 @@ describe('AccountDeletionIdempotencyService', () => {
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
+  it('extends the expiresAt of a PENDING row with each heartbeat', async () => {
+    await (
+      service as unknown as { heartbeat: (...args: unknown[]) => Promise<void> }
+    ).heartbeat('user-1', 'key-1', 'claim-1');
+
+    expect(prisma.accountDeletionIdempotency.updateMany).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        userId: 'user-1',
+        idempotencyKey: 'key-1',
+        claimToken: 'claim-1',
+        status: 'PENDING',
+      }),
+      data: expect.objectContaining({
+        lastHeartbeatAt: expect.any(Date),
+        expiresAt: expect.any(Date),
+      }),
+    });
+  });
+
+  it('does not delete a live PENDING row during expiry cleanup', async () => {
+    prisma.accountDeletionIdempotency.deleteMany.mockResolvedValue({
+      count: 0,
+    });
+
+    await (
+      service as unknown as { cleanupExpired: () => Promise<void> }
+    ).cleanupExpired();
+
+    expect(
+      prisma.accountDeletionIdempotency.deleteMany,
+    ).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ status: 'PENDING' }),
+      }),
+    );
+  });
+
   it('does not cache results when the operation fails', async () => {
     tx.accountDeletionIdempotency.findUnique.mockResolvedValue(null);
     tx.accountDeletionIdempotency.create.mockResolvedValue(undefined);
