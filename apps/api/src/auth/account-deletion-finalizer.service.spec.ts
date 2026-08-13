@@ -3,8 +3,8 @@ import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@lets-chat/database';
 import { AccountDeletionFinalizerService } from './account-deletion-finalizer.service';
-import { AuditService } from '../audit/audit.service';
 import { AvatarUploadService } from './avatar-upload.service';
+import { StorageService } from '../storage/storage.service';
 
 function createMockPrisma() {
   const state = {
@@ -17,8 +17,30 @@ function createMockPrisma() {
     workspaceMembers: [] as Array<{ userId?: string; deletedAt?: Date | null }>,
     channelMembers: [] as Array<{ userId?: string; deletedAt?: Date | null }>,
     groupMembers: [] as Array<{ userId?: string; leftAt?: Date | null }>,
-    attachments: [] as Array<{ createdById?: string; deletedAt?: Date | null }>,
+    attachments: [] as Array<{
+      id?: string;
+      createdById?: string;
+      storageKey?: string;
+      deletedAt?: Date | null;
+    }>,
   };
+
+  function cloneState() {
+    return {
+      users: new Map(
+        Array.from(state.users.entries()).map(([k, v]) => [k, { ...v }]),
+      ),
+      refreshTokens: [...state.refreshTokens],
+      pushSubscriptions: [...state.pushSubscriptions],
+      contacts: [...state.contacts],
+      contactRequests: [...state.contactRequests],
+      blocks: [...state.blocks],
+      workspaceMembers: state.workspaceMembers.map((m) => ({ ...m })),
+      channelMembers: state.channelMembers.map((m) => ({ ...m })),
+      groupMembers: state.groupMembers.map((m) => ({ ...m })),
+      attachments: state.attachments.map((a) => ({ ...a })),
+    };
+  }
 
   const tx = {
     user: {
@@ -146,6 +168,9 @@ function createMockPrisma() {
         return { count };
       }),
     },
+    auditLog: {
+      create: jest.fn().mockResolvedValue({ id: 'audit-1' }),
+    },
   };
 
   return {
@@ -172,6 +197,11 @@ function createMockPrisma() {
               u.avatarCleanupCompletedAt != null
             )
               return false;
+            if (
+              where.attachmentObjectsCleanupCompletedAt === null &&
+              u.attachmentObjectsCleanupCompletedAt != null
+            )
+              return false;
             return true;
           });
         }),
@@ -182,7 +212,22 @@ function createMockPrisma() {
           return user;
         }),
       },
-      $transaction: jest.fn((fn: any) => fn(tx)),
+      attachment: {
+        findMany: jest.fn(({ where }: { where: any }) => {
+          return state.attachments.filter(
+            (a) => a.createdById === where.createdById,
+          );
+        }),
+      },
+      $transaction: jest.fn(async (fn: any) => {
+        const snapshot = cloneState();
+        try {
+          return await fn(tx);
+        } catch (error) {
+          Object.assign(state, snapshot);
+          throw error;
+        }
+      }),
     } as any,
     tx,
   };
@@ -191,16 +236,18 @@ function createMockPrisma() {
 describe('AccountDeletionFinalizerService', () => {
   let service: AccountDeletionFinalizerService;
   let mock: ReturnType<typeof createMockPrisma>;
-  let auditService: jest.Mocked<AuditService>;
   let avatarUpload: jest.Mocked<AvatarUploadService>;
+  let storageService: jest.Mocked<StorageService>;
 
   beforeEach(async () => {
     mock = createMockPrisma();
-    auditService = { record: jest.fn().mockResolvedValue(undefined) } as any;
     avatarUpload = {
       deleteAvatar: jest.fn().mockResolvedValue(undefined),
       deleteAllAvatarsForUser: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<AvatarUploadService>;
+    storageService = {
+      deleteObject: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<StorageService>;
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -210,16 +257,16 @@ describe('AccountDeletionFinalizerService', () => {
           useValue: mock.prisma,
         },
         {
-          provide: AuditService,
-          useValue: auditService,
-        },
-        {
           provide: ConfigService,
           useValue: { get: jest.fn() },
         },
         {
           provide: AvatarUploadService,
           useValue: avatarUpload,
+        },
+        {
+          provide: StorageService,
+          useValue: storageService,
         },
       ],
     }).compile();
@@ -234,6 +281,7 @@ describe('AccountDeletionFinalizerService', () => {
   it('does nothing when no users are due', async () => {
     const result = await service.run();
     expect(result.processedCount).toBe(0);
+    expect(result.cleanedAttachments).toBe(0);
   });
 
   it('finalizes a pending user whose grace period has passed', async () => {
@@ -250,12 +298,18 @@ describe('AccountDeletionFinalizerService', () => {
     mock.state.workspaceMembers.push({ userId, deletedAt: null });
     mock.state.channelMembers.push({ userId, deletedAt: null });
     mock.state.groupMembers.push({ userId, leftAt: null });
-    mock.state.attachments.push({ createdById: userId, deletedAt: null });
+    mock.state.attachments.push({
+      id: 'a1',
+      createdById: userId,
+      storageKey: 'key-1',
+      deletedAt: null,
+    });
 
     const result = await service.run();
 
     expect(result.processedCount).toBe(1);
     expect(result.cleanedAvatars).toBe(0);
+    expect(result.cleanedAttachments).toBe(1);
     const finalized = mock.state.users.get(userId);
     expect(finalized?.status).toBe('ANONYMIZED');
     expect(finalized?.deletedAt).toBeInstanceOf(Date);
@@ -266,7 +320,17 @@ describe('AccountDeletionFinalizerService', () => {
     expect(mock.tx.channelMember.updateMany).toHaveBeenCalled();
     expect(mock.tx.groupMember.updateMany).toHaveBeenCalled();
     expect(mock.tx.attachment.updateMany).toHaveBeenCalled();
-    expect(auditService.record).toHaveBeenCalled();
+    expect(storageService.deleteObject).toHaveBeenCalledWith('key-1');
+    expect(mock.tx.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: 'account_deletion.finalized',
+          entityType: 'user',
+          entityId: userId,
+          severity: 'critical',
+        }),
+      }),
+    );
     expect(avatarUpload.deleteAllAvatarsForUser).toHaveBeenCalledWith(userId);
   });
 
@@ -284,6 +348,7 @@ describe('AccountDeletionFinalizerService', () => {
     expect(result.processedCount).toBe(0);
     expect(mock.state.users.get(userId)?.status).toBe('PENDING_DELETION');
     expect(avatarUpload.deleteAllAvatarsForUser).not.toHaveBeenCalled();
+    expect(storageService.deleteObject).not.toHaveBeenCalled();
   });
 
   it('is idempotent when run twice for the same user', async () => {
@@ -395,5 +460,107 @@ describe('AccountDeletionFinalizerService', () => {
     expect(
       mock.state.users.get(userId)?.avatarCleanupCompletedAt,
     ).toBeInstanceOf(Date);
+  });
+
+  it('deletes attachment storage objects after finalization', async () => {
+    const now = new Date();
+    const userId = 'u1';
+    mock.state.users.set(userId, {
+      id: userId,
+      status: 'PENDING_DELETION',
+      deletionScheduledFor: new Date(now.getTime() - 1000),
+    });
+    mock.state.attachments.push(
+      { id: 'a1', createdById: userId, storageKey: 'key-1' },
+      { id: 'a2', createdById: userId, storageKey: 'key-2' },
+    );
+
+    const result = await service.run();
+
+    expect(result.processedCount).toBe(1);
+    expect(result.cleanedAttachments).toBe(2);
+    expect(storageService.deleteObject).toHaveBeenCalledWith('key-1');
+    expect(storageService.deleteObject).toHaveBeenCalledWith('key-2');
+    expect(
+      mock.state.users.get(userId)?.attachmentObjectsCleanupCompletedAt,
+    ).toBeInstanceOf(Date);
+  });
+
+  it('retries attachment cleanup after a transient deletion failure', async () => {
+    const now = new Date();
+    const userId = 'u1';
+    mock.state.users.set(userId, {
+      id: userId,
+      status: 'PENDING_DELETION',
+      deletionScheduledFor: new Date(now.getTime() - 1000),
+      attachmentObjectsCleanupCompletedAt: null,
+    });
+    mock.state.attachments.push({
+      id: 'a1',
+      createdById: userId,
+      storageKey: 'key-1',
+    });
+
+    storageService.deleteObject
+      .mockRejectedValueOnce(new Error('network error'))
+      .mockResolvedValueOnce(undefined);
+
+    const first = await service.run();
+    expect(first.processedCount).toBe(1);
+    expect(first.cleanedAttachments).toBe(0);
+    expect(
+      mock.state.users.get(userId)?.attachmentObjectsCleanupCompletedAt,
+    ).toBeNull();
+
+    const second = await service.run();
+    expect(second.cleanedAttachments).toBe(1);
+    expect(storageService.deleteObject).toHaveBeenCalledTimes(2);
+    expect(
+      mock.state.users.get(userId)?.attachmentObjectsCleanupCompletedAt,
+    ).toBeInstanceOf(Date);
+  });
+
+  it('marks attachment cleanup complete when the storage object is already gone', async () => {
+    const userId = 'u1';
+    mock.state.users.set(userId, {
+      id: userId,
+      status: 'ANONYMIZED',
+      deletionScheduledFor: null,
+      avatarUrl: null,
+      avatarCleanupCompletedAt: new Date(),
+      attachmentObjectsCleanupCompletedAt: null,
+    });
+    mock.state.attachments.push({
+      id: 'a1',
+      createdById: userId,
+      storageKey: 'missing-key',
+    });
+
+    const error = new Error('not found') as unknown as Record<string, unknown>;
+    error.name = 'NotFound';
+    storageService.deleteObject.mockRejectedValueOnce(error);
+
+    const result = await service.run();
+    expect(result.cleanedAttachments).toBe(1);
+    expect(
+      mock.state.users.get(userId)?.attachmentObjectsCleanupCompletedAt,
+    ).toBeInstanceOf(Date);
+  });
+
+  it('does not anonymize the user when the audit insert fails', async () => {
+    const now = new Date();
+    const userId = 'u1';
+    mock.state.users.set(userId, {
+      id: userId,
+      status: 'PENDING_DELETION',
+      deletionScheduledFor: new Date(now.getTime() - 1000),
+    });
+    mock.tx.auditLog.create.mockRejectedValue(new Error('audit write failed'));
+
+    const result = await service.run();
+
+    expect(result.processedCount).toBe(0);
+    expect(mock.state.users.get(userId)?.status).toBe('PENDING_DELETION');
+    expect(storageService.deleteObject).not.toHaveBeenCalled();
   });
 });

@@ -96,6 +96,7 @@ function makeUser(
     deletionCancellationExpiresAt: null,
     anonymizedAt: null,
     avatarCleanupCompletedAt: null,
+    attachmentObjectsCleanupCompletedAt: null,
   };
 }
 

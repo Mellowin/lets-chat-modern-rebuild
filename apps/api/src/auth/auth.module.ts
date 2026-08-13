@@ -1,6 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { UsersModule } from '../users/users.module';
 import { MailModule } from '../mail/mail.module';
+import { StorageModule } from '../storage/storage.module';
 import { AuthCommonModule } from './auth-common.module';
 import { AuthController } from './auth.controller';
 import { AccountDeletionService } from './account-deletion.service';
@@ -9,7 +10,12 @@ import { AccountDeletionIdempotencyService } from './account-deletion-idempotenc
 import { DataExportService } from './data-export.service';
 
 @Module({
-  imports: [AuthCommonModule, forwardRef(() => UsersModule), MailModule],
+  imports: [
+    AuthCommonModule,
+    forwardRef(() => UsersModule),
+    MailModule,
+    StorageModule,
+  ],
   controllers: [AuthController],
   providers: [
     AccountDeletionService,

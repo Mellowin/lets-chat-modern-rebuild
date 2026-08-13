@@ -314,6 +314,11 @@ describe('AccountDeletionService', () => {
       ).rejects.toThrow('Audit failure');
 
       expect(usersRepository.clearDeletionRequest).toHaveBeenCalledWith(userId);
+      expect(refreshTokensRepository.revokeAllForUser).not.toHaveBeenCalled();
+      expect(
+        usersRepository.deletePushSubscriptionsForUser,
+      ).not.toHaveBeenCalled();
+      expect(websocketEvents.disconnectUser).not.toHaveBeenCalled();
     });
 
     it('rolls back to ACTIVE when cancellation email fails', async () => {
@@ -338,6 +343,41 @@ describe('AccountDeletionService', () => {
       ).rejects.toThrow('Mail failure');
 
       expect(usersRepository.clearDeletionRequest).toHaveBeenCalledWith(userId);
+      expect(refreshTokensRepository.revokeAllForUser).not.toHaveBeenCalled();
+      expect(
+        usersRepository.deletePushSubscriptionsForUser,
+      ).not.toHaveBeenCalled();
+      expect(websocketEvents.disconnectUser).not.toHaveBeenCalled();
+    });
+
+    it('does not roll back when a post-commit side effect fails', async () => {
+      usersRepository.findById.mockResolvedValue(makeUser());
+      passwordService.verifyPassword.mockResolvedValue(true);
+      usersRepository.requestAccountDeletion.mockResolvedValue(
+        makeUser(UserStatus.PENDING_DELETION) as NonNullable<
+          Awaited<ReturnType<UsersRepository['requestAccountDeletion']>>
+        >,
+      );
+      refreshTokensRepository.revokeAllForUser.mockRejectedValue(
+        new Error('revoke failed'),
+      );
+
+      const result = await service.requestAccountDeletion(
+        userId,
+        'password',
+        'DELETE MY ACCOUNT',
+        idempotencyKey,
+      );
+
+      expect(result.scheduledFor).toBeInstanceOf(Date);
+      expect(auditService.record).toHaveBeenCalled();
+      expect(
+        mailService.sendAccountDeletionCancellationEmail,
+      ).toHaveBeenCalled();
+      expect(refreshTokensRepository.revokeAllForUser).toHaveBeenCalledWith(
+        userId,
+      );
+      expect(usersRepository.clearDeletionRequest).not.toHaveBeenCalled();
     });
 
     it('allows a second request after rollback due to mail failure', async () => {

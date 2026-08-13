@@ -30,6 +30,12 @@ function createMockPrisma() {
     message: { findMany: jest.fn().mockResolvedValue([]) },
     directMessage: { findMany: jest.fn().mockResolvedValue([]) },
     groupMessage: { findMany: jest.fn().mockResolvedValue([]) },
+    notification: { findMany: jest.fn().mockResolvedValue([]) },
+    pushSubscription: { findMany: jest.fn().mockResolvedValue([]) },
+    contactRequest: { findMany: jest.fn().mockResolvedValue([]) },
+    invitation: { findMany: jest.fn().mockResolvedValue([]) },
+    channelInvitation: { findMany: jest.fn().mockResolvedValue([]) },
+    auditLog: { findMany: jest.fn().mockResolvedValue([]) },
   };
 }
 
@@ -180,6 +186,92 @@ describe('DataExportService', () => {
     ).toBeUndefined();
     expect(payload.reports).toHaveLength(1);
     expect(auditService.record).toHaveBeenCalled();
+  });
+
+  it('includes all personal-data categories referenced by the privacy notice', async () => {
+    const user = makeUser();
+    prisma.user.findUnique.mockResolvedValue(user as any);
+    passwordService.verifyPassword.mockResolvedValue(true);
+
+    prisma.notification.findMany.mockResolvedValue([
+      {
+        id: 'n1',
+        type: 'MENTION',
+        title: 'Mention',
+        body: 'You were mentioned',
+        entityType: 'message',
+        entityId: 'm1',
+        workspaceId: null,
+        channelId: null,
+        isRead: false,
+        readAt: null,
+        createdAt: new Date(),
+      },
+    ] as any);
+    prisma.pushSubscription.findMany.mockResolvedValue([
+      {
+        id: 'p1',
+        endpoint: 'https://push.example.com/1',
+        userAgent: 'Mozilla/5.0',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ] as any);
+    prisma.contactRequest.findMany.mockResolvedValue([]);
+    prisma.invitation.findMany.mockResolvedValue([]);
+    prisma.channelInvitation.findMany.mockResolvedValue([]);
+    prisma.auditLog.findMany.mockResolvedValue([
+      {
+        id: 'al1',
+        actorId: userId,
+        targetUserId: null,
+        action: 'auth.login.success',
+        entityType: 'user',
+        entityId: userId,
+        workspaceId: null,
+        channelId: null,
+        groupId: null,
+        severity: 'info',
+        requestId: null,
+        metadata: null,
+        ipAddress: '127.0.0.1',
+        userAgent: 'Mozilla/5.0',
+        createdAt: new Date(),
+      },
+    ] as any);
+
+    await service.exportUserData(userId, 'password', res as Response);
+
+    const payload = parseStreamedExport();
+    expect(payload.notifications).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'MENTION',
+          body: 'You were mentioned',
+        }),
+      ]),
+    );
+    expect(payload.pushSubscriptions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ endpoint: 'https://push.example.com/1' }),
+      ]),
+    );
+    expect(payload.pushSubscriptions).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ p256dh: expect.anything() }),
+      ]),
+    );
+    expect(payload.sentContactRequests).toEqual([]);
+    expect(payload.receivedContactRequests).toEqual([]);
+    expect(payload.sentInvitations).toEqual([]);
+    expect(payload.acceptedInvitations).toEqual([]);
+    expect(payload.sentChannelInvitations).toEqual([]);
+    expect(payload.acceptedChannelInvitations).toEqual([]);
+    expect(payload.auditLogs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ action: 'auth.login.success' }),
+      ]),
+    );
   });
 
   it('streams more than 10000 channel messages without truncation', async () => {

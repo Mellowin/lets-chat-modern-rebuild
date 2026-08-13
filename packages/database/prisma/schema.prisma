@@ -114,6 +114,7 @@ model User {
   deletionCancellationExpiresAt      DateTime?
   anonymizedAt                     DateTime?
   avatarCleanupCompletedAt         DateTime?
+  attachmentObjectsCleanupCompletedAt DateTime?
 
   // Notification preferences
   pushNotificationsEnabled          Boolean @default(true)

@@ -194,6 +194,7 @@ describe('ChannelInvitesService', () => {
       deletionCancellationExpiresAt: null,
       anonymizedAt: null,
       avatarCleanupCompletedAt: null,
+      attachmentObjectsCleanupCompletedAt: null,
     };
   }
 

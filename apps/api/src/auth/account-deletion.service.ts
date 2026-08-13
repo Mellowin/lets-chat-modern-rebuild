@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -31,6 +32,8 @@ export interface RequestAccountDeletionResult {
 
 @Injectable()
 export class AccountDeletionService {
+  private readonly logger = new Logger(AccountDeletionService.name);
+
   constructor(
     private readonly users: UsersRepository,
     private readonly refreshTokens: RefreshTokensRepository,
@@ -124,13 +127,6 @@ export class AccountDeletionService {
     await this.users.requestAccountDeletion(userId, tokenHash, scheduledFor);
 
     try {
-      await this.refreshTokens.revokeAllForUser(userId);
-
-      // Remove all push subscriptions so deleted accounts stop receiving pushes.
-      await this.users.deletePushSubscriptionsForUser(userId);
-
-      this.disconnectUserSockets(userId);
-
       await this.audit.record({
         actorId: userId,
         action: AuditAction.ACCOUNT_DELETION_REQUESTED,
@@ -149,6 +145,25 @@ export class AccountDeletionService {
     } catch (error) {
       await this.rollbackAccountDeletionRequest(userId, error);
       throw error;
+    }
+
+    // Deletion request is committed; these side effects are best-effort and
+    // must not roll back the request if they fail.
+    try {
+      await this.refreshTokens.revokeAllForUser(userId);
+
+      // Remove all push subscriptions so deleted accounts stop receiving pushes.
+      await this.users.deletePushSubscriptionsForUser(userId);
+
+      this.disconnectUserSockets(userId);
+    } catch (error) {
+      this.logger.error(
+        {
+          userId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'Failed to clean up account-deletion side effects; continuing',
+      );
     }
 
     return { scheduledFor };

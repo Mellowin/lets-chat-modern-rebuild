@@ -83,6 +83,18 @@ export class DataExportService {
     const reports = await this.loadReports(userId);
     const attachments = await this.loadAttachments(userId);
     const sessions = await this.loadSessions(userId);
+    const notifications = await this.loadNotifications(userId);
+    const pushSubscriptions = await this.loadPushSubscriptions(userId);
+    const sentContactRequests = await this.loadSentContactRequests(userId);
+    const receivedContactRequests =
+      await this.loadReceivedContactRequests(userId);
+    const sentInvitations = await this.loadSentInvitations(userId);
+    const acceptedInvitations = await this.loadAcceptedInvitations(userId);
+    const sentChannelInvitations =
+      await this.loadSentChannelInvitations(userId);
+    const acceptedChannelInvitations =
+      await this.loadAcceptedChannelInvitations(userId);
+    const auditLogs = await this.loadAuditLogs(userId);
 
     await this.write(res, '{');
     await this.writeJsonObjectField(res, 'exportFormatVersion', '1.0.0', true);
@@ -142,6 +154,50 @@ export class DataExportService {
     await this.writeJsonObjectField(res, 'reports', reports, false);
     await this.writeJsonObjectField(res, 'attachments', attachments, false);
     await this.writeJsonObjectField(res, 'sessions', sessions, false);
+    await this.writeJsonObjectField(res, 'notifications', notifications, false);
+    await this.writeJsonObjectField(
+      res,
+      'pushSubscriptions',
+      pushSubscriptions,
+      false,
+    );
+    await this.writeJsonObjectField(
+      res,
+      'sentContactRequests',
+      sentContactRequests,
+      false,
+    );
+    await this.writeJsonObjectField(
+      res,
+      'receivedContactRequests',
+      receivedContactRequests,
+      false,
+    );
+    await this.writeJsonObjectField(
+      res,
+      'sentInvitations',
+      sentInvitations,
+      false,
+    );
+    await this.writeJsonObjectField(
+      res,
+      'acceptedInvitations',
+      acceptedInvitations,
+      false,
+    );
+    await this.writeJsonObjectField(
+      res,
+      'sentChannelInvitations',
+      sentChannelInvitations,
+      false,
+    );
+    await this.writeJsonObjectField(
+      res,
+      'acceptedChannelInvitations',
+      acceptedChannelInvitations,
+      false,
+    );
+    await this.writeJsonObjectField(res, 'auditLogs', auditLogs, false);
 
     await this.write(res, ',"pinnedChannelMessages":');
     await this.streamPinnedChannelMessages(userId, res);
@@ -410,6 +466,161 @@ export class DataExportService {
         revokedAt: true,
         ipAddress: true,
         userAgent: true,
+      },
+    });
+  }
+
+  private loadNotifications(userId: string) {
+    return this.prisma.notification.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        type: true,
+        title: true,
+        body: true,
+        entityType: true,
+        entityId: true,
+        workspaceId: true,
+        channelId: true,
+        isRead: true,
+        readAt: true,
+        createdAt: true,
+      },
+    });
+  }
+
+  private loadPushSubscriptions(userId: string) {
+    return this.prisma.pushSubscription.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        endpoint: true,
+        userAgent: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  }
+
+  private loadSentContactRequests(userId: string) {
+    return this.prisma.contactRequest.findMany({
+      where: { fromUserId: userId },
+      select: {
+        id: true,
+        toUserId: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        declinedAt: true,
+      },
+    });
+  }
+
+  private loadReceivedContactRequests(userId: string) {
+    return this.prisma.contactRequest.findMany({
+      where: { toUserId: userId },
+      select: {
+        id: true,
+        fromUserId: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        declinedAt: true,
+      },
+    });
+  }
+
+  private loadSentInvitations(userId: string) {
+    return this.prisma.invitation.findMany({
+      where: { invitedById: userId },
+      select: {
+        id: true,
+        workspaceId: true,
+        role: true,
+        invitedEmail: true,
+        maxUses: true,
+        usesCount: true,
+        usedById: true,
+        usedAt: true,
+        createdAt: true,
+        deletedAt: true,
+      },
+    });
+  }
+
+  private loadAcceptedInvitations(userId: string) {
+    return this.prisma.invitation.findMany({
+      where: { usedById: userId },
+      select: {
+        id: true,
+        workspaceId: true,
+        invitedById: true,
+        role: true,
+        invitedEmail: true,
+        maxUses: true,
+        usesCount: true,
+        usedAt: true,
+        createdAt: true,
+        deletedAt: true,
+      },
+    });
+  }
+
+  private loadSentChannelInvitations(userId: string) {
+    return this.prisma.channelInvitation.findMany({
+      where: { invitedById: userId },
+      select: {
+        id: true,
+        workspaceId: true,
+        channelId: true,
+        role: true,
+        invitedEmail: true,
+        usedById: true,
+        usedAt: true,
+        createdAt: true,
+        deletedAt: true,
+      },
+    });
+  }
+
+  private loadAcceptedChannelInvitations(userId: string) {
+    return this.prisma.channelInvitation.findMany({
+      where: { usedById: userId },
+      select: {
+        id: true,
+        workspaceId: true,
+        channelId: true,
+        invitedById: true,
+        role: true,
+        invitedEmail: true,
+        usedAt: true,
+        createdAt: true,
+        deletedAt: true,
+      },
+    });
+  }
+
+  private loadAuditLogs(userId: string) {
+    return this.prisma.auditLog.findMany({
+      where: {
+        OR: [{ actorId: userId }, { targetUserId: userId }],
+      },
+      select: {
+        id: true,
+        actorId: true,
+        targetUserId: true,
+        action: true,
+        entityType: true,
+        entityId: true,
+        workspaceId: true,
+        channelId: true,
+        groupId: true,
+        severity: true,
+        requestId: true,
+        metadata: true,
+        ipAddress: true,
+        userAgent: true,
+        createdAt: true,
       },
     });
   }

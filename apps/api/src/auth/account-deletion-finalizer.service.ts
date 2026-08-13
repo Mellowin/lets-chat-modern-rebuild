@@ -7,12 +7,12 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '@lets-chat/database';
 import { randomBytes } from 'crypto';
-import { AuditService } from '../audit/audit.service';
 import {
   AuditAction,
   AuditEntityType,
   AuditSeverity,
 } from '../audit/audit.constants';
+import { StorageService } from '../storage/storage.service';
 import { AvatarUploadService } from './avatar-upload.service';
 
 const DEFAULT_RUN_INTERVAL_MS = 60 * 60 * 1000;
@@ -28,8 +28,8 @@ export class AccountDeletionFinalizerService
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
-    private readonly audit: AuditService,
     private readonly avatarUpload: AvatarUploadService,
+    private readonly storageService: StorageService,
   ) {}
 
   onModuleInit() {
@@ -61,7 +61,11 @@ export class AccountDeletionFinalizerService
     return Promise.resolve();
   }
 
-  async run(): Promise<{ processedCount: number; cleanedAvatars: number }> {
+  async run(): Promise<{
+    processedCount: number;
+    cleanedAvatars: number;
+    cleanedAttachments: number;
+  }> {
     const now = new Date();
     const dueUsers = await this.prisma.user.findMany({
       where: {
@@ -72,12 +76,15 @@ export class AccountDeletionFinalizerService
     });
 
     let processedCount = 0;
+    let cleanedAttachments = 0;
+    const attemptedAttachmentCleanups = new Set<string>();
     for (const { id } of dueUsers) {
       try {
         const finalized = await this.finalizeUser(id, now);
         if (finalized) {
           processedCount++;
-          await this.recordFinalizationAudit(id);
+          attemptedAttachmentCleanups.add(id);
+          cleanedAttachments += await this.cleanupAttachmentObjects(id);
         }
       } catch (error) {
         this.logger.error(
@@ -115,7 +122,31 @@ export class AccountDeletionFinalizerService
       }
     }
 
-    return { processedCount, cleanedAvatars };
+    const incompleteAttachmentCleanups = await this.prisma.user.findMany({
+      where: {
+        status: 'ANONYMIZED',
+        attachmentObjectsCleanupCompletedAt: null,
+      },
+      select: { id: true },
+    });
+    for (const { id } of incompleteAttachmentCleanups) {
+      if (attemptedAttachmentCleanups.has(id)) {
+        continue;
+      }
+      try {
+        cleanedAttachments += await this.cleanupAttachmentObjects(id);
+      } catch (error) {
+        this.logger.error(
+          {
+            userId: id,
+            error: error instanceof Error ? error.message : String(error),
+          },
+          'Failed to retry attachment object cleanup',
+        );
+      }
+    }
+
+    return { processedCount, cleanedAvatars, cleanedAttachments };
   }
 
   async finalizeUser(userId: string, now = new Date()): Promise<boolean> {
@@ -213,6 +244,16 @@ export class AccountDeletionFinalizerService
         data: { deletedAt: now },
       });
 
+      await tx.auditLog.create({
+        data: {
+          actorId: userId,
+          action: AuditAction.ACCOUNT_DELETION_FINALIZED,
+          entityType: AuditEntityType.USER,
+          entityId: userId,
+          severity: AuditSeverity.CRITICAL,
+        },
+      });
+
       return true;
     });
 
@@ -233,6 +274,74 @@ export class AccountDeletionFinalizerService
     }
 
     return success;
+  }
+
+  async cleanupAttachmentObjects(userId: string): Promise<number> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        status: true,
+        attachmentObjectsCleanupCompletedAt: true,
+      },
+    });
+    if (
+      !user ||
+      user.status !== 'ANONYMIZED' ||
+      user.attachmentObjectsCleanupCompletedAt
+    ) {
+      return 0;
+    }
+
+    const attachments = await this.prisma.attachment.findMany({
+      where: { createdById: userId },
+      select: { id: true, storageKey: true },
+    });
+
+    let cleanedCount = 0;
+    let allSucceeded = true;
+    for (const { id, storageKey } of attachments) {
+      try {
+        await this.storageService.deleteObject(storageKey);
+        cleanedCount++;
+      } catch (error) {
+        if (this.isAttachmentNotFoundError(error)) {
+          // Object already gone; count as cleaned so the loop can complete.
+          cleanedCount++;
+          continue;
+        }
+        allSucceeded = false;
+        this.logger.error(
+          {
+            userId,
+            attachmentId: id,
+            storageKey,
+            error: error instanceof Error ? error.message : String(error),
+          },
+          'Failed to delete attachment storage object; will retry',
+        );
+      }
+    }
+
+    if (allSucceeded) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { attachmentObjectsCleanupCompletedAt: new Date() },
+      });
+    }
+
+    return cleanedCount;
+  }
+
+  private isAttachmentNotFoundError(error: unknown): boolean {
+    if (typeof error !== 'object' || error === null) return false;
+    const err = error as Record<string, unknown>;
+    if (err.name === 'NotFound' || err.name === 'NoSuchKey') return true;
+    if (err.Code === 'NoSuchKey' || err.Code === 'NoSuchBucket') return true;
+    const metadata = err.$metadata;
+    if (typeof metadata === 'object' && metadata !== null) {
+      return (metadata as Record<string, unknown>).httpStatusCode === 404;
+    }
+    return false;
   }
 
   async cleanupAvatar(userId: string): Promise<boolean> {
@@ -270,15 +379,5 @@ export class AccountDeletionFinalizerService
       }
       throw error;
     }
-  }
-
-  async recordFinalizationAudit(userId: string): Promise<void> {
-    await this.audit.record({
-      actorId: userId,
-      action: AuditAction.ACCOUNT_DELETION_FINALIZED,
-      entityType: AuditEntityType.USER,
-      entityId: userId,
-      severity: AuditSeverity.CRITICAL,
-    });
   }
 }
