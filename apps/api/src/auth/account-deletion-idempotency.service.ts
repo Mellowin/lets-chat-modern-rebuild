@@ -5,6 +5,7 @@ import {
   OnModuleDestroy,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { PrismaService } from '@lets-chat/database';
 import { RequestAccountDeletionResult } from './account-deletion.service';
 
@@ -47,6 +48,7 @@ export class AccountDeletionIdempotencyService implements OnModuleDestroy {
   private readonly PENDING_POLL_MS = 100;
   private readonly PENDING_POLL_MAX_ATTEMPTS = 300; // 30 seconds total
   private readonly PENDING_ABANDON_MS = 30_000;
+  private readonly HEARTBEAT_INTERVAL_MS = 5_000;
   private readonly inFlight = new Map<
     string,
     {
@@ -65,6 +67,10 @@ export class AccountDeletionIdempotencyService implements OnModuleDestroy {
       15 * 60 * 1000,
     );
     this.cleanupTimer.unref();
+  }
+
+  private generateClaimToken(): string {
+    return randomUUID();
   }
 
   onModuleDestroy(): void {
@@ -124,6 +130,7 @@ export class AccountDeletionIdempotencyService implements OnModuleDestroy {
   ): Promise<RequestAccountDeletionResult> {
     const expiresAt = new Date(Date.now() + this.TTL_MS);
     const lockInput = `${userId}:${idempotencyKey}`;
+    const claimToken = this.generateClaimToken();
 
     for (let attempt = 0; attempt < this.PENDING_POLL_MAX_ATTEMPTS; attempt++) {
       const decision = await this.prisma.$transaction(
@@ -154,21 +161,34 @@ export class AccountDeletionIdempotencyService implements OnModuleDestroy {
               };
             }
 
-            // PENDING row: claim it if the previous owner appears to have crashed.
+            // PENDING row: reclaim it only if the previous owner is actually dead.
+            // A live owner refreshes lastHeartbeatAt regularly, so we never
+            // reclaim a row that still has a heartbeat.
             const abandonedBefore = new Date(
               Date.now() - this.PENDING_ABANDON_MS,
             );
-            if (existing.createdAt <= abandonedBefore) {
+            const heartbeatStale =
+              !existing.lastHeartbeatAt ||
+              existing.lastHeartbeatAt <= abandonedBefore;
+            if (existing.createdAt <= abandonedBefore && heartbeatStale) {
               const claimed = await tx.accountDeletionIdempotency.updateMany({
                 where: {
                   id: existing.id,
                   status: 'PENDING',
                   createdAt: { lte: abandonedBefore },
+                  OR: [
+                    { lastHeartbeatAt: null },
+                    { lastHeartbeatAt: { lte: abandonedBefore } },
+                  ],
                 },
-                data: { createdAt: new Date() },
+                data: {
+                  claimToken,
+                  lastHeartbeatAt: new Date(),
+                  createdAt: new Date(),
+                },
               });
               if (claimed.count > 0) {
-                return { type: 'claimed' as const };
+                return { type: 'claimed' as const, claimToken };
               }
             }
 
@@ -183,10 +203,12 @@ export class AccountDeletionIdempotencyService implements OnModuleDestroy {
               bodyHash,
               status: 'PENDING',
               scheduledFor: new Date(0),
+              claimToken,
+              lastHeartbeatAt: new Date(),
               expiresAt,
             },
           });
-          return { type: 'claimed' as const };
+          return { type: 'claimed' as const, claimToken };
         },
         { maxWait: 10_000, timeout: 30_000 },
       );
@@ -200,17 +222,29 @@ export class AccountDeletionIdempotencyService implements OnModuleDestroy {
         return { scheduledFor: decision.scheduledFor };
       }
       if (decision.type === 'claimed') {
+        const wrappedOperation = this.wrapOperationWithHeartbeat(
+          userId,
+          idempotencyKey,
+          decision.claimToken,
+          operation,
+        );
         try {
-          const result = await operation();
-          await this.complete(userId, idempotencyKey, result, expiresAt);
+          const result = await wrappedOperation();
+          await this.complete(
+            userId,
+            idempotencyKey,
+            decision.claimToken,
+            result,
+            expiresAt,
+          );
           return result;
         } catch (error) {
-          await this.abandon(userId, idempotencyKey);
+          await this.abandon(userId, idempotencyKey, decision.claimToken);
           throw error;
         }
       }
 
-      // Another instance owns the PENDING row; wait for it to complete.
+      // Another instance owns the PENDING row and is still alive; wait for it.
       await new Promise((resolve) => setTimeout(resolve, this.PENDING_POLL_MS));
     }
 
@@ -219,29 +253,78 @@ export class AccountDeletionIdempotencyService implements OnModuleDestroy {
     );
   }
 
+  private wrapOperationWithHeartbeat(
+    userId: string,
+    idempotencyKey: string,
+    claimToken: string,
+    operation: () => Promise<RequestAccountDeletionResult>,
+  ): () => Promise<RequestAccountDeletionResult> {
+    return async () => {
+      const heartbeat = setInterval(() => {
+        void this.heartbeat(userId, idempotencyKey, claimToken);
+      }, this.HEARTBEAT_INTERVAL_MS);
+
+      try {
+        return await operation();
+      } finally {
+        clearInterval(heartbeat);
+      }
+    };
+  }
+
+  private async heartbeat(
+    userId: string,
+    idempotencyKey: string,
+    claimToken: string,
+  ): Promise<void> {
+    try {
+      await this.prisma.accountDeletionIdempotency.updateMany({
+        where: {
+          userId,
+          idempotencyKey,
+          claimToken,
+          status: 'PENDING',
+        },
+        data: {
+          lastHeartbeatAt: new Date(),
+        },
+      });
+    } catch (error) {
+      this.logger.warn(
+        {
+          userId,
+          idempotencyKey,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'Idempotency heartbeat failed',
+      );
+    }
+  }
+
   private async complete(
     userId: string,
     idempotencyKey: string,
+    claimToken: string,
     result: RequestAccountDeletionResult,
     expiresAt: Date,
   ): Promise<void> {
     try {
-      await this.prisma.accountDeletionIdempotency.update({
+      await this.prisma.accountDeletionIdempotency.updateMany({
         where: {
-          userId_idempotencyKey: {
-            userId,
-            idempotencyKey,
-          },
+          userId,
+          idempotencyKey,
+          claimToken,
+          status: 'PENDING',
         },
         data: {
           status: 'COMPLETED',
           scheduledFor: result.scheduledFor,
           expiresAt,
+          claimToken: null,
+          lastHeartbeatAt: null,
         },
       });
     } catch (error) {
-      // Unique constraint violations should not happen here because we hold the
-      // claim. If another instance somehow completed the row, that is also safe.
       this.logger.error(
         {
           userId,
@@ -254,14 +337,18 @@ export class AccountDeletionIdempotencyService implements OnModuleDestroy {
     }
   }
 
-  private async abandon(userId: string, idempotencyKey: string): Promise<void> {
+  private async abandon(
+    userId: string,
+    idempotencyKey: string,
+    claimToken: string,
+  ): Promise<void> {
     try {
-      await this.prisma.accountDeletionIdempotency.delete({
+      await this.prisma.accountDeletionIdempotency.deleteMany({
         where: {
-          userId_idempotencyKey: {
-            userId,
-            idempotencyKey,
-          },
+          userId,
+          idempotencyKey,
+          claimToken,
+          status: 'PENDING',
         },
       });
     } catch (error) {

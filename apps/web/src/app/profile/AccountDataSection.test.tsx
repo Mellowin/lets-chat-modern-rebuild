@@ -9,6 +9,10 @@ vi.mock("@/lib/auth-api", () => ({
   requestDataExport: vi.fn(),
 }));
 
+vi.mock("@/lib/auth-fetch", () => ({
+  AUTH_EVENTS: { SESSION_EXPIRED: "auth:session-expired" },
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
@@ -74,6 +78,9 @@ describe("AccountDataSection", () => {
 
   it("submits delete request with correct phrase", async () => {
     vi.mocked(requestAccountDeletion).mockResolvedValue({ scheduledFor: "2024-01-08T00:00:00Z" });
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent");
+    window.sessionStorage.setItem("accessToken", "old-access");
+    window.sessionStorage.setItem("refreshToken", "old-refresh");
     render(<AccountDataSection accessToken="token" user={user} />);
 
     await userEvent.click(screen.getByTestId("delete-account-button"));
@@ -88,5 +95,16 @@ describe("AccountDataSection", () => {
         idempotencyKey: expect.any(String),
       });
     });
+
+    await waitFor(
+      () => {
+        expect(window.sessionStorage.getItem("accessToken")).toBeNull();
+        expect(window.sessionStorage.getItem("refreshToken")).toBeNull();
+        expect(dispatchSpy).toHaveBeenCalledWith(
+          expect.objectContaining({ type: "auth:session-expired" }),
+        );
+      },
+      { timeout: 3000 },
+    );
   });
 });

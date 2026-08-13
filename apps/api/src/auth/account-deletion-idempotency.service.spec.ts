@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, ServiceUnavailableException } from '@nestjs/common';
 import { PrismaService } from '@lets-chat/database';
 import { AccountDeletionIdempotencyService } from './account-deletion-idempotency.service';
 
@@ -82,6 +82,8 @@ describe('AccountDeletionIdempotencyService', () => {
       bodyHash,
       status,
       scheduledFor: new Date('2026-01-01T00:00:00Z'),
+      claimToken: status === 'PENDING' ? 'claim-1' : null,
+      lastHeartbeatAt: status === 'PENDING' ? new Date() : null,
       expiresAt,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -91,7 +93,7 @@ describe('AccountDeletionIdempotencyService', () => {
   it('runs the operation and returns the result on first call', async () => {
     tx.accountDeletionIdempotency.findUnique.mockResolvedValue(null);
     tx.accountDeletionIdempotency.create.mockResolvedValue(undefined);
-    tx.accountDeletionIdempotency.update.mockResolvedValue(undefined);
+    tx.accountDeletionIdempotency.updateMany.mockResolvedValue({ count: 1 });
 
     const op = operation();
     const result = await service.run('key-1', 'user-1', 'body-1', op);
@@ -103,18 +105,21 @@ describe('AccountDeletionIdempotencyService', () => {
         idempotencyKey: 'key-1',
         bodyHash: 'body-1',
         status: 'PENDING',
+        claimToken: expect.any(String),
+        lastHeartbeatAt: expect.any(Date),
       }),
     });
-    expect(prisma.accountDeletionIdempotency.update).toHaveBeenCalledWith({
-      where: {
-        userId_idempotencyKey: {
-          userId: 'user-1',
-          idempotencyKey: 'key-1',
-        },
-      },
+    expect(prisma.accountDeletionIdempotency.updateMany).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        userId: 'user-1',
+        idempotencyKey: 'key-1',
+        status: 'PENDING',
+      }),
       data: expect.objectContaining({
         status: 'COMPLETED',
         scheduledFor: new Date('2026-01-01T00:00:00Z'),
+        claimToken: null,
+        lastHeartbeatAt: null,
       }),
     });
   });
@@ -175,7 +180,7 @@ describe('AccountDeletionIdempotencyService', () => {
   it('does not cache results when the operation fails', async () => {
     tx.accountDeletionIdempotency.findUnique.mockResolvedValue(null);
     tx.accountDeletionIdempotency.create.mockResolvedValue(undefined);
-    tx.accountDeletionIdempotency.delete.mockResolvedValue(undefined);
+    tx.accountDeletionIdempotency.deleteMany.mockResolvedValue({ count: 1 });
 
     const op = jest.fn().mockRejectedValue(new Error('boom'));
     await expect(service.run('key-1', 'user-1', 'body-1', op)).rejects.toThrow(
@@ -183,20 +188,19 @@ describe('AccountDeletionIdempotencyService', () => {
     );
 
     expect(tx.accountDeletionIdempotency.create).toHaveBeenCalled();
-    expect(prisma.accountDeletionIdempotency.delete).toHaveBeenCalledWith({
-      where: {
-        userId_idempotencyKey: {
-          userId: 'user-1',
-          idempotencyKey: 'key-1',
-        },
-      },
+    expect(prisma.accountDeletionIdempotency.deleteMany).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        userId: 'user-1',
+        idempotencyKey: 'key-1',
+        status: 'PENDING',
+      }),
     });
   });
 
   it('deduplicates concurrent requests with the same scoped key', async () => {
     tx.accountDeletionIdempotency.findUnique.mockResolvedValue(null);
     tx.accountDeletionIdempotency.create.mockResolvedValue(undefined);
-    tx.accountDeletionIdempotency.update.mockResolvedValue(undefined);
+    tx.accountDeletionIdempotency.updateMany.mockResolvedValue({ count: 1 });
 
     let calls = 0;
     const op = jest.fn(async () => {
@@ -217,7 +221,7 @@ describe('AccountDeletionIdempotencyService', () => {
   it('returns 409 when concurrent requests share the same scoped key but have different bodies', async () => {
     tx.accountDeletionIdempotency.findUnique.mockResolvedValue(null);
     tx.accountDeletionIdempotency.create.mockResolvedValue(undefined);
-    tx.accountDeletionIdempotency.update.mockResolvedValue(undefined);
+    tx.accountDeletionIdempotency.updateMany.mockResolvedValue({ count: 1 });
 
     let calls = 0;
     const op = jest.fn(async () => {
@@ -242,7 +246,7 @@ describe('AccountDeletionIdempotencyService', () => {
   it('abandons a PENDING claim on operation failure so retries can proceed', async () => {
     tx.accountDeletionIdempotency.findUnique.mockResolvedValue(null);
     tx.accountDeletionIdempotency.create.mockResolvedValue(undefined);
-    tx.accountDeletionIdempotency.delete.mockResolvedValue(undefined);
+    tx.accountDeletionIdempotency.deleteMany.mockResolvedValue({ count: 1 });
 
     const op = jest.fn().mockRejectedValue(new Error('transient'));
     await expect(service.run('key-1', 'user-1', 'body-1', op)).rejects.toThrow(
@@ -253,7 +257,7 @@ describe('AccountDeletionIdempotencyService', () => {
     // removed, so the retry is allowed to create a new claim.
     tx.accountDeletionIdempotency.findUnique.mockResolvedValue(null);
     tx.accountDeletionIdempotency.create.mockResolvedValue(undefined);
-    tx.accountDeletionIdempotency.update.mockResolvedValue(undefined);
+    tx.accountDeletionIdempotency.updateMany.mockResolvedValue({ count: 1 });
 
     const retryOp = operation();
     const result = await service.run('key-1', 'user-1', 'body-1', retryOp);
@@ -266,9 +270,9 @@ describe('AccountDeletionIdempotencyService', () => {
     tx.accountDeletionIdempotency.findUnique.mockResolvedValue({
       ...makeRow('body-1', 'PENDING'),
       createdAt: oldCreatedAt,
+      lastHeartbeatAt: new Date(Date.now() - 60_000),
     });
     tx.accountDeletionIdempotency.updateMany.mockResolvedValue({ count: 1 });
-    tx.accountDeletionIdempotency.update.mockResolvedValue(undefined);
 
     const op = operation();
     const result = await service.run('key-1', 'user-1', 'body-1', op);
@@ -280,7 +284,34 @@ describe('AccountDeletionIdempotencyService', () => {
         status: 'PENDING',
         createdAt: { lte: expect.any(Date) },
       }),
-      data: { createdAt: expect.any(Date) },
+      data: expect.objectContaining({
+        claimToken: expect.any(String),
+        lastHeartbeatAt: expect.any(Date),
+        createdAt: expect.any(Date),
+      }),
     });
+  });
+
+  it('does not reclaim a PENDING row that still has a fresh heartbeat', async () => {
+    const oldCreatedAt = new Date(Date.now() - 60_000);
+    tx.accountDeletionIdempotency.findUnique.mockResolvedValue({
+      ...makeRow('body-1', 'PENDING'),
+      createdAt: oldCreatedAt,
+      lastHeartbeatAt: new Date(),
+    });
+
+    const op = jest.fn().mockResolvedValue({
+      scheduledFor: new Date('2026-01-01T00:00:00Z'),
+    });
+
+    // Shorten the polling loop so the test finishes quickly.
+    (
+      service as unknown as { PENDING_POLL_MAX_ATTEMPTS: number }
+    ).PENDING_POLL_MAX_ATTEMPTS = 1;
+
+    await expect(
+      service.run('key-1', 'user-1', 'body-1', op),
+    ).rejects.toBeInstanceOf(ServiceUnavailableException);
+    expect(op).not.toHaveBeenCalled();
   });
 });

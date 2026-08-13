@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@lets-chat/database';
+import { isDeletedUser } from '../common/deleted-user-mapper';
 
 export interface ForwardedFromMetadata {
   sourceType: 'channel' | 'direct' | 'group';
@@ -267,6 +268,19 @@ export class ForwardPermissionsHelper {
     const canView = await this.canViewSource(userId, sourceType, sourceChatId);
 
     if (canView) {
+      if (meta.originalAuthorId) {
+        const author = await this.prisma.user.findUnique({
+          where: { id: meta.originalAuthorId },
+          select: { status: true },
+        });
+        if (author && isDeletedUser(author)) {
+          return {
+            sourceType,
+            originalCreatedAt,
+            isAnonymous: true,
+          };
+        }
+      }
       return {
         sourceType,
         sourceMessageId: meta.sourceMessageId ?? '',
@@ -323,15 +337,40 @@ export class ForwardPermissionsHelper {
 
     const accessible = await this.canViewSources(userId, sources);
 
+    const authorIds = Array.from(
+      new Set(
+        forwardedItems
+          .map((entry) => entry.forwardedFrom.originalAuthorId)
+          .filter((id): id is string => typeof id === 'string'),
+      ),
+    );
+
+    const anonymizedAuthorIds = new Set<string>();
+    if (authorIds.length > 0) {
+      const authors = await this.prisma.user.findMany({
+        where: { id: { in: authorIds } },
+        select: { id: true, status: true },
+      });
+      for (const author of authors) {
+        if (isDeletedUser(author)) {
+          anonymizedAuthorIds.add(author.id);
+        }
+      }
+    }
+
     for (const entry of forwardedItems) {
       const meta = entry.forwardedFrom as Partial<ForwardedFromMetadata>;
       const key = `${meta.sourceType}:${meta.sourceChatId}`;
-      if (accessible.has(key)) {
+      const originalAuthorId = meta.originalAuthorId;
+      if (
+        accessible.has(key) &&
+        (!originalAuthorId || !anonymizedAuthorIds.has(originalAuthorId))
+      ) {
         result[entry.index] = {
           sourceType: meta.sourceType!,
           sourceMessageId: meta.sourceMessageId ?? '',
           sourceChatId: meta.sourceChatId!,
-          originalAuthorId: meta.originalAuthorId,
+          originalAuthorId,
           originalAuthorName: meta.originalAuthorName,
           originalCreatedAt: meta.originalCreatedAt!,
           replySnapshot: meta.replySnapshot,

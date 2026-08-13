@@ -176,15 +176,17 @@ model User {
 }
 
 model AccountDeletionIdempotency {
-  id             String                            @id @default(uuid()) @db.Uuid
-  userId         String                            @db.Uuid
-  idempotencyKey String
-  bodyHash       String
-  status         AccountDeletionIdempotencyStatus  @default(COMPLETED)
-  scheduledFor   DateTime
-  createdAt      DateTime                          @default(now())
-  updatedAt      DateTime                          @updatedAt
-  expiresAt      DateTime
+  id              String                            @id @default(uuid()) @db.Uuid
+  userId          String                            @db.Uuid
+  idempotencyKey  String
+  bodyHash        String
+  status          AccountDeletionIdempotencyStatus  @default(COMPLETED)
+  scheduledFor    DateTime
+  claimToken      String?                           @db.Uuid
+  lastHeartbeatAt DateTime?
+  createdAt       DateTime                          @default(now())
+  updatedAt       DateTime                          @updatedAt
+  expiresAt       DateTime
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

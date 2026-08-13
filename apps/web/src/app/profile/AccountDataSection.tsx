@@ -9,6 +9,7 @@ import {
   requestDataExport,
   type AuthUser,
 } from "@/lib/auth-api";
+import { AUTH_EVENTS } from "@/lib/auth-fetch";
 import { useLocale } from "@/lib/locale";
 import { localizeApiError } from "@/lib/api-errors";
 import { Button } from "@/components/ui/Button";
@@ -115,10 +116,11 @@ export function AccountDataSection({
       setDeleteState({ kind: "success", message: t("profile.deleteAccountRequested") });
       if (deletePasswordRef.current) deletePasswordRef.current.value = "";
       if (deletePhraseRef.current) deletePhraseRef.current.value = "";
-      // Clear local session state and redirect after a short delay.
+      // Clear actual auth state used by AuthProvider and redirect.
       setTimeout(() => {
-        window.sessionStorage?.removeItem("lets-chat:auth");
-        window.localStorage?.removeItem("lets-chat:auth");
+        window.sessionStorage?.removeItem("accessToken");
+        window.sessionStorage?.removeItem("refreshToken");
+        window.dispatchEvent(new CustomEvent(AUTH_EVENTS.SESSION_EXPIRED));
         router.push("/login?deleted=1");
       }, 1500);
     } catch (err) {

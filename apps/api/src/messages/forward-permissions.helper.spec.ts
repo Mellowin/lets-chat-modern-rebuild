@@ -12,6 +12,7 @@ describe('ForwardPermissionsHelper', () => {
       | 'workspaceMember'
       | 'directConversationParticipant'
       | 'groupMember'
+      | 'user'
     >
   >;
 
@@ -40,7 +41,16 @@ describe('ForwardPermissionsHelper', () => {
         findFirst: jest.fn(),
         findMany: jest.fn(),
       },
+      user: {
+        findUnique: jest.fn(),
+        findMany: jest.fn(),
+      },
     } as unknown as typeof prisma;
+
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      status: 'ACTIVE',
+    });
+    (prisma.user.findMany as jest.Mock).mockResolvedValue([]);
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -329,6 +339,10 @@ describe('ForwardPermissionsHelper', () => {
         .spyOn(helper, 'canViewSources')
         .mockResolvedValue(new Set(['channel:c1']));
 
+      (prisma.user.findMany as jest.Mock).mockResolvedValue([
+        { id: 'u2', status: 'ACTIVE' },
+      ]);
+
       const result = await helper.toResponses(userId, [
         {
           forwardedFrom: {
@@ -360,6 +374,43 @@ describe('ForwardPermissionsHelper', () => {
           authorName: 'Bob',
         },
       });
+    });
+
+    it('masks attribution when the original author has been anonymized', async () => {
+      jest
+        .spyOn(helper, 'canViewSources')
+        .mockResolvedValue(new Set(['channel:c1']));
+
+      (prisma.user.findMany as jest.Mock).mockResolvedValue([
+        { id: 'u2', status: 'ANONYMIZED' },
+      ]);
+
+      const result = await helper.toResponses(userId, [
+        {
+          forwardedFrom: {
+            sourceType: 'channel',
+            sourceChatId: 'c1',
+            sourceMessageId: 'm1',
+            originalAuthorId: 'u2',
+            originalAuthorName: 'Bob',
+            originalCreatedAt: '2024-01-01T00:00:00Z',
+            replySnapshot: {
+              id: 'r1',
+              content: 'hi',
+              authorName: 'Bob',
+            },
+          },
+        },
+      ]);
+
+      expect(result[0]).toEqual({
+        sourceType: 'channel',
+        originalCreatedAt: '2024-01-01T00:00:00Z',
+        isAnonymous: true,
+      });
+      expect(result[0]).not.toHaveProperty('originalAuthorId');
+      expect(result[0]).not.toHaveProperty('originalAuthorName');
+      expect(result[0]).not.toHaveProperty('replySnapshot');
     });
 
     it('returns anonymous metadata for inaccessible sources', async () => {
