@@ -214,6 +214,27 @@ export class StorageService implements OnModuleInit {
     );
   }
 
+  async deleteObjectsByPrefix(prefix: string): Promise<number> {
+    const objects = await this.listObjects(prefix);
+    let deletedCount = 0;
+
+    for (const { key } of objects) {
+      try {
+        await this.deleteObject(key);
+        deletedCount++;
+      } catch (error) {
+        if (this.isNotFoundError(error)) {
+          // Object already gone; count as deleted so the loop can complete.
+          deletedCount++;
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    return deletedCount;
+  }
+
   async copyObject(sourceKey: string, destinationKey: string) {
     await this.client.send(
       new CopyObjectCommand({

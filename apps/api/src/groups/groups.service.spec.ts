@@ -1267,6 +1267,42 @@ describe('GroupsService', () => {
       expect(forwardPermissions.toResponse).not.toHaveBeenCalled();
     });
 
+    it('masks deleted users in pinned message author and pinnedBy', async () => {
+      groupsRepository.findById.mockResolvedValue(makeGroup());
+      groupsRepository.findPinnedMessages.mockResolvedValue([
+        makePin({
+          id: 'pin-deleted',
+          pinnedBy: {
+            id: otherUserId,
+            username: 'bob',
+            displayName: null,
+            avatarUrl: null,
+            status: UserStatus.ANONYMIZED,
+          },
+          message: makeMessage({
+            id: 'msg-deleted',
+            author: {
+              id: userId,
+              username: 'alice',
+              displayName: null,
+              avatarUrl: null,
+              status: UserStatus.ANONYMIZED,
+            },
+          }),
+        }),
+      ]);
+
+      const result = await service.listPinnedMessages(groupId, otherUserId, {});
+
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].message.author.username).toBe('');
+      expect(result.items[0].message.author.displayName).toBe('Deleted user');
+      expect(result.items[0].message.author.isDeleted).toBe(true);
+      expect(result.items[0].pinnedBy.username).toBe('');
+      expect(result.items[0].pinnedBy.displayName).toBe('Deleted user');
+      expect(result.items[0].pinnedBy.isDeleted).toBe(true);
+    });
+
     it('throws BadRequestException for an invalid cursor', async () => {
       groupsRepository.findById.mockResolvedValue(makeGroup());
 

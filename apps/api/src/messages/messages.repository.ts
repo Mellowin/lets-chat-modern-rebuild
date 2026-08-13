@@ -286,6 +286,7 @@ export class MessagesRepository {
             username: true,
             displayName: true,
             avatarUrl: true,
+            status: true,
           },
         },
         message: {
@@ -356,6 +357,7 @@ export class MessagesRepository {
             username: true,
             displayName: true,
             avatarUrl: true,
+            status: true,
           },
         },
         message: {

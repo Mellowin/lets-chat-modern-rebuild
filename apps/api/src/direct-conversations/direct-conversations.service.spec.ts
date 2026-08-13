@@ -3485,5 +3485,51 @@ describe('DirectConversationsService', () => {
       );
       expect(forwardPermissions.toResponse).not.toHaveBeenCalled();
     });
+
+    it('masks deleted users in pinned message author and pinnedBy', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p-current',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findPinnedMessages.mockResolvedValue([
+        makePin({
+          id: 'pin-deleted',
+          pinnedBy: {
+            id: otherUserId,
+            username: 'bob',
+            displayName: null,
+            avatarUrl: null,
+            status: UserStatus.ANONYMIZED,
+          },
+          message: makeMessage({
+            id: 'msg-deleted',
+            author: {
+              id: userId,
+              username: 'alice',
+              displayName: null,
+              avatarUrl: null,
+              status: UserStatus.ANONYMIZED,
+            },
+          }),
+        }),
+      ]);
+
+      const result = await service.listPinnedMessages(
+        conversationId,
+        userId,
+        {},
+      );
+
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].message.author.username).toBe('');
+      expect(result.items[0].message.author.displayName).toBe('Deleted user');
+      expect(result.items[0].message.author.isDeleted).toBe(true);
+      expect(result.items[0].pinnedBy.username).toBe('');
+      expect(result.items[0].pinnedBy.displayName).toBe('Deleted user');
+      expect(result.items[0].pinnedBy.isDeleted).toBe(true);
+    });
   });
 });

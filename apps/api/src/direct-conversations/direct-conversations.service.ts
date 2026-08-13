@@ -34,6 +34,7 @@ import { AttachmentsRepository } from '../messages/attachments.repository';
 import {
   isDeletedUser,
   DELETED_USER_DISPLAY_NAME,
+  mapAuthorResponse,
 } from '../common/deleted-user-mapper';
 import { DirectConversationsRepository } from './direct-conversations.repository';
 import { StorageBackend, Prisma } from '@lets-chat/database';
@@ -184,18 +185,18 @@ export class DirectConversationsService {
               : message.replyToMessage.content,
             author: message.replyToMessage.deletedAt
               ? null
-              : this.mapAuthorResponse(message.replyToMessage.author),
+              : mapAuthorResponse(message.replyToMessage.author),
           }
         : null,
       createdAt: message.createdAt,
       updatedAt: message.updatedAt,
       editedAt: message.editedAt,
-      author: this.mapAuthorResponse(message.author),
+      author: mapAuthorResponse(message.author),
       parent: message.parent
         ? {
             id: message.parent.id,
             content: message.parent.content,
-            author: this.mapAuthorResponse(message.parent.author),
+            author: mapAuthorResponse(message.parent.author),
           }
         : null,
       reactions: reactions ?? [],
@@ -220,31 +221,6 @@ export class DirectConversationsService {
           }
         : undefined,
       forwardedFrom,
-    };
-  }
-
-  private mapAuthorResponse(author: {
-    id: string;
-    username: string;
-    displayName: string | null;
-    avatarUrl: string | null;
-    status?: string;
-  }) {
-    if (isDeletedUser(author)) {
-      return {
-        id: author.id,
-        username: '',
-        displayName: DELETED_USER_DISPLAY_NAME,
-        avatarUrl: null,
-        isDeleted: true,
-      };
-    }
-    return {
-      id: author.id,
-      username: author.username,
-      displayName: author.displayName,
-      avatarUrl: author.avatarUrl,
-      isDeleted: false,
     };
   }
 
@@ -367,23 +343,27 @@ export class DirectConversationsService {
       id: pin.id,
       pinnedAt: pin.pinnedAt,
       pinnedBy: pin.pinnedBy
-        ? {
-            id: pin.pinnedBy.id,
-            username: pin.pinnedBy.username,
-            displayName: pin.pinnedBy.displayName,
-          }
-        : { id: '', username: '', displayName: null },
+        ? mapAuthorResponse(pin.pinnedBy)
+        : {
+            id: '',
+            username: '',
+            displayName: null,
+            avatarUrl: null,
+            isDeleted: false,
+          },
       message: {
         id: pin.message.id,
         content: pin.message.content,
         createdAt: pin.message.createdAt,
         author: pin.message.author
-          ? {
-              id: pin.message.author.id,
-              username: pin.message.author.username,
-              displayName: pin.message.author.displayName,
-            }
-          : { id: '', username: '', displayName: null },
+          ? mapAuthorResponse(pin.message.author)
+          : {
+              id: '',
+              username: '',
+              displayName: null,
+              avatarUrl: null,
+              isDeleted: false,
+            },
         attachmentCount: pin.message.attachments?.length ?? 0,
         replyTo: pin.message.replyToMessage
           ? {
@@ -394,12 +374,7 @@ export class DirectConversationsService {
               author: pin.message.replyToMessage.deletedAt
                 ? null
                 : pin.message.replyToMessage.author
-                  ? {
-                      id: pin.message.replyToMessage.author.id,
-                      username: pin.message.replyToMessage.author.username,
-                      displayName:
-                        pin.message.replyToMessage.author.displayName,
-                    }
+                  ? mapAuthorResponse(pin.message.replyToMessage.author)
                   : null,
             }
           : null,
@@ -1228,13 +1203,14 @@ export class DirectConversationsService {
       pinnedAt: pin.pinnedAt,
       pinnedByUserId: userId,
       pinnedBy: pin.pinnedBy
-        ? {
-            id: pin.pinnedBy.id,
-            username: pin.pinnedBy.username,
-            displayName: pin.pinnedBy.displayName,
-            avatarUrl: pin.pinnedBy.avatarUrl,
-          }
-        : { id: userId, username: '', displayName: null, avatarUrl: null },
+        ? mapAuthorResponse(pin.pinnedBy)
+        : {
+            id: userId,
+            username: '',
+            displayName: null,
+            avatarUrl: null,
+            isDeleted: false,
+          },
     });
 
     return this.mapPinResponse(pin, userId);

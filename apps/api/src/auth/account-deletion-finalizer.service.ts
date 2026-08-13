@@ -292,20 +292,20 @@ export class AccountDeletionFinalizerService
       return 0;
     }
 
+    let cleanedCount = 0;
+    let allSucceeded = true;
+
     const attachments = await this.prisma.attachment.findMany({
       where: { createdById: userId },
       select: { id: true, storageKey: true },
     });
 
-    let cleanedCount = 0;
-    let allSucceeded = true;
     for (const { id, storageKey } of attachments) {
       try {
         await this.storageService.deleteObject(storageKey);
         cleanedCount++;
       } catch (error) {
         if (this.isAttachmentNotFoundError(error)) {
-          // Object already gone; count as cleaned so the loop can complete.
           cleanedCount++;
           continue;
         }
@@ -320,6 +320,28 @@ export class AccountDeletionFinalizerService
           'Failed to delete attachment storage object; will retry',
         );
       }
+    }
+
+    if (!allSucceeded) {
+      return cleanedCount;
+    }
+
+    try {
+      const prefixCount = await this.storageService.deleteObjectsByPrefix(
+        `attachments/${userId}/`,
+      );
+      cleanedCount += prefixCount;
+    } catch (error) {
+      allSucceeded = false;
+      this.logger.error(
+        {
+          userId,
+          prefix: `attachments/${userId}/`,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'Failed to delete user attachment storage prefix; will retry',
+      );
+      return cleanedCount;
     }
 
     if (allSucceeded) {

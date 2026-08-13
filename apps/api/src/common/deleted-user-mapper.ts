@@ -27,6 +27,38 @@ export function isDeletedUser(user: {
   );
 }
 
+export function mapAuthorResponse(author: {
+  id: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  status?: string;
+  deletedAt?: Date | null;
+}): {
+  id: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  isDeleted: boolean;
+} {
+  if (isDeletedUser(author)) {
+    return {
+      id: author.id,
+      username: '',
+      displayName: DELETED_USER_DISPLAY_NAME,
+      avatarUrl: null,
+      isDeleted: true,
+    };
+  }
+  return {
+    id: author.id,
+    username: author.username,
+    displayName: author.displayName,
+    avatarUrl: author.avatarUrl,
+    isDeleted: false,
+  };
+}
+
 export function mapUserToSafeUser(user: User | null): SafeUser | null {
   if (!user) return null;
 

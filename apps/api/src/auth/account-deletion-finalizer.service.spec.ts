@@ -247,6 +247,7 @@ describe('AccountDeletionFinalizerService', () => {
     } as unknown as jest.Mocked<AvatarUploadService>;
     storageService = {
       deleteObject: jest.fn().mockResolvedValue(undefined),
+      deleteObjectsByPrefix: jest.fn().mockResolvedValue(0),
     } as unknown as jest.Mocked<StorageService>;
 
     const moduleRef = await Test.createTestingModule({
@@ -481,6 +482,9 @@ describe('AccountDeletionFinalizerService', () => {
     expect(result.cleanedAttachments).toBe(2);
     expect(storageService.deleteObject).toHaveBeenCalledWith('key-1');
     expect(storageService.deleteObject).toHaveBeenCalledWith('key-2');
+    expect(storageService.deleteObjectsByPrefix).toHaveBeenCalledWith(
+      'attachments/u1/',
+    );
     expect(
       mock.state.users.get(userId)?.attachmentObjectsCleanupCompletedAt,
     ).toBeInstanceOf(Date);
@@ -542,6 +546,60 @@ describe('AccountDeletionFinalizerService', () => {
 
     const result = await service.run();
     expect(result.cleanedAttachments).toBe(1);
+    expect(
+      mock.state.users.get(userId)?.attachmentObjectsCleanupCompletedAt,
+    ).toBeInstanceOf(Date);
+  });
+
+  it('deletes orphaned attachment objects that have no Attachment row', async () => {
+    const userId = 'u1';
+    mock.state.users.set(userId, {
+      id: userId,
+      status: 'ANONYMIZED',
+      deletionScheduledFor: null,
+      avatarUrl: null,
+      avatarCleanupCompletedAt: new Date(),
+      attachmentObjectsCleanupCompletedAt: null,
+    });
+
+    storageService.deleteObjectsByPrefix.mockResolvedValue(3);
+
+    const result = await service.run();
+
+    expect(result.cleanedAttachments).toBe(3);
+    expect(storageService.deleteObjectsByPrefix).toHaveBeenCalledWith(
+      'attachments/u1/',
+    );
+    expect(
+      mock.state.users.get(userId)?.attachmentObjectsCleanupCompletedAt,
+    ).toBeInstanceOf(Date);
+  });
+
+  it('retries attachment prefix cleanup after a transient failure', async () => {
+    const userId = 'u1';
+    mock.state.users.set(userId, {
+      id: userId,
+      status: 'ANONYMIZED',
+      deletionScheduledFor: null,
+      avatarUrl: null,
+      avatarCleanupCompletedAt: new Date(),
+      attachmentObjectsCleanupCompletedAt: null,
+    });
+
+    storageService.deleteObjectsByPrefix
+      .mockRejectedValueOnce(new Error('network error'))
+      .mockResolvedValueOnce(2);
+
+    const first = await service.run();
+    expect(first.processedCount).toBe(0);
+    expect(first.cleanedAttachments).toBe(0);
+    expect(
+      mock.state.users.get(userId)?.attachmentObjectsCleanupCompletedAt,
+    ).toBeNull();
+
+    const second = await service.run();
+    expect(second.cleanedAttachments).toBe(2);
+    expect(storageService.deleteObjectsByPrefix).toHaveBeenCalledTimes(2);
     expect(
       mock.state.users.get(userId)?.attachmentObjectsCleanupCompletedAt,
     ).toBeInstanceOf(Date);

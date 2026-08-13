@@ -5,6 +5,7 @@ import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
 import { StorageService } from './../src/storage/storage.service';
 import { PrismaService } from '@lets-chat/database';
+import { UserStatus } from '@lets-chat/database';
 import { TokenService } from './../src/auth/token.service';
 
 interface SearchResponseBody {
@@ -43,7 +44,9 @@ describe('MessageSearch E2E', () => {
       imports: [AppModule],
     })
       .overrideProvider(StorageService)
-      .useValue({})
+      .useValue({
+        deleteObjectsByPrefix: jest.fn().mockResolvedValue(undefined),
+      })
       .compile();
 
     app = moduleFixture.createNestApplication();
@@ -378,5 +381,48 @@ describe('MessageSearch E2E', () => {
       .delete(`/blocks/${userA.id}`)
       .set('Authorization', `Bearer ${tokenB}`)
       .expect(200);
+  });
+
+  it('masks deleted users in search results', async () => {
+    await prisma.user.update({
+      where: { id: userA.id },
+      data: {
+        status: UserStatus.ANONYMIZED,
+        username: `deleted_${userA.id}`,
+        displayName: 'Deleted user',
+      },
+    });
+
+    const res = await request(app.getHttpServer())
+      .get(`/search/messages?q=${encodeURIComponent(sharedQuery)}`)
+      .set('Authorization', `Bearer ${tokenB}`)
+      .expect(200);
+
+    interface MaskedSearchItem {
+      author: {
+        username: string;
+        displayName: string | null;
+        isDeleted: boolean;
+      };
+      source: {
+        type: string;
+        otherParticipant?: {
+          username: string;
+          isDeleted: boolean;
+        } | null;
+      };
+    }
+
+    const items = (res.body as { items: MaskedSearchItem[] }).items;
+    expect(items.length).toBeGreaterThan(0);
+    for (const item of items) {
+      expect(item.author.username).toBe('');
+      expect(item.author.displayName).toBe('Deleted user');
+      expect(item.author.isDeleted).toBe(true);
+      if (item.source.type === 'DIRECT') {
+        expect(item.source.otherParticipant?.username).toBe('');
+        expect(item.source.otherParticipant?.isDeleted).toBe(true);
+      }
+    }
   });
 });

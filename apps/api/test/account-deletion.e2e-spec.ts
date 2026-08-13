@@ -103,7 +103,9 @@ describe('AccountDeletion E2E', () => {
       imports: [AppModule],
     })
       .overrideProvider(StorageService)
-      .useValue({})
+      .useValue({
+        deleteObjectsByPrefix: jest.fn().mockResolvedValue(undefined),
+      })
       .overrideProvider(MailService)
       .useValue(mailService)
       .compile();
@@ -438,7 +440,9 @@ describe('AccountDeletion E2E', () => {
         imports: [AppModule],
       })
         .overrideProvider(StorageService)
-        .useValue({})
+        .useValue({
+          deleteObjectsByPrefix: jest.fn().mockResolvedValue(undefined),
+        })
         .overrideProvider(MailService)
         .useValue(mailService)
         .compile();
@@ -657,7 +661,9 @@ describe('AccountDeletion E2E', () => {
         imports: [AppModule],
       })
         .overrideProvider(StorageService)
-        .useValue({})
+        .useValue({
+          deleteObjectsByPrefix: jest.fn().mockResolvedValue(undefined),
+        })
         .overrideProvider(MailService)
         .useValue(mailService)
         .compile();
