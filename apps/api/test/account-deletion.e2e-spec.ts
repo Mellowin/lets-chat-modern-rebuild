@@ -630,7 +630,8 @@ describe('AccountDeletion E2E', () => {
         .post('/auth/login')
         .send({ email: user.email, password: user.password });
       expect(loginAfterCancel.status).toBe(200);
-      const newToken = loginAfterCancel.body.accessToken as string;
+      const newToken = (loginAfterCancel.body as { accessToken: string })
+        .accessToken;
 
       const retry = await request(app.getHttpServer())
         .post('/auth/account-deletion/request')
