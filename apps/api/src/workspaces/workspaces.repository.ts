@@ -272,6 +272,14 @@ export class WorkspacesRepository {
     targetUserId: string;
   }) {
     return this.prisma.$transaction(async (tx) => {
+      const targetUser = await tx.user.findUnique({
+        where: { id: data.targetUserId },
+        select: { status: true },
+      });
+      if (!targetUser || targetUser.status !== 'ACTIVE') {
+        throw new Error('TARGET_USER_NOT_ACTIVE');
+      }
+
       const downgrade = await tx.workspaceMember.updateMany({
         where: {
           id: data.currentOwnerMemberId,

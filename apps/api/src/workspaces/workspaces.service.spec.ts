@@ -13,6 +13,7 @@ import { ChannelsRepository } from '../channels/channels.repository';
 import { ChannelInvitesRepository } from '../channel-invites/channel-invites.repository';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction, AuditEntityType } from '../audit/audit.constants';
+import { UserStatus } from '@lets-chat/database';
 
 type ActiveWorkspace = NonNullable<
   Awaited<ReturnType<WorkspacesRepository['findActiveById']>>
@@ -497,6 +498,13 @@ describe('WorkspacesService', () => {
   describe('transferOwnership', () => {
     const memberId = '33333333-3333-3333-3333-333333333333';
     const targetUserId = '44444444-4444-4444-4444-444444444444';
+
+    beforeEach(() => {
+      usersRepository.findById.mockResolvedValue({
+        id: targetUserId,
+        status: UserStatus.ACTIVE,
+      } as FoundUserById);
+    });
 
     it('should allow OWNER to transfer ownership to MEMBER', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({

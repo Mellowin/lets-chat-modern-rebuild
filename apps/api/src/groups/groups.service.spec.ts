@@ -50,6 +50,7 @@ function makeMember(
       username: 'bob',
       displayName: 'Bob',
       avatarUrl: null,
+      status: UserStatus.ACTIVE,
     },
     ...overrides,
   };
@@ -120,6 +121,7 @@ function makeGroup(
           username: 'alice',
           displayName: 'Alice',
           avatarUrl: null,
+          status: UserStatus.ACTIVE,
         },
       }),
       makeMember({ id: 'm-other' }),
@@ -495,6 +497,7 @@ describe('GroupsService', () => {
                 username: 'carol',
                 displayName: 'Carol',
                 avatarUrl: null,
+                status: UserStatus.ACTIVE,
               },
             }),
           ],

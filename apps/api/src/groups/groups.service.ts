@@ -219,6 +219,16 @@ export class GroupsService {
     };
   }
 
+  private mapMemberUserResponse(user: {
+    id: string;
+    username: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+    status?: string;
+  }) {
+    return this.mapAuthorResponse(user);
+  }
+
   private normalizeMentions(
     value: unknown,
   ): Array<{ userId: string; username: string }> | undefined {
@@ -256,10 +266,7 @@ export class GroupsService {
       updatedAt: group.updatedAt,
       memberCount: group.members.length,
       members: group.members.map((m) => ({
-        id: m.user.id,
-        username: m.user.username,
-        displayName: m.user.displayName,
-        avatarUrl: m.user.avatarUrl,
+        ...this.mapMemberUserResponse(m.user),
         role: m.role,
         joinedAt: m.joinedAt,
       })),

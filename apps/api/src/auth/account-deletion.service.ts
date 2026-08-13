@@ -147,15 +147,26 @@ export class AccountDeletionService {
       throw error;
     }
 
-    // Deletion request is committed; these side effects are best-effort and
-    // must not roll back the request if they fail.
+    // Deletion request is committed; disconnect sockets immediately so the user
+    // cannot keep using the app while token/subscription cleanup runs.
+    try {
+      this.disconnectUserSockets(userId);
+    } catch (error) {
+      this.logger.error(
+        {
+          userId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'Failed to disconnect user sockets during account deletion; continuing',
+      );
+    }
+
+    // These side effects are best-effort and must not roll back the request.
     try {
       await this.refreshTokens.revokeAllForUser(userId);
 
       // Remove all push subscriptions so deleted accounts stop receiving pushes.
       await this.users.deletePushSubscriptionsForUser(userId);
-
-      this.disconnectUserSockets(userId);
     } catch (error) {
       this.logger.error(
         {

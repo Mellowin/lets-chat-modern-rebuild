@@ -355,6 +355,13 @@ export class WorkspacesService {
       throw new BadRequestException('Cannot transfer ownership to yourself');
     }
 
+    const targetUser = await this.users.findById(targetMember.userId);
+    if (!targetUser || targetUser.status !== 'ACTIVE') {
+      throw new ForbiddenException(
+        'Cannot transfer ownership to a user with pending or deleted account',
+      );
+    }
+
     const currentOwnerMember = await this.workspaces.findActiveMemberByUserId(
       workspaceId,
       userId,
@@ -394,7 +401,8 @@ export class WorkspacesService {
         error instanceof Error &&
         (error.message === 'OWNERSHIP_STATE_CHANGED' ||
           error.message === 'TARGET_STATE_CHANGED' ||
-          error.message === 'WORKSPACE_STATE_CHANGED')
+          error.message === 'WORKSPACE_STATE_CHANGED' ||
+          error.message === 'TARGET_USER_NOT_ACTIVE')
       ) {
         throw new ConflictException('Ownership state changed');
       }
