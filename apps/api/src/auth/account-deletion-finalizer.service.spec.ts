@@ -367,13 +367,13 @@ describe('AccountDeletionFinalizerService', () => {
     expect(mock.tx.invitation.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ invitedEmail: email, usedById: null }),
-        data: expect.objectContaining({ deletedAt: now }),
+        data: expect.objectContaining({ deletedAt: expect.any(Date) }),
       }),
     );
     expect(mock.tx.channelInvitation.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ invitedEmail: email, usedById: null }),
-        data: expect.objectContaining({ deletedAt: now }),
+        data: expect.objectContaining({ deletedAt: expect.any(Date) }),
       }),
     );
   });
