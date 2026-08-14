@@ -6,6 +6,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { createHash } from 'crypto';
 import { UserStatus } from '@lets-chat/database';
 import { PrismaService } from '@lets-chat/database';
 import {
@@ -491,16 +492,33 @@ describe('AccountDeletionService', () => {
 
       expect(result.success).toBe(true);
       expect(prismaService.$transaction).toHaveBeenCalled();
-      expect(mockTx.user.updateMany).toHaveBeenCalledWith({
-        where: { id: userId, status: 'PENDING_DELETION' },
-        data: {
-          status: 'ACTIVE',
-          deletionRequestedAt: null,
-          deletionScheduledFor: null,
-          deletionCancellationTokenHash: null,
-          deletionCancellationExpiresAt: null,
-          deletedAt: null,
+      expect(mockTx.user.updateMany).toHaveBeenCalledTimes(1);
+      const [updateArg] = mockTx.user.updateMany.mock.calls[0] as unknown as [
+        {
+          where: {
+            id: string;
+            status: string;
+            deletionCancellationTokenHash: string;
+            deletionCancellationExpiresAt: { gte: Date };
+          };
+          data: Record<string, unknown>;
         },
+      ];
+      expect(updateArg.where.id).toBe(userId);
+      expect(updateArg.where.status).toBe('PENDING_DELETION');
+      expect(updateArg.where.deletionCancellationTokenHash).toBe(
+        createHash('sha256').update('valid-token').digest('hex'),
+      );
+      expect(updateArg.where.deletionCancellationExpiresAt.gte).toBeInstanceOf(
+        Date,
+      );
+      expect(updateArg.data).toEqual({
+        status: 'ACTIVE',
+        deletionRequestedAt: null,
+        deletionScheduledFor: null,
+        deletionCancellationTokenHash: null,
+        deletionCancellationExpiresAt: null,
+        deletedAt: null,
       });
       expect(mockTx.auditLog.create).toHaveBeenCalledWith({
         data: {

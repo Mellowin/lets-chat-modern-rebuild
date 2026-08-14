@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   Inject,
@@ -645,7 +646,7 @@ export class GroupsService {
 
     await this.requireGroupAccessible(groupId, currentUserId);
 
-    const targetMember = await this.groups.findActiveMember(
+    const targetMember = await this.groups.findActiveMemberById(
       groupId,
       dto.memberId,
     );
@@ -666,11 +667,23 @@ export class GroupsService {
       );
     }
 
-    await this.groups.transferOwnership(
-      groupId,
-      currentUserId,
-      targetMember.userId,
-    );
+    try {
+      await this.groups.transferOwnership(
+        groupId,
+        currentUserId,
+        targetMember.userId,
+      );
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        (error.message === 'OWNERSHIP_STATE_CHANGED' ||
+          error.message === 'TARGET_STATE_CHANGED' ||
+          error.message === 'TARGET_USER_NOT_ACTIVE')
+      ) {
+        throw new ConflictException('Ownership state changed');
+      }
+      throw error;
+    }
 
     const updated = await this.groups.findById(groupId);
     const response = await this.toGroupResponse(updated, currentUserId);

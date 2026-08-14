@@ -304,8 +304,17 @@ export class AccountDeletionService {
     // email is a post-commit side effect and must not roll back cancellation.
     try {
       await this.prisma.$transaction(async (tx) => {
+        const now = new Date();
+        // Bind the cancellation to the validated token. A concurrent resend
+        // may rotate the token; this conditional update ensures only the token
+        // that was validated above can activate the account.
         const cleared = await tx.user.updateMany({
-          where: { id: user.id, status: 'PENDING_DELETION' },
+          where: {
+            id: user.id,
+            status: 'PENDING_DELETION',
+            deletionCancellationTokenHash: tokenHash,
+            deletionCancellationExpiresAt: { gte: now },
+          },
           data: {
             status: 'ACTIVE',
             deletionRequestedAt: null,
@@ -316,7 +325,9 @@ export class AccountDeletionService {
           },
         });
         if (cleared.count === 0) {
-          throw new Error('Cancellation state changed during transaction');
+          throw new NotFoundException(
+            'Invalid or expired account deletion cancellation link',
+          );
         }
 
         await tx.auditLog.create({

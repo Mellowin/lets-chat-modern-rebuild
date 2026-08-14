@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
@@ -222,6 +223,7 @@ describe('GroupsService', () => {
             archive: jest.fn(),
             findMember: jest.fn(),
             findActiveMember: jest.fn(),
+            findActiveMemberById: jest.fn(),
             listActiveMembers: jest.fn(),
             addMember: jest.fn(),
             removeMember: jest.fn(),
@@ -519,6 +521,138 @@ describe('GroupsService', () => {
       expect(
         websocketEvents.broadcastGroupConversationUpdated,
       ).toHaveBeenCalled();
+    });
+  });
+
+  describe('transferOwnership', () => {
+    it('transfers ownership to another member', async () => {
+      const targetMember = makeMember({
+        id: 'm-target',
+        userId: thirdUserId,
+        role: 'MEMBER',
+      });
+      groupsRepository.findActiveMember.mockResolvedValue(
+        makeMember({ id: 'm-owner', userId, role: 'OWNER' }),
+      );
+      groupsRepository.findActiveMemberById.mockResolvedValue(targetMember);
+      groupsRepository.findById
+        .mockResolvedValueOnce(makeGroup())
+        .mockResolvedValueOnce(
+          makeGroup({
+            members: [
+              makeMember({
+                id: 'm-owner',
+                userId,
+                role: 'MEMBER',
+                user: {
+                  id: userId,
+                  username: 'alice',
+                  displayName: 'Alice',
+                  avatarUrl: null,
+                  status: UserStatus.ACTIVE,
+                },
+              }),
+              makeMember({
+                id: 'm-target',
+                userId: thirdUserId,
+                role: 'OWNER',
+                user: {
+                  id: thirdUserId,
+                  username: 'carol',
+                  displayName: 'Carol',
+                  avatarUrl: null,
+                  status: UserStatus.ACTIVE,
+                },
+              }),
+            ],
+          }),
+        );
+      usersRepository.findById.mockResolvedValue(makeUser({ id: thirdUserId }));
+      groupsRepository.transferOwnership.mockResolvedValue(undefined);
+      groupsRepository.countUnreadMessages.mockResolvedValue(0);
+
+      const result = await service.transferOwnership(groupId, userId, {
+        memberId: targetMember.id,
+      });
+
+      expect(result.myRole).toBe('MEMBER');
+      expect(groupsRepository.transferOwnership).toHaveBeenCalledWith(
+        groupId,
+        userId,
+        thirdUserId,
+      );
+    });
+
+    it('maps OWNERSHIP_STATE_CHANGED to ConflictException', async () => {
+      groupsRepository.findActiveMember.mockResolvedValue(
+        makeMember({ id: 'm-owner', userId, role: 'OWNER' }),
+      );
+      groupsRepository.findById.mockResolvedValue(makeGroup());
+      groupsRepository.findActiveMemberById.mockResolvedValueOnce(
+        makeMember({ id: 'm-target', userId: thirdUserId, role: 'MEMBER' }),
+      );
+      usersRepository.findById.mockResolvedValue(makeUser({ id: thirdUserId }));
+      groupsRepository.transferOwnership.mockRejectedValue(
+        new Error('OWNERSHIP_STATE_CHANGED'),
+      );
+
+      await expect(
+        service.transferOwnership(groupId, userId, { memberId: 'm-target' }),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('maps TARGET_STATE_CHANGED to ConflictException', async () => {
+      groupsRepository.findActiveMember.mockResolvedValue(
+        makeMember({ id: 'm-owner', userId, role: 'OWNER' }),
+      );
+      groupsRepository.findById.mockResolvedValue(makeGroup());
+      groupsRepository.findActiveMemberById.mockResolvedValueOnce(
+        makeMember({ id: 'm-target', userId: thirdUserId, role: 'MEMBER' }),
+      );
+      usersRepository.findById.mockResolvedValue(makeUser({ id: thirdUserId }));
+      groupsRepository.transferOwnership.mockRejectedValue(
+        new Error('TARGET_STATE_CHANGED'),
+      );
+
+      await expect(
+        service.transferOwnership(groupId, userId, { memberId: 'm-target' }),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('maps TARGET_USER_NOT_ACTIVE to ConflictException', async () => {
+      groupsRepository.findActiveMember.mockResolvedValue(
+        makeMember({ id: 'm-owner', userId, role: 'OWNER' }),
+      );
+      groupsRepository.findById.mockResolvedValue(makeGroup());
+      groupsRepository.findActiveMemberById.mockResolvedValueOnce(
+        makeMember({ id: 'm-target', userId: thirdUserId, role: 'MEMBER' }),
+      );
+      usersRepository.findById.mockResolvedValue(makeUser({ id: thirdUserId }));
+      groupsRepository.transferOwnership.mockRejectedValue(
+        new Error('TARGET_USER_NOT_ACTIVE'),
+      );
+
+      await expect(
+        service.transferOwnership(groupId, userId, { memberId: 'm-target' }),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('rethrows unexpected repository errors as 500', async () => {
+      groupsRepository.findActiveMember.mockResolvedValue(
+        makeMember({ id: 'm-owner', userId, role: 'OWNER' }),
+      );
+      groupsRepository.findById.mockResolvedValue(makeGroup());
+      groupsRepository.findActiveMemberById.mockResolvedValueOnce(
+        makeMember({ id: 'm-target', userId: thirdUserId, role: 'MEMBER' }),
+      );
+      usersRepository.findById.mockResolvedValue(makeUser({ id: thirdUserId }));
+      groupsRepository.transferOwnership.mockRejectedValue(
+        new Error('database is down'),
+      );
+
+      await expect(
+        service.transferOwnership(groupId, userId, { memberId: 'm-target' }),
+      ).rejects.toBeInstanceOf(Error);
     });
   });
 

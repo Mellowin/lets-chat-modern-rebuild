@@ -872,6 +872,159 @@ describe('AccountDeletion E2E', () => {
       });
     });
 
+    it('allows only one of two concurrent group transfers from the same owner', async () => {
+      const owner = await createUser(`grp-concurrent-owner-${Date.now()}`);
+      const targetA = await createUser(`grp-concurrent-a-${Date.now()}`);
+      const targetB = await createUser(`grp-concurrent-b-${Date.now()}`);
+      const ownerToken = await signToken(owner.id, owner.email);
+
+      const group = await prisma.groupConversation.create({
+        data: {
+          name: `Group ${Date.now()}`,
+          createdById: owner.id,
+          members: {
+            create: [
+              { userId: owner.id, role: 'OWNER' },
+              { userId: targetA.id, role: 'MEMBER' },
+              { userId: targetB.id, role: 'MEMBER' },
+            ],
+          },
+        },
+        include: {
+          members: {
+            where: { leftAt: null },
+            select: { id: true, userId: true, role: true },
+          },
+        },
+      });
+      const memberA = group.members.find(
+        (m) => m.userId === targetA.id && m.role === 'MEMBER',
+      );
+      const memberB = group.members.find(
+        (m) => m.userId === targetB.id && m.role === 'MEMBER',
+      );
+      expect(memberA).toBeDefined();
+      expect(memberB).toBeDefined();
+
+      const [resA, resB] = (await Promise.allSettled([
+        request(app.getHttpServer())
+          .post(`/groups/${group.id}/owner`)
+          .set('Authorization', `Bearer ${ownerToken}`)
+          .send({ memberId: memberA!.id }),
+        request(app.getHttpServer())
+          .post(`/groups/${group.id}/owner`)
+          .set('Authorization', `Bearer ${ownerToken}`)
+          .send({ memberId: memberB!.id }),
+      ])) as [
+        PromiseSettledResult<request.Response>,
+        PromiseSettledResult<request.Response>,
+      ];
+
+      const getStatus = (result: PromiseSettledResult<request.Response>) => {
+        if (result.status === 'fulfilled') {
+          return result.value.status;
+        }
+        const reason = result.reason as { status?: number } | undefined;
+        return reason?.status;
+      };
+      const statusA = getStatus(resA);
+      const statusB = getStatus(resB);
+      const successCount = [statusA, statusB].filter((s) => s === 200).length;
+      expect(successCount).toBe(1);
+
+      const groupAfter = await prisma.groupConversation.findUnique({
+        where: { id: group.id },
+        include: {
+          members: {
+            where: { leftAt: null },
+            select: { userId: true, role: true },
+          },
+        },
+      });
+      const owners =
+        groupAfter?.members.filter((m) => m.role === 'OWNER') ?? [];
+      expect(owners).toHaveLength(1);
+      expect(owners[0]?.userId).not.toBe(owner.id);
+
+      await prisma.groupMessage.deleteMany({ where: { groupId: group.id } });
+      await prisma.groupMember.deleteMany({ where: { groupId: group.id } });
+      await prisma.groupConversation.delete({ where: { id: group.id } });
+      await prisma.user.deleteMany({
+        where: { id: { in: [owner.id, targetA.id, targetB.id] } },
+      });
+    });
+
+    it('returns 409 when group transfer target schedules deletion before the lock', async () => {
+      const owner = await createUser(`grp-race-owner-${Date.now()}`);
+      const target = await createUser(`grp-race-target-${Date.now()}`);
+      const ownerToken = await signToken(owner.id, owner.email);
+      const targetToken = await signToken(target.id, target.email);
+
+      const group = await prisma.groupConversation.create({
+        data: {
+          name: `Group ${Date.now()}`,
+          createdById: owner.id,
+          members: {
+            create: [
+              { userId: owner.id, role: 'OWNER' },
+              { userId: target.id, role: 'MEMBER' },
+            ],
+          },
+        },
+        include: {
+          members: {
+            where: { leftAt: null },
+            select: { id: true, userId: true, role: true },
+          },
+        },
+      });
+      const targetMember = group.members.find(
+        (m) => m.userId === target.id && m.role === 'MEMBER',
+      );
+      expect(targetMember).toBeDefined();
+
+      await Promise.allSettled([
+        request(app.getHttpServer())
+          .post('/auth/account-deletion/request')
+          .set('Authorization', `Bearer ${targetToken}`)
+          .set('Idempotency-Key', randomUUID())
+          .send({
+            currentPassword: target.password,
+            confirmationPhrase: 'DELETE MY ACCOUNT',
+          }),
+        request(app.getHttpServer())
+          .post(`/groups/${group.id}/owner`)
+          .set('Authorization', `Bearer ${ownerToken}`)
+          .send({ memberId: targetMember!.id }),
+      ]);
+
+      const transferResult = await request(app.getHttpServer())
+        .post(`/groups/${group.id}/owner`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({ memberId: targetMember!.id });
+
+      // If the deletion request won, the transfer must observe the target is no
+      // longer ACTIVE and return 409. If the transfer won, the deletion request
+      // would have been blocked by ownership.
+      const finalTarget = await prisma.user.findUnique({
+        where: { id: target.id },
+      });
+      if (finalTarget?.status === 'PENDING_DELETION') {
+        expect(transferResult.status).toBe(409);
+      }
+      expect(
+        finalTarget?.status === 'ACTIVE' ||
+          finalTarget?.status === 'PENDING_DELETION',
+      ).toBe(true);
+
+      await prisma.groupMessage.deleteMany({ where: { groupId: group.id } });
+      await prisma.groupMember.deleteMany({ where: { groupId: group.id } });
+      await prisma.groupConversation.delete({ where: { id: group.id } });
+      await prisma.user.deleteMany({
+        where: { id: { in: [owner.id, target.id] } },
+      });
+    });
+
     it('retries avatar cleanup after a failed first finalizer run', async () => {
       const avatarUpload = app.get(AvatarUploadService);
       const deleteAll = jest
@@ -956,6 +1109,122 @@ describe('AccountDeletion E2E', () => {
 
       const restored = await prisma.user.findUnique({ where: { id: user.id } });
       expect(restored?.status).toBe('ACTIVE');
+    });
+
+    it('rejects a revoked token after resend rotates the cancellation token', async () => {
+      const idempotencyKey = randomUUID();
+      await request(app.getHttpServer())
+        .post('/auth/account-deletion/request')
+        .set('Authorization', `Bearer ${token}`)
+        .set('Idempotency-Key', idempotencyKey)
+        .send({
+          currentPassword: user.password,
+          confirmationPhrase: 'DELETE MY ACCOUNT',
+        })
+        .expect(200);
+
+      const firstToken = lastDeletionToken;
+      expect(firstToken).not.toBeNull();
+
+      await request(app.getHttpServer())
+        .post('/auth/account-deletion/resend-cancellation')
+        .send({ email: user.email, currentPassword: user.password })
+        .expect(200);
+
+      const secondToken = lastDeletionToken;
+      expect(secondToken).not.toBeNull();
+      expect(secondToken).not.toBe(firstToken);
+
+      await request(app.getHttpServer())
+        .post('/auth/account-deletion/cancel')
+        .send({ token: firstToken })
+        .expect(404);
+
+      await request(app.getHttpServer())
+        .post('/auth/account-deletion/cancel')
+        .send({ token: secondToken })
+        .expect(200);
+
+      const restored = await prisma.user.findUnique({ where: { id: user.id } });
+      expect(restored?.status).toBe('ACTIVE');
+
+      const audits = await prisma.auditLog.findMany({
+        where: {
+          actorId: user.id,
+          action: 'account_deletion.cancelled',
+        },
+      });
+      expect(audits).toHaveLength(1);
+    });
+
+    it('serializes concurrent cancel and resend so the old token is rejected or a new token is usable', async () => {
+      const idempotencyKey = randomUUID();
+      await request(app.getHttpServer())
+        .post('/auth/account-deletion/request')
+        .set('Authorization', `Bearer ${token}`)
+        .set('Idempotency-Key', idempotencyKey)
+        .send({
+          currentPassword: user.password,
+          confirmationPhrase: 'DELETE MY ACCOUNT',
+        })
+        .expect(200);
+
+      const firstToken = lastDeletionToken;
+      expect(firstToken).not.toBeNull();
+
+      const [cancelRes, resendRes] = (await Promise.allSettled([
+        request(app.getHttpServer())
+          .post('/auth/account-deletion/cancel')
+          .send({ token: firstToken }),
+        request(app.getHttpServer())
+          .post('/auth/account-deletion/resend-cancellation')
+          .send({ email: user.email, currentPassword: user.password }),
+      ])) as [
+        PromiseSettledResult<request.Response>,
+        PromiseSettledResult<request.Response>,
+      ];
+
+      const getStatus = (result: PromiseSettledResult<request.Response>) => {
+        if (result.status === 'fulfilled') {
+          return result.value.status;
+        }
+        const reason = result.reason as { status?: number } | undefined;
+        return reason?.status;
+      };
+      const cancelStatus = getStatus(cancelRes);
+      const resendStatus = getStatus(resendRes);
+
+      const finalUser = await prisma.user.findUnique({
+        where: { id: user.id },
+      });
+      const secondToken = lastDeletionToken;
+
+      if (cancelStatus === 200) {
+        // Cancel won the race: account is ACTIVE and any new token from a late
+        // resend must not leave a usable cancellation token behind.
+        expect(finalUser?.status).toBe('ACTIVE');
+        expect(finalUser?.deletionCancellationTokenHash).toBeNull();
+      } else {
+        // Resend won: old token must be rejected, new token must work.
+        expect(resendStatus).toBe(200);
+        expect(secondToken).not.toBe(firstToken);
+        await request(app.getHttpServer())
+          .post('/auth/account-deletion/cancel')
+          .send({ token: firstToken })
+          .expect(404);
+        await request(app.getHttpServer())
+          .post('/auth/account-deletion/cancel')
+          .send({ token: secondToken })
+          .expect(200);
+      }
+
+      const audits = await prisma.auditLog.findMany({
+        where: {
+          actorId: user.id,
+          action: 'account_deletion.cancelled',
+        },
+      });
+      expect(audits.length).toBeLessThanOrEqual(1);
     });
 
     it('returns success even when confirmation email fails after cancellation', async () => {
