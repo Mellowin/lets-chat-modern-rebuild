@@ -174,6 +174,47 @@ describe('StorageService', () => {
     });
   });
 
+  describe('deleteObjectsByPrefix', () => {
+    it('lists and deletes all objects under the prefix', async () => {
+      s3SendMock
+        .mockResolvedValueOnce({
+          Contents: [
+            { Key: 'attachments/u1/a.png', LastModified: new Date(), Size: 1 },
+            { Key: 'attachments/u1/b.png', LastModified: new Date(), Size: 2 },
+          ],
+        })
+        .mockResolvedValue({});
+
+      const result = await service.deleteObjectsByPrefix('attachments/u1/');
+
+      expect(result).toBe(2);
+      expect(s3SendMock).toHaveBeenCalledWith(expect.any(ListObjectsV2Command));
+      expect(s3SendMock).toHaveBeenCalledTimes(3);
+      const deleteCalls = s3SendMock.mock.calls.filter(
+        (call: [unknown, ...unknown[]]) =>
+          call[0] instanceof DeleteObjectCommand,
+      );
+      expect(deleteCalls).toHaveLength(2);
+    });
+
+    it('counts already-deleted objects as deleted and continues', async () => {
+      s3SendMock
+        .mockResolvedValueOnce({
+          Contents: [
+            { Key: 'attachments/u1/a.png', LastModified: new Date(), Size: 1 },
+          ],
+        })
+        .mockRejectedValueOnce(
+          Object.assign(new Error('NotFound'), { name: 'NotFound' }),
+        )
+        .mockResolvedValue({});
+
+      const result = await service.deleteObjectsByPrefix('attachments/u1/');
+
+      expect(result).toBe(1);
+    });
+  });
+
   describe('onModuleInit', () => {
     it('logs that bucket exists when HeadBucket succeeds', async () => {
       s3SendMock.mockResolvedValue({});

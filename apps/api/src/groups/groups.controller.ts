@@ -28,12 +28,14 @@ import {
   ApiBadRequestResponse,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
+  ApiConflictResponse,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { GroupsService } from './groups.service';
 import { CreateGroupDto } from './dto/create-group.dto';
 import { UpdateGroupDto } from './dto/update-group.dto';
 import { AddGroupMemberDto } from './dto/add-group-member.dto';
+import { TransferGroupOwnershipDto } from './dto/transfer-group-ownership.dto';
 import { CreateGroupMessageDto } from './dto/create-group-message.dto';
 import { ListGroupMessagesQueryDto } from './dto/list-group-messages-query.dto';
 import { GroupMessageContextQueryDto } from './dto/message-context-query.dto';
@@ -150,6 +152,23 @@ export class GroupsController {
     @CurrentUser() user: AuthUserResponse,
   ) {
     return this.groups.leave(groupId, user.id);
+  }
+
+  @Post(':groupId/owner')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Transfer group ownership' })
+  @ApiOkResponse({ description: 'Ownership transferred' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiForbiddenResponse({ description: 'Forbidden' })
+  @ApiNotFoundResponse({ description: 'Group or member not found' })
+  @ApiConflictResponse({ description: 'Conflict' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async transferOwnership(
+    @Param('groupId', ParseUUIDPipe) groupId: string,
+    @Body() dto: TransferGroupOwnershipDto,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.groups.transferOwnership(groupId, user.id, dto);
   }
 
   @Get(':groupId/messages/:messageId/context')

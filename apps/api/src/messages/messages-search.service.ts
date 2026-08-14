@@ -9,6 +9,7 @@ import {
   ForwardedFromMetadata,
   ForwardedFromPayload,
 } from './forward-permissions.helper';
+import { mapAuthorResponse } from '../common/deleted-user-mapper';
 
 export interface SearchResult {
   id: string;
@@ -20,6 +21,7 @@ export interface SearchResult {
     username: string;
     displayName: string | null;
     avatarUrl: string | null;
+    isDeleted: boolean;
   };
   channel: {
     id: string;
@@ -35,6 +37,7 @@ export interface GlobalSearchAuthor {
   username: string;
   displayName: string | null;
   avatarUrl: string | null;
+  isDeleted: boolean;
 }
 
 export interface GlobalSearchChannelSource {
@@ -80,6 +83,26 @@ export interface GlobalSearchResponse {
   nextCursor: string | null;
 }
 
+interface RawSearchAuthor {
+  id: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  status?: string;
+}
+
+interface RawSearchResult extends Omit<SearchResult, 'author'> {
+  author: RawSearchAuthor;
+}
+
+interface RawGlobalSearchResult extends Omit<
+  GlobalSearchResult,
+  'author' | 'source'
+> {
+  author: RawSearchAuthor;
+  source: unknown;
+}
+
 @Injectable()
 export class MessagesSearchService {
   constructor(
@@ -107,7 +130,7 @@ export class MessagesSearchService {
     const q = query.q;
     const channelId = query.channelId ?? null;
 
-    const rows = await this.prisma.$queryRaw<SearchResult[]>`
+    const rawRows = await this.prisma.$queryRaw<RawSearchResult[]>`
       SELECT
         m.id,
         m.content,
@@ -118,7 +141,8 @@ export class MessagesSearchService {
           'id', u.id,
           'username', u.username,
           'displayName', u."displayName",
-          'avatarUrl', u."avatarUrl"
+          'avatarUrl', u."avatarUrl",
+          'status', u.status
         ) as author,
         jsonb_build_object(
           'id', c.id,
@@ -155,6 +179,7 @@ export class MessagesSearchService {
       LIMIT ${limit}
     `;
 
+    const rows = this.mapSearchAuthors(rawRows);
     return this.maskForwardedFrom(userId, rows);
   }
 
@@ -228,7 +253,9 @@ export class MessagesSearchService {
       ? Prisma.sql``
       : Prisma.sql`AND FALSE`;
 
-    const rows = await this.prisma.$queryRaw<GlobalSearchResult[]>(Prisma.sql`
+    const rawRows = await this.prisma.$queryRaw<
+      RawGlobalSearchResult[]
+    >(Prisma.sql`
       WITH accessible_channels AS (
         SELECT
           c.id AS channel_id,
@@ -292,7 +319,8 @@ export class MessagesSearchService {
           'id', u.id,
           'username', u.username,
           'displayName', u."displayName",
-          'avatarUrl', u."avatarUrl"
+          'avatarUrl', u."avatarUrl",
+          'status', u.status
         ) AS author,
         'CHANNEL'::text AS "sourceType",
         jsonb_build_object(
@@ -326,7 +354,8 @@ export class MessagesSearchService {
           'id', u.id,
           'username', u.username,
           'displayName', u."displayName",
-          'avatarUrl', u."avatarUrl"
+          'avatarUrl', u."avatarUrl",
+          'status', u.status
         ) AS author,
         'DIRECT'::text AS "sourceType",
         jsonb_build_object(
@@ -337,7 +366,8 @@ export class MessagesSearchService {
               'id', ou.id,
               'username', ou.username,
               'displayName', ou."displayName",
-              'avatarUrl', ou."avatarUrl"
+              'avatarUrl', ou."avatarUrl",
+              'status', ou.status
             )
             FROM "DirectConversationParticipant" dcp2
             JOIN "User" ou ON ou.id = dcp2."userId"
@@ -375,7 +405,8 @@ export class MessagesSearchService {
           'id', u.id,
           'username', u.username,
           'displayName', u."displayName",
-          'avatarUrl', u."avatarUrl"
+          'avatarUrl', u."avatarUrl",
+          'status', u.status
         ) AS author,
         'GROUP'::text AS "sourceType",
         jsonb_build_object(
@@ -398,11 +429,50 @@ export class MessagesSearchService {
       LIMIT ${limit + 1}
     `);
 
-    const hasMore = rows.length > limit;
+    const rows = this.mapGlobalSearchAuthors(rawRows);
+    const hasMore = rawRows.length > limit;
     const items = hasMore ? rows.slice(0, limit) : rows;
     const nextCursor = hasMore ? items[items.length - 1].id : null;
 
-    return { items: await this.maskForwardedFrom(userId, items), nextCursor };
+    return {
+      items: await this.maskForwardedFrom(userId, items),
+      nextCursor,
+    };
+  }
+
+  private mapSearchAuthor(raw: {
+    id: string;
+    username: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+    status?: string;
+  }): GlobalSearchAuthor {
+    return mapAuthorResponse(raw);
+  }
+
+  private mapSearchAuthors(rows: RawSearchResult[]): SearchResult[] {
+    return rows.map((row) => ({
+      ...row,
+      author: this.mapSearchAuthor(row.author),
+    }));
+  }
+
+  private mapGlobalSearchAuthors(
+    rows: RawGlobalSearchResult[],
+  ): GlobalSearchResult[] {
+    return rows.map((row) => {
+      const mapped: GlobalSearchResult = {
+        ...row,
+        author: this.mapSearchAuthor(row.author),
+        source: row.source as GlobalSearchResult['source'],
+      };
+      if (mapped.source.type === 'DIRECT' && mapped.source.otherParticipant) {
+        mapped.source.otherParticipant = this.mapSearchAuthor(
+          mapped.source.otherParticipant,
+        );
+      }
+      return mapped;
+    });
   }
 
   private async maskForwardedFrom<T extends { forwardedFrom?: unknown }>(

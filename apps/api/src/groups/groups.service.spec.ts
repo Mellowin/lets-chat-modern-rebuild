@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
@@ -22,6 +23,7 @@ import {
   UserRole,
   ContactPrivacySetting,
   StorageBackend,
+  UserStatus,
 } from '@lets-chat/database';
 
 const userId = '11111111-1111-1111-1111-111111111111';
@@ -49,6 +51,7 @@ function makeMember(
       username: 'bob',
       displayName: 'Bob',
       avatarUrl: null,
+      status: UserStatus.ACTIVE,
     },
     ...overrides,
   };
@@ -88,6 +91,14 @@ function makeUser(
     role: UserRole.USER,
     contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
     ...overrides,
+    status: UserStatus.ACTIVE,
+    deletionRequestedAt: null,
+    deletionScheduledFor: null,
+    deletionCancellationTokenHash: null,
+    deletionCancellationExpiresAt: null,
+    anonymizedAt: null,
+    avatarCleanupCompletedAt: null,
+    attachmentObjectsCleanupCompletedAt: null,
   };
 }
 
@@ -111,6 +122,7 @@ function makeGroup(
           username: 'alice',
           displayName: 'Alice',
           avatarUrl: null,
+          status: UserStatus.ACTIVE,
         },
       }),
       makeMember({ id: 'm-other' }),
@@ -137,6 +149,8 @@ function makeMessage(
       username: 'alice',
       displayName: 'Alice',
       avatarUrl: null,
+
+      status: UserStatus.ACTIVE,
     },
     attachments: [],
     replyToMessage: null,
@@ -160,6 +174,7 @@ function makePin(
       username: 'alice',
       displayName: 'Alice',
       avatarUrl: null,
+      status: UserStatus.ACTIVE,
     },
     message: {
       id: messageId,
@@ -175,6 +190,8 @@ function makePin(
         username: 'alice',
         displayName: 'Alice',
         avatarUrl: null,
+
+        status: UserStatus.ACTIVE,
       },
       attachments: [],
       replyToMessage: null,
@@ -206,6 +223,7 @@ describe('GroupsService', () => {
             archive: jest.fn(),
             findMember: jest.fn(),
             findActiveMember: jest.fn(),
+            findActiveMemberById: jest.fn(),
             listActiveMembers: jest.fn(),
             addMember: jest.fn(),
             removeMember: jest.fn(),
@@ -235,6 +253,9 @@ describe('GroupsService', () => {
             findById: jest.fn(),
             findByUsername: jest.fn(),
             findByEmail: jest.fn(),
+            findActiveById: jest.fn(),
+            findActiveByUsername: jest.fn(),
+            findActiveByEmail: jest.fn(),
             search: jest.fn(),
           },
         },
@@ -307,6 +328,9 @@ describe('GroupsService', () => {
     service = moduleRef.get(GroupsService);
     groupsRepository = moduleRef.get(GroupsRepository);
     usersRepository = moduleRef.get(UsersRepository);
+    usersRepository.findActiveById = usersRepository.findById;
+    usersRepository.findActiveByUsername = usersRepository.findByUsername;
+    usersRepository.findActiveByEmail = usersRepository.findByEmail;
     websocketEvents = moduleRef.get(WebsocketEventsService);
     pushService = moduleRef.get(PushService);
     forwardPermissions = moduleRef.get(ForwardPermissionsHelper);
@@ -475,6 +499,7 @@ describe('GroupsService', () => {
                 username: 'carol',
                 displayName: 'Carol',
                 avatarUrl: null,
+                status: UserStatus.ACTIVE,
               },
             }),
           ],
@@ -496,6 +521,138 @@ describe('GroupsService', () => {
       expect(
         websocketEvents.broadcastGroupConversationUpdated,
       ).toHaveBeenCalled();
+    });
+  });
+
+  describe('transferOwnership', () => {
+    it('transfers ownership to another member', async () => {
+      const targetMember = makeMember({
+        id: 'm-target',
+        userId: thirdUserId,
+        role: 'MEMBER',
+      });
+      groupsRepository.findActiveMember.mockResolvedValue(
+        makeMember({ id: 'm-owner', userId, role: 'OWNER' }),
+      );
+      groupsRepository.findActiveMemberById.mockResolvedValue(targetMember);
+      groupsRepository.findById
+        .mockResolvedValueOnce(makeGroup())
+        .mockResolvedValueOnce(
+          makeGroup({
+            members: [
+              makeMember({
+                id: 'm-owner',
+                userId,
+                role: 'MEMBER',
+                user: {
+                  id: userId,
+                  username: 'alice',
+                  displayName: 'Alice',
+                  avatarUrl: null,
+                  status: UserStatus.ACTIVE,
+                },
+              }),
+              makeMember({
+                id: 'm-target',
+                userId: thirdUserId,
+                role: 'OWNER',
+                user: {
+                  id: thirdUserId,
+                  username: 'carol',
+                  displayName: 'Carol',
+                  avatarUrl: null,
+                  status: UserStatus.ACTIVE,
+                },
+              }),
+            ],
+          }),
+        );
+      usersRepository.findById.mockResolvedValue(makeUser({ id: thirdUserId }));
+      groupsRepository.transferOwnership.mockResolvedValue(undefined);
+      groupsRepository.countUnreadMessages.mockResolvedValue(0);
+
+      const result = await service.transferOwnership(groupId, userId, {
+        memberId: targetMember.id,
+      });
+
+      expect(result.myRole).toBe('MEMBER');
+      expect(groupsRepository.transferOwnership).toHaveBeenCalledWith(
+        groupId,
+        userId,
+        thirdUserId,
+      );
+    });
+
+    it('maps OWNERSHIP_STATE_CHANGED to ConflictException', async () => {
+      groupsRepository.findActiveMember.mockResolvedValue(
+        makeMember({ id: 'm-owner', userId, role: 'OWNER' }),
+      );
+      groupsRepository.findById.mockResolvedValue(makeGroup());
+      groupsRepository.findActiveMemberById.mockResolvedValueOnce(
+        makeMember({ id: 'm-target', userId: thirdUserId, role: 'MEMBER' }),
+      );
+      usersRepository.findById.mockResolvedValue(makeUser({ id: thirdUserId }));
+      groupsRepository.transferOwnership.mockRejectedValue(
+        new Error('OWNERSHIP_STATE_CHANGED'),
+      );
+
+      await expect(
+        service.transferOwnership(groupId, userId, { memberId: 'm-target' }),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('maps TARGET_STATE_CHANGED to ConflictException', async () => {
+      groupsRepository.findActiveMember.mockResolvedValue(
+        makeMember({ id: 'm-owner', userId, role: 'OWNER' }),
+      );
+      groupsRepository.findById.mockResolvedValue(makeGroup());
+      groupsRepository.findActiveMemberById.mockResolvedValueOnce(
+        makeMember({ id: 'm-target', userId: thirdUserId, role: 'MEMBER' }),
+      );
+      usersRepository.findById.mockResolvedValue(makeUser({ id: thirdUserId }));
+      groupsRepository.transferOwnership.mockRejectedValue(
+        new Error('TARGET_STATE_CHANGED'),
+      );
+
+      await expect(
+        service.transferOwnership(groupId, userId, { memberId: 'm-target' }),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('maps TARGET_USER_NOT_ACTIVE to ConflictException', async () => {
+      groupsRepository.findActiveMember.mockResolvedValue(
+        makeMember({ id: 'm-owner', userId, role: 'OWNER' }),
+      );
+      groupsRepository.findById.mockResolvedValue(makeGroup());
+      groupsRepository.findActiveMemberById.mockResolvedValueOnce(
+        makeMember({ id: 'm-target', userId: thirdUserId, role: 'MEMBER' }),
+      );
+      usersRepository.findById.mockResolvedValue(makeUser({ id: thirdUserId }));
+      groupsRepository.transferOwnership.mockRejectedValue(
+        new Error('TARGET_USER_NOT_ACTIVE'),
+      );
+
+      await expect(
+        service.transferOwnership(groupId, userId, { memberId: 'm-target' }),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('rethrows unexpected repository errors as 500', async () => {
+      groupsRepository.findActiveMember.mockResolvedValue(
+        makeMember({ id: 'm-owner', userId, role: 'OWNER' }),
+      );
+      groupsRepository.findById.mockResolvedValue(makeGroup());
+      groupsRepository.findActiveMemberById.mockResolvedValueOnce(
+        makeMember({ id: 'm-target', userId: thirdUserId, role: 'MEMBER' }),
+      );
+      usersRepository.findById.mockResolvedValue(makeUser({ id: thirdUserId }));
+      groupsRepository.transferOwnership.mockRejectedValue(
+        new Error('database is down'),
+      );
+
+      await expect(
+        service.transferOwnership(groupId, userId, { memberId: 'm-target' }),
+      ).rejects.toBeInstanceOf(Error);
     });
   });
 
@@ -969,6 +1126,7 @@ describe('GroupsService', () => {
               size: 5678,
               storageKey: 'attachments/user/image.png',
               storageBackend: StorageBackend.MINIO,
+              deletedAt: null,
               createdAt: new Date(),
             },
           ],
@@ -1028,6 +1186,7 @@ describe('GroupsService', () => {
               size: 5678,
               storageKey: 'attachments/user/image.png',
               storageBackend: StorageBackend.MINIO,
+              deletedAt: null,
               createdAt: new Date(),
             },
           ],
@@ -1240,6 +1399,42 @@ describe('GroupsService', () => {
         pins.map((p) => p.message),
       );
       expect(forwardPermissions.toResponse).not.toHaveBeenCalled();
+    });
+
+    it('masks deleted users in pinned message author and pinnedBy', async () => {
+      groupsRepository.findById.mockResolvedValue(makeGroup());
+      groupsRepository.findPinnedMessages.mockResolvedValue([
+        makePin({
+          id: 'pin-deleted',
+          pinnedBy: {
+            id: otherUserId,
+            username: 'bob',
+            displayName: null,
+            avatarUrl: null,
+            status: UserStatus.ANONYMIZED,
+          },
+          message: makeMessage({
+            id: 'msg-deleted',
+            author: {
+              id: userId,
+              username: 'alice',
+              displayName: null,
+              avatarUrl: null,
+              status: UserStatus.ANONYMIZED,
+            },
+          }),
+        }),
+      ]);
+
+      const result = await service.listPinnedMessages(groupId, otherUserId, {});
+
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].message.author.username).toBe('');
+      expect(result.items[0].message.author.displayName).toBe('Deleted user');
+      expect(result.items[0].message.author.isDeleted).toBe(true);
+      expect(result.items[0].pinnedBy.username).toBe('');
+      expect(result.items[0].pinnedBy.displayName).toBe('Deleted user');
+      expect(result.items[0].pinnedBy.isDeleted).toBe(true);
     });
 
     it('throws BadRequestException for an invalid cursor', async () => {

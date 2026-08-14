@@ -27,6 +27,7 @@ import { ChannelsService } from './channels.service';
 import { CreateChannelDto } from './dto/create-channel.dto';
 import { UpdateChannelDto } from './dto/update-channel.dto';
 import { AddChannelMemberDto } from './dto/add-channel-member.dto';
+import { TransferChannelOwnershipDto } from './dto/transfer-channel-ownership.dto';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUserResponse } from '../auth/auth.service';
@@ -130,6 +131,29 @@ export class ChannelsController {
     @CurrentUser() user: AuthUserResponse,
   ) {
     return this.channels.listChannelMembers(workspaceId, channelId, user.id);
+  }
+
+  @Post(':channelId/transfer-ownership')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Transfer channel ownership' })
+  @ApiOkResponse({ description: 'Ownership transferred' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiConflictResponse({ description: 'Ownership state changed' })
+  @ApiForbiddenResponse({ description: 'Forbidden' })
+  @ApiNotFoundResponse({ description: 'Not found' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized' })
+  async transferOwnership(
+    @Param('workspaceId') workspaceId: string,
+    @Param('channelId') channelId: string,
+    @Body() dto: TransferChannelOwnershipDto,
+    @CurrentUser() user: AuthUserResponse,
+  ) {
+    return this.channels.transferChannelOwnership(
+      workspaceId,
+      channelId,
+      user.id,
+      dto,
+    );
   }
 
   @Post(':channelId/members')

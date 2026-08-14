@@ -159,6 +159,7 @@ export class WorkspacesRepository {
             username: true,
             displayName: true,
             avatarUrl: true,
+            status: true,
           },
         },
       },
@@ -177,7 +178,9 @@ export class WorkspacesRepository {
           select: {
             id: true,
             username: true,
+            displayName: true,
             avatarUrl: true,
+            status: true,
           },
         },
       },
@@ -196,7 +199,9 @@ export class WorkspacesRepository {
           select: {
             id: true,
             username: true,
+            displayName: true,
             avatarUrl: true,
+            status: true,
           },
         },
       },
@@ -214,6 +219,7 @@ export class WorkspacesRepository {
             username: true,
             displayName: true,
             avatarUrl: true,
+            status: true,
           },
         },
       },
@@ -258,6 +264,7 @@ export class WorkspacesRepository {
             username: true,
             displayName: true,
             avatarUrl: true,
+            status: true,
           },
         },
       },
@@ -272,6 +279,24 @@ export class WorkspacesRepository {
     targetUserId: string;
   }) {
     return this.prisma.$transaction(async (tx) => {
+      // Lock the target user row to serialize against account deletion scheduling
+      // for the same user. This guarantees a transfer and a deletion request
+      // cannot both commit in a conflicting order.
+      const lockedUsers = await tx.$queryRawUnsafe<
+        Array<{ id: string; status: string }>
+      >(
+        `SELECT id, status FROM "User" WHERE id = $1::uuid AND status = 'ACTIVE' FOR UPDATE`,
+        data.targetUserId,
+      );
+      if (!lockedUsers || lockedUsers.length === 0) {
+        throw new Error('TARGET_USER_NOT_ACTIVE');
+      }
+
+      const targetUser = lockedUsers[0];
+      if (targetUser.status !== 'ACTIVE') {
+        throw new Error('TARGET_USER_NOT_ACTIVE');
+      }
+
       const downgrade = await tx.workspaceMember.updateMany({
         where: {
           id: data.currentOwnerMemberId,

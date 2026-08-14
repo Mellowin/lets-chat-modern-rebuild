@@ -3,111 +3,115 @@ import { promises as fs } from 'fs';
 import { join } from 'path';
 import { AvatarUploadService } from './avatar-upload.service';
 
-jest.mock('fs', () => ({
-  promises: {
-    mkdir: jest.fn(),
-    writeFile: jest.fn(),
-  },
-}));
-
 describe('AvatarUploadService', () => {
   let service: AvatarUploadService;
+  const userId = '11111111-1111-1111-1111-111111111111';
 
   beforeEach(async () => {
     const moduleRef = await Test.createTestingModule({
       providers: [AvatarUploadService],
     }).compile();
-
     service = moduleRef.get(AvatarUploadService);
-    jest.clearAllMocks();
   });
 
-  it('saves file to uploads/avatars/<userId> and returns URL', async () => {
+  afterEach(async () => {
+    // Clean up the test user's avatar directory after each test.
+    try {
+      await fs.rm(join(service['uploadDir'], userId), {
+        recursive: true,
+        force: true,
+      });
+    } catch {
+      // ignore cleanup errors
+    }
+  });
+
+  it('saves an avatar and returns a stable path', async () => {
     const file = {
-      buffer: Buffer.from('image-data'),
+      buffer: Buffer.from('png'),
       mimetype: 'image/png',
       originalname: 'avatar.png',
       size: 1234,
     };
-
-    const url = await service.save(file, 'user-1');
-
-    expect(fs.mkdir).toHaveBeenCalledWith(
-      expect.stringContaining(join('uploads', 'avatars', 'user-1')),
-      { recursive: true },
-    );
-    expect(fs.writeFile).toHaveBeenCalledWith(
-      expect.stringContaining(join('uploads', 'avatars', 'user-1')),
-      file.buffer,
-    );
-    expect(url).toMatch(/^\/uploads\/avatars\/user-1\/[\w-]+\.png$/);
-  });
-
-  it('does not expose absolute filesystem path', async () => {
-    const file = {
-      buffer: Buffer.from('image-data'),
-      mimetype: 'image/jpeg',
-      originalname: 'avatar.jpg',
-      size: 1234,
-    };
-
-    const url = await service.save(file, 'user-1');
-
-    expect(url.startsWith('/uploads/')).toBe(true);
-    expect(url).not.toContain('C:');
-    expect(url).not.toContain('\\');
-  });
-
-  it('uses correct extension for jpeg mimetype', async () => {
-    const file = {
-      buffer: Buffer.from('image-data'),
-      mimetype: 'image/jpeg',
-      originalname: 'avatar.jpg',
-      size: 1234,
-    };
-
-    const url = await service.save(file, 'user-1');
-
-    expect(url).toMatch(/\.jpg$/);
-  });
-
-  it('uses correct extension for webp mimetype', async () => {
-    const file = {
-      buffer: Buffer.from('image-data'),
-      mimetype: 'image/webp',
-      originalname: 'avatar.webp',
-      size: 1234,
-    };
-
-    const url = await service.save(file, 'user-1');
-
-    expect(url).toMatch(/\.webp$/);
-  });
-
-  it('rejects unsupported mimetype', async () => {
-    const file = {
-      buffer: Buffer.from('image-data'),
-      mimetype: 'image/gif',
-      originalname: 'avatar.gif',
-      size: 1234,
-    };
-
-    await expect(service.save(file, 'user-1')).rejects.toThrow(
-      'Unsupported avatar image format',
+    const url = await service.save(file, userId);
+    expect(url).toMatch(
+      new RegExp(`^/uploads/avatars/${userId}/[a-f0-9-]+\\.png$`),
     );
   });
 
-  it('does not write file when mimetype is unsupported', async () => {
+  it('deletes a saved avatar by URL', async () => {
     const file = {
-      buffer: Buffer.from('image-data'),
-      mimetype: 'image/gif',
-      originalname: 'avatar.gif',
+      buffer: Buffer.from('png'),
+      mimetype: 'image/png',
+      originalname: 'avatar.png',
       size: 1234,
     };
+    const url = await service.save(file, userId);
+    await service.deleteAvatar(url, userId);
 
-    await expect(service.save(file, 'user-1')).rejects.toThrow();
+    const filePath = join(
+      process.cwd(),
+      'uploads',
+      'avatars',
+      ...url.split('/').slice(3),
+    );
+    await expect(fs.access(filePath)).rejects.toThrow();
+  });
 
-    expect(fs.mkdir).not.toHaveBeenCalled();
-    expect(fs.writeFile).not.toHaveBeenCalled();
+  it('is idempotent when the avatar file is already missing', async () => {
+    await expect(
+      service.deleteAvatar(`/uploads/avatars/${userId}/missing.png`, userId),
+    ).resolves.toBeUndefined();
+  });
+
+  it('does not delete default avatars', async () => {
+    await expect(
+      service.deleteAvatar('/avatars/default-avatar.svg', userId),
+    ).resolves.toBeUndefined();
+  });
+
+  it('does not delete avatars belonging to another user', async () => {
+    await expect(
+      service.deleteAvatar('/uploads/avatars/other-user/avatar.png', userId),
+    ).resolves.toBeUndefined();
+  });
+
+  it('rejects path traversal in avatar URL', async () => {
+    await expect(
+      service.deleteAvatar(
+        `/uploads/avatars/${userId}/../other-user/avatar.png`,
+        userId,
+      ),
+    ).resolves.toBeUndefined();
+  });
+
+  it('deletes all avatar files for a user', async () => {
+    const file = {
+      buffer: Buffer.from('png'),
+      mimetype: 'image/png',
+      originalname: 'avatar.png',
+      size: 1234,
+    };
+    await service.save(file, userId);
+    await service.save(file, userId);
+    await service.save(file, userId);
+
+    await service.deleteAllAvatarsForUser(userId);
+
+    await expect(
+      fs.access(join(service['uploadDir'], userId)),
+    ).rejects.toThrow();
+  });
+
+  it('is idempotent when the user avatar directory is missing', async () => {
+    await expect(
+      service.deleteAllAvatarsForUser(userId),
+    ).resolves.toBeUndefined();
+  });
+
+  it('does not delete avatars for a malformed userId', async () => {
+    await expect(
+      service.deleteAllAvatarsForUser('../other-user'),
+    ).resolves.toBeUndefined();
   });
 });

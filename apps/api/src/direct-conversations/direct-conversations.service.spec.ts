@@ -23,6 +23,7 @@ import {
   UserRole,
   ContactPrivacySetting,
   StorageBackend,
+  UserStatus,
 } from '@lets-chat/database';
 
 const userId = '11111111-1111-1111-1111-111111111111';
@@ -50,6 +51,7 @@ function makeConversation(
           username: 'alice',
           displayName: null,
           avatarUrl: null,
+          status: UserStatus.ACTIVE,
         },
       },
       {
@@ -63,6 +65,7 @@ function makeConversation(
           username: 'bob',
           displayName: 'Bob',
           avatarUrl: null,
+          status: UserStatus.ACTIVE,
         },
       },
     ],
@@ -92,6 +95,8 @@ function makeMessage(
       username: 'alice',
       displayName: null,
       avatarUrl: null,
+
+      status: UserStatus.ACTIVE,
     },
     parent: null,
     replyToMessage: null,
@@ -118,6 +123,7 @@ function makePin(
         username: 'alice',
         displayName: null,
         avatarUrl: null,
+        status: UserStatus.ACTIVE,
       },
       message: makeMessage(),
     };
@@ -174,6 +180,9 @@ describe('DirectConversationsService', () => {
             findById: jest.fn(),
             findByUsername: jest.fn(),
             findByEmail: jest.fn(),
+            findActiveById: jest.fn(),
+            findActiveByUsername: jest.fn(),
+            findActiveByEmail: jest.fn(),
           },
         },
         {
@@ -253,6 +262,9 @@ describe('DirectConversationsService', () => {
     service = moduleRef.get(DirectConversationsService);
     repository = moduleRef.get(DirectConversationsRepository);
     usersRepository = moduleRef.get(UsersRepository);
+    usersRepository.findActiveById = usersRepository.findById;
+    usersRepository.findActiveByUsername = usersRepository.findByUsername;
+    usersRepository.findActiveByEmail = usersRepository.findByEmail;
     websocketEvents = moduleRef.get(WebsocketEventsService);
     presence = moduleRef.get(PresenceService);
     forwardPermissions = moduleRef.get(ForwardPermissionsHelper);
@@ -431,6 +443,31 @@ describe('DirectConversationsService', () => {
         'bob@example.com',
       );
     });
+
+    it('masks deleted participant when returning existing conversation', async () => {
+      const conv = makeConversation();
+      conv.participants[1].user = {
+        ...conv.participants[1].user,
+        status: UserStatus.ANONYMIZED,
+      };
+      usersRepository.findById.mockResolvedValue({
+        id: otherUserId,
+        username: 'bob',
+        displayName: 'Bob',
+        avatarUrl: null,
+      } as Awaited<ReturnType<UsersRepository['findById']>>);
+      repository.findByKey.mockResolvedValue(conv);
+      repository.countUnreadMessages.mockResolvedValue(0);
+
+      const result = await service.create({ userId: otherUserId }, userId);
+      expect(result.otherParticipant).toEqual({
+        id: otherUserId,
+        username: '',
+        displayName: 'Deleted user',
+        avatarUrl: null,
+        isDeleted: true,
+      });
+    });
   });
 
   describe('list', () => {
@@ -473,6 +510,7 @@ describe('DirectConversationsService', () => {
               username: 'alice',
               displayName: null,
               avatarUrl: null,
+              status: UserStatus.ACTIVE,
             },
           },
           {
@@ -486,6 +524,7 @@ describe('DirectConversationsService', () => {
               username: 'bob',
               displayName: 'Bob',
               avatarUrl: null,
+              status: UserStatus.ACTIVE,
             },
           },
         ],
@@ -519,6 +558,40 @@ describe('DirectConversationsService', () => {
       const result = await service.list(userId);
       expect(result[0].isOnline).toBe(false);
     });
+
+    it('masks deleted other participant in conversation list', async () => {
+      const conv = makeConversation();
+      conv.participants[1].user = {
+        ...conv.participants[1].user,
+        status: UserStatus.ANONYMIZED,
+      };
+      repository.listForUser.mockResolvedValue([conv]);
+      repository.countUnreadMessages.mockResolvedValue(0);
+
+      const result = await service.list(userId);
+      expect(result[0].otherParticipant).toEqual({
+        id: otherUserId,
+        username: '',
+        displayName: 'Deleted user',
+        avatarUrl: null,
+        isDeleted: true,
+      });
+    });
+
+    it('masks pending-deletion other participant in conversation list', async () => {
+      const conv = makeConversation();
+      conv.participants[1].user = {
+        ...conv.participants[1].user,
+        status: UserStatus.PENDING_DELETION,
+      };
+      repository.listForUser.mockResolvedValue([conv]);
+      repository.countUnreadMessages.mockResolvedValue(0);
+
+      const result = await service.list(userId);
+      expect(result[0].otherParticipant?.isDeleted).toBe(true);
+      expect(result[0].otherParticipant?.username).toBe('');
+      expect(result[0].otherParticipant?.displayName).toBe('Deleted user');
+    });
   });
 
   describe('listMessages', () => {
@@ -550,6 +623,8 @@ describe('DirectConversationsService', () => {
             username: 'bob',
             displayName: 'Bob',
             avatarUrl: null,
+
+            status: UserStatus.ACTIVE,
           },
           authorId: otherUserId,
         }),
@@ -691,6 +766,8 @@ describe('DirectConversationsService', () => {
             username: 'bob',
             displayName: 'Bob',
             avatarUrl: null,
+
+            status: UserStatus.ACTIVE,
           },
         }),
       ]);
@@ -723,6 +800,8 @@ describe('DirectConversationsService', () => {
             username: 'bob',
             displayName: 'Bob',
             avatarUrl: null,
+
+            status: UserStatus.ACTIVE,
           },
         }),
       ]);
@@ -755,6 +834,8 @@ describe('DirectConversationsService', () => {
             username: 'bob',
             displayName: 'Bob',
             avatarUrl: null,
+
+            status: UserStatus.ACTIVE,
           },
         }),
       ]);
@@ -805,6 +886,8 @@ describe('DirectConversationsService', () => {
             username: 'bob',
             displayName: 'Bob',
             avatarUrl: null,
+
+            status: UserStatus.ACTIVE,
           },
         }),
       ]);
@@ -1324,6 +1407,7 @@ describe('DirectConversationsService', () => {
               size: 1234,
               storageKey: 'attachments/user/doc.pdf',
               storageBackend: StorageBackend.MINIO,
+              deletedAt: null,
               createdAt: new Date(),
             },
           ],
@@ -1399,6 +1483,7 @@ describe('DirectConversationsService', () => {
               size: 1234,
               storageKey: 'attachments/user/doc.pdf',
               storageBackend: StorageBackend.MINIO,
+              deletedAt: null,
               createdAt: new Date(),
             },
           ],
@@ -1484,6 +1569,8 @@ describe('DirectConversationsService', () => {
               username: 'bob',
               displayName: 'Bob',
               avatarUrl: null,
+
+              status: UserStatus.ACTIVE,
             },
           },
         }),
@@ -2099,6 +2186,14 @@ describe('DirectConversationsService', () => {
         emailChangeTokenHash: null,
         emailChangeExpiresAt: null,
         emailChangeSentAt: null,
+        status: UserStatus.ACTIVE,
+        deletionRequestedAt: null,
+        deletionScheduledFor: null,
+        deletionCancellationTokenHash: null,
+        deletionCancellationExpiresAt: null,
+        anonymizedAt: null,
+        avatarCleanupCompletedAt: null,
+        attachmentObjectsCleanupCompletedAt: null,
       });
 
       const result = await service.addReaction(
@@ -2253,6 +2348,14 @@ describe('DirectConversationsService', () => {
         emailChangeTokenHash: null,
         emailChangeExpiresAt: null,
         emailChangeSentAt: null,
+        status: UserStatus.ACTIVE,
+        deletionRequestedAt: null,
+        deletionScheduledFor: null,
+        deletionCancellationTokenHash: null,
+        deletionCancellationExpiresAt: null,
+        anonymizedAt: null,
+        avatarCleanupCompletedAt: null,
+        attachmentObjectsCleanupCompletedAt: null,
       });
 
       const result = await service.addReaction(
@@ -2331,6 +2434,14 @@ describe('DirectConversationsService', () => {
         emailChangeTokenHash: null,
         emailChangeExpiresAt: null,
         emailChangeSentAt: null,
+        status: UserStatus.ACTIVE,
+        deletionRequestedAt: null,
+        deletionScheduledFor: null,
+        deletionCancellationTokenHash: null,
+        deletionCancellationExpiresAt: null,
+        anonymizedAt: null,
+        avatarCleanupCompletedAt: null,
+        attachmentObjectsCleanupCompletedAt: null,
       });
 
       const result = await service.addReaction(
@@ -2417,6 +2528,14 @@ describe('DirectConversationsService', () => {
         emailChangeTokenHash: null,
         emailChangeExpiresAt: null,
         emailChangeSentAt: null,
+        status: UserStatus.ACTIVE,
+        deletionRequestedAt: null,
+        deletionScheduledFor: null,
+        deletionCancellationTokenHash: null,
+        deletionCancellationExpiresAt: null,
+        anonymizedAt: null,
+        avatarCleanupCompletedAt: null,
+        attachmentObjectsCleanupCompletedAt: null,
       });
 
       const result = await service.addReaction(
@@ -2501,6 +2620,14 @@ describe('DirectConversationsService', () => {
         emailChangeTokenHash: null,
         emailChangeExpiresAt: null,
         emailChangeSentAt: null,
+        status: UserStatus.ACTIVE,
+        deletionRequestedAt: null,
+        deletionScheduledFor: null,
+        deletionCancellationTokenHash: null,
+        deletionCancellationExpiresAt: null,
+        anonymizedAt: null,
+        avatarCleanupCompletedAt: null,
+        attachmentObjectsCleanupCompletedAt: null,
       });
 
       const result = await service.addReaction(
@@ -2584,6 +2711,14 @@ describe('DirectConversationsService', () => {
         emailChangeTokenHash: null,
         emailChangeExpiresAt: null,
         emailChangeSentAt: null,
+        status: UserStatus.ACTIVE,
+        deletionRequestedAt: null,
+        deletionScheduledFor: null,
+        deletionCancellationTokenHash: null,
+        deletionCancellationExpiresAt: null,
+        anonymizedAt: null,
+        avatarCleanupCompletedAt: null,
+        attachmentObjectsCleanupCompletedAt: null,
       });
 
       await service.addReaction(
@@ -2670,6 +2805,14 @@ describe('DirectConversationsService', () => {
         emailChangeTokenHash: null,
         emailChangeExpiresAt: null,
         emailChangeSentAt: null,
+        status: UserStatus.ACTIVE,
+        deletionRequestedAt: null,
+        deletionScheduledFor: null,
+        deletionCancellationTokenHash: null,
+        deletionCancellationExpiresAt: null,
+        anonymizedAt: null,
+        avatarCleanupCompletedAt: null,
+        attachmentObjectsCleanupCompletedAt: null,
       });
 
       await service.addReaction(
@@ -2795,6 +2938,14 @@ describe('DirectConversationsService', () => {
         emailChangeTokenHash: null,
         emailChangeExpiresAt: null,
         emailChangeSentAt: null,
+        status: UserStatus.ACTIVE,
+        deletionRequestedAt: null,
+        deletionScheduledFor: null,
+        deletionCancellationTokenHash: null,
+        deletionCancellationExpiresAt: null,
+        anonymizedAt: null,
+        avatarCleanupCompletedAt: null,
+        attachmentObjectsCleanupCompletedAt: null,
       });
 
       await service.removeReaction(conversationId, messageId, '👍', userId);
@@ -2885,6 +3036,14 @@ describe('DirectConversationsService', () => {
         emailChangeTokenHash: null,
         emailChangeExpiresAt: null,
         emailChangeSentAt: null,
+        status: UserStatus.ACTIVE,
+        deletionRequestedAt: null,
+        deletionScheduledFor: null,
+        deletionCancellationTokenHash: null,
+        deletionCancellationExpiresAt: null,
+        anonymizedAt: null,
+        avatarCleanupCompletedAt: null,
+        attachmentObjectsCleanupCompletedAt: null,
       });
 
       await service.removeReaction(conversationId, messageId, '👍', userId);
@@ -3325,6 +3484,52 @@ describe('DirectConversationsService', () => {
         pins.map((p) => p.message),
       );
       expect(forwardPermissions.toResponse).not.toHaveBeenCalled();
+    });
+
+    it('masks deleted users in pinned message author and pinnedBy', async () => {
+      repository.findParticipant.mockResolvedValue({
+        id: 'p-current',
+        conversationId,
+        userId,
+        createdAt: new Date(),
+        lastReadAt: new Date(),
+      });
+      repository.findPinnedMessages.mockResolvedValue([
+        makePin({
+          id: 'pin-deleted',
+          pinnedBy: {
+            id: otherUserId,
+            username: 'bob',
+            displayName: null,
+            avatarUrl: null,
+            status: UserStatus.ANONYMIZED,
+          },
+          message: makeMessage({
+            id: 'msg-deleted',
+            author: {
+              id: userId,
+              username: 'alice',
+              displayName: null,
+              avatarUrl: null,
+              status: UserStatus.ANONYMIZED,
+            },
+          }),
+        }),
+      ]);
+
+      const result = await service.listPinnedMessages(
+        conversationId,
+        userId,
+        {},
+      );
+
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].message.author.username).toBe('');
+      expect(result.items[0].message.author.displayName).toBe('Deleted user');
+      expect(result.items[0].message.author.isDeleted).toBe(true);
+      expect(result.items[0].pinnedBy.username).toBe('');
+      expect(result.items[0].pinnedBy.displayName).toBe('Deleted user');
+      expect(result.items[0].pinnedBy.isDeleted).toBe(true);
     });
   });
 });

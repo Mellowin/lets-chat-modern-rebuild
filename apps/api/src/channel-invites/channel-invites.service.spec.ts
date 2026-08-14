@@ -10,6 +10,7 @@ import {
   ChannelType,
   ChannelRole,
   WorkspaceRole,
+  UserStatus,
 } from '@lets-chat/database';
 import { ChannelInvitesService } from './channel-invites.service';
 import { ChannelInvitesRepository } from './channel-invites.repository';
@@ -72,6 +73,9 @@ describe('ChannelInvitesService', () => {
           useValue: {
             findByEmail: jest.fn(),
             findByUsername: jest.fn(),
+            findActiveById: jest.fn(),
+            findActiveByEmail: jest.fn(),
+            findActiveByUsername: jest.fn(),
           },
         },
         {
@@ -88,6 +92,9 @@ describe('ChannelInvitesService', () => {
     channelsRepository = moduleRef.get(ChannelsRepository);
     workspacesRepository = moduleRef.get(WorkspacesRepository);
     usersRepository = moduleRef.get(UsersRepository);
+    usersRepository.findActiveById = usersRepository.findById;
+    usersRepository.findActiveByEmail = usersRepository.findByEmail;
+    usersRepository.findActiveByUsername = usersRepository.findByUsername;
     auditService = moduleRef.get(AuditService);
   });
 
@@ -180,6 +187,14 @@ describe('ChannelInvitesService', () => {
       role: UserRole.USER,
       contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
       ...overrides,
+      status: UserStatus.ACTIVE,
+      deletionRequestedAt: null,
+      deletionScheduledFor: null,
+      deletionCancellationTokenHash: null,
+      deletionCancellationExpiresAt: null,
+      anonymizedAt: null,
+      avatarCleanupCompletedAt: null,
+      attachmentObjectsCleanupCompletedAt: null,
     };
   }
 
@@ -194,7 +209,13 @@ describe('ChannelInvitesService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
       deletedAt: null,
-      user: { id: targetUserId, username: 'bob', avatarUrl: null },
+      user: {
+        id: targetUserId,
+        username: 'bob',
+        displayName: null,
+        avatarUrl: null,
+        status: 'ACTIVE' as const,
+      },
       ...overrides,
     };
   }
@@ -210,7 +231,13 @@ describe('ChannelInvitesService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
       deletedAt: null,
-      user: { id: targetUserId, username: 'bob', avatarUrl: null },
+      user: {
+        id: targetUserId,
+        username: 'bob',
+        displayName: null,
+        avatarUrl: null,
+        status: 'ACTIVE' as const,
+      },
       ...overrides,
     };
   }

@@ -31,6 +31,11 @@ import {
 } from '../messages/attachments.service';
 import { StorageService } from '../storage/storage.service';
 import { AttachmentsRepository } from '../messages/attachments.repository';
+import {
+  isDeletedUser,
+  DELETED_USER_DISPLAY_NAME,
+  mapAuthorResponse,
+} from '../common/deleted-user-mapper';
 import { DirectConversationsRepository } from './direct-conversations.repository';
 import { StorageBackend, Prisma } from '@lets-chat/database';
 import { randomUUID } from 'crypto';
@@ -87,12 +92,7 @@ export class DirectConversationsService {
       createdAt: conversation.createdAt,
       updatedAt: conversation.updatedAt,
       otherParticipant: otherParticipant
-        ? {
-            id: otherParticipant.id,
-            username: otherParticipant.username,
-            displayName: otherParticipant.displayName,
-            avatarUrl: otherParticipant.avatarUrl,
-          }
+        ? this.mapParticipantResponse(otherParticipant)
         : null,
       lastMessage: lastMessage
         ? {
@@ -107,6 +107,31 @@ export class DirectConversationsService {
       isOnline: otherParticipant
         ? await this.presence.isUserTracked(otherParticipant.id)
         : false,
+    };
+  }
+
+  private mapParticipantResponse(participant: {
+    id: string;
+    username: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+    status?: string;
+  }) {
+    if (isDeletedUser(participant)) {
+      return {
+        id: participant.id,
+        username: '',
+        displayName: DELETED_USER_DISPLAY_NAME,
+        avatarUrl: null,
+        isDeleted: true,
+      };
+    }
+    return {
+      id: participant.id,
+      username: participant.username,
+      displayName: participant.displayName,
+      avatarUrl: participant.avatarUrl,
+      isDeleted: false,
     };
   }
 
@@ -160,18 +185,18 @@ export class DirectConversationsService {
               : message.replyToMessage.content,
             author: message.replyToMessage.deletedAt
               ? null
-              : message.replyToMessage.author,
+              : mapAuthorResponse(message.replyToMessage.author),
           }
         : null,
       createdAt: message.createdAt,
       updatedAt: message.updatedAt,
       editedAt: message.editedAt,
-      author: message.author,
+      author: mapAuthorResponse(message.author),
       parent: message.parent
         ? {
             id: message.parent.id,
             content: message.parent.content,
-            author: message.parent.author,
+            author: mapAuthorResponse(message.parent.author),
           }
         : null,
       reactions: reactions ?? [],
@@ -234,6 +259,7 @@ export class DirectConversationsService {
         username: string;
         displayName: string | null;
         avatarUrl: string | null;
+        status?: string;
       } | null;
       message: {
         id: string;
@@ -244,6 +270,7 @@ export class DirectConversationsService {
           username: string;
           displayName: string | null;
           avatarUrl: string | null;
+          status?: string;
         } | null;
         attachments: Array<{ id: string }>;
         replyToMessage?: {
@@ -255,6 +282,7 @@ export class DirectConversationsService {
             username: string;
             displayName: string | null;
             avatarUrl: string | null;
+            status?: string;
           } | null;
         } | null;
         forwardedFrom?: unknown;
@@ -279,6 +307,7 @@ export class DirectConversationsService {
         username: string;
         displayName: string | null;
         avatarUrl: string | null;
+        status?: string;
       } | null;
       message: {
         id: string;
@@ -289,6 +318,7 @@ export class DirectConversationsService {
           username: string;
           displayName: string | null;
           avatarUrl: string | null;
+          status?: string;
         } | null;
         attachments: Array<{ id: string }>;
         replyToMessage?: {
@@ -300,6 +330,7 @@ export class DirectConversationsService {
             username: string;
             displayName: string | null;
             avatarUrl: string | null;
+            status?: string;
           } | null;
         } | null;
         forwardedFrom?: unknown;
@@ -312,23 +343,27 @@ export class DirectConversationsService {
       id: pin.id,
       pinnedAt: pin.pinnedAt,
       pinnedBy: pin.pinnedBy
-        ? {
-            id: pin.pinnedBy.id,
-            username: pin.pinnedBy.username,
-            displayName: pin.pinnedBy.displayName,
-          }
-        : { id: '', username: '', displayName: null },
+        ? mapAuthorResponse(pin.pinnedBy)
+        : {
+            id: '',
+            username: '',
+            displayName: null,
+            avatarUrl: null,
+            isDeleted: false,
+          },
       message: {
         id: pin.message.id,
         content: pin.message.content,
         createdAt: pin.message.createdAt,
         author: pin.message.author
-          ? {
-              id: pin.message.author.id,
-              username: pin.message.author.username,
-              displayName: pin.message.author.displayName,
-            }
-          : { id: '', username: '', displayName: null },
+          ? mapAuthorResponse(pin.message.author)
+          : {
+              id: '',
+              username: '',
+              displayName: null,
+              avatarUrl: null,
+              isDeleted: false,
+            },
         attachmentCount: pin.message.attachments?.length ?? 0,
         replyTo: pin.message.replyToMessage
           ? {
@@ -339,12 +374,7 @@ export class DirectConversationsService {
               author: pin.message.replyToMessage.deletedAt
                 ? null
                 : pin.message.replyToMessage.author
-                  ? {
-                      id: pin.message.replyToMessage.author.id,
-                      username: pin.message.replyToMessage.author.username,
-                      displayName:
-                        pin.message.replyToMessage.author.displayName,
-                    }
+                  ? mapAuthorResponse(pin.message.replyToMessage.author)
                   : null,
             }
           : null,
@@ -361,14 +391,14 @@ export class DirectConversationsService {
     let targetUser = null;
 
     if (dto.userId) {
-      targetUser = await this.users.findById(dto.userId);
+      targetUser = await this.users.findActiveById(dto.userId);
     }
 
     if (!targetUser && dto.usernameOrEmail) {
       const trimmed = dto.usernameOrEmail.trim();
-      targetUser = await this.users.findByUsername(trimmed);
+      targetUser = await this.users.findActiveByUsername(trimmed);
       if (!targetUser) {
-        targetUser = await this.users.findByEmail(trimmed);
+        targetUser = await this.users.findActiveByEmail(trimmed);
       }
     }
 
@@ -1173,13 +1203,14 @@ export class DirectConversationsService {
       pinnedAt: pin.pinnedAt,
       pinnedByUserId: userId,
       pinnedBy: pin.pinnedBy
-        ? {
-            id: pin.pinnedBy.id,
-            username: pin.pinnedBy.username,
-            displayName: pin.pinnedBy.displayName,
-            avatarUrl: pin.pinnedBy.avatarUrl,
-          }
-        : { id: userId, username: '', displayName: null, avatarUrl: null },
+        ? mapAuthorResponse(pin.pinnedBy)
+        : {
+            id: userId,
+            username: '',
+            displayName: null,
+            avatarUrl: null,
+            isDeleted: false,
+          },
     });
 
     return this.mapPinResponse(pin, userId);

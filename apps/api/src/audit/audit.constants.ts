@@ -15,6 +15,11 @@ export const AuditAction = {
   PASSWORD_RESET_COMPLETED: 'auth.password_reset.completed',
   SESSION_REVOKED: 'auth.session.revoked',
   DEMO_SESSION_CREATED: 'demo.session.created',
+  ACCOUNT_DELETION_REQUESTED: 'account_deletion.requested',
+  ACCOUNT_DELETION_CANCELLED: 'account_deletion.cancelled',
+  ACCOUNT_DELETION_CANCELLATION_RESENT: 'account_deletion.cancellation_resent',
+  ACCOUNT_DELETION_FINALIZED: 'account_deletion.finalized',
+  USER_DATA_EXPORTED: 'user_data.exported',
 
   // Workspace
   WORKSPACE_CREATED: 'workspace.created',
@@ -34,6 +39,7 @@ export const AuditAction = {
   CHANNEL_DELETED: 'channel.deleted',
   CHANNEL_MEMBER_ADDED: 'channel.member.added',
   CHANNEL_MEMBER_REMOVED: 'channel.member.removed',
+  CHANNEL_OWNERSHIP_TRANSFERRED: 'channel.ownership.transferred',
   CHANNEL_INVITE_CREATED: 'channel.invite.created',
   CHANNEL_INVITE_ACCEPTED: 'channel.invite.accepted',
   CHANNEL_INVITE_REVOKED: 'channel.invite.revoked',
@@ -45,6 +51,7 @@ export const AuditAction = {
   GROUP_MEMBER_ADDED: 'group.member.added',
   GROUP_MEMBER_REMOVED: 'group.member.removed',
   GROUP_MEMBER_LEFT: 'group.member.left',
+  GROUP_OWNERSHIP_TRANSFERRED: 'group.ownership.transferred',
   GROUP_INVITE_LINK_CREATED: 'group.invite_link.created',
   GROUP_INVITE_LINK_REVOKED: 'group.invite_link.revoked',
   GROUP_INVITE_LINK_USED: 'group.invite_link.used',

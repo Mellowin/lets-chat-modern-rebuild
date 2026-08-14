@@ -33,6 +33,7 @@ const authorSelect = {
   username: true,
   displayName: true,
   avatarUrl: true,
+  status: true,
 } as const;
 
 const groupMessageInclude = {
@@ -40,7 +41,6 @@ const groupMessageInclude = {
     select: authorSelect,
   },
   attachments: {
-    where: { deletedAt: null },
     select: {
       id: true,
       filename: true,
@@ -48,6 +48,7 @@ const groupMessageInclude = {
       size: true,
       storageKey: true,
       storageBackend: true,
+      deletedAt: true,
       createdAt: true,
     },
   },
@@ -103,6 +104,7 @@ export class GroupsRepository {
                 username: true,
                 displayName: true,
                 avatarUrl: true,
+                status: true,
               },
             },
           },
@@ -134,6 +136,7 @@ export class GroupsRepository {
                 username: true,
                 displayName: true,
                 avatarUrl: true,
+                status: true,
               },
             },
           },
@@ -174,6 +177,7 @@ export class GroupsRepository {
                 username: true,
                 displayName: true,
                 avatarUrl: true,
+                status: true,
               },
             },
           },
@@ -206,6 +210,7 @@ export class GroupsRepository {
                 username: true,
                 displayName: true,
                 avatarUrl: true,
+                status: true,
               },
             },
           },
@@ -247,6 +252,16 @@ export class GroupsRepository {
       where: {
         groupId,
         userId,
+        leftAt: null,
+      },
+    });
+  }
+
+  async findActiveMemberById(groupId: string, memberId: string) {
+    return this.prisma.groupMember.findFirst({
+      where: {
+        id: memberId,
+        groupId,
         leftAt: null,
       },
     });
@@ -338,22 +353,78 @@ export class GroupsRepository {
     fromUserId: string,
     toUserId: string,
   ) {
-    await this.prisma.groupMember.updateMany({
-      where: {
+    return this.prisma.$transaction(async (tx) => {
+      // Lock the current owner's active membership and recheck authority inside
+      // the transaction. Two concurrent transfers from the same owner would both
+      // pass the service-level requireOwner check; this lock serializes them.
+      const lockedOwners = await tx.$queryRawUnsafe<
+        Array<{ id: string; role: string }>
+      >(
+        `SELECT id, role FROM "GroupMember" WHERE "groupId" = $1::uuid AND "userId" = $2::uuid AND "leftAt" IS NULL FOR UPDATE`,
         groupId,
-        userId: fromUserId,
-        role: 'OWNER',
-        leftAt: null,
-      },
-      data: { role: 'MEMBER' },
-    });
-    await this.prisma.groupMember.updateMany({
-      where: {
+        fromUserId,
+      );
+      if (!lockedOwners || lockedOwners.length === 0) {
+        throw new Error('OWNERSHIP_STATE_CHANGED');
+      }
+      if (lockedOwners[0].role !== 'OWNER') {
+        throw new Error('OWNERSHIP_STATE_CHANGED');
+      }
+
+      // Lock the target user row to serialize against account deletion scheduling.
+      const lockedUsers = await tx.$queryRawUnsafe<
+        Array<{ id: string; status: string }>
+      >(
+        `SELECT id, status FROM "User" WHERE id = $1::uuid AND status = 'ACTIVE' FOR UPDATE`,
+        toUserId,
+      );
+      if (!lockedUsers || lockedUsers.length === 0) {
+        throw new Error('TARGET_USER_NOT_ACTIVE');
+      }
+      if (lockedUsers[0].status !== 'ACTIVE') {
+        throw new Error('TARGET_USER_NOT_ACTIVE');
+      }
+
+      // Lock the target membership and ensure it is still an active non-owner.
+      const lockedTargets = await tx.$queryRawUnsafe<
+        Array<{ id: string; role: string }>
+      >(
+        `SELECT id, role FROM "GroupMember" WHERE "groupId" = $1::uuid AND "userId" = $2::uuid AND "leftAt" IS NULL FOR UPDATE`,
         groupId,
-        userId: toUserId,
-        leftAt: null,
-      },
-      data: { role: 'OWNER' },
+        toUserId,
+      );
+      if (!lockedTargets || lockedTargets.length === 0) {
+        throw new Error('TARGET_STATE_CHANGED');
+      }
+      if (lockedTargets[0].role === 'OWNER') {
+        throw new Error('TARGET_STATE_CHANGED');
+      }
+
+      const demoted = await tx.groupMember.updateMany({
+        where: {
+          groupId,
+          userId: fromUserId,
+          role: 'OWNER',
+          leftAt: null,
+        },
+        data: { role: 'MEMBER' },
+      });
+      if (demoted.count !== 1) {
+        throw new Error('OWNERSHIP_STATE_CHANGED');
+      }
+
+      const promoted = await tx.groupMember.updateMany({
+        where: {
+          groupId,
+          userId: toUserId,
+          leftAt: null,
+          role: 'MEMBER',
+        },
+        data: { role: 'OWNER' },
+      });
+      if (promoted.count !== 1) {
+        throw new Error('TARGET_STATE_CHANGED');
+      }
     });
   }
 
@@ -526,12 +597,12 @@ export class GroupsRepository {
               select: authorSelect,
             },
             attachments: {
-              where: { deletedAt: null },
               select: {
                 id: true,
                 filename: true,
                 mimeType: true,
                 size: true,
+                deletedAt: true,
                 createdAt: true,
               },
             },
@@ -576,12 +647,12 @@ export class GroupsRepository {
               select: authorSelect,
             },
             attachments: {
-              where: { deletedAt: null },
               select: {
                 id: true,
                 filename: true,
                 mimeType: true,
                 size: true,
+                deletedAt: true,
                 createdAt: true,
               },
             },

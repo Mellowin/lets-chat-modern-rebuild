@@ -9,6 +9,7 @@ import { GroupsRepository } from './groups.repository';
 import { GroupInvitesRepository } from './group-invites.repository';
 import { GroupsService } from './groups.service';
 import { WebsocketEventsService } from '../websocket/websocket-events.service';
+import { UserStatus } from '@lets-chat/database';
 
 const userId = '11111111-1111-1111-1111-111111111111';
 const otherUserId = '22222222-2222-2222-2222-222222222222';
@@ -33,6 +34,7 @@ function makeGroup(archived = false) {
           username: 'alice',
           displayName: 'Alice',
           avatarUrl: null,
+          status: UserStatus.ACTIVE,
         },
         role: 'OWNER' as const,
         joinedAt: new Date(),
@@ -48,6 +50,7 @@ function makeGroup(archived = false) {
           username: 'bob',
           displayName: 'Bob',
           avatarUrl: null,
+          status: UserStatus.ACTIVE,
         },
         role: 'MEMBER' as const,
         joinedAt: new Date(),

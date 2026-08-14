@@ -101,4 +101,14 @@ describe("MessageAuthor", () => {
     );
     expect(screen.getByText("Неизвестный пользователь")).toBeInTheDocument();
   });
+
+  it("shows localized 'Deleted user' when author is deleted", () => {
+    render(
+      <MessageAuthor
+        author={{ id: "u1", username: "deleted_u1", displayName: "Deleted", avatarUrl: null, isDeleted: true }}
+      />,
+    );
+    expect(screen.getByText("Deleted user")).toBeInTheDocument();
+    expect(screen.queryByText("deleted_u1")).not.toBeInTheDocument();
+  });
 });

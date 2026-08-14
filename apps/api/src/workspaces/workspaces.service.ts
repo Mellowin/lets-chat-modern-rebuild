@@ -17,6 +17,7 @@ import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
 import { TransferOwnershipDto } from './dto/transfer-ownership.dto';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction, AuditEntityType } from '../audit/audit.constants';
+import { mapAuthorResponse } from '../common/deleted-user-mapper';
 
 @Injectable()
 export class WorkspacesService {
@@ -241,12 +242,13 @@ export class WorkspacesService {
       workspaceId: updated.workspaceId,
       role: updated.role,
       joinedAt: updated.createdAt,
-      user: {
+      user: mapAuthorResponse({
         id: updated.user.id,
         username: updated.user.username,
         displayName: updated.user.displayName,
         avatarUrl: updated.user.avatarUrl,
-      },
+        status: updated.user.status,
+      }),
     };
   }
 
@@ -355,6 +357,13 @@ export class WorkspacesService {
       throw new BadRequestException('Cannot transfer ownership to yourself');
     }
 
+    const targetUser = await this.users.findById(targetMember.userId);
+    if (!targetUser || targetUser.status !== 'ACTIVE') {
+      throw new ForbiddenException(
+        'Cannot transfer ownership to a user with pending or deleted account',
+      );
+    }
+
     const currentOwnerMember = await this.workspaces.findActiveMemberByUserId(
       workspaceId,
       userId,
@@ -394,7 +403,8 @@ export class WorkspacesService {
         error instanceof Error &&
         (error.message === 'OWNERSHIP_STATE_CHANGED' ||
           error.message === 'TARGET_STATE_CHANGED' ||
-          error.message === 'WORKSPACE_STATE_CHANGED')
+          error.message === 'WORKSPACE_STATE_CHANGED' ||
+          error.message === 'TARGET_USER_NOT_ACTIVE')
       ) {
         throw new ConflictException('Ownership state changed');
       }
@@ -442,12 +452,13 @@ export class WorkspacesService {
       workspaceId: member.workspaceId,
       role: member.role,
       joinedAt: member.createdAt,
-      user: {
+      user: mapAuthorResponse({
         id: member.user.id,
         username: member.user.username,
         displayName: member.user.displayName,
         avatarUrl: member.user.avatarUrl,
-      },
+        status: member.user.status,
+      }),
     }));
   }
 
@@ -481,9 +492,9 @@ export class WorkspacesService {
     }
 
     const identifier = dto.identifier.trim();
-    let targetUser = await this.users.findByUsername(identifier);
+    let targetUser = await this.users.findActiveByUsername(identifier);
     if (!targetUser) {
-      targetUser = await this.users.findByEmail(identifier);
+      targetUser = await this.users.findActiveByEmail(identifier);
     }
     if (!targetUser) {
       throw new NotFoundException('User not found');
@@ -521,12 +532,13 @@ export class WorkspacesService {
         workspaceId: member.workspaceId,
         role: member.role,
         joinedAt: member.createdAt,
-        user: {
+        user: mapAuthorResponse({
           id: member.user.id,
           username: member.user.username,
           displayName: member.user.displayName,
           avatarUrl: member.user.avatarUrl,
-        },
+          status: member.user.status,
+        }),
       };
     } catch (error) {
       if (

@@ -8,6 +8,7 @@ export interface MessageAuthor {
   username: string;
   displayName: string | null;
   avatarUrl: string | null;
+  isDeleted?: boolean;
 }
 
 export interface ReactionSummary {
@@ -23,6 +24,7 @@ export interface Attachment {
   sizeBytes: number;
   kind: "image" | "file";
   createdAt: string;
+  isDeleted?: boolean;
 }
 
 export interface MessageMention {

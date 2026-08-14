@@ -33,6 +33,7 @@ const authorSelect = {
   username: true,
   displayName: true,
   avatarUrl: true,
+  status: true,
 } as const;
 
 const directMessageInclude = {
@@ -47,7 +48,6 @@ const directMessageInclude = {
     },
   },
   attachments: {
-    where: { deletedAt: null },
     select: {
       id: true,
       filename: true,
@@ -55,6 +55,7 @@ const directMessageInclude = {
       size: true,
       storageKey: true,
       storageBackend: true,
+      deletedAt: true,
       createdAt: true,
     },
   },
@@ -98,6 +99,7 @@ export class DirectConversationsRepository {
                 username: true,
                 displayName: true,
                 avatarUrl: true,
+                status: true,
               },
             },
           },
@@ -129,6 +131,7 @@ export class DirectConversationsRepository {
                 username: true,
                 displayName: true,
                 avatarUrl: true,
+                status: true,
               },
             },
           },
@@ -165,6 +168,7 @@ export class DirectConversationsRepository {
                 username: true,
                 displayName: true,
                 avatarUrl: true,
+                status: true,
               },
             },
           },
@@ -201,6 +205,7 @@ export class DirectConversationsRepository {
                 username: true,
                 displayName: true,
                 avatarUrl: true,
+                status: true,
               },
             },
           },

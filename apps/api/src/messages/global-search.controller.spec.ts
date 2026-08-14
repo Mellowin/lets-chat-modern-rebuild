@@ -24,6 +24,8 @@ describe('GlobalSearchController', () => {
     groupMessageNotificationsEnabled: true,
     channelMessageNotificationsEnabled: true,
     role: 'USER',
+    status: 'ACTIVE',
+    isDeleted: false,
   };
 
   beforeEach(async () => {

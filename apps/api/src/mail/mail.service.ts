@@ -22,7 +22,21 @@ export interface SendEmailChangeConfirmationEmailInput {
   token: string;
 }
 
-type EmailType = 'verification' | 'passwordReset' | 'emailChange';
+export interface SendAccountDeletionCancellationEmailInput {
+  to: string;
+  token: string;
+}
+
+export interface SendAccountDeletionCancelledConfirmationEmailInput {
+  to: string;
+}
+
+type EmailType =
+  | 'verification'
+  | 'passwordReset'
+  | 'emailChange'
+  | 'accountDeletionCancellation'
+  | 'accountDeletionCancelledConfirmation';
 
 interface EmailTemplate {
   subject: string;
@@ -57,6 +71,21 @@ export class MailService {
     input: SendEmailChangeConfirmationEmailInput,
   ): Promise<void> {
     return this.sendWithFallback(input, 'emailChange');
+  }
+
+  async sendAccountDeletionCancellationEmail(
+    input: SendAccountDeletionCancellationEmailInput,
+  ): Promise<void> {
+    return this.sendWithFallback(input, 'accountDeletionCancellation');
+  }
+
+  async sendAccountDeletionCancelledConfirmationEmail(
+    input: SendAccountDeletionCancelledConfirmationEmailInput,
+  ): Promise<void> {
+    return this.sendWithFallback(
+      { to: input.to, token: 'unused' },
+      'accountDeletionCancelledConfirmation',
+    );
   }
 
   previewTemplate(type: string): EmailTemplate {
@@ -184,6 +213,8 @@ export class MailService {
       verification: 'verify-email',
       passwordReset: 'reset-password',
       emailChange: 'confirm-email-change',
+      accountDeletionCancellation: 'cancel-account-deletion',
+      accountDeletionCancelledConfirmation: 'cancel-account-deletion',
     };
     return `${webUrl}/${pathMap[emailType]}?token=${token}`;
   }
@@ -196,6 +227,10 @@ export class MailService {
         return this.buildPasswordResetTemplate(link);
       case 'emailChange':
         return this.buildEmailChangeTemplate(link);
+      case 'accountDeletionCancellation':
+        return this.buildAccountDeletionCancellationTemplate(link);
+      case 'accountDeletionCancelledConfirmation':
+        return this.buildAccountDeletionCancelledConfirmationTemplate();
     }
   }
 
@@ -205,13 +240,21 @@ export class MailService {
       verification: 'verify-email',
       passwordReset: 'reset-password',
       emailChange: 'confirm-email-change',
+      accountDeletionCancellation: 'cancel-account-deletion',
+      accountDeletionCancelledConfirmation: 'cancel-account-deletion',
     };
-    const link = `${webUrl}/${pathMap[emailType]}?token=${input.token}`;
+    const link =
+      emailType === 'accountDeletionCancelledConfirmation'
+        ? `${webUrl}/login`
+        : `${webUrl}/${pathMap[emailType]}?token=${input.token}`;
 
     const labelMap: Record<EmailType, string> = {
       verification: 'Verification email',
       passwordReset: 'Password reset email',
       emailChange: 'Email change confirmation',
+      accountDeletionCancellation: 'Account deletion cancellation email',
+      accountDeletionCancelledConfirmation:
+        'Account deletion cancelled confirmation email',
     };
 
     this.logger.log(
@@ -438,6 +481,57 @@ export class MailService {
 <p style="font-size: 14px; color: #666;">If the button doesn't work, copy and paste this link into your browser:</p>
 <p style="font-size: 14px; word-break: break-all; color: #666;">${link}</p>
 <p style="font-size: 13px; color: #999; margin-top: 30px;">If you did not request this change, you can safely ignore this email.</p>
+</div>
+</body>
+</html>`,
+    };
+  }
+
+  private buildAccountDeletionCancellationTemplate(
+    link: string,
+  ): EmailTemplate {
+    return {
+      subject: 'Cancel your Lets Chat account deletion',
+      text: `You requested to delete your Lets Chat account.\n\nClick the link below to cancel the deletion and keep your account:\n\n${link}\n\nThis link expires when the deletion grace period ends. If you did not request deletion, use this link to stop it.`,
+      html: `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cancel account deletion</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+<div style="background: #f9f9f9; border-radius: 8px; padding: 30px;">
+<h2 style="color: #111; margin-top: 0;">Cancel Account Deletion</h2>
+<p>You requested to delete your Lets Chat account. Click the button below to cancel the deletion and keep your account.</p>
+<div style="text-align: center; margin: 30px 0;">
+<a href="${link}" style="background: #111; color: #fff; text-decoration: none; padding: 14px 28px; border-radius: 6px; display: inline-block; font-weight: bold;">Keep My Account</a>
+</div>
+<p style="font-size: 14px; color: #666;">If the button doesn't work, copy and paste this link into your browser:</p>
+<p style="font-size: 14px; word-break: break-all; color: #666;">${link}</p>
+<p style="font-size: 13px; color: #999; margin-top: 30px;">This link expires when the deletion grace period ends. If you did not request deletion, use this link to stop it.</p>
+</div>
+</body>
+</html>`,
+    };
+  }
+
+  private buildAccountDeletionCancelledConfirmationTemplate(): EmailTemplate {
+    return {
+      subject: 'Your Lets Chat account deletion has been cancelled',
+      text: `Your account deletion request has been cancelled. You can sign in again with your existing password. If you did not cancel the deletion, change your password immediately.`,
+      html: `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Account deletion cancelled</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+<div style="background: #f9f9f9; border-radius: 8px; padding: 30px;">
+<h2 style="color: #111; margin-top: 0;">Account Deletion Cancelled</h2>
+<p>Your account deletion request has been cancelled. You can sign in again with your existing password.</p>
+<p style="font-size: 13px; color: #999; margin-top: 30px;">If you did not cancel the deletion, change your password immediately.</p>
 </div>
 </body>
 </html>`,

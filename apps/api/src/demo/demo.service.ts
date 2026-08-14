@@ -24,6 +24,7 @@ import {
 } from '../audit/audit.constants';
 import { JwtPayload } from '../auth/jwt-payload.type';
 import { AuthUserResponse } from '../auth/auth.service';
+import { isDeletedUser } from '../common/deleted-user-mapper';
 import { DemoRateLimiter } from './demo-rate-limiter';
 import {
   DEMO_EMAIL_DOMAIN,
@@ -430,7 +431,10 @@ export class DemoService {
       channelMessageNotificationsEnabled:
         user.channelMessageNotificationsEnabled ?? true,
       role: user.role ?? 'USER',
+      status: user.status ?? 'ACTIVE',
+      contactPrivacySetting: user.contactPrivacySetting ?? 'REQUESTS_ONLY',
       createdAt: user.createdAt,
+      isDeleted: isDeletedUser(user),
     };
   }
 

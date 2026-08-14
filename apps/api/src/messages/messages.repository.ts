@@ -61,6 +61,7 @@ export class MessagesRepository {
           author: {
             select: {
               id: true,
+              status: true,
               username: true,
               displayName: true,
               avatarUrl: true,
@@ -71,7 +72,6 @@ export class MessagesRepository {
             select: { emoji: true, userId: true },
           },
           attachments: {
-            where: { deletedAt: null },
             select: {
               id: true,
               filename: true,
@@ -79,6 +79,7 @@ export class MessagesRepository {
               size: true,
               storageKey: true,
               storageBackend: true,
+              deletedAt: true,
               createdAt: true,
             },
           },
@@ -90,6 +91,7 @@ export class MessagesRepository {
               author: {
                 select: {
                   id: true,
+                  status: true,
                   username: true,
                   displayName: true,
                   avatarUrl: true,
@@ -137,6 +139,7 @@ export class MessagesRepository {
         author: {
           select: {
             id: true,
+            status: true,
             username: true,
             displayName: true,
             avatarUrl: true,
@@ -147,7 +150,6 @@ export class MessagesRepository {
           select: { emoji: true, userId: true },
         },
         attachments: {
-          where: { deletedAt: null },
           select: {
             id: true,
             filename: true,
@@ -155,6 +157,7 @@ export class MessagesRepository {
             size: true,
             storageKey: true,
             storageBackend: true,
+            deletedAt: true,
             createdAt: true,
           },
         },
@@ -166,6 +169,7 @@ export class MessagesRepository {
             author: {
               select: {
                 id: true,
+                status: true,
                 username: true,
                 displayName: true,
                 avatarUrl: true,
@@ -200,6 +204,7 @@ export class MessagesRepository {
           author: {
             select: {
               id: true,
+              status: true,
               username: true,
               displayName: true,
               avatarUrl: true,
@@ -210,7 +215,6 @@ export class MessagesRepository {
             select: { emoji: true, userId: true },
           },
           attachments: {
-            where: { deletedAt: null },
             select: {
               id: true,
               filename: true,
@@ -218,6 +222,7 @@ export class MessagesRepository {
               size: true,
               storageKey: true,
               storageBackend: true,
+              deletedAt: true,
               createdAt: true,
             },
           },
@@ -229,6 +234,7 @@ export class MessagesRepository {
               author: {
                 select: {
                   id: true,
+                  status: true,
                   username: true,
                   displayName: true,
                   avatarUrl: true,
@@ -280,6 +286,7 @@ export class MessagesRepository {
             username: true,
             displayName: true,
             avatarUrl: true,
+            status: true,
           },
         },
         message: {
@@ -287,18 +294,19 @@ export class MessagesRepository {
             author: {
               select: {
                 id: true,
+                status: true,
                 username: true,
                 displayName: true,
                 avatarUrl: true,
               },
             },
             attachments: {
-              where: { deletedAt: null },
               select: {
                 id: true,
                 filename: true,
                 mimeType: true,
                 size: true,
+                deletedAt: true,
                 createdAt: true,
               },
             },
@@ -310,6 +318,7 @@ export class MessagesRepository {
                 author: {
                   select: {
                     id: true,
+                    status: true,
                     username: true,
                     displayName: true,
                     avatarUrl: true,
@@ -348,6 +357,7 @@ export class MessagesRepository {
             username: true,
             displayName: true,
             avatarUrl: true,
+            status: true,
           },
         },
         message: {
@@ -355,18 +365,19 @@ export class MessagesRepository {
             author: {
               select: {
                 id: true,
+                status: true,
                 username: true,
                 displayName: true,
                 avatarUrl: true,
               },
             },
             attachments: {
-              where: { deletedAt: null },
               select: {
                 id: true,
                 filename: true,
                 mimeType: true,
                 size: true,
+                deletedAt: true,
                 createdAt: true,
               },
             },
@@ -378,6 +389,7 @@ export class MessagesRepository {
                 author: {
                   select: {
                     id: true,
+                    status: true,
                     username: true,
                     displayName: true,
                     avatarUrl: true,
@@ -411,6 +423,7 @@ export class MessagesRepository {
         author: {
           select: {
             id: true,
+            status: true,
             username: true,
             displayName: true,
             avatarUrl: true,
@@ -421,7 +434,6 @@ export class MessagesRepository {
           select: { emoji: true, userId: true },
         },
         attachments: {
-          where: { deletedAt: null },
           select: {
             id: true,
             filename: true,
@@ -429,6 +441,7 @@ export class MessagesRepository {
             size: true,
             storageKey: true,
             storageBackend: true,
+            deletedAt: true,
             createdAt: true,
           },
         },
@@ -440,6 +453,7 @@ export class MessagesRepository {
             author: {
               select: {
                 id: true,
+                status: true,
                 username: true,
                 displayName: true,
                 avatarUrl: true,
@@ -464,6 +478,7 @@ export class MessagesRepository {
         author: {
           select: {
             id: true,
+            status: true,
             username: true,
             displayName: true,
             avatarUrl: true,
@@ -474,7 +489,6 @@ export class MessagesRepository {
           select: { emoji: true, userId: true },
         },
         attachments: {
-          where: { deletedAt: null },
           select: {
             id: true,
             filename: true,
@@ -482,6 +496,7 @@ export class MessagesRepository {
             size: true,
             storageKey: true,
             storageBackend: true,
+            deletedAt: true,
             createdAt: true,
           },
         },
@@ -493,6 +508,7 @@ export class MessagesRepository {
             author: {
               select: {
                 id: true,
+                status: true,
                 username: true,
                 displayName: true,
                 avatarUrl: true,
@@ -527,6 +543,7 @@ export class MessagesRepository {
         author: {
           select: {
             id: true,
+            status: true,
             username: true,
             displayName: true,
             avatarUrl: true,
@@ -537,7 +554,6 @@ export class MessagesRepository {
           select: { emoji: true, userId: true },
         },
         attachments: {
-          where: { deletedAt: null },
           select: {
             id: true,
             filename: true,
@@ -545,6 +561,7 @@ export class MessagesRepository {
             size: true,
             storageKey: true,
             storageBackend: true,
+            deletedAt: true,
             createdAt: true,
           },
         },
@@ -556,6 +573,7 @@ export class MessagesRepository {
             author: {
               select: {
                 id: true,
+                status: true,
                 username: true,
                 displayName: true,
                 avatarUrl: true,
@@ -590,6 +608,7 @@ export class MessagesRepository {
         author: {
           select: {
             id: true,
+            status: true,
             username: true,
             displayName: true,
             avatarUrl: true,
@@ -600,7 +619,6 @@ export class MessagesRepository {
           select: { emoji: true, userId: true },
         },
         attachments: {
-          where: { deletedAt: null },
           select: {
             id: true,
             filename: true,
@@ -608,6 +626,7 @@ export class MessagesRepository {
             size: true,
             storageKey: true,
             storageBackend: true,
+            deletedAt: true,
             createdAt: true,
           },
         },
@@ -619,6 +638,7 @@ export class MessagesRepository {
             author: {
               select: {
                 id: true,
+                status: true,
                 username: true,
                 displayName: true,
                 avatarUrl: true,

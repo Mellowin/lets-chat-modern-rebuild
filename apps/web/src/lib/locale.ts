@@ -111,6 +111,104 @@ export type TranslationKey =
   | "profile.channelMessageNotificationsToggle"
   | "profile.channelMessageNotificationsToggleDescription"
   | "profile.loadingNotificationPreferences"
+  | "profile.dataAndAccount"
+  | "profile.downloadMyData"
+  | "profile.deleteMyAccount"
+  | "profile.exportDataTitle"
+  | "profile.exportDataDescription"
+  | "profile.exportDataPasswordLabel"
+  | "profile.exportDataExplanation"
+  | "profile.exportDataButton"
+  | "profile.exportDataDownloading"
+  | "profile.exportDataSuccess"
+  | "profile.exportDataFailed"
+  | "profile.deleteAccountTitle"
+  | "profile.deleteAccountDescription"
+  | "profile.deleteAccountGracePeriod"
+  | "profile.deleteAccountMessagesRetained"
+  | "profile.deleteAccountAttachmentsRemoved"
+  | "profile.deleteAccountOwnershipBlockers"
+  | "profile.deleteAccountOwnedWorkspaces"
+  | "profile.deleteAccountOwnedGroups"
+  | "profile.deleteAccountOwnedChannels"
+  | "profile.deleteAccountPasswordLabel"
+  | "profile.deleteAccountConfirmationPhraseLabel"
+  | "profile.deleteAccountConfirmationPhraseHint"
+  | "profile.deleteAccountButton"
+  | "profile.deleteAccountDeleting"
+  | "profile.deleteAccountRequested"
+  | "profile.cancel"
+  | "profile.deleteAccountFailed"
+  | "profile.deleteAccountPhraseMismatch"
+  | "cancelAccountDeletion.title"
+  | "cancelAccountDeletion.verifying"
+  | "cancelAccountDeletion.success"
+  | "cancelAccountDeletion.successMessage"
+  | "cancelAccountDeletion.error"
+  | "cancelAccountDeletion.errorMessage"
+  | "cancelAccountDeletion.backToSignIn"
+  | "legal.privacyTitle"
+  | "legal.termsTitle"
+  | "legal.acceptableUseTitle"
+  | "legal.effectiveDate"
+  | "legal.lastUpdated"
+  | "legal.operatorName"
+  | "legal.supportEmail"
+  | "legal.abuseEmail"
+  | "legal.betaNotice"
+  | "legal.publicBeta"
+  | "legal.noE2EE"
+  | "legal.backToHome"
+  | "legal.contactTitle"
+  | "legal.privacyIntro"
+  | "legal.privacyAccountSectionTitle"
+  | "legal.privacyMessagesSectionTitle"
+  | "legal.privacySessionsSectionTitle"
+  | "legal.privacyPushSectionTitle"
+  | "legal.privacyReportsSectionTitle"
+  | "legal.privacyCookiesSectionTitle"
+  | "legal.privacyPurposesSectionTitle"
+  | "legal.privacyRetentionSectionTitle"
+  | "legal.privacyDeletionSectionTitle"
+  | "legal.privacyEncryptionSectionTitle"
+  | "legal.privacyChangesSectionTitle"
+  | "legal.privacyAccountData"
+  | "legal.privacyMessagesAttachments"
+  | "legal.privacySessionsDevice"
+  | "legal.privacyPushSubscriptions"
+  | "legal.privacyReportsAudit"
+  | "legal.privacyCookiesStorage"
+  | "legal.privacyPurposes"
+  | "legal.privacyRetention"
+  | "legal.privacyDeletionGrace"
+  | "legal.privacyAnonymization"
+  | "legal.privacyAttachmentRemoval"
+  | "legal.privacyDataExport"
+  | "legal.privacyBackup"
+  | "legal.privacyAbuseRetention"
+  | "legal.privacyOperatorAccess"
+  | "legal.privacyNoE2EE"
+  | "legal.privacyChanges"
+  | "legal.termsIntro"
+  | "legal.termsBeta"
+  | "legal.termsServiceChanges"
+  | "legal.termsNoUptime"
+  | "legal.termsAccountSecurity"
+  | "legal.termsContentOwnership"
+  | "legal.termsProhibitedConduct"
+  | "legal.termsSuspension"
+  | "legal.termsLimitation"
+  | "legal.termsChanges"
+  | "legal.acceptableIntro"
+  | "legal.acceptableIllegal"
+  | "legal.acceptableHarassment"
+  | "legal.acceptableSpam"
+  | "legal.acceptableMalware"
+  | "legal.acceptableCredentials"
+  | "legal.acceptablePrivacy"
+  | "legal.acceptableReports"
+  | "legal.acceptableFlooding"
+  | "legal.acceptableConsequences"
   | "dashboard.welcome"
   | "dashboard.signedInAs"
   | "dashboard.profileSettings"
@@ -188,6 +286,12 @@ export type TranslationKey =
   | "auth.emailNotVerified"
   | "auth.signInAfterVerification"
   | "auth.backToSignIn"
+  | "auth.accountDeletionPending"
+  | "auth.accountDeletionPendingHint"
+  | "auth.resendCancellationLink"
+  | "auth.resendingCancellationLink"
+  | "auth.resendCancellationSuccess"
+  | "auth.resendCancellationHint"
   | "auth.loading"
   | "auth.tryDemo"
   | "auth.demoLoading"
@@ -368,6 +472,7 @@ export type TranslationKey =
   | "channel.attachmentReady"
   | "channel.attachmentUploaded"
   | "channel.attachmentLoading"
+  | "channel.attachmentRemoved"
   | "channel.errorAttachmentUploadFailed"
   | "channel.dropFilesHere"
   | "channel.lightboxTitle"
@@ -383,6 +488,7 @@ export type TranslationKey =
   | "channel.socketJoined"
   | "channel.socketError"
   | "messageAuthor.unknownUser"
+  | "messageAuthor.deletedUser"
   | "workspace.confirmArchiveChannelPrefix"
   | "workspace.confirmArchiveChannelBody"
   | "workspace.confirmRestoreChannelPrefix"
@@ -1015,6 +1121,12 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "auth.emailNotVerified": "Please verify your email before signing in.",
     "auth.signInAfterVerification": "You can now sign in with your verified email.",
     "auth.backToSignIn": "Back to sign in",
+    "auth.accountDeletionPending": "Account deletion is pending",
+    "auth.accountDeletionPendingHint": "You requested to delete this account. Check your email for the cancellation link, or resend it to {arg0}.",
+    "auth.resendCancellationLink": "Resend cancellation link",
+    "auth.resendingCancellationLink": "Sending…",
+    "auth.resendCancellationSuccess": "If the account exists and deletion is pending, a cancellation link has been sent.",
+    "auth.resendCancellationHint": "Check your inbox for the cancellation link. You can also check your spam folder.",
     "auth.loading": "Loading…",
     "auth.tryDemo": "Try live demo",
     "auth.demoLoading": "Starting demo…",
@@ -1181,6 +1293,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.attachmentReady": "Ready",
     "channel.attachmentUploaded": "Uploaded",
     "channel.attachmentLoading": "Loading…",
+    "channel.attachmentRemoved": "Attachment removed",
     "channel.errorAttachmentUploadFailed": "Attachment upload failed. Please try again.",
     "channel.dropFilesHere": "Drop file here to upload",
     "channel.lightboxTitle": "Image preview",
@@ -1196,6 +1309,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.socketJoined": "Joined",
     "channel.socketError": "Error",
     "messageAuthor.unknownUser": "Unknown user",
+    "messageAuthor.deletedUser": "Deleted user",
     "direct.title": "Direct messages",
     "direct.subtitle": "Chat directly with other users.",
     "direct.newConversation": "New conversation",
@@ -1743,6 +1857,104 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "forward.sourceGroup": "group",
     "forward.failed": "Failed to forward message",
     "forward.forwardedMessage": "Forwarded message",
+    "profile.dataAndAccount": "Your data and account",
+    "profile.downloadMyData": "Download my data",
+    "profile.deleteMyAccount": "Delete my account",
+    "profile.exportDataTitle": "Download your data",
+    "profile.exportDataDescription": "Export a copy of your personal data as a JSON file.",
+    "profile.exportDataPasswordLabel": "Current password",
+    "profile.exportDataExplanation": "Your attachments are not included in this file. Download each attachment separately before deleting your account if you need to keep it.",
+    "profile.exportDataButton": "Export data",
+    "profile.exportDataDownloading": "Preparing export…",
+    "profile.exportDataSuccess": "Your data export is downloading.",
+    "profile.exportDataFailed": "Failed to export data. Please check your password and try again.",
+    "profile.deleteAccountTitle": "Delete account",
+    "profile.deleteAccountDescription": "Request permanent deletion of your account and data.",
+    "profile.deleteAccountGracePeriod": "After confirmation your account enters a 7-day grace period. You can cancel deletion using the link sent by email during this time.",
+    "profile.deleteAccountMessagesRetained": "Your messages, replies and reactions will remain in conversations under “Deleted user” to keep discussion history intact.",
+    "profile.deleteAccountAttachmentsRemoved": "Your attachments will be removed and eventually deleted from storage.",
+    "profile.deleteAccountOwnershipBlockers": "Transfer ownership of the workspaces, groups or channels listed below before you can delete your account.",
+    "profile.deleteAccountOwnedWorkspaces": "Workspaces you own",
+    "profile.deleteAccountOwnedGroups": "Groups you are the sole owner of",
+    "profile.deleteAccountOwnedChannels": "Channels you own",
+    "profile.deleteAccountPasswordLabel": "Current password",
+    "profile.deleteAccountConfirmationPhraseLabel": "Confirmation",
+    "profile.deleteAccountConfirmationPhraseHint": "Type DELETE MY ACCOUNT to confirm.",
+    "profile.deleteAccountButton": "Request deletion",
+    "profile.deleteAccountDeleting": "Requesting deletion…",
+    "profile.deleteAccountRequested": "Account deletion requested. Check your email for the cancellation link.",
+    "profile.cancel": "Cancel",
+    "profile.deleteAccountFailed": "Failed to request account deletion. Please check your password and try again.",
+    "profile.deleteAccountPhraseMismatch": "Confirmation phrase does not match.",
+    "cancelAccountDeletion.title": "Cancel account deletion",
+    "cancelAccountDeletion.verifying": "Verifying cancellation link…",
+    "cancelAccountDeletion.success": "Account deletion cancelled",
+    "cancelAccountDeletion.successMessage": "Your account has been restored. Sign in again to continue.",
+    "cancelAccountDeletion.error": "Cancellation failed",
+    "cancelAccountDeletion.errorMessage": "This cancellation link is invalid, expired or has already been used.",
+    "cancelAccountDeletion.backToSignIn": "Back to sign in",
+    "legal.privacyTitle": "Privacy notice",
+    "legal.termsTitle": "Terms of Use",
+    "legal.acceptableUseTitle": "Acceptable Use",
+    "legal.effectiveDate": "Effective date",
+    "legal.lastUpdated": "Last updated",
+    "legal.operatorName": "Operator",
+    "legal.supportEmail": "Support email",
+    "legal.abuseEmail": "Abuse email",
+    "legal.betaNotice": "This is a public beta service. Features, availability and policies may change.",
+    "legal.publicBeta": "Public beta",
+    "legal.noE2EE": "Messages are not end-to-end encrypted. The operator can access message content for moderation, support and lawful requests.",
+    "legal.backToHome": "Back to home",
+    "legal.contactTitle": "Contact",
+    "legal.privacyIntro": "This notice describes what personal data we collect, why we collect it, and how we handle it.",
+    "legal.privacyAccountSectionTitle": "Account data",
+    "legal.privacyMessagesSectionTitle": "Messages and attachments",
+    "legal.privacySessionsSectionTitle": "Sessions and device data",
+    "legal.privacyPushSectionTitle": "Push notifications",
+    "legal.privacyReportsSectionTitle": "Reports and audit logs",
+    "legal.privacyCookiesSectionTitle": "Cookies and storage",
+    "legal.privacyPurposesSectionTitle": "Why we process your data",
+    "legal.privacyRetentionSectionTitle": "Retention",
+    "legal.privacyDeletionSectionTitle": "Account deletion",
+    "legal.privacyEncryptionSectionTitle": "No end-to-end encryption",
+    "legal.privacyChangesSectionTitle": "Changes to this notice",
+    "legal.privacyAccountData": "Account data: email address, username, display name, password hash, avatar, interface language, role, notification preferences and contact privacy settings.",
+    "legal.privacyMessagesAttachments": "Messages and attachments: content of messages, replies, reactions, forwarded messages and files you upload.",
+    "legal.privacySessionsDevice": "Sessions and device data: session identifiers, IP addresses and user-agent strings for security and audit purposes.",
+    "legal.privacyPushSubscriptions": "Push subscriptions: browser push subscription data if you enable push notifications.",
+    "legal.privacyReportsAudit": "Reports and audit logs: user reports, moderator actions and security events.",
+    "legal.privacyCookiesStorage": "Cookies and storage: we use localStorage/sessionStorage for authentication state, locale and UI preferences. We do not use third-party tracking cookies.",
+    "legal.privacyPurposes": "We process this data to provide the service, maintain security, enforce policies and comply with legal obligations.",
+    "legal.privacyRetention": "We keep data for as long as your account exists and for a limited period afterward where needed for security, audit or legal purposes.",
+    "legal.privacyDeletionGrace": "Account deletion: when you request deletion, your account enters a 7-day grace period. You can cancel deletion by email during this period.",
+    "legal.privacyAnonymization": "After the grace period, your email and username are anonymised, your password and profile data are removed, and your account can no longer be signed into. Messages remain attributed to “Deleted user”.",
+    "legal.privacyAttachmentRemoval": "Attachments you uploaded are marked for removal and later deleted by automated cleanup.",
+    "legal.privacyDataExport": "You can request a JSON export of your personal data from your profile at any time before deletion.",
+    "legal.privacyBackup": "Backups are encrypted at rest and stored separately from production. They are used only for disaster recovery.",
+    "legal.privacyAbuseRetention": "Content and data related to abuse reports or legal orders may be retained beyond account deletion as required by law or for safety.",
+    "legal.privacyOperatorAccess": "Operator access: authorised staff may access data for operation, moderation, support and legal compliance.",
+    "legal.privacyNoE2EE": "There is no end-to-end encryption. Do not use this service for information that must remain secret from the operator.",
+    "legal.privacyChanges": "We may update this notice. Significant changes will be announced through the service or by email.",
+    "legal.termsIntro": "These Terms of Use govern your access to and use of the service.",
+    "legal.termsBeta": "The service is in public beta. It may change, break or be unavailable at any time.",
+    "legal.termsServiceChanges": "We may modify or discontinue features without notice. We are not liable for downtime or data loss.",
+    "legal.termsNoUptime": "We do not guarantee uptime, availability or preservation of any data.",
+    "legal.termsAccountSecurity": "You are responsible for keeping your password and account credentials secure. You must be at least 16 years old to use the service.",
+    "legal.termsContentOwnership": "You keep ownership of content you create, but you grant us the rights needed to host, display and transmit it within the service.",
+    "legal.termsProhibitedConduct": "You may not use the service for illegal activity, harassment, spam, malware distribution, credential theft, privacy violations or abuse of invites and reports.",
+    "legal.termsSuspension": "We may suspend or terminate accounts that violate these terms or harm the service or other users.",
+    "legal.termsLimitation": "The service is provided “as is” without warranties. Our liability is limited to the maximum extent permitted by law.",
+    "legal.termsChanges": "We may update these terms. Continued use after changes means you accept the updated terms.",
+    "legal.acceptableIntro": "This policy describes activity that is not allowed on the service.",
+    "legal.acceptableIllegal": "Illegal content and conduct: do not upload, share or promote content that violates applicable law.",
+    "legal.acceptableHarassment": "Harassment and threats: do not threaten, harass, bully or incite violence against others.",
+    "legal.acceptableSpam": "Spam: do not send unsolicited bulk messages, repeatedly post unwanted content or abuse invites.",
+    "legal.acceptableMalware": "Malware and harmful files: do not distribute malware, exploits or files designed to harm devices or steal data.",
+    "legal.acceptableCredentials": "Credential theft: do not attempt to obtain another user’s password, tokens or credentials.",
+    "legal.acceptablePrivacy": "Privacy violations: do not share others’ personal information without consent.",
+    "legal.acceptableReports": "Abuse of reports and invites: do not submit false reports or create invites to harass users.",
+    "legal.acceptableFlooding": "Automated flooding: do not use bots or scripts to flood channels, groups or direct messages.",
+    "legal.acceptableConsequences": "Violations may result in content removal, account suspension or termination, and referral to law enforcement where appropriate.",
   },
   uk: {
     "header.profile": "Профіль",
@@ -1878,6 +2090,12 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "auth.emailNotVerified": "Будь ласка, підтвердьте email перед входом.",
     "auth.signInAfterVerification": "Тепер ви можете увійти з підтвердженим email.",
     "auth.backToSignIn": "Назад до входу",
+    "auth.accountDeletionPending": "Видалення облікового запису очікує",
+    "auth.accountDeletionPendingHint": "Ви подали запит на видалення цього облікового запису. Перевірте email для посилання на скасування, або надішліть його повторно на {arg0}.",
+    "auth.resendCancellationLink": "Надіслати посилання на скасування",
+    "auth.resendingCancellationLink": "Надсилаємо…",
+    "auth.resendCancellationSuccess": "Якщо обліковий запис існує та очікує видалення, посилання на скасування надіслано.",
+    "auth.resendCancellationHint": "Перевірте поштову скриньку для посилання на скасування. Також перевірте папку спам.",
     "auth.loading": "Завантаження…",
     "auth.tryDemo": "Спробувати демо",
     "auth.demoLoading": "Запуск демо…",
@@ -2044,6 +2262,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.attachmentReady": "Готово",
     "channel.attachmentUploaded": "Завантажено",
     "channel.attachmentLoading": "Завантаження…",
+    "channel.attachmentRemoved": "Вкладення видалено",
     "channel.errorAttachmentUploadFailed": "Не вдалося завантажити вкладення. Спробуйте ще раз.",
     "channel.dropFilesHere": "Перетягніть файл сюди для завантаження",
     "channel.lightboxTitle": "Перегляд зображення",
@@ -2059,6 +2278,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.socketJoined": "Приєднано",
     "channel.socketError": "Помилка",
     "messageAuthor.unknownUser": "Невідомий користувач",
+    "messageAuthor.deletedUser": "Видалений користувач",
     "direct.title": "Особисті повідомлення",
     "direct.subtitle": "Спілкуйтеся безпосередньо з іншими користувачами.",
     "direct.newConversation": "Нова розмова",
@@ -2606,6 +2826,104 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "forward.sourceGroup": "групи",
     "forward.failed": "Не вдалося переслати повідомлення",
     "forward.forwardedMessage": "Переслане повідомлення",
+    "profile.dataAndAccount": "Ваші дані та обліковий запис",
+    "profile.downloadMyData": "Завантажити мої дані",
+    "profile.deleteMyAccount": "Видалити мій акаунт",
+    "profile.exportDataTitle": "Завантажте ваші дані",
+    "profile.exportDataDescription": "Експортуйте копію ваших персональних даних у файл JSON.",
+    "profile.exportDataPasswordLabel": "Поточний пароль",
+    "profile.exportDataExplanation": "Вкладення до цього файлу не входять. Завантажте кожне вкладення окремо перед видаленням акаунта, якщо воно вам потрібне.",
+    "profile.exportDataButton": "Експортувати дані",
+    "profile.exportDataDownloading": "Готується експорт…",
+    "profile.exportDataSuccess": "Експорт даних завантажується.",
+    "profile.exportDataFailed": "Не вдалося експортувати дані. Перевірте пароль і спробуйте ще раз.",
+    "profile.deleteAccountTitle": "Видалити акаунт",
+    "profile.deleteAccountDescription": "Запит на безповоротне видалення вашого акаунта та даних.",
+    "profile.deleteAccountGracePeriod": "Після підтвердження ваш акаунт переходить у 7-денний період очікування. Ви можете скасувати видалення за посиланням у листі протягом цього часу.",
+    "profile.deleteAccountMessagesRetained": "Ваші повідомлення, відповіді та реакції залишаться в розмовах під ім’ям «Видалений користувач», щоб зберегти історію обговорень.",
+    "profile.deleteAccountAttachmentsRemoved": "Ваші вкладення будуть позначені для видалення та згодом видалені зі сховища.",
+    "profile.deleteAccountOwnershipBlockers": "Перед видаленням передайте власника робочих просторів, груп або каналів, перелічених нижче.",
+    "profile.deleteAccountOwnedWorkspaces": "Робочі простори, якими ви володієте",
+    "profile.deleteAccountOwnedGroups": "Групи, в яких ви єдиний власник",
+    "profile.deleteAccountOwnedChannels": "Канали, якими ви володієте",
+    "profile.deleteAccountPasswordLabel": "Поточний пароль",
+    "profile.deleteAccountConfirmationPhraseLabel": "Підтвердження",
+    "profile.deleteAccountConfirmationPhraseHint": "Введіть DELETE MY ACCOUNT для підтвердження.",
+    "profile.deleteAccountButton": "Запросити видалення",
+    "profile.deleteAccountDeleting": "Запит на видалення…",
+    "profile.deleteAccountRequested": "Запит на видалення акаунта надіслано. Перевірте пошту для посилання скасування.",
+    "profile.cancel": "Скасувати",
+    "profile.deleteAccountFailed": "Не вдалося запросити видалення акаунта. Перевірте пароль і спробуйте ще раз.",
+    "profile.deleteAccountPhraseMismatch": "Фраза підтвердження не збігається.",
+    "cancelAccountDeletion.title": "Скасувати видалення акаунта",
+    "cancelAccountDeletion.verifying": "Перевіряється посилання скасування…",
+    "cancelAccountDeletion.success": "Видалення акаунта скасовано",
+    "cancelAccountDeletion.successMessage": "Ваш акаунт відновлено. Увійдіть знову, щоб продовжити.",
+    "cancelAccountDeletion.error": "Не вдалося скасувати",
+    "cancelAccountDeletion.errorMessage": "Це посилання недійсне, прострочене або вже використане.",
+    "cancelAccountDeletion.backToSignIn": "Повернутися до входу",
+    "legal.privacyTitle": "Повідомлення про конфіденційність",
+    "legal.termsTitle": "Умови використання",
+    "legal.acceptableUseTitle": "Правила прийнятного використання",
+    "legal.effectiveDate": "Дата набрання чинності",
+    "legal.lastUpdated": "Останнє оновлення",
+    "legal.operatorName": "Оператор",
+    "legal.supportEmail": "Email підтримки",
+    "legal.abuseEmail": "Email для скарг",
+    "legal.betaNotice": "Це публічна бета-версія. Функції, доступність і політика можуть змінюватися.",
+    "legal.publicBeta": "Публічна бета",
+    "legal.noE2EE": "Повідомлення не захищені наскрізним шифруванням. Оператор може отримати доступ до вмісту повідомлень для модерації, підтримки та законних запитів.",
+    "legal.backToHome": "На головну",
+    "legal.contactTitle": "Контакти",
+    "legal.privacyIntro": "Це повідомлення описує, які персональні дані ми збираємо, навіщо і як ми їх обробляємо.",
+    "legal.privacyAccountSectionTitle": "Дані акаунта",
+    "legal.privacyMessagesSectionTitle": "Повідомлення та вкладення",
+    "legal.privacySessionsSectionTitle": "Сесії та дані пристроїв",
+    "legal.privacyPushSectionTitle": "Push-сповіщення",
+    "legal.privacyReportsSectionTitle": "Скарги та журнали аудиту",
+    "legal.privacyCookiesSectionTitle": "Cookies та сховище",
+    "legal.privacyPurposesSectionTitle": "Навіщо ми обробляємо ваші дані",
+    "legal.privacyRetentionSectionTitle": "Зберігання",
+    "legal.privacyDeletionSectionTitle": "Видалення акаунта",
+    "legal.privacyEncryptionSectionTitle": "Відсутність наскрізного шифрування",
+    "legal.privacyChangesSectionTitle": "Зміни до цього повідомлення",
+    "legal.privacyAccountData": "Дані акаунта: email, ім’я користувача, відображуване ім’я, хеш пароля, аватар, мова інтерфейсу, роль, налаштування сповіщень і конфіденційності контактів.",
+    "legal.privacyMessagesAttachments": "Повідомлення та вкладення: вміст повідомлень, відповідей, реакцій, пересланих повідомлень і завантажених файлів.",
+    "legal.privacySessionsDevice": "Сесії та дані пристроїв: ідентифікатори сесій, IP-адреси та рядки user-agent для безпеки та аудиту.",
+    "legal.privacyPushSubscriptions": "Push-підписки: дані браузерних push-підписок, якщо ви ввімкнете push-сповіщення.",
+    "legal.privacyReportsAudit": "Скарги та журнали аудиту: скарги користувачів, дії модераторів і події безпеки.",
+    "legal.privacyCookiesStorage": "Cookies та сховище: ми використовуємо localStorage/sessionStorage для стану автентифікації, локалі та налаштувань інтерфейсу. Ми не використовуємо сторонні файли cookie для відстеження.",
+    "legal.privacyPurposes": "Ми обробляємо ці дані, щоб надавати сервіс, підтримувати безпеку, забезпечувати дотримання політик та виконувати юридичні зобов’язання.",
+    "legal.privacyRetention": "Ми зберігаємо дані, доки існує ваш акаунт, і обмежений час після цього, коли це необхідно для безпеки, аудиту або юридичних цілей.",
+    "legal.privacyDeletionGrace": "Видалення акаунта: коли ви запитуєте видалення, ваш акаунт переходить у 7-денний період очікування. Ви можете скасувати видалення за email-посиланням протягом цього періоду.",
+    "legal.privacyAnonymization": "Після закінчення періоду ваш email та ім’я користувача анонімізуються, пароль і дані профілю видаляються, а вхід у акаунт стає неможливим. Повідомлення залишаються під позначкою «Видалений користувач».",
+    "legal.privacyAttachmentRemoval": "Завантажені вами вкладення позначаються для видалення та згодом видаляються автоматичним очищенням.",
+    "legal.privacyDataExport": "Ви можете запросити JSON-експорт ваших персональних даних у профілі в будь-який час перед видаленням.",
+    "legal.privacyBackup": "Резервні копії зберігаються в зашифрованому вигляді окремо від production і використовуються лише для відновлення після аварій.",
+    "legal.privacyAbuseRetention": "Вміст і дані, пов’язані зі скаргами на зловживання або юридичними вимогами, можуть зберігатися довше, ніж існує акаунт, відповідно до закону або з міркувань безпеки.",
+    "legal.privacyOperatorAccess": "Доступ оператора: уповноважений персонал може отримувати доступ до даних для роботи сервісу, модерації, підтримки та юридичної відповідності.",
+    "legal.privacyNoE2EE": "Наскрізне шифрування відсутнє. Не використовуйте цей сервіс для інформації, яка має залишатисяє таємницею від оператора.",
+    "legal.privacyChanges": "Ми можемо оновлювати це повідомлення. Про суттєві зміни буде повідомлено через сервіс або email.",
+    "legal.termsIntro": "Ці Умови використання регулюють ваш доступ до сервісу та його використання.",
+    "legal.termsBeta": "Сервіс перебуває у публічній бета-версії. Він може змінюватися, працювати з перебоями або бути недоступним у будь-який момент.",
+    "legal.termsServiceChanges": "Ми можемо змінювати або припиняти функції без попередження. Ми не несемо відповідальності за простої чи втрату даних.",
+    "legal.termsNoUptime": "Ми не гарантуємо доступність сервісу або збереження будь-яких даних.",
+    "legal.termsAccountSecurity": "Ви відповідаєте за збереження пароля та облікових даних. Вам має бути не менше 16 років для використання сервісу.",
+    "legal.termsContentOwnership": "Ви зберігаєте право власності на створений вміст, але надаєте нам права, необхідні для хостингу, відображення та передачі його в межах сервісу.",
+    "legal.termsProhibitedConduct": "Заборонено використовувати сервіс для незаконної діяльності, переслідувань, спаму, поширення шкідливого ПЗ, крадіжки облікових даних, порушення конфіденційності або зловживання запрошеннями та скаргами.",
+    "legal.termsSuspension": "Ми можемо призупинити або припинити дію акаунтів, які порушують ці умови або завдають шкоди сервісу чи іншим користувачам.",
+    "legal.termsLimitation": "Сервіс надається «як є» без гарантій. Наша відповідальність обмежується в максимально дозволеній законом мірі.",
+    "legal.termsChanges": "Ми можемо оновлювати ці умови. Подальше використання після змін означає вашу згоду з оновленими умовами.",
+    "legal.acceptableIntro": "Ця політика описує діяльність, яка не дозволена на сервісі.",
+    "legal.acceptableIllegal": "Незаконний вміст і поведінка: не завантажуйте, не поширюйте та не просувайте вміст, що порушує чинне законодавство.",
+    "legal.acceptableHarassment": "Переслідування та погрози: не погрожуйте, не переслідуйте, не знущайтеся та не спонукайте до насильства щодо інших.",
+    "legal.acceptableSpam": "Спам: не надсилайте небажані масові повідомлення, не публікуйте повторюваний небажаний вміст і не зловживайте запрошеннями.",
+    "legal.acceptableMalware": "Шкідливе ПЗ та небезпечні файли: не поширюйте шкідливе програмне забезпечення, експлойти чи файли, призначені для пошкодження пристроїв або крадіжки даних.",
+    "legal.acceptableCredentials": "Крадіжка облікових даних: не намагайтеся отримати пароль, токени чи облікові дані іншого користувача.",
+    "legal.acceptablePrivacy": "Порушення конфіденційності: не публікуйте особисту інформацію інших без згоди.",
+    "legal.acceptableReports": "Зловживання скаргами та запрошеннями: не надсилайте неправдиві скарги та не створюйте запрошення для переслідування користувачів.",
+    "legal.acceptableFlooding": "Автоматичне флудінг: не використовуйте ботів чи скриптів для флуду каналів, груп або особистих повідомлень.",
+    "legal.acceptableConsequences": "Порушення можуть призвести до видалення вмісту, призупинення або припинення дії акаунта, а в разі потреби — передачі справи правоохоронним органам.",
   },
   ru: {
     "header.profile": "Профиль",
@@ -2741,6 +3059,12 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "auth.emailNotVerified": "Пожалуйста, подтвердите email перед входом.",
     "auth.signInAfterVerification": "Теперь вы можете войти с подтверждённым email.",
     "auth.backToSignIn": "Назад ко входу",
+    "auth.accountDeletionPending": "Удаление аккаунта ожидает",
+    "auth.accountDeletionPendingHint": "Вы запросили удаление этого аккаунта. Проверьте email со ссылкой для отмены, или отправьте её повторно на {arg0}.",
+    "auth.resendCancellationLink": "Отправить ссылку для отмены",
+    "auth.resendingCancellationLink": "Отправляем…",
+    "auth.resendCancellationSuccess": "Если аккаунт существует и ожидает удаления, ссылка для отмены отправлена.",
+    "auth.resendCancellationHint": "Проверьте почту со ссылкой для отмены. Также проверьте папку спам.",
     "auth.loading": "Загрузка…",
     "auth.tryDemo": "Попробовать демо",
     "auth.demoLoading": "Запуск демо…",
@@ -2907,6 +3231,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.attachmentReady": "Готово",
     "channel.attachmentUploaded": "Загружено",
     "channel.attachmentLoading": "Загрузка…",
+    "channel.attachmentRemoved": "Вложение удалено",
     "channel.errorAttachmentUploadFailed": "Не удалось загрузить вложение. Попробуйте ещё раз.",
     "channel.dropFilesHere": "Перетащите файл сюда для загрузки",
     "channel.lightboxTitle": "Просмотр изображения",
@@ -2922,6 +3247,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "channel.socketJoined": "Подключено к каналу",
     "channel.socketError": "Ошибка",
     "messageAuthor.unknownUser": "Неизвестный пользователь",
+    "messageAuthor.deletedUser": "Удалённый пользователь",
     "direct.title": "Личные сообщения",
     "direct.subtitle": "Общайтесь напрямую с другими пользователями.",
     "direct.newConversation": "Новый разговор",
@@ -3469,6 +3795,104 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "forward.sourceGroup": "группы",
     "forward.failed": "Не удалось переслать сообщение",
     "forward.forwardedMessage": "Пересланное сообщение",
+    "profile.dataAndAccount": "Ваши данные и аккаунт",
+    "profile.downloadMyData": "Скачать мои данные",
+    "profile.deleteMyAccount": "Удалить мой аккаунт",
+    "profile.exportDataTitle": "Скачать ваши данные",
+    "profile.exportDataDescription": "Экспортируйте копию ваших персональных данных в файл JSON.",
+    "profile.exportDataPasswordLabel": "Текущий пароль",
+    "profile.exportDataExplanation": "Вложения в этот файл не входят. Скачайте каждое вложение отдельно перед удалением аккаунта, если оно вам нужно.",
+    "profile.exportDataButton": "Экспортировать данные",
+    "profile.exportDataDownloading": "Подготовка экспорта…",
+    "profile.exportDataSuccess": "Экспорт данных скачивается.",
+    "profile.exportDataFailed": "Не удалось экспортировать данные. Проверьте пароль и попробуйте ещё раз.",
+    "profile.deleteAccountTitle": "Удалить аккаунт",
+    "profile.deleteAccountDescription": "Запрос на безвозвратное удаление вашего аккаунта и данных.",
+    "profile.deleteAccountGracePeriod": "После подтверждения ваш аккаунт переходит в 7-дневный период ожидания. Вы можете отменить удаление по ссылке в письме в течение этого времени.",
+    "profile.deleteAccountMessagesRetained": "Ваши сообщения, ответы и реакции останутся в переписках под именем «Удалённый пользователь», чтобы сохранить историю обсуждений.",
+    "profile.deleteAccountAttachmentsRemoved": "Ваши вложения будут помечены для удаления и со временем удалены из хранилища.",
+    "profile.deleteAccountOwnershipBlockers": "Перед удалением передайте владение рабочими пространствами, группами или каналами, перечисленными ниже.",
+    "profile.deleteAccountOwnedWorkspaces": "Рабочие пространства, которыми вы владеете",
+    "profile.deleteAccountOwnedGroups": "Группы, в которых вы единственный владелец",
+    "profile.deleteAccountOwnedChannels": "Каналы, которыми вы владеете",
+    "profile.deleteAccountPasswordLabel": "Текущий пароль",
+    "profile.deleteAccountConfirmationPhraseLabel": "Подтверждение",
+    "profile.deleteAccountConfirmationPhraseHint": "Введите DELETE MY ACCOUNT для подтверждения.",
+    "profile.deleteAccountButton": "Запросить удаление",
+    "profile.deleteAccountDeleting": "Запрос на удаление…",
+    "profile.deleteAccountRequested": "Запрос на удаление аккаунта отправлен. Проверьте почту для ссылки отмены.",
+    "profile.cancel": "Отмена",
+    "profile.deleteAccountFailed": "Не удалось запросить удаление аккаунта. Проверьте пароль и попробуйте ещё раз.",
+    "profile.deleteAccountPhraseMismatch": "Фраза подтверждения не совпадает.",
+    "cancelAccountDeletion.title": "Отменить удаление аккаунта",
+    "cancelAccountDeletion.verifying": "Проверяется ссылка отмены…",
+    "cancelAccountDeletion.success": "Удаление аккаунта отменено",
+    "cancelAccountDeletion.successMessage": "Ваш аккаунт восстановлен. Войдите снова, чтобы продолжить.",
+    "cancelAccountDeletion.error": "Не удалось отменить",
+    "cancelAccountDeletion.errorMessage": "Эта ссылка недействительна, просрочена или уже использована.",
+    "cancelAccountDeletion.backToSignIn": "Вернуться ко входу",
+    "legal.privacyTitle": "Уведомление о конфиденциальности",
+    "legal.termsTitle": "Условия использования",
+    "legal.acceptableUseTitle": "Правила приемлемого использования",
+    "legal.effectiveDate": "Дата вступления в силу",
+    "legal.lastUpdated": "Последнее обновление",
+    "legal.operatorName": "Оператор",
+    "legal.supportEmail": "Email поддержки",
+    "legal.abuseEmail": "Email для жалоб",
+    "legal.betaNotice": "Это публичная бета-версия. Функции, доступность и политика могут изменяться.",
+    "legal.publicBeta": "Публичная бета",
+    "legal.noE2EE": "Сообщения не защищены сквозным шифрованием. Оператор может получить доступ к содержимому сообщений для модерации, поддержки и законных запросов.",
+    "legal.backToHome": "На главную",
+    "legal.contactTitle": "Контакты",
+    "legal.privacyIntro": "Это уведомление описывает, какие персональные данные мы собираем, зачем и как мы их обрабатываем.",
+    "legal.privacyAccountSectionTitle": "Данные аккаунта",
+    "legal.privacyMessagesSectionTitle": "Сообщения и вложения",
+    "legal.privacySessionsSectionTitle": "Сессии и данные устройств",
+    "legal.privacyPushSectionTitle": "Push-уведомления",
+    "legal.privacyReportsSectionTitle": "Жалобы и журналы аудита",
+    "legal.privacyCookiesSectionTitle": "Cookies и хранилище",
+    "legal.privacyPurposesSectionTitle": "Зачем мы обрабатываем ваши данные",
+    "legal.privacyRetentionSectionTitle": "Хранение данных",
+    "legal.privacyDeletionSectionTitle": "Удаление аккаунта",
+    "legal.privacyEncryptionSectionTitle": "Отсутствие сквозного шифрования",
+    "legal.privacyChangesSectionTitle": "Изменения в этом уведомлении",
+    "legal.privacyAccountData": "Данные аккаунта: email, имя пользователя, отображаемое имя, хеш пароля, аватар, язык интерфейса, роль, настройки уведомлений и конфиденциальности контактов.",
+    "legal.privacyMessagesAttachments": "Сообщения и вложения: содержание сообщений, ответов, реакций, пересланных сообщений и загруженных файлов.",
+    "legal.privacySessionsDevice": "Сессии и данные устройств: идентификаторы сессий, IP-адреса и строки user-agent для безопасности и аудита.",
+    "legal.privacyPushSubscriptions": "Push-подписки: данные браузерных push-подписок, если вы включите push-уведомления.",
+    "legal.privacyReportsAudit": "Жалобы и журналы аудита: жалобы пользователей, действия модераторов и события безопасности.",
+    "legal.privacyCookiesStorage": "Cookies и хранилище: мы используем localStorage/sessionStorage для состояния аутентификации, локали и настроек интерфейса. Мы не используем сторонние файлы cookie для отслеживания.",
+    "legal.privacyPurposes": "Мы обрабатываем эти данные для предоставления сервиса, поддержания безопасности, соблюдения политик и выполнения юридических обязательств.",
+    "legal.privacyRetention": "Мы храним данные, пока существует ваш аккаунт, и ограниченное время после этого, когда это необходимо для безопасности, аудита или юридических целей.",
+    "legal.privacyDeletionGrace": "Удаление аккаунта: когда вы запрашиваете удаление, ваш аккаунт переходит в 7-дневный период ожидания. Вы можете отменить удаление по email-ссылке в течение этого периода.",
+    "legal.privacyAnonymization": "После окончания периода ваш email и имя пользователя анонимизируются, пароль и данные профиля удаляются, а вход в аккаунт становится невозможным. Сообщения остаются под меткой «Удалённый пользователь».",
+    "legal.privacyAttachmentRemoval": "Загруженные вами вложения помечаются для удаления и позже удаляются автоматической очисткой.",
+    "legal.privacyDataExport": "Вы можете запросить JSON-экспорт ваших персональных данных в профиле в любое время до удаления.",
+    "legal.privacyBackup": "Резервные копии хранятся в зашифрованном виде отдельно от production и используются только для восстановления после сбоев.",
+    "legal.privacyAbuseRetention": "Контент и данные, связанные с жалобами на злоупотребления или юридическими требованиями, могут храниться дольше, чем существует аккаунт, в соответствии с законом или из соображений безопасности.",
+    "legal.privacyOperatorAccess": "Доступ оператора: уполномоченный персонал может получать доступ к данным для работы сервиса, модерации, поддержки и юридического соответствия.",
+    "legal.privacyNoE2EE": "Сквозное шифрование отсутствует. Не используйте этот сервис для информации, которая должна оставаться тайной от оператора.",
+    "legal.privacyChanges": "Мы можем обновлять это уведомление. О существенных изменениях будет сообщено через сервис или email.",
+    "legal.termsIntro": "Эти Условия использования регулируют ваш доступ к сервису и его использование.",
+    "legal.termsBeta": "Сервис находится в публичной бета-версии. Он может изменяться, работать с перебоями или быть недоступным в любой момент.",
+    "legal.termsServiceChanges": "Мы можем изменять или прекращать функции без предупреждения. Мы не несём ответственности за простои или потерю данных.",
+    "legal.termsNoUptime": "Мы не гарантируем доступность сервиса или сохранение каких-либо данных.",
+    "legal.termsAccountSecurity": "Вы отвечаете за сохранность пароля и учётных данных. Вам должно быть не менее 16 лет для использования сервиса.",
+    "legal.termsContentOwnership": "Вы сохраняете право собственности на созданный контент, но предоставляете нам права, необходимые для хостинга, отображения и передачи его в рамках сервиса.",
+    "legal.termsProhibitedConduct": "Запрещено использовать сервис для незаконной деятельности, домогательств, спама, распространения вредоносного ПО, кражи учётных данных, нарушения конфиденциальности или злоупотребления приглашениями и жалобами.",
+    "legal.termsSuspension": "Мы можем приостановить или прекратить действие аккаунтов, нарушающих эти условия или причиняющих вред сервису или другим пользователям.",
+    "legal.termsLimitation": "Сервис предоставляется «как есть» без гарантий. Наша ответственность ограничивается в максимально разрешённой законом мере.",
+    "legal.termsChanges": "Мы можем обновлять эти условия. Продолжение использования после изменений означает ваше согласие с обновлёнными условиями.",
+    "legal.acceptableIntro": "Эта политика описывает деятельность, которая не разрешена на сервисе.",
+    "legal.acceptableIllegal": "Незаконный контент и поведение: не загружайте, не распространяйте и не продвигайте контент, нарушающий действующее законодательство.",
+    "legal.acceptableHarassment": "Домогательства и угрозы: не угрожайте, не преследуйте, не издевайтесь и не подстрекайте к насилию над другими.",
+    "legal.acceptableSpam": "Спам: не отправляйте нежелательные массовые сообщения, не публикуйте повторяющийся нежелательный контент и не злоупотребляйте приглашениями.",
+    "legal.acceptableMalware": "Вредоносное ПО и опасные файлы: не распространяйте вредоносное ПО, эксплойты или файлы, предназначенные для повреждения устройств или кражи данных.",
+    "legal.acceptableCredentials": "Кража учётных данных: не пытайтесь получить пароль, токены или учётные данные другого пользователя.",
+    "legal.acceptablePrivacy": "Нарушения конфиденциальности: не публикуйте личную информацию других без согласия.",
+    "legal.acceptableReports": "Злоупотребление жалобами и приглашениями: не отправляйте ложные жалобы и не создавайте приглашения для преследования пользователей.",
+    "legal.acceptableFlooding": "Автоматический флуд: не используйте ботов или скрипты для флуда каналов, групп или личных сообщений.",
+    "legal.acceptableConsequences": "Нарушения могут привести к удалению контента, приостановке или прекращению действия аккаунта, а при необходимости — передаче дела правоохранительным органам.",
   },
 };
 

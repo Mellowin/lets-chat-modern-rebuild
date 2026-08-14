@@ -1,6 +1,7 @@
 import { getApiBase } from "./env";
 import { fetchWithTimeout, ApiTimeoutError, isApiTimeoutError } from "./fetch-timeout";
 import { authFetch } from "./auth-fetch";
+import { parseApiErrorResponse } from "./api-errors";
 
 const API_BASE = getApiBase();
 
@@ -15,6 +16,8 @@ export interface AuthUser {
   avatarUpdatedAt: string | null;
   interfaceLanguage: "en" | "uk" | "ru";
   role: "USER" | "MODERATOR" | "ADMIN";
+  status: "ACTIVE" | "PENDING_DELETION" | "ANONYMIZED";
+  isDeleted: boolean;
   createdAt: string;
   pushNotificationsEnabled: boolean;
   mentionNotificationsEnabled: boolean;
@@ -89,12 +92,9 @@ async function parseErrorMessage(res: Response, fallback: string): Promise<strin
     if (body?.message) message = body.message;
     else if (body?.error) message = body.error;
 
-    // Include backend error codes for mail-provider failures so the UI can map
+    // Include backend error codes for known application states so the UI can map
     // them to user-friendly messages even when the human-readable text changes.
-    if (
-      typeof body?.code === "string" &&
-      body.code.startsWith("MAIL_PROVIDER")
-    ) {
+    if (typeof body?.code === "string") {
       message = `${body.code}: ${message}`;
     }
   } catch {
@@ -524,4 +524,106 @@ export async function updateNotificationPreferences(accessToken: string, input: 
   }
 
   return res.json() as Promise<NotificationPreferences>;
+}
+
+export interface RequestAccountDeletionInput {
+  currentPassword: string;
+  confirmationPhrase: string;
+  idempotencyKey: string;
+}
+
+export interface RequestAccountDeletionResult {
+  scheduledFor: string;
+}
+
+export async function requestAccountDeletion(
+  accessToken: string,
+  input: RequestAccountDeletionInput,
+): Promise<RequestAccountDeletionResult> {
+  const res = await authFetch(`${API_BASE}/auth/account-deletion/request`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      Authorization: `Bearer ${accessToken}`,
+      "Idempotency-Key": input.idempotencyKey,
+    },
+    body: JSON.stringify({
+      currentPassword: input.currentPassword,
+      confirmationPhrase: input.confirmationPhrase,
+    }),
+  });
+
+  if (!res.ok) {
+    throw await parseApiErrorResponse(
+      res,
+      `Failed to request account deletion: ${res.status} ${res.statusText}`,
+    );
+  }
+
+  return res.json() as Promise<RequestAccountDeletionResult>;
+}
+
+export interface CancelAccountDeletionInput {
+  token: string;
+}
+
+export async function cancelAccountDeletion(input: CancelAccountDeletionInput): Promise<{ success: boolean }> {
+  const res = await fetchWithTimeout(`${API_BASE}/auth/account-deletion/cancel`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(input),
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to cancel account deletion: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<{ success: boolean }>;
+}
+
+export interface ResendAccountDeletionCancellationInput {
+  email: string;
+  currentPassword: string;
+}
+
+export async function resendAccountDeletionCancellation(
+  input: ResendAccountDeletionCancellationInput,
+): Promise<{ success: boolean }> {
+  const res = await fetchWithTimeout(`${API_BASE}/auth/account-deletion/resend-cancellation`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(input),
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to resend cancellation link: ${res.status} ${res.statusText}`));
+  }
+
+  return res.json() as Promise<{ success: boolean }>;
+}
+
+export interface RequestDataExportInput {
+  currentPassword: string;
+}
+
+export async function requestDataExport(
+  accessToken: string,
+  input: RequestDataExportInput,
+): Promise<Blob> {
+  const res = await authFetch(`${API_BASE}/auth/data-export`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(input),
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res, `Failed to export data: ${res.status} ${res.statusText}`));
+  }
+
+  return res.blob();
 }

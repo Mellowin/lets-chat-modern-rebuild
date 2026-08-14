@@ -24,6 +24,7 @@ export class ContactsRepository {
         ownerUserId,
         contactUserId,
         deletedAt: null,
+        contactUser: { status: 'ACTIVE' },
       },
       include: {
         contactUser: {
@@ -43,6 +44,7 @@ export class ContactsRepository {
       where: {
         ownerUserId,
         deletedAt: null,
+        contactUser: { status: 'ACTIVE' },
       },
       orderBy: { createdAt: 'desc' },
       include: {

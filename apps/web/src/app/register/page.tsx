@@ -16,6 +16,7 @@ import { register, resendVerification } from "@/lib/auth-api";
 import { useLocale } from "@/lib/locale";
 import { localizeApiError } from "@/lib/api-errors";
 import { useResendCooldown } from "@/lib/use-resend-cooldown";
+import { LegalLinks } from "@/components/LegalLinks";
 import { Button } from "@/components/ui/Button";
 import {
   Card,
@@ -328,6 +329,8 @@ export default function RegisterPage() {
           )}
         </CardContent>
       </Card>
+
+      <LegalLinks className="justify-center" />
     </div>
   );
 }

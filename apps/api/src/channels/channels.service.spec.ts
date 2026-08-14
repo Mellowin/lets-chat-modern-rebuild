@@ -39,7 +39,7 @@ type FoundChannelMemberById = NonNullable<
   Awaited<ReturnType<ChannelsRepository['findActiveChannelMemberById']>>
 >;
 type FoundUser = NonNullable<
-  Awaited<ReturnType<UsersRepository['findByUsername']>>
+  Awaited<ReturnType<UsersRepository['findActiveByUsername']>>
 >;
 type WorkspaceMember = NonNullable<
   Awaited<ReturnType<WorkspacesRepository['findActiveMemberByUserId']>>
@@ -85,14 +85,15 @@ describe('ChannelsService', () => {
             softDeleteChannelMember: jest.fn(),
             findBySlug: jest.fn(),
             createChannel: jest.fn(),
+            transferOwnership: jest.fn(),
           },
         },
         {
           provide: UsersRepository,
           useValue: {
             findById: jest.fn(),
-            findByEmail: jest.fn(),
-            findByUsername: jest.fn(),
+            findActiveByEmail: jest.fn(),
+            findActiveByUsername: jest.fn(),
             createUser: jest.fn(),
           },
         },
@@ -734,6 +735,46 @@ describe('ChannelsService', () => {
       expect(result[1].user.username).toBe('bob');
     });
 
+    it('masks pending-deletion channel members as Deleted user', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.listActiveChannelMembers.mockResolvedValue([
+        {
+          id: 'member-1',
+          channelId,
+          role: 'MEMBER',
+          createdAt: new Date('2026-01-01'),
+          user: {
+            id: 'user-1',
+            username: 'alice',
+            displayName: 'Alice Display',
+            avatarUrl: '/uploads/avatars/alice.png',
+            status: 'PENDING_DELETION',
+          },
+        },
+      ] as ChannelMemberWithUser[]);
+
+      const result = await service.listChannelMembers(
+        workspaceId,
+        channelId,
+        userId,
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0].user).toEqual({
+        id: 'user-1',
+        username: '',
+        displayName: 'Deleted user',
+        avatarUrl: null,
+        isDeleted: true,
+      });
+    });
+
     it('throws NotFoundException for PUBLIC channel when user is not channel member', async () => {
       workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
       channelsRepository.findActiveById.mockResolvedValue({
@@ -832,11 +873,11 @@ describe('ChannelsService', () => {
         type: 'PUBLIC',
       } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
-      usersRepository.findByUsername.mockResolvedValue({
+      usersRepository.findActiveByUsername.mockResolvedValue({
         id: targetUserId,
         username: 'alice',
       } as FoundUser);
-      usersRepository.findByEmail.mockResolvedValue(null);
+      usersRepository.findActiveByEmail.mockResolvedValue(null);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: 'ws-member-1',
         workspaceId,
@@ -878,11 +919,11 @@ describe('ChannelsService', () => {
         type: 'PUBLIC',
       } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
-      usersRepository.findByUsername.mockResolvedValue({
+      usersRepository.findActiveByUsername.mockResolvedValue({
         id: targetUserId,
         username: 'alice',
       } as FoundUser);
-      usersRepository.findByEmail.mockResolvedValue(null);
+      usersRepository.findActiveByEmail.mockResolvedValue(null);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: 'ws-member-1',
         workspaceId,
@@ -919,11 +960,11 @@ describe('ChannelsService', () => {
         type: 'PUBLIC',
       } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('ADMIN');
-      usersRepository.findByUsername.mockResolvedValue({
+      usersRepository.findActiveByUsername.mockResolvedValue({
         id: targetUserId,
         username: 'bob',
       } as FoundUser);
-      usersRepository.findByEmail.mockResolvedValue(null);
+      usersRepository.findActiveByEmail.mockResolvedValue(null);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: 'ws-member-1',
         workspaceId,
@@ -960,11 +1001,11 @@ describe('ChannelsService', () => {
         type: 'PUBLIC',
       } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('ADMIN');
-      usersRepository.findByUsername.mockResolvedValue({
+      usersRepository.findActiveByUsername.mockResolvedValue({
         id: targetUserId,
         username: 'alice',
       } as FoundUser);
-      usersRepository.findByEmail.mockResolvedValue(null);
+      usersRepository.findActiveByEmail.mockResolvedValue(null);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: 'ws-member-1',
         workspaceId,
@@ -1032,12 +1073,30 @@ describe('ChannelsService', () => {
         type: 'PUBLIC',
       } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
-      usersRepository.findByUsername.mockResolvedValue(null);
-      usersRepository.findByEmail.mockResolvedValue(null);
+      usersRepository.findActiveByUsername.mockResolvedValue(null);
+      usersRepository.findActiveByEmail.mockResolvedValue(null);
 
       await expect(
         service.addChannelMember(workspaceId, channelId, userId, {
           identifier: 'unknown',
+        }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('returns 404 when target user is not ACTIVE', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
+      usersRepository.findActiveByUsername.mockResolvedValue(null);
+      usersRepository.findActiveByEmail.mockResolvedValue(null);
+
+      await expect(
+        service.addChannelMember(workspaceId, channelId, userId, {
+          identifier: 'pending-user',
         }),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
@@ -1050,11 +1109,11 @@ describe('ChannelsService', () => {
         type: 'PUBLIC',
       } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
-      usersRepository.findByUsername.mockResolvedValue({
+      usersRepository.findActiveByUsername.mockResolvedValue({
         id: targetUserId,
         username: 'alice',
       } as FoundUser);
-      usersRepository.findByEmail.mockResolvedValue(null);
+      usersRepository.findActiveByEmail.mockResolvedValue(null);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue(null);
 
       await expect(
@@ -1072,11 +1131,11 @@ describe('ChannelsService', () => {
         type: 'PUBLIC',
       } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
-      usersRepository.findByUsername.mockResolvedValue({
+      usersRepository.findActiveByUsername.mockResolvedValue({
         id: targetUserId,
         username: 'alice',
       } as FoundUser);
-      usersRepository.findByEmail.mockResolvedValue(null);
+      usersRepository.findActiveByEmail.mockResolvedValue(null);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: 'ws-member-1',
         workspaceId,
@@ -1139,11 +1198,11 @@ describe('ChannelsService', () => {
         type: 'PUBLIC',
       } as ActiveChannel);
       channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
-      usersRepository.findByUsername.mockResolvedValue({
+      usersRepository.findActiveByUsername.mockResolvedValue({
         id: targetUserId,
         username: 'alice',
       } as FoundUser);
-      usersRepository.findByEmail.mockResolvedValue(null);
+      usersRepository.findActiveByEmail.mockResolvedValue(null);
       workspacesRepository.findActiveMemberByUserId.mockResolvedValue({
         id: 'ws-member-1',
         workspaceId,
@@ -1162,6 +1221,178 @@ describe('ChannelsService', () => {
       await expect(
         service.addChannelMember(workspaceId, channelId, userId, {
           identifier: 'alice',
+        }),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+  });
+
+  describe('transferChannelOwnership', () => {
+    const targetMemberId = '66666666-6666-6666-6666-666666666666';
+    const targetUserId = '44444444-4444-4444-4444-444444444444';
+
+    function mockTransferSuccess() {
+      channelsRepository.transferOwnership.mockResolvedValue({
+        channelId,
+        previousOwner: {
+          id: 'owner-member-id',
+          userId,
+          role: 'ADMIN' as const,
+        },
+        newOwner: {
+          id: targetMemberId,
+          userId: targetUserId,
+          role: 'OWNER' as const,
+        },
+      });
+    }
+
+    it('allows OWNER to transfer ownership to another member', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
+      channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue({
+        id: 'owner-member-id',
+        channelId,
+        role: 'OWNER',
+        userId,
+        user: {
+          id: userId,
+          username: 'owner',
+          avatarUrl: null,
+          status: 'ACTIVE' as const,
+        },
+      } as FoundChannelMember);
+      channelsRepository.findActiveChannelMemberById.mockResolvedValue({
+        id: targetMemberId,
+        channelId,
+        role: 'MEMBER',
+        userId: targetUserId,
+        user: {
+          id: targetUserId,
+          username: 'bob',
+          avatarUrl: null,
+          status: 'ACTIVE' as const,
+        },
+      } as FoundChannelMemberById);
+      mockTransferSuccess();
+
+      const result = await service.transferChannelOwnership(
+        workspaceId,
+        channelId,
+        userId,
+        { memberId: targetMemberId },
+      );
+
+      expect(result.newOwner.role).toBe('OWNER');
+      expect(result.previousOwner.role).toBe('ADMIN');
+      expect(channelsRepository.transferOwnership).toHaveBeenCalledWith({
+        channelId,
+        currentOwnerMemberId: 'owner-member-id',
+        currentOwnerUserId: userId,
+        targetMemberId,
+        targetUserId,
+      });
+    });
+
+    it('rejects transfer by ADMIN', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('ADMIN');
+
+      await expect(
+        service.transferChannelOwnership(workspaceId, channelId, userId, {
+          memberId: targetMemberId,
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('rejects transfer to a non-active user with conflict', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
+      channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue({
+        id: 'owner-member-id',
+        channelId,
+        role: 'OWNER',
+        userId,
+        user: {
+          id: userId,
+          username: 'owner',
+          avatarUrl: null,
+          status: 'ACTIVE' as const,
+        },
+      } as FoundChannelMember);
+      channelsRepository.findActiveChannelMemberById.mockResolvedValue({
+        id: targetMemberId,
+        channelId,
+        role: 'MEMBER',
+        userId: targetUserId,
+        user: {
+          id: targetUserId,
+          username: 'bob',
+          avatarUrl: null,
+          status: 'PENDING_DELETION' as const,
+        },
+      } as FoundChannelMemberById);
+
+      await expect(
+        service.transferChannelOwnership(workspaceId, channelId, userId, {
+          memberId: targetMemberId,
+        }),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('maps ownership race errors to ConflictException', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('OWNER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('OWNER');
+      channelsRepository.findActiveChannelMemberByUserId.mockResolvedValue({
+        id: 'owner-member-id',
+        channelId,
+        role: 'OWNER',
+        userId,
+        user: {
+          id: userId,
+          username: 'owner',
+          avatarUrl: null,
+          status: 'ACTIVE' as const,
+        },
+      } as FoundChannelMember);
+      channelsRepository.findActiveChannelMemberById.mockResolvedValue({
+        id: targetMemberId,
+        channelId,
+        role: 'MEMBER',
+        userId: targetUserId,
+        user: {
+          id: targetUserId,
+          username: 'bob',
+          avatarUrl: null,
+          status: 'ACTIVE' as const,
+        },
+      } as FoundChannelMemberById);
+      channelsRepository.transferOwnership.mockRejectedValue(
+        new Error('OWNERSHIP_STATE_CHANGED'),
+      );
+
+      await expect(
+        service.transferChannelOwnership(workspaceId, channelId, userId, {
+          memberId: targetMemberId,
         }),
       ).rejects.toBeInstanceOf(ConflictException);
     });

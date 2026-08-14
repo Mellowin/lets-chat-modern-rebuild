@@ -3,6 +3,38 @@ import type { TranslationKey } from "./locale";
 
 export type TranslateFn = (key: TranslationKey, ...args: string[]) => string;
 
+export interface AccountDeletionBlockers {
+  workspaces: Array<{ id: string; name: string; slug: string }>;
+  groups: Array<{ id: string; name: string; memberId: string }>;
+  channels: Array<{
+    id: string;
+    workspaceId: string;
+    name: string;
+    slug: string;
+    memberId: string;
+  }>;
+}
+
+export interface ApiErrorBody {
+  statusCode: number;
+  code: string;
+  message: string;
+  blockers?: AccountDeletionBlockers;
+  details?: unknown;
+}
+
+export class ApiError extends Error {
+  constructor(
+    public readonly statusCode: number,
+    public readonly code: string,
+    message: string,
+    public readonly blockers?: AccountDeletionBlockers,
+    public readonly details?: unknown,
+  ) {
+    super(message);
+  }
+}
+
 const MESSAGE_MAP: Record<string, TranslationKey> = {
   "validation failed": "errors.validationFailed",
   "unauthorized": "errors.unauthorized",
@@ -89,4 +121,71 @@ export function localizeApiError(
   }
 
   return t(fallbackKey);
+}
+
+export async function parseApiErrorResponse(
+  res: Response,
+  fallbackMessage: string,
+): Promise<ApiError> {
+  let code = "";
+  let message = fallbackMessage;
+  let blockers: AccountDeletionBlockers | undefined;
+  let details: unknown;
+
+  try {
+    const body = (await res.json()) as Record<string, unknown>;
+    if (typeof body.code === "string") code = body.code;
+    if (typeof body.message === "string") {
+      message = body.message;
+    } else if (
+      typeof body.message === "object" &&
+      body.message !== null &&
+      Array.isArray(body.message)
+    ) {
+      message = "Validation failed";
+      details = body.message;
+    }
+    if (isBlockers(body.blockers)) blockers = body.blockers;
+    if (body.details !== undefined) details = body.details;
+  } catch {
+    // JSON parse failed; keep the fallback message.
+  }
+
+  return new ApiError(res.status, code, message, blockers, details);
+}
+
+function isBlockers(value: unknown): value is AccountDeletionBlockers {
+  if (typeof value !== "object" || value === null) return false;
+  const b = value as Record<string, unknown>;
+  return (
+    Array.isArray(b.workspaces) &&
+    Array.isArray(b.groups) &&
+    Array.isArray(b.channels) &&
+    b.workspaces.every(
+      (item) =>
+        typeof item === "object" &&
+        item !== null &&
+        typeof (item as Record<string, unknown>).id === "string" &&
+        typeof (item as Record<string, unknown>).name === "string" &&
+        typeof (item as Record<string, unknown>).slug === "string",
+    ) &&
+    b.groups.every(
+      (item) =>
+        typeof item === "object" &&
+        item !== null &&
+        typeof (item as Record<string, unknown>).id === "string" &&
+        typeof (item as Record<string, unknown>).name === "string" &&
+        typeof (item as Record<string, unknown>).memberId === "string",
+    ) &&
+    b.channels.every(
+      (item) =>
+        typeof item === "object" &&
+        item !== null &&
+        typeof (item as Record<string, unknown>).id === "string" &&
+        typeof (item as Record<string, unknown>).workspaceId === "string" &&
+        typeof (item as Record<string, unknown>).name === "string" &&
+        typeof (item as Record<string, unknown>).slug === "string" &&
+        typeof (item as Record<string, unknown>).memberId === "string",
+    )
+  );
 }

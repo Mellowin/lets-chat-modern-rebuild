@@ -17,6 +17,7 @@ import { WebsocketEventsService } from '../websocket/websocket-events.service';
 import { PushService } from '../push/push.service';
 import { MentionsService } from '../common/mentions.service';
 import { ForwardPermissionsHelper } from './forward-permissions.helper';
+import { UserStatus } from '@lets-chat/database';
 type CreatedMessage = Awaited<ReturnType<MessagesRepository['createMessage']>>;
 type ListedMessage = Awaited<
   ReturnType<MessagesRepository['listForChannel']>
@@ -2210,6 +2211,58 @@ describe('MessagesService', () => {
 
       expect(result.items).toHaveLength(1);
       expect(result.items[0].message.id).toBe('msg-1');
+    });
+
+    it('masks deleted users in pinned message author and pinnedBy', async () => {
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      channelsRepository.findActiveById.mockResolvedValue({
+        id: channelId,
+        workspaceId,
+        type: 'PUBLIC',
+      } as ActiveChannel);
+      channelsRepository.findChannelMemberRole.mockResolvedValue('MEMBER');
+      messagesRepository.findPinnedMessages.mockResolvedValue([
+        {
+          id: 'pin-deleted',
+          pinnedAt: new Date(),
+          pinnedBy: {
+            id: otherUserId,
+            username: 'bob',
+            displayName: null,
+            avatarUrl: null,
+            status: UserStatus.ANONYMIZED,
+          },
+          message: {
+            id: 'msg-deleted',
+            content: 'hello',
+            createdAt: new Date(),
+            author: {
+              id: userId,
+              username: 'alice',
+              displayName: null,
+              avatarUrl: null,
+              status: UserStatus.ANONYMIZED,
+            },
+            attachments: [],
+            replyToMessage: null,
+          },
+        },
+      ] as never);
+
+      const result = await service.listPinnedMessages(
+        workspaceId,
+        channelId,
+        userId,
+        { limit: 20 },
+      );
+
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].message.author.username).toBe('');
+      expect(result.items[0].message.author.displayName).toBe('Deleted user');
+      expect(result.items[0].message.author.isDeleted).toBe(true);
+      expect(result.items[0].pinnedBy.username).toBe('');
+      expect(result.items[0].pinnedBy.displayName).toBe('Deleted user');
+      expect(result.items[0].pinnedBy.isDeleted).toBe(true);
     });
 
     it('batches forwarded-from permission checks for pinned messages', async () => {

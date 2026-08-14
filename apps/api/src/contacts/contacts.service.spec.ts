@@ -10,6 +10,7 @@ import {
   PrismaService,
   UserRole,
   ContactPrivacySetting,
+  UserStatus,
 } from '@lets-chat/database';
 
 const userId = '11111111-1111-1111-1111-111111111111';
@@ -49,6 +50,14 @@ function makeUser(
     role: UserRole.USER,
     contactPrivacySetting: ContactPrivacySetting.REQUESTS_ONLY,
     ...overrides,
+    status: UserStatus.ACTIVE,
+    deletionRequestedAt: null,
+    deletionScheduledFor: null,
+    deletionCancellationTokenHash: null,
+    deletionCancellationExpiresAt: null,
+    anonymizedAt: null,
+    avatarCleanupCompletedAt: null,
+    attachmentObjectsCleanupCompletedAt: null,
   };
 }
 
@@ -102,6 +111,9 @@ describe('ContactsService', () => {
             findById: jest.fn(),
             findByUsername: jest.fn(),
             findByEmail: jest.fn(),
+            findActiveById: jest.fn(),
+            findActiveByUsername: jest.fn(),
+            findActiveByEmail: jest.fn(),
           },
         },
         {
@@ -154,6 +166,9 @@ describe('ContactsService', () => {
     service = moduleRef.get(ContactsService);
     contactsRepository = moduleRef.get(ContactsRepository);
     usersRepository = moduleRef.get(UsersRepository);
+    usersRepository.findActiveById = usersRepository.findById;
+    usersRepository.findActiveByUsername = usersRepository.findByUsername;
+    usersRepository.findActiveByEmail = usersRepository.findByEmail;
     directConversations = moduleRef.get(DirectConversationsService);
   });
 

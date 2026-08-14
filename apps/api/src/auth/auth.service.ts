@@ -25,6 +25,7 @@ import {
   AuditEntityType,
   AuditSeverity,
 } from '../audit/audit.constants';
+import { isDeletedUser } from '../common/deleted-user-mapper';
 
 type SafeUser = Omit<User, 'passwordHash'>;
 
@@ -48,6 +49,7 @@ export interface AuthUserResponse {
   avatarUpdatedAt: Date | null;
   interfaceLanguage: 'en' | 'uk' | 'ru';
   role: 'USER' | 'MODERATOR' | 'ADMIN';
+  status: 'ACTIVE' | 'PENDING_DELETION' | 'ANONYMIZED';
   pushNotificationsEnabled: boolean;
   mentionNotificationsEnabled: boolean;
   directMessageNotificationsEnabled: boolean;
@@ -55,6 +57,7 @@ export interface AuthUserResponse {
   channelMessageNotificationsEnabled: boolean;
   contactPrivacySetting?: 'EVERYONE' | 'REQUESTS_ONLY' | 'NOBODY';
   createdAt: Date;
+  isDeleted: boolean;
 }
 
 export interface AuthResult {
@@ -170,6 +173,18 @@ export class AuthService {
       throw new ForbiddenException('Email not verified');
     }
 
+    if (user.status === 'PENDING_DELETION') {
+      throw new ForbiddenException({
+        message:
+          'Account deletion is pending. Use the cancellation link sent by email.',
+        code: 'ACCOUNT_DELETION_PENDING',
+      });
+    }
+
+    if (user.status === 'ANONYMIZED') {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
@@ -212,6 +227,10 @@ export class AuthService {
     const user = await this.users.findById(payload.sub);
     if (!user) {
       throw new UnauthorizedException('User not found');
+    }
+
+    if (user.status !== 'ACTIVE') {
+      throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
     const newPayload: JwtPayload = {
@@ -701,9 +720,11 @@ export class AuthService {
       channelMessageNotificationsEnabled:
         (user as User).channelMessageNotificationsEnabled ?? true,
       role: (user as User).role ?? 'USER',
+      status: (user as User).status ?? 'ACTIVE',
       contactPrivacySetting:
         (user as User).contactPrivacySetting ?? 'REQUESTS_ONLY',
       createdAt: user.createdAt,
+      isDeleted: isDeletedUser(user),
     };
   }
 

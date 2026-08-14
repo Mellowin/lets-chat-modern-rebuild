@@ -13,7 +13,9 @@ describe('AppController (e2e)', () => {
       imports: [AppModule],
     })
       .overrideProvider(StorageService)
-      .useValue({})
+      .useValue({
+        deleteObjectsByPrefix: jest.fn().mockResolvedValue(undefined),
+      })
       .compile();
 
     app = moduleFixture.createNestApplication();

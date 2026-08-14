@@ -31,6 +31,7 @@ import {
   decodePinCursor,
   encodePinCursor,
 } from '../common/cursor-pagination';
+import { mapAuthorResponse } from '../common/deleted-user-mapper';
 
 export type AttachmentKind = 'image' | 'file';
 
@@ -45,7 +46,9 @@ export function mapAttachmentResponse(attachment: {
   mimeType: string;
   size: number;
   createdAt: Date;
+  deletedAt?: Date | null;
 }) {
+  const isDeleted = attachment.deletedAt != null;
   return {
     id: attachment.id,
     fileName: attachment.filename,
@@ -53,6 +56,7 @@ export function mapAttachmentResponse(attachment: {
     sizeBytes: attachment.size,
     kind: classifyAttachmentKind(attachment.mimeType),
     createdAt: attachment.createdAt,
+    isDeleted,
   };
 }
 
@@ -83,6 +87,7 @@ export class MessagesService {
         username: string;
         displayName: string | null;
         avatarUrl: string | null;
+        status?: string;
       };
       reactions: Array<{ emoji: string; userId: string }>;
       attachments: Array<{
@@ -102,6 +107,7 @@ export class MessagesService {
           username: string;
           displayName: string | null;
           avatarUrl: string | null;
+          status?: string;
         };
       } | null;
       pin?: {
@@ -135,6 +141,7 @@ export class MessagesService {
         username: string;
         displayName: string | null;
         avatarUrl: string | null;
+        status?: string;
       };
       reactions: Array<{ emoji: string; userId: string }>;
       attachments: Array<{
@@ -154,6 +161,7 @@ export class MessagesService {
           username: string;
           displayName: string | null;
           avatarUrl: string | null;
+          status?: string;
         };
       } | null;
       pin?: {
@@ -205,13 +213,13 @@ export class MessagesService {
               : message.replyToMessage.content,
             author: message.replyToMessage.deletedAt
               ? null
-              : message.replyToMessage.author,
+              : mapAuthorResponse(message.replyToMessage.author),
           }
         : null,
       createdAt: message.createdAt,
       updatedAt: message.updatedAt,
       editedAt: message.editedAt,
-      author: message.author,
+      author: mapAuthorResponse(message.author),
       reactions,
       attachments,
       mentions: this.normalizeMentions(message.mentions),
@@ -368,21 +376,19 @@ export class MessagesService {
       id: pin.id,
       pinnedAt: pin.pinnedAt,
       pinnedBy: pin.pinnedBy
-        ? {
-            id: pin.pinnedBy.id,
-            username: pin.pinnedBy.username,
-            displayName: pin.pinnedBy.displayName,
-          }
-        : { id: '', username: '', displayName: null },
+        ? mapAuthorResponse(pin.pinnedBy)
+        : {
+            id: '',
+            username: '',
+            displayName: null,
+            avatarUrl: null,
+            isDeleted: false,
+          },
       message: {
         id: pin.message.id,
         content: pin.message.content,
         createdAt: pin.message.createdAt,
-        author: {
-          id: pin.message.author.id,
-          username: pin.message.author.username,
-          displayName: pin.message.author.displayName,
-        },
+        author: mapAuthorResponse(pin.message.author),
         attachmentCount: pin.message.attachments?.length ?? 0,
         replyTo: pin.message.replyToMessage
           ? {
@@ -392,11 +398,7 @@ export class MessagesService {
                 : pin.message.replyToMessage.content,
               author: pin.message.replyToMessage.deletedAt
                 ? null
-                : {
-                    id: pin.message.replyToMessage.author.id,
-                    username: pin.message.replyToMessage.author.username,
-                    displayName: pin.message.replyToMessage.author.displayName,
-                  },
+                : mapAuthorResponse(pin.message.replyToMessage.author),
             }
           : null,
         forwardedFrom,
@@ -743,13 +745,14 @@ export class MessagesService {
       pinnedAt: pin.pinnedAt,
       pinnedByUserId: userId,
       pinnedBy: pin.pinnedBy
-        ? {
-            id: pin.pinnedBy.id,
-            username: pin.pinnedBy.username,
-            displayName: pin.pinnedBy.displayName,
-            avatarUrl: pin.pinnedBy.avatarUrl,
-          }
-        : { id: userId, username: '', displayName: null, avatarUrl: null },
+        ? mapAuthorResponse(pin.pinnedBy)
+        : {
+            id: userId,
+            username: '',
+            displayName: null,
+            avatarUrl: null,
+            isDeleted: false,
+          },
     });
 
     return this.mapPinResponse(pin, userId);

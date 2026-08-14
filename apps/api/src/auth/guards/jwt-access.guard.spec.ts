@@ -1,4 +1,6 @@
+import 'reflect-metadata';
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { JwtAccessGuard } from './jwt-access.guard';
 import { TokenService } from '../token.service';
 import { UsersRepository } from '../../users/users.repository';
@@ -7,6 +9,7 @@ describe('JwtAccessGuard', () => {
   let guard: JwtAccessGuard;
   let tokenService: jest.Mocked<TokenService>;
   let usersRepository: jest.Mocked<UsersRepository>;
+  let reflector: Reflector;
 
   beforeEach(() => {
     tokenService = {
@@ -17,17 +20,24 @@ describe('JwtAccessGuard', () => {
       findById: jest.fn(),
     } as unknown as jest.Mocked<UsersRepository>;
 
-    guard = new JwtAccessGuard(tokenService, usersRepository);
+    reflector = new Reflector();
+
+    guard = new JwtAccessGuard(tokenService, usersRepository, reflector);
   });
 
-  const createContext = (authHeader?: string): ExecutionContext =>
+  const createContext = (
+    authHeader?: string,
+    handler?: () => void,
+  ): ExecutionContext =>
     ({
+      getHandler: () => handler ?? (() => {}),
+      getClass: () => ({}),
       switchToHttp: () => ({
         getRequest: () => ({
           headers: authHeader ? { authorization: authHeader } : {},
         }),
       }),
-    }) as ExecutionContext;
+    }) as unknown as ExecutionContext;
 
   it('should allow access with a valid token and attach user', async () => {
     tokenService.verifyAccessToken.mockResolvedValue({
@@ -86,6 +96,62 @@ describe('JwtAccessGuard', () => {
 
     await expect(
       guard.canActivate(createContext('Bearer valid-token')),
+    ).rejects.toThrow(UnauthorizedException);
+  });
+
+  it('should reject PENDING_DELETION user without AllowPendingDeletion metadata', async () => {
+    tokenService.verifyAccessToken.mockResolvedValue({
+      sub: 'user-id',
+      email: 'u@test.com',
+      jti: 'jti-3',
+    });
+    usersRepository.findById.mockResolvedValue({
+      id: 'user-id',
+      status: 'PENDING_DELETION',
+    } as any);
+
+    await expect(
+      guard.canActivate(createContext('Bearer valid-token')),
+    ).rejects.toThrow(UnauthorizedException);
+  });
+
+  it('should allow PENDING_DELETION user with AllowPendingDeletion metadata', async () => {
+    tokenService.verifyAccessToken.mockResolvedValue({
+      sub: 'user-id',
+      email: 'u@test.com',
+      jti: 'jti-4',
+    });
+    usersRepository.findById.mockResolvedValue({
+      id: 'user-id',
+      status: 'PENDING_DELETION',
+    } as any);
+
+    const handler = () => {};
+    Reflect.defineMetadata('allowPendingDeletion', true, handler);
+
+    const result = await guard.canActivate(
+      createContext('Bearer valid-token', handler),
+    );
+    expect(result).toBe(true);
+  });
+
+  it('should reject ANONYMIZED user even with AllowPendingDeletion metadata', async () => {
+    tokenService.verifyAccessToken.mockResolvedValue({
+      sub: 'user-id',
+      email: 'u@test.com',
+      jti: 'jti-5',
+    });
+    usersRepository.findById.mockResolvedValue({
+      id: 'user-id',
+      status: 'ANONYMIZED',
+      deletedAt: new Date(),
+    } as any);
+
+    const handler = () => {};
+    Reflect.defineMetadata('allowPendingDeletion', true, handler);
+
+    await expect(
+      guard.canActivate(createContext('Bearer valid-token', handler)),
     ).rejects.toThrow(UnauthorizedException);
   });
 });

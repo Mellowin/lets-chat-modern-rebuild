@@ -14,6 +14,8 @@ export function createAuthUser(overrides?: Partial<AuthUser>): AuthUser {
     avatarUpdatedAt: null,
     interfaceLanguage: "en",
     role: "USER",
+    status: "ACTIVE",
+    isDeleted: false,
     createdAt: "2024-01-01T00:00:00Z",
     pushNotificationsEnabled: true,
     mentionNotificationsEnabled: true,

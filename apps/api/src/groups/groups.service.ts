@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   Inject,
@@ -18,6 +19,7 @@ import { PushService } from '../push/push.service';
 import { BlocksService } from '../safety/blocks.service';
 import { MentionsService } from '../common/mentions.service';
 import { mapAttachmentResponse } from '../messages/messages.service';
+import { mapAuthorResponse } from '../common/deleted-user-mapper';
 import {
   ForwardPermissionsHelper,
   ForwardedFromPayload,
@@ -44,6 +46,7 @@ import {
 import { CreateGroupDto } from './dto/create-group.dto';
 import { UpdateGroupDto } from './dto/update-group.dto';
 import { AddGroupMemberDto } from './dto/add-group-member.dto';
+import { TransferGroupOwnershipDto } from './dto/transfer-group-ownership.dto';
 import { CreateGroupMessageDto } from './dto/create-group-message.dto';
 import { ListGroupMessagesQueryDto } from './dto/list-group-messages-query.dto';
 import { GroupMessageContextQueryDto } from './dto/message-context-query.dto';
@@ -77,6 +80,7 @@ export class GroupsService {
         username: string;
         displayName: string | null;
         avatarUrl: string | null;
+        status?: string;
       };
       mentions?: unknown;
       attachments?: Array<{
@@ -95,6 +99,7 @@ export class GroupsService {
           username: string;
           displayName: string | null;
           avatarUrl: string | null;
+          status?: string;
         };
       } | null;
       pin?: {
@@ -129,6 +134,7 @@ export class GroupsService {
         username: string;
         displayName: string | null;
         avatarUrl: string | null;
+        status?: string;
       };
       mentions?: unknown;
       attachments?: Array<{
@@ -147,6 +153,7 @@ export class GroupsService {
           username: string;
           displayName: string | null;
           avatarUrl: string | null;
+          status?: string;
         };
       } | null;
       pin?: {
@@ -164,7 +171,7 @@ export class GroupsService {
       content: message.content,
       createdAt: message.createdAt,
       updatedAt: message.updatedAt,
-      author: message.author,
+      author: mapAuthorResponse(message.author),
       attachments: (message.attachments ?? []).map(mapAttachmentResponse),
       mentions: this.normalizeMentions(message.mentions),
       replyToMessageId: message.replyToMessageId ?? null,
@@ -172,7 +179,7 @@ export class GroupsService {
         ? {
             id: message.replyToMessage.id,
             content: message.replyToMessage.content,
-            author: message.replyToMessage.author,
+            author: mapAuthorResponse(message.replyToMessage.author),
           }
         : null,
       isPinned: !!message.pin,
@@ -184,6 +191,16 @@ export class GroupsService {
         : undefined,
       forwardedFrom,
     };
+  }
+
+  private mapMemberUserResponse(user: {
+    id: string;
+    username: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+    status?: string;
+  }) {
+    return mapAuthorResponse(user);
   }
 
   private normalizeMentions(
@@ -223,10 +240,7 @@ export class GroupsService {
       updatedAt: group.updatedAt,
       memberCount: group.members.length,
       members: group.members.map((m) => ({
-        id: m.user.id,
-        username: m.user.username,
-        displayName: m.user.displayName,
-        avatarUrl: m.user.avatarUrl,
+        ...this.mapMemberUserResponse(m.user),
         role: m.role,
         joinedAt: m.joinedAt,
       })),
@@ -281,6 +295,7 @@ export class GroupsService {
         username: string;
         displayName: string | null;
         avatarUrl: string | null;
+        status?: string;
       } | null;
       message: {
         id: string;
@@ -291,6 +306,7 @@ export class GroupsService {
           username: string;
           displayName: string | null;
           avatarUrl: string | null;
+          status?: string;
         };
         attachments: Array<{ id: string }>;
         replyToMessage?: {
@@ -301,6 +317,7 @@ export class GroupsService {
             username: string;
             displayName: string | null;
             avatarUrl: string | null;
+            status?: string;
           };
         } | null;
         forwardedFrom?: unknown;
@@ -325,6 +342,7 @@ export class GroupsService {
         username: string;
         displayName: string | null;
         avatarUrl: string | null;
+        status?: string;
       } | null;
       message: {
         id: string;
@@ -335,6 +353,7 @@ export class GroupsService {
           username: string;
           displayName: string | null;
           avatarUrl: string | null;
+          status?: string;
         };
         attachments: Array<{ id: string }>;
         replyToMessage?: {
@@ -345,6 +364,7 @@ export class GroupsService {
             username: string;
             displayName: string | null;
             avatarUrl: string | null;
+            status?: string;
           };
         } | null;
         forwardedFrom?: unknown;
@@ -357,31 +377,25 @@ export class GroupsService {
       id: pin.id,
       pinnedAt: pin.pinnedAt,
       pinnedBy: pin.pinnedBy
-        ? {
-            id: pin.pinnedBy.id,
-            username: pin.pinnedBy.username,
-            displayName: pin.pinnedBy.displayName,
-          }
-        : { id: '', username: '', displayName: null },
+        ? mapAuthorResponse(pin.pinnedBy)
+        : {
+            id: '',
+            username: '',
+            displayName: null,
+            avatarUrl: null,
+            isDeleted: false,
+          },
       message: {
         id: pin.message.id,
         content: pin.message.content,
         createdAt: pin.message.createdAt,
-        author: {
-          id: pin.message.author.id,
-          username: pin.message.author.username,
-          displayName: pin.message.author.displayName,
-        },
+        author: mapAuthorResponse(pin.message.author),
         attachmentCount: pin.message.attachments?.length ?? 0,
         replyTo: pin.message.replyToMessage
           ? {
               id: pin.message.replyToMessage.id,
               content: pin.message.replyToMessage.content,
-              author: {
-                id: pin.message.replyToMessage.author.id,
-                username: pin.message.replyToMessage.author.username,
-                displayName: pin.message.replyToMessage.author.displayName,
-              },
+              author: mapAuthorResponse(pin.message.replyToMessage.author),
             }
           : null,
         forwardedFrom,
@@ -512,7 +526,7 @@ export class GroupsService {
       throw new NotFoundException('Group not found');
     }
 
-    const targetUser = await this.users.findById(dto.userId);
+    const targetUser = await this.users.findActiveById(dto.userId);
     if (!targetUser) {
       throw new NotFoundException('User not found');
     }
@@ -621,6 +635,79 @@ export class GroupsService {
     });
 
     return { success: true };
+  }
+
+  async transferOwnership(
+    groupId: string,
+    currentUserId: string,
+    dto: TransferGroupOwnershipDto,
+  ) {
+    await this.requireOwner(groupId, currentUserId);
+
+    await this.requireGroupAccessible(groupId, currentUserId);
+
+    const targetMember = await this.groups.findActiveMemberById(
+      groupId,
+      dto.memberId,
+    );
+    if (!targetMember) {
+      throw new NotFoundException('Member not found');
+    }
+    if (targetMember.role === 'OWNER') {
+      throw new BadRequestException('Target member is already the owner');
+    }
+    if (targetMember.userId === currentUserId) {
+      throw new BadRequestException('Cannot transfer ownership to yourself');
+    }
+
+    const targetUser = await this.users.findById(targetMember.userId);
+    if (!targetUser || targetUser.status !== 'ACTIVE') {
+      throw new ConflictException('Ownership state changed');
+    }
+
+    try {
+      await this.groups.transferOwnership(
+        groupId,
+        currentUserId,
+        targetMember.userId,
+      );
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        (error.message === 'OWNERSHIP_STATE_CHANGED' ||
+          error.message === 'TARGET_STATE_CHANGED' ||
+          error.message === 'TARGET_USER_NOT_ACTIVE')
+      ) {
+        throw new ConflictException('Ownership state changed');
+      }
+      throw error;
+    }
+
+    const updated = await this.groups.findById(groupId);
+    const response = await this.toGroupResponse(updated, currentUserId);
+    if (!response) {
+      throw new NotFoundException('Group not found');
+    }
+    this.websocketEvents.broadcastGroupConversationUpdated(
+      groupId,
+      response,
+      updated?.members.map((m) => m.user.id) ?? [],
+    );
+
+    await this.audit?.record({
+      actorId: currentUserId,
+      action: AuditAction.GROUP_OWNERSHIP_TRANSFERRED,
+      entityType: AuditEntityType.GROUP,
+      entityId: groupId,
+      groupId,
+      severity: AuditSeverity.WARNING,
+      metadata: {
+        oldOwnerUserId: currentUserId,
+        newOwnerUserId: targetMember.userId,
+      },
+    });
+
+    return response;
   }
 
   async getMessageContext(
@@ -855,13 +942,14 @@ export class GroupsService {
       pinnedAt: pin.pinnedAt,
       pinnedByUserId: userId,
       pinnedBy: pin.pinnedBy
-        ? {
-            id: pin.pinnedBy.id,
-            username: pin.pinnedBy.username,
-            displayName: pin.pinnedBy.displayName,
-            avatarUrl: pin.pinnedBy.avatarUrl,
-          }
-        : { id: userId, username: '', displayName: null, avatarUrl: null },
+        ? mapAuthorResponse(pin.pinnedBy)
+        : {
+            id: userId,
+            username: '',
+            displayName: null,
+            avatarUrl: null,
+            isDeleted: false,
+          },
     });
 
     return this.mapPinResponse(pin, userId);

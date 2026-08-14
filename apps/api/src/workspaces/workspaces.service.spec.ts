@@ -13,6 +13,7 @@ import { ChannelsRepository } from '../channels/channels.repository';
 import { ChannelInvitesRepository } from '../channel-invites/channel-invites.repository';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction, AuditEntityType } from '../audit/audit.constants';
+import { UserStatus } from '@lets-chat/database';
 
 type ActiveWorkspace = NonNullable<
   Awaited<ReturnType<WorkspacesRepository['findActiveById']>>
@@ -85,6 +86,9 @@ describe('WorkspacesService', () => {
             findById: jest.fn(),
             findByEmail: jest.fn(),
             findByUsername: jest.fn(),
+            findActiveById: jest.fn(),
+            findActiveByEmail: jest.fn(),
+            findActiveByUsername: jest.fn(),
             createUser: jest.fn(),
           },
         },
@@ -113,6 +117,9 @@ describe('WorkspacesService', () => {
     service = moduleRef.get(WorkspacesService);
     workspacesRepository = moduleRef.get(WorkspacesRepository);
     usersRepository = moduleRef.get(UsersRepository);
+    usersRepository.findActiveById = usersRepository.findById;
+    usersRepository.findActiveByEmail = usersRepository.findByEmail;
+    usersRepository.findActiveByUsername = usersRepository.findByUsername;
     channelsRepository = moduleRef.get(ChannelsRepository);
     channelInvitesRepository = moduleRef.get(ChannelInvitesRepository);
     auditService = moduleRef.get(AuditService);
@@ -491,6 +498,13 @@ describe('WorkspacesService', () => {
   describe('transferOwnership', () => {
     const memberId = '33333333-3333-3333-3333-333333333333';
     const targetUserId = '44444444-4444-4444-4444-444444444444';
+
+    beforeEach(() => {
+      usersRepository.findById.mockResolvedValue({
+        id: targetUserId,
+        status: UserStatus.ACTIVE,
+      } as FoundUserById);
+    });
 
     it('should allow OWNER to transfer ownership to MEMBER', async () => {
       workspacesRepository.findActiveById.mockResolvedValue({
@@ -1058,6 +1072,39 @@ describe('WorkspacesService', () => {
       expect(result[0].user.username).toBe('alice');
       expect(result[1].user.username).toBe('bob');
     });
+
+    it('masks pending-deletion members as Deleted user', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({
+        id: workspaceId,
+      } as ActiveWorkspace);
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      workspacesRepository.listActiveMembers.mockResolvedValue([
+        {
+          id: 'member-1',
+          workspaceId,
+          role: 'MEMBER',
+          createdAt: new Date(),
+          user: {
+            id: 'user-1',
+            username: 'alice',
+            displayName: 'Alice Display',
+            avatarUrl: '/uploads/avatars/alice.png',
+            status: 'PENDING_DELETION',
+          },
+        },
+      ] as ListedMember[]);
+
+      const result = await service.listMembers(workspaceId, userId);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].user).toEqual({
+        id: 'user-1',
+        username: '',
+        displayName: 'Deleted user',
+        avatarUrl: null,
+        isDeleted: true,
+      });
+    });
   });
 
   describe('updateMemberRole', () => {
@@ -1343,6 +1390,9 @@ describe('WorkspacesService', () => {
         user: {
           id: targetUserId,
           username: 'alice',
+          displayName: undefined,
+          avatarUrl: undefined,
+          isDeleted: false,
         },
       });
       expect(result).not.toHaveProperty('passwordHash');

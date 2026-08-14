@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { AuthModule } from '../auth/auth.module';
+import { AuthCommonModule } from '../auth/auth-common.module';
 import { UsersModule } from '../users/users.module';
 import { DatabaseModule } from '@lets-chat/database';
 import { BlocksController } from './blocks.controller';
@@ -13,7 +13,7 @@ import { ReportsRepository } from './reports.repository';
 import { AdminReportsRepository } from './admin-reports.repository';
 
 @Module({
-  imports: [AuthModule, UsersModule, DatabaseModule],
+  imports: [AuthCommonModule, UsersModule, DatabaseModule],
   controllers: [BlocksController, ReportsController, AdminReportsController],
   providers: [
     BlocksService,

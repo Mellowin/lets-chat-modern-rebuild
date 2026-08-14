@@ -45,7 +45,9 @@ describe('Group Invite Links E2E Security', () => {
       imports: [AppModule],
     })
       .overrideProvider(StorageService)
-      .useValue({})
+      .useValue({
+        deleteObjectsByPrefix: jest.fn().mockResolvedValue(undefined),
+      })
       .compile();
 
     app = moduleFixture.createNestApplication();

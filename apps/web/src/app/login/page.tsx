@@ -13,11 +13,12 @@ import {
   MessageSquare,
   XCircle,
 } from "lucide-react";
-import { login, resendVerification, type AuthResult, isApiTimeoutError } from "@/lib/auth-api";
+import { login, resendVerification, resendAccountDeletionCancellation, type AuthResult, isApiTimeoutError } from "@/lib/auth-api";
 import { useAuth } from "@/lib/auth-context";
 import { useLocale } from "@/lib/locale";
 import { localizeApiError } from "@/lib/api-errors";
 import { useResendCooldown } from "@/lib/use-resend-cooldown";
+import { LegalLinks } from "@/components/LegalLinks";
 import { Button } from "@/components/ui/Button";
 import {
   Card,
@@ -37,7 +38,10 @@ type FormState =
   | { kind: "timeout" }
   | { kind: "unverified"; email: string }
   | { kind: "resend-loading"; email: string }
-  | { kind: "resend-success"; email: string };
+  | { kind: "resend-success"; email: string }
+  | { kind: "pendingDeletion"; email: string }
+  | { kind: "resendCancellationLoading"; email: string }
+  | { kind: "resendCancellationSuccess"; email: string };
 
 function Alert({
   variant,
@@ -114,6 +118,8 @@ export default function LoginPage() {
         rawMessage.toLowerCase().includes("not verified")
       ) {
         setFormState({ kind: "unverified", email: email.trim() });
+      } else if (rawMessage.includes("ACCOUNT_DELETION_PENDING")) {
+        setFormState({ kind: "pendingDeletion", email: email.trim() });
       } else {
         setFormState({
           kind: "error",
@@ -139,12 +145,33 @@ export default function LoginPage() {
     }
   }
 
+  async function handleResendCancellation() {
+    if (formState.kind !== "pendingDeletion" || !canResend) return;
+    const targetEmail = formState.email;
+    setFormState({ kind: "resendCancellationLoading", email: targetEmail });
+    try {
+      await resendAccountDeletionCancellation({
+        email: targetEmail,
+        currentPassword: password,
+      });
+      startCooldown();
+      setFormState({ kind: "resendCancellationSuccess", email: targetEmail });
+    } catch (err) {
+      setFormState({
+        kind: "error",
+        message: localizeApiError(err, "auth.loginFailed", t),
+      });
+    }
+  }
+
   const resendEmail =
-    formState.kind === "unverified" || formState.kind === "resend-loading"
+    formState.kind === "unverified" ||
+    formState.kind === "resend-loading" ||
+    formState.kind === "pendingDeletion" ||
+    formState.kind === "resendCancellationLoading" ||
+    formState.kind === "resendCancellationSuccess"
       ? formState.email
-      : formState.kind === "resend-success"
-        ? formState.email
-        : "";
+      : ""; 
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center p-4 sm:p-6">
@@ -303,6 +330,62 @@ export default function LoginPage() {
             </div>
           )}
 
+          {(formState.kind === "pendingDeletion" ||
+            formState.kind === "resendCancellationLoading") && (
+            <div className="space-y-3">
+              <Alert variant="warning">
+                <div className="font-medium">
+                  {t("auth.accountDeletionPending")}
+                </div>
+                <p className="mt-1 text-xs opacity-90">
+                  {t("auth.accountDeletionPendingHint", resendEmail)}
+                </p>
+              </Alert>
+              {limitReached ? (
+                <Alert variant="error">
+                  <span className="font-medium">
+                    {t("auth.resendLimitReached")}
+                  </span>
+                </Alert>
+              ) : (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="w-full"
+                  onClick={handleResendCancellation}
+                  disabled={
+                    formState.kind === "resendCancellationLoading" || !canResend
+                  }
+                  data-testid="resend-cancellation-link"
+                >
+                  {formState.kind === "resendCancellationLoading" ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {t("auth.resendingCancellationLink")}
+                    </>
+                  ) : cooldown > 0 ? (
+                    t("auth.resendCooldown", String(cooldown))
+                  ) : (
+                    t("auth.resendCancellationLink")
+                  )}
+                </Button>
+              )}
+            </div>
+          )}
+
+          {formState.kind === "resendCancellationSuccess" && (
+            <div className="space-y-3">
+              <Alert variant="success">
+                <div className="font-medium">
+                  {t("auth.resendCancellationSuccess")}
+                </div>
+                <p className="mt-1 text-xs opacity-90">
+                  {t("auth.resendCancellationHint", resendEmail)}
+                </p>
+              </Alert>
+            </div>
+          )}
+
           {formState.kind === "success" && (
             <Alert variant="success">
               <span className="font-medium">
@@ -335,6 +418,8 @@ export default function LoginPage() {
           </p>
         </CardContent>
       </Card>
+
+      <LegalLinks className="justify-center" />
     </div>
   );
 }

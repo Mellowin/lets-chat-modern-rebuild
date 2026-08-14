@@ -1,5 +1,5 @@
 import { Module, forwardRef } from '@nestjs/common';
-import { AuthModule } from '../auth/auth.module';
+import { AuthCommonModule } from '../auth/auth-common.module';
 import { UsersModule } from '../users/users.module';
 import { ChannelsModule } from '../channels/channels.module';
 import { DirectConversationsModule } from '../direct-conversations/direct-conversations.module';
@@ -13,7 +13,7 @@ import { ForwardPermissionsHelper } from '../messages/forward-permissions.helper
 
 @Module({
   imports: [
-    AuthModule,
+    AuthCommonModule,
     UsersModule,
     ChannelsModule,
     forwardRef(() => DirectConversationsModule),

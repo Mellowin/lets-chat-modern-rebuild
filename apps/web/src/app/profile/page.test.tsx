@@ -29,7 +29,9 @@ vi.mock("@/lib/auth-api", () => ({
     groupMessageNotificationsEnabled: true,
     channelMessageNotificationsEnabled: true,
       contactPrivacySetting: "EVERYONE",
-  }),
+    status: "ACTIVE" as const,
+    isDeleted: false as const
+}),
   updateNotificationPreferences: vi.fn().mockResolvedValue({
     pushNotificationsEnabled: true,
     mentionNotificationsEnabled: true,
@@ -37,7 +39,9 @@ vi.mock("@/lib/auth-api", () => ({
     groupMessageNotificationsEnabled: true,
     channelMessageNotificationsEnabled: true,
       contactPrivacySetting: "EVERYONE",
-  }),
+    status: "ACTIVE" as const,
+    isDeleted: false as const
+}),
 }));
 
 function mockAuth(userOverrides?: Partial<ReturnType<typeof useAuth>>) {
@@ -48,7 +52,10 @@ function mockAuth(userOverrides?: Partial<ReturnType<typeof useAuth>>) {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
-      contactPrivacySetting: "EVERYONE", },
+      contactPrivacySetting: "EVERYONE",
+  status: "ACTIVE" as const,
+  isDeleted: false as const
+},
     accessToken: "token",
     refreshToken: "rt",
     isLoading: false,
@@ -61,7 +68,7 @@ function mockAuth(userOverrides?: Partial<ReturnType<typeof useAuth>>) {
 }
 
 async function openTab(label: string) {
-  const tab = screen.getByRole("button", { name: new RegExp(label, "i") });
+  const tab = screen.getByRole("button", { name: new RegExp(`^${label}$`, "i") });
   await userEvent.click(tab);
 }
 
@@ -113,12 +120,13 @@ describe("ProfilePage — authenticated", () => {
     mockAuth();
     render(<ProfilePage />);
 
-    expect(screen.getByRole("button", { name: /Account/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Account$/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Security/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Sessions/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Language/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Notifications/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /App install/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Your data and account/i })).toBeInTheDocument();
   });
 
   it("shows account section by default", async () => {
@@ -129,7 +137,10 @@ describe("ProfilePage — authenticated", () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
-      contactPrivacySetting: "EVERYONE", },
+      contactPrivacySetting: "EVERYONE",
+  status: "ACTIVE" as const,
+  isDeleted: false as const
+},
     });
 
     render(<ProfilePage />);
@@ -150,7 +161,10 @@ describe("ProfilePage — authenticated", () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
-      contactPrivacySetting: "EVERYONE", },
+      contactPrivacySetting: "EVERYONE",
+  status: "ACTIVE" as const,
+  isDeleted: false as const
+},
     });
 
     render(<ProfilePage />);
@@ -170,7 +184,10 @@ describe("ProfilePage — authenticated", () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
-      contactPrivacySetting: "EVERYONE", },
+      contactPrivacySetting: "EVERYONE",
+  status: "ACTIVE" as const,
+  isDeleted: false as const
+},
     });
 
     render(<ProfilePage />);
@@ -191,7 +208,10 @@ describe("ProfilePage — authenticated", () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
-      contactPrivacySetting: "EVERYONE", },
+      contactPrivacySetting: "EVERYONE",
+  status: "ACTIVE" as const,
+  isDeleted: false as const
+},
     });
 
     render(<ProfilePage />);
@@ -255,7 +275,9 @@ describe("ProfilePage — authenticated", () => {
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
       contactPrivacySetting: "EVERYONE",
-    });
+      status: "ACTIVE" as const,
+      isDeleted: false as const
+});
 
     render(<ProfilePage />);
 
@@ -293,7 +315,9 @@ describe("ProfilePage — authenticated", () => {
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
       contactPrivacySetting: "EVERYONE",
-    });
+      status: "ACTIVE" as const,
+      isDeleted: false as const
+});
 
     render(<ProfilePage />);
 
@@ -432,7 +456,9 @@ describe("ProfilePage — authenticated", () => {
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
       contactPrivacySetting: "EVERYONE",
-      });
+        status: "ACTIVE" as const,
+        isDeleted: false as const
+});
 
       render(<ProfilePage />);
 
@@ -471,7 +497,9 @@ describe("ProfilePage — authenticated", () => {
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
       contactPrivacySetting: "EVERYONE",
-      });
+        status: "ACTIVE" as const,
+        isDeleted: false as const
+});
 
       render(<ProfilePage />);
 
@@ -525,7 +553,9 @@ describe("ProfilePage — authenticated", () => {
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
       contactPrivacySetting: "EVERYONE",
-      });
+        status: "ACTIVE" as const,
+        isDeleted: false as const
+});
 
       render(<ProfilePage />);
 
@@ -622,7 +652,10 @@ describe("ProfilePage — authenticated", () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
-      contactPrivacySetting: "EVERYONE", },
+      contactPrivacySetting: "EVERYONE",
+  status: "ACTIVE" as const,
+  isDeleted: false as const
+},
       });
 
       render(<ProfilePage />);

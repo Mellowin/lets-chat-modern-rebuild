@@ -2,7 +2,7 @@ import { render, screen, waitFor, fireEvent, act } from "@testing-library/react"
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import LoginPage from "./page";
-import { login, resendVerification, ApiTimeoutError } from "@/lib/auth-api";
+import { login, resendVerification, resendAccountDeletionCancellation, ApiTimeoutError } from "@/lib/auth-api";
 import { createAuthUser } from "@/test/factories";
 
 const pushMock = vi.fn();
@@ -22,6 +22,7 @@ vi.mock("@/lib/auth-api", () => {
   return {
     login: vi.fn(),
     resendVerification: vi.fn(),
+    resendAccountDeletionCancellation: vi.fn(),
     ApiTimeoutError,
     isApiTimeoutError: (err: unknown) => err instanceof ApiTimeoutError,
   };
@@ -128,7 +129,10 @@ describe("LoginPage", () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
-      contactPrivacySetting: "EVERYONE" as const, },
+      contactPrivacySetting: "EVERYONE" as const,
+  status: "ACTIVE" as const,
+  isDeleted: false as const
+},
       accessToken: "at",
       refreshToken: "rt",
     };
@@ -200,6 +204,51 @@ describe("LoginPage", () => {
     expect(await screen.findByText(/If the email exists and is not verified/i)).toBeInTheDocument();
   });
 
+  it("shows pending deletion message with resend cancellation option", async () => {
+    vi.mocked(login).mockRejectedValueOnce(
+      new Error("ACCOUNT_DELETION_PENDING: Account deletion is pending"),
+    );
+
+    render(<LoginPage />);
+
+    await userEvent.type(screen.getByLabelText(/Email/i), "a@b.com");
+    await userEvent.type(screen.getByLabelText(/^Password$/i), "secret");
+    await userEvent.click(screen.getByRole("button", { name: /Sign in/i }));
+
+    expect(await screen.findByText(/Account deletion is pending/i)).toBeInTheDocument();
+    expect(screen.getByTestId("resend-cancellation-link")).toBeInTheDocument();
+    expect(loginSuccessMock).not.toHaveBeenCalled();
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it("resends cancellation link from pending deletion state and shows generic success", async () => {
+    vi.mocked(login).mockRejectedValueOnce(
+      new Error("ACCOUNT_DELETION_PENDING: Account deletion is pending"),
+    );
+    vi.mocked(resendAccountDeletionCancellation).mockResolvedValueOnce({
+      success: true,
+    });
+
+    render(<LoginPage />);
+
+    await userEvent.type(screen.getByLabelText(/Email/i), "a@b.com");
+    await userEvent.type(screen.getByLabelText(/^Password$/i), "secret");
+    await userEvent.click(screen.getByRole("button", { name: /Sign in/i }));
+
+    expect(await screen.findByText(/Account deletion is pending/i)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByTestId("resend-cancellation-link"));
+
+    await waitFor(() => {
+      expect(resendAccountDeletionCancellation).toHaveBeenCalledWith({
+        email: "a@b.com",
+        currentPassword: "secret",
+      });
+    });
+
+    expect(await screen.findByText(/If the account exists and deletion is pending/i)).toBeInTheDocument();
+  });
+
   it("shows loading state while submitting", async () => {
     let resolveLogin: (value: unknown) => void;
     const loginPromise = new Promise((resolve) => {
@@ -224,7 +273,10 @@ describe("LoginPage", () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
-      contactPrivacySetting: "EVERYONE" as const, },
+      contactPrivacySetting: "EVERYONE" as const,
+  status: "ACTIVE" as const,
+  isDeleted: false as const
+},
         accessToken: "at",
         refreshToken: "rt",
       });
@@ -263,7 +315,10 @@ describe("LoginPage", () => {
       directMessageNotificationsEnabled: true,
       groupMessageNotificationsEnabled: true,
       channelMessageNotificationsEnabled: true,
-      contactPrivacySetting: "EVERYONE" as const, },
+      contactPrivacySetting: "EVERYONE" as const,
+  status: "ACTIVE" as const,
+  isDeleted: false as const
+},
         accessToken: "at",
         refreshToken: "rt",
       });

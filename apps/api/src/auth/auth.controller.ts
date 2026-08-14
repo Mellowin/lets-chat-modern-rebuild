@@ -14,7 +14,10 @@ import {
   ParseFilePipe,
   MaxFileSizeValidator,
   FileTypeValidator,
+  Res,
+  Headers,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import {
   ApiTags,
   ApiOperation,
@@ -27,11 +30,18 @@ import {
   ApiUnauthorizedResponse,
   ApiTooManyRequestsResponse,
   ApiNotFoundResponse,
+  ApiForbiddenResponse,
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthService } from './auth.service';
 import type { AuthUserResponse, SessionResponse } from './auth.service';
 import { AvatarUploadService } from './avatar-upload.service';
+import { AccountDeletionService } from './account-deletion.service';
+import { DataExportService } from './data-export.service';
+import { RequestAccountDeletionDto } from './dto/request-account-deletion.dto';
+import { CancelAccountDeletionDto } from './dto/cancel-account-deletion.dto';
+import { RequestDataExportDto } from './dto/request-data-export.dto';
+import { ResendAccountDeletionCancellationDto } from './dto/resend-account-deletion-cancellation.dto';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
@@ -49,6 +59,7 @@ import { UpdateInterfaceLanguageDto } from './dto/update-interface-language.dto'
 import { UpdateNotificationPreferencesDto } from './dto/update-notification-preferences.dto';
 
 import { JwtAccessGuard } from './guards/jwt-access.guard';
+import { AllowPendingDeletion } from './decorators/allow-pending-deletion.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { CurrentSessionId } from './decorators/current-session-id.decorator';
 import { StrictThrottle } from '../rate-limiting/rate-limiting.module';
@@ -59,6 +70,8 @@ export class AuthController {
   constructor(
     private readonly auth: AuthService,
     private readonly avatarUpload: AvatarUploadService,
+    private readonly accountDeletion: AccountDeletionService,
+    private readonly dataExport: DataExportService,
   ) {}
 
   @Post('register')
@@ -319,6 +332,7 @@ export class AuthController {
           new MaxFileSizeValidator({ maxSize: 2 * 1024 * 1024 }),
           new FileTypeValidator({
             fileType: /^image\/(jpeg|png|webp)$/,
+            fallbackToMimetype: true,
           }),
         ],
       }),
@@ -377,6 +391,80 @@ export class AuthController {
     @Body() dto: UpdateNotificationPreferencesDto,
   ): Promise<AuthUserResponse> {
     return this.auth.updateNotificationPreferences(user.id, dto);
+  }
+
+  @Post('account-deletion/request')
+  @UseGuards(JwtAccessGuard)
+  @AllowPendingDeletion()
+  @StrictThrottle(3, 60)
+  @HttpCode(200)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Request account deletion' })
+  @ApiBody({ type: RequestAccountDeletionDto })
+  @ApiOkResponse({ description: 'Account deletion scheduled' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized or wrong password' })
+  @ApiForbiddenResponse({ description: 'Ownership blockers or invalid phrase' })
+  @ApiTooManyRequestsResponse({ description: 'Rate limit exceeded' })
+  async requestAccountDeletion(
+    @CurrentUser() user: AuthUserResponse,
+    @Body() dto: RequestAccountDeletionDto,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
+    return this.accountDeletion.requestAccountDeletion(
+      user.id,
+      dto.currentPassword,
+      dto.confirmationPhrase,
+      idempotencyKey,
+    );
+  }
+
+  @Post('account-deletion/cancel')
+  @StrictThrottle(5, 60)
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Cancel a pending account deletion' })
+  @ApiBody({ type: CancelAccountDeletionDto })
+  @ApiOkResponse({ description: 'Account deletion cancelled' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiNotFoundResponse({ description: 'Invalid or expired cancellation link' })
+  @ApiTooManyRequestsResponse({ description: 'Rate limit exceeded' })
+  async cancelAccountDeletion(@Body() dto: CancelAccountDeletionDto) {
+    return this.accountDeletion.cancelAccountDeletion(dto.token);
+  }
+
+  @Post('account-deletion/resend-cancellation')
+  @StrictThrottle(3, 60)
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Resend account deletion cancellation link' })
+  @ApiBody({ type: ResendAccountDeletionCancellationDto })
+  @ApiOkResponse({ description: 'Request processed' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiTooManyRequestsResponse({ description: 'Rate limit exceeded' })
+  async resendAccountDeletionCancellation(
+    @Body() dto: ResendAccountDeletionCancellationDto,
+  ) {
+    return this.accountDeletion.resendAccountDeletionCancellation(
+      dto.email,
+      dto.currentPassword,
+    );
+  }
+
+  @Post('data-export')
+  @UseGuards(JwtAccessGuard)
+  @StrictThrottle(3, 60)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Export personal data as JSON' })
+  @ApiBody({ type: RequestDataExportDto })
+  @ApiOkResponse({ description: 'JSON export streamed' })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized or wrong password' })
+  @ApiTooManyRequestsResponse({ description: 'Rate limit exceeded' })
+  async exportData(
+    @CurrentUser() user: AuthUserResponse,
+    @Body() dto: RequestDataExportDto,
+    @Res({ passthrough: false }) res: Response,
+  ) {
+    return this.dataExport.exportUserData(user.id, dto.currentPassword, res);
   }
 
   private assertAvatarCooldown(avatarUpdatedAt: Date | null): void {

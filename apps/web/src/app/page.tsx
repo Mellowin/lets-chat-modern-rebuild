@@ -7,6 +7,7 @@ import { getHealth, type HealthResponse } from "@/lib/api";
 import { getApiOrigin } from "@/lib/env";
 import { useLocale } from "@/lib/locale";
 import { localizeApiError } from "@/lib/api-errors";
+import { LegalLinks } from "@/components/LegalLinks";
 import { Button } from "@/components/ui/Button";
 import {
   Card,
@@ -138,6 +139,8 @@ export default function Home() {
           )}
         </CardContent>
       </Card>
+
+      <LegalLinks className="justify-center" />
     </div>
   );
 }
