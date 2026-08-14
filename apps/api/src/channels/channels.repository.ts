@@ -238,7 +238,9 @@ export class ChannelsRepository {
           select: {
             id: true,
             username: true,
+            displayName: true,
             avatarUrl: true,
+            status: true,
           },
         },
       },
@@ -259,6 +261,7 @@ export class ChannelsRepository {
             username: true,
             displayName: true,
             avatarUrl: true,
+            status: true,
           },
         },
       },
@@ -279,6 +282,7 @@ export class ChannelsRepository {
             username: true,
             displayName: true,
             avatarUrl: true,
+            status: true,
           },
         },
       },
@@ -331,7 +335,9 @@ export class ChannelsRepository {
           select: {
             id: true,
             username: true,
+            displayName: true,
             avatarUrl: true,
+            status: true,
           },
         },
       },
@@ -348,6 +354,104 @@ export class ChannelsRepository {
       data: { deletedAt: new Date() },
     });
     return result.count;
+  }
+
+  async transferOwnership(data: {
+    channelId: string;
+    currentOwnerMemberId: string;
+    currentOwnerUserId: string;
+    targetMemberId: string;
+    targetUserId: string;
+  }) {
+    return this.prisma.$transaction(async (tx) => {
+      // Lock the current owner's active membership and re-verify it is still the
+      // owner inside this transaction.
+      const lockedCurrentOwner = await tx.$queryRawUnsafe<
+        Array<{ id: string; userId: string; role: string }>
+      >(
+        `SELECT id, "userId", role FROM "ChannelMember" WHERE id = $1::uuid AND "channelId" = $2::uuid AND "deletedAt" IS NULL FOR UPDATE`,
+        data.currentOwnerMemberId,
+        data.channelId,
+      );
+      if (
+        !lockedCurrentOwner ||
+        lockedCurrentOwner.length === 0 ||
+        lockedCurrentOwner[0].userId !== data.currentOwnerUserId ||
+        lockedCurrentOwner[0].role !== 'OWNER'
+      ) {
+        throw new Error('OWNERSHIP_STATE_CHANGED');
+      }
+
+      // Lock the target membership and re-verify it is active and not already an
+      // owner. A target that is the current owner is rejected as well.
+      const lockedTargetMember = await tx.$queryRawUnsafe<
+        Array<{ id: string; userId: string; role: string }>
+      >(
+        `SELECT id, "userId", role FROM "ChannelMember" WHERE id = $1::uuid AND "channelId" = $2::uuid AND "deletedAt" IS NULL FOR UPDATE`,
+        data.targetMemberId,
+        data.channelId,
+      );
+      if (
+        !lockedTargetMember ||
+        lockedTargetMember.length === 0 ||
+        lockedTargetMember[0].userId !== data.targetUserId ||
+        lockedTargetMember[0].role === 'OWNER' ||
+        lockedTargetMember[0].userId === data.currentOwnerUserId
+      ) {
+        throw new Error('TARGET_STATE_CHANGED');
+      }
+
+      // Lock the target user row to serialize against account deletion scheduling.
+      const lockedTargetUser = await tx.$queryRawUnsafe<
+        Array<{ id: string; status: string }>
+      >(
+        `SELECT id, status FROM "User" WHERE id = $1::uuid AND status = 'ACTIVE' FOR UPDATE`,
+        data.targetUserId,
+      );
+      if (!lockedTargetUser || lockedTargetUser.length === 0) {
+        throw new Error('TARGET_USER_NOT_ACTIVE');
+      }
+
+      const demote = await tx.channelMember.updateMany({
+        where: {
+          id: data.currentOwnerMemberId,
+          channelId: data.channelId,
+          role: 'OWNER',
+          deletedAt: null,
+        },
+        data: { role: 'ADMIN' },
+      });
+      if (demote.count !== 1) {
+        throw new Error('OWNERSHIP_STATE_CHANGED');
+      }
+
+      const promote = await tx.channelMember.updateMany({
+        where: {
+          id: data.targetMemberId,
+          channelId: data.channelId,
+          deletedAt: null,
+          role: { in: ['ADMIN', 'MEMBER'] },
+        },
+        data: { role: 'OWNER' },
+      });
+      if (promote.count !== 1) {
+        throw new Error('TARGET_STATE_CHANGED');
+      }
+
+      return {
+        channelId: data.channelId,
+        previousOwner: {
+          id: data.currentOwnerMemberId,
+          userId: data.currentOwnerUserId,
+          role: 'ADMIN' as const,
+        },
+        newOwner: {
+          id: data.targetMemberId,
+          userId: data.targetUserId,
+          role: 'OWNER' as const,
+        },
+      };
+    });
   }
 
   async softDeleteChannelMembersByWorkspaceAndUserId(

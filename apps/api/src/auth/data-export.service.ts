@@ -514,8 +514,12 @@ export class DataExportService {
 
     await this.streamEntityArray(res, 'auditLogs', (lastId) =>
       this.prisma.auditLog.findMany({
+        // B238A: export only audit rows where the requesting user is the actor.
+        // Rows created by other actors (reports, moderator actions, blocks, etc.)
+        // may contain confidential metadata such as admin notes, report reasons,
+        // reporter identities, or other users' IPs / user agents.
         where: {
-          OR: [{ actorId: userId }, { targetUserId: userId }],
+          actorId: userId,
           ...(lastId ? { id: { gt: lastId } } : {}),
         },
         orderBy: { id: 'asc' },
@@ -531,10 +535,6 @@ export class DataExportService {
           channelId: true,
           groupId: true,
           severity: true,
-          requestId: true,
-          metadata: true,
-          ipAddress: true,
-          userAgent: true,
           createdAt: true,
         },
       }),

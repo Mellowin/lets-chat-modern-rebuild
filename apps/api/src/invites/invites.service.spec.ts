@@ -167,7 +167,13 @@ describe('InvitesService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
       deletedAt: null,
-      user: { id: 'target-user-id', username: 'testuser', avatarUrl: null },
+      user: {
+        id: 'target-user-id',
+        username: 'testuser',
+        displayName: null,
+        avatarUrl: null,
+        status: 'ACTIVE' as const,
+      },
       ...overrides,
     };
   }

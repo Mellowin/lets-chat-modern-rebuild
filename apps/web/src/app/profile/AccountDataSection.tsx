@@ -291,7 +291,8 @@ export function AccountDataSection({
               </div>
               {deleteBlockers &&
                 (deleteBlockers.workspaces.length > 0 ||
-                  deleteBlockers.groups.length > 0) && (
+                  deleteBlockers.groups.length > 0 ||
+                  deleteBlockers.channels.length > 0) && (
                   <div
                     className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-400"
                     data-testid="delete-account-blockers"
@@ -319,6 +320,23 @@ export function AccountDataSection({
                         <ul className="mt-1 list-inside list-disc">
                           {deleteBlockers.groups.map((group) => (
                             <li key={group.id}>{group.name}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {deleteBlockers.channels.length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-xs font-medium opacity-90">
+                          {t("profile.deleteAccountOwnedChannels")}
+                        </p>
+                        <ul className="mt-1 list-inside list-disc">
+                          {deleteBlockers.channels.map((channel) => (
+                            <li key={channel.id}>
+                              {channel.name}
+                              <span className="ml-1 text-xs opacity-75">
+                                ({channel.slug})
+                              </span>
+                            </li>
                           ))}
                         </ul>
                       </div>

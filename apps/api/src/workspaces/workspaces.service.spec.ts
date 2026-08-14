@@ -1072,6 +1072,39 @@ describe('WorkspacesService', () => {
       expect(result[0].user.username).toBe('alice');
       expect(result[1].user.username).toBe('bob');
     });
+
+    it('masks pending-deletion members as Deleted user', async () => {
+      workspacesRepository.findActiveById.mockResolvedValue({
+        id: workspaceId,
+      } as ActiveWorkspace);
+      workspacesRepository.findMemberRole.mockResolvedValue('MEMBER');
+      workspacesRepository.listActiveMembers.mockResolvedValue([
+        {
+          id: 'member-1',
+          workspaceId,
+          role: 'MEMBER',
+          createdAt: new Date(),
+          user: {
+            id: 'user-1',
+            username: 'alice',
+            displayName: 'Alice Display',
+            avatarUrl: '/uploads/avatars/alice.png',
+            status: 'PENDING_DELETION',
+          },
+        },
+      ] as ListedMember[]);
+
+      const result = await service.listMembers(workspaceId, userId);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].user).toEqual({
+        id: 'user-1',
+        username: '',
+        displayName: 'Deleted user',
+        avatarUrl: null,
+        isDeleted: true,
+      });
+    });
   });
 
   describe('updateMemberRole', () => {
@@ -1357,6 +1390,9 @@ describe('WorkspacesService', () => {
         user: {
           id: targetUserId,
           username: 'alice',
+          displayName: undefined,
+          avatarUrl: undefined,
+          isDeleted: false,
         },
       });
       expect(result).not.toHaveProperty('passwordHash');

@@ -234,6 +234,9 @@ describe('DataExportService', () => {
     prisma.channelInvitation.findMany.mockResolvedValue([]);
     prisma.auditLog.findMany.mockImplementation((args: any) => {
       const cursor = args.where?.id?.gt ?? null;
+      // B238A: export must query only actorId=userId and must not include
+      // metadata/requestId/ipAddress/userAgent.
+      if (args.where?.actorId !== userId) return Promise.resolve([]);
       if (cursor) return Promise.resolve([]);
       return Promise.resolve([
         {
@@ -247,10 +250,6 @@ describe('DataExportService', () => {
           channelId: null,
           groupId: null,
           severity: 'info',
-          requestId: null,
-          metadata: null,
-          ipAddress: '127.0.0.1',
-          userAgent: 'Mozilla/5.0',
           createdAt: new Date(),
         },
       ] as any);
@@ -320,5 +319,72 @@ describe('DataExportService', () => {
     const payload = parseStreamedExport();
     expect(Array.isArray(payload.notifications)).toBe(true);
     expect((payload.notifications as unknown[]).length).toBe(total);
+  });
+
+  it('excludes audit rows created by other actors and confidential metadata', async () => {
+    const reporterId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+    const moderatorId = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+    const secretReason = 'VERY_SECRET_REPORT_REASON';
+    const secretAdminNote = 'VERY_SECRET_ADMIN_NOTE';
+
+    const user = makeUser();
+    prisma.user.findUnique.mockResolvedValue(user as any);
+    passwordService.verifyPassword.mockResolvedValue(true);
+
+    prisma.auditLog.findMany.mockImplementation((args: any) => {
+      // The export must only request rows where the exporting user is the actor.
+      if (args.where?.actorId !== userId) return Promise.resolve([]);
+
+      const cursor = args.where?.id?.gt ?? null;
+      if (cursor) return Promise.resolve([]);
+
+      return Promise.resolve([
+        {
+          id: 'al1',
+          actorId: userId,
+          targetUserId: null,
+          action: 'auth.login.success',
+          entityType: 'user',
+          entityId: userId,
+          workspaceId: null,
+          channelId: null,
+          groupId: null,
+          severity: 'info',
+          createdAt: new Date(),
+        },
+      ] as any);
+    });
+
+    // Simulate the confidential target-side rows that must NOT be returned:
+    // - another user reported the exporting user;
+    // - a moderator updated the report with a private admin note.
+    // These values must not appear anywhere in the serialized export.
+    prisma.userReport.findMany.mockResolvedValue([] as any);
+
+    await service.exportUserData(userId, 'password', res as Response);
+
+    const payload = parseStreamedExport();
+    const auditLogs = payload.auditLogs as unknown[];
+    expect(Array.isArray(auditLogs)).toBe(true);
+    expect(auditLogs).toHaveLength(1);
+    expect(auditLogs[0]).toEqual(
+      expect.objectContaining({
+        actorId: userId,
+        action: 'auth.login.success',
+      }),
+    );
+
+    // The leaked audit rows from reporter / moderator must be excluded.
+    const serialized = JSON.stringify(payload);
+    expect(serialized).not.toContain(secretAdminNote);
+    expect(serialized).not.toContain(secretReason);
+    expect(serialized).not.toContain(moderatorId);
+    expect(serialized).not.toContain(reporterId);
+
+    // Internal audit fields must never appear in the export.
+    expect(serialized).not.toContain('"metadata"');
+    expect(serialized).not.toContain('"requestId"');
+    expect(serialized).not.toContain('"ipAddress"');
+    expect(serialized).not.toContain('"userAgent"');
   });
 });

@@ -260,6 +260,7 @@ describe('AccountDeletionService', () => {
         type: 'blockers',
         workspaces: [{ id: 'ws1', name: 'Workspace', slug: 'workspace' }],
         groups: [],
+        channels: [],
       });
 
       await expect(
@@ -283,6 +284,35 @@ describe('AccountDeletionService', () => {
         type: 'blockers',
         workspaces: [],
         groups: [{ id: 'g1', name: 'Group', memberId: 'm1' }],
+        channels: [],
+      });
+
+      await expect(
+        service.requestAccountDeletion(
+          userId,
+          'password',
+          'DELETE MY ACCOUNT',
+          idempotencyKey,
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('rejects when user owns an active channel', async () => {
+      usersRepository.findById.mockResolvedValue(makeUser());
+      passwordService.verifyPassword.mockResolvedValue(true);
+      usersRepository.scheduleDeletionWithOwnershipCheck.mockResolvedValue({
+        type: 'blockers',
+        workspaces: [],
+        groups: [],
+        channels: [
+          {
+            id: 'c1',
+            workspaceId: 'ws1',
+            name: 'Channel',
+            slug: 'channel',
+            memberId: 'cm1',
+          },
+        ],
       });
 
       await expect(

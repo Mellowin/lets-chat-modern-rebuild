@@ -731,12 +731,20 @@ describe('AccountDeletion E2E', () => {
         blockers?: {
           workspaces: Array<{ id: string; name: string; slug: string }>;
           groups: Array<{ id: string; name: string; memberId: string }>;
+          channels: Array<{
+            id: string;
+            workspaceId: string;
+            name: string;
+            slug: string;
+            memberId: string;
+          }>;
         };
       };
       expect(body.code).toBe('ACCOUNT_DELETION_OWNERSHIP_BLOCKED');
       expect(body.blockers).toBeDefined();
       expect(body.blockers?.workspaces).toHaveLength(1);
       expect(body.blockers?.workspaces[0].id).toBe(workspace.id);
+      expect(body.blockers?.channels).toEqual([]);
 
       await prisma.workspaceMember.deleteMany({
         where: { workspaceId: workspace.id },
@@ -1025,6 +1033,403 @@ describe('AccountDeletion E2E', () => {
       });
     });
 
+    it('returns channel ownership blockers in 403 response', async () => {
+      const owner = await createUser(`channel-blocker-${Date.now()}`);
+      const ownerToken = await signToken(owner.id, owner.email);
+      const workspace = await prisma.workspace.create({
+        data: {
+          name: `Channel Blocker ${Date.now()}`,
+          slug: `channel-blocker-${Date.now()}`,
+          ownerId: owner.id,
+        },
+      });
+      await prisma.workspaceMember.create({
+        data: {
+          workspaceId: workspace.id,
+          userId: owner.id,
+          role: 'OWNER',
+        },
+      });
+      const channel = await prisma.channel.create({
+        data: {
+          workspaceId: workspace.id,
+          name: 'Owned Channel',
+          slug: 'owned-channel',
+          type: 'PUBLIC',
+          createdById: owner.id,
+          members: {
+            create: {
+              userId: owner.id,
+              role: 'OWNER',
+            },
+          },
+        },
+      });
+
+      const res = await request(app.getHttpServer())
+        .post('/auth/account-deletion/request')
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .set('Idempotency-Key', randomUUID())
+        .send({
+          currentPassword: owner.password,
+          confirmationPhrase: 'DELETE MY ACCOUNT',
+        })
+        .expect(403);
+
+      const body = res.body as {
+        code: string;
+        blockers?: {
+          channels: Array<{
+            id: string;
+            workspaceId: string;
+            name: string;
+            slug: string;
+            memberId: string;
+          }>;
+        };
+      };
+      expect(body.code).toBe('ACCOUNT_DELETION_OWNERSHIP_BLOCKED');
+      expect(body.blockers?.channels).toHaveLength(1);
+      expect(body.blockers?.channels[0].id).toBe(channel.id);
+      expect(body.blockers?.channels[0].workspaceId).toBe(workspace.id);
+
+      await prisma.channelMember.deleteMany({
+        where: { channelId: channel.id },
+      });
+      await prisma.channel.delete({ where: { id: channel.id } });
+      await prisma.workspaceMember.deleteMany({
+        where: { workspaceId: workspace.id },
+      });
+      await prisma.workspace.delete({ where: { id: workspace.id } });
+      await prisma.user.deleteMany({ where: { id: owner.id } });
+    });
+
+    it('allows account deletion after channel ownership transfer', async () => {
+      const owner = await createUser(`channel-owner-${Date.now()}`);
+      const target = await createUser(`channel-target-${Date.now()}`);
+      const ownerToken = await signToken(owner.id, owner.email);
+
+      const workspace = await prisma.workspace.create({
+        data: {
+          name: `Channel Transfer ${Date.now()}`,
+          slug: `channel-transfer-${Date.now()}`,
+          ownerId: target.id,
+        },
+      });
+      await prisma.workspaceMember.create({
+        data: {
+          workspaceId: workspace.id,
+          userId: target.id,
+          role: 'OWNER',
+        },
+      });
+      await prisma.workspaceMember.create({
+        data: {
+          workspaceId: workspace.id,
+          userId: owner.id,
+          role: 'MEMBER',
+        },
+      });
+      const channel = await prisma.channel.create({
+        data: {
+          workspaceId: workspace.id,
+          name: 'Transfer Channel',
+          slug: 'transfer-channel',
+          type: 'PUBLIC',
+          createdById: owner.id,
+          members: {
+            create: [
+              { userId: owner.id, role: 'OWNER' },
+              { userId: target.id, role: 'MEMBER' },
+            ],
+          },
+        },
+        include: {
+          members: {
+            where: { deletedAt: null },
+            select: { id: true, userId: true, role: true },
+          },
+        },
+      });
+      const targetMember = channel.members.find(
+        (m) => m.userId === target.id && m.role === 'MEMBER',
+      );
+      expect(targetMember).toBeDefined();
+
+      await request(app.getHttpServer())
+        .post(
+          `/workspaces/${workspace.id}/channels/${channel.id}/transfer-ownership`,
+        )
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({ memberId: targetMember!.id })
+        .expect(200);
+
+      await request(app.getHttpServer())
+        .post('/auth/account-deletion/request')
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .set('Idempotency-Key', randomUUID())
+        .send({
+          currentPassword: owner.password,
+          confirmationPhrase: 'DELETE MY ACCOUNT',
+        })
+        .expect(200);
+
+      const finalOwner = await prisma.user.findUnique({
+        where: { id: owner.id },
+      });
+      expect(finalOwner?.status).toBe('PENDING_DELETION');
+
+      const channelAfter = await prisma.channel.findUnique({
+        where: { id: channel.id },
+        include: {
+          members: {
+            where: { deletedAt: null },
+            select: { userId: true, role: true },
+          },
+        },
+      });
+      expect(
+        channelAfter?.members.some(
+          (m) => m.userId === target.id && m.role === 'OWNER',
+        ),
+      ).toBe(true);
+
+      await prisma.channelMember.deleteMany({
+        where: { channelId: channel.id },
+      });
+      await prisma.channel.delete({ where: { id: channel.id } });
+      await prisma.workspaceMember.deleteMany({
+        where: { workspaceId: workspace.id },
+      });
+      await prisma.workspace.delete({ where: { id: workspace.id } });
+      await prisma.user.deleteMany({
+        where: { id: { in: [owner.id, target.id] } },
+      });
+    });
+
+    it('allows only one of two concurrent channel transfers from the same owner', async () => {
+      const owner = await createUser(`channel-concurrent-owner-${Date.now()}`);
+      const targetA = await createUser(`channel-concurrent-a-${Date.now()}`);
+      const targetB = await createUser(`channel-concurrent-b-${Date.now()}`);
+      const ownerToken = await signToken(owner.id, owner.email);
+
+      const workspace = await prisma.workspace.create({
+        data: {
+          name: `Channel Concurrent ${Date.now()}`,
+          slug: `channel-concurrent-${Date.now()}`,
+          ownerId: owner.id,
+        },
+      });
+      await prisma.workspaceMember.create({
+        data: {
+          workspaceId: workspace.id,
+          userId: owner.id,
+          role: 'OWNER',
+        },
+      });
+      await prisma.workspaceMember.create({
+        data: {
+          workspaceId: workspace.id,
+          userId: targetA.id,
+          role: 'MEMBER',
+        },
+      });
+      await prisma.workspaceMember.create({
+        data: {
+          workspaceId: workspace.id,
+          userId: targetB.id,
+          role: 'MEMBER',
+        },
+      });
+      const channel = await prisma.channel.create({
+        data: {
+          workspaceId: workspace.id,
+          name: 'Concurrent Channel',
+          slug: 'concurrent-channel',
+          type: 'PUBLIC',
+          createdById: owner.id,
+          members: {
+            create: [
+              { userId: owner.id, role: 'OWNER' },
+              { userId: targetA.id, role: 'MEMBER' },
+              { userId: targetB.id, role: 'MEMBER' },
+            ],
+          },
+        },
+        include: {
+          members: {
+            where: { deletedAt: null },
+            select: { id: true, userId: true, role: true },
+          },
+        },
+      });
+      const memberA = channel.members.find(
+        (m) => m.userId === targetA.id && m.role === 'MEMBER',
+      );
+      const memberB = channel.members.find(
+        (m) => m.userId === targetB.id && m.role === 'MEMBER',
+      );
+      expect(memberA).toBeDefined();
+      expect(memberB).toBeDefined();
+
+      const [resA, resB] = (await Promise.allSettled([
+        request(app.getHttpServer())
+          .post(
+            `/workspaces/${workspace.id}/channels/${channel.id}/transfer-ownership`,
+          )
+          .set('Authorization', `Bearer ${ownerToken}`)
+          .send({ memberId: memberA!.id }),
+        request(app.getHttpServer())
+          .post(
+            `/workspaces/${workspace.id}/channels/${channel.id}/transfer-ownership`,
+          )
+          .set('Authorization', `Bearer ${ownerToken}`)
+          .send({ memberId: memberB!.id }),
+      ])) as [
+        PromiseSettledResult<request.Response>,
+        PromiseSettledResult<request.Response>,
+      ];
+
+      const getStatus = (result: PromiseSettledResult<request.Response>) => {
+        if (result.status === 'fulfilled') {
+          return result.value.status;
+        }
+        const reason = result.reason as { status?: number } | undefined;
+        return reason?.status;
+      };
+      const statusA = getStatus(resA);
+      const statusB = getStatus(resB);
+      const successCount = [statusA, statusB].filter((s) => s === 200).length;
+      expect(successCount).toBe(1);
+
+      const channelAfter = await prisma.channel.findUnique({
+        where: { id: channel.id },
+        include: {
+          members: {
+            where: { deletedAt: null },
+            select: { userId: true, role: true },
+          },
+        },
+      });
+      const owners =
+        channelAfter?.members.filter((m) => m.role === 'OWNER') ?? [];
+      expect(owners).toHaveLength(1);
+      expect(owners[0]?.userId).not.toBe(owner.id);
+
+      await prisma.channelMember.deleteMany({
+        where: { channelId: channel.id },
+      });
+      await prisma.channel.delete({ where: { id: channel.id } });
+      await prisma.workspaceMember.deleteMany({
+        where: { workspaceId: workspace.id },
+      });
+      await prisma.workspace.delete({ where: { id: workspace.id } });
+      await prisma.user.deleteMany({
+        where: { id: { in: [owner.id, targetA.id, targetB.id] } },
+      });
+    });
+
+    it('serializes channel ownership transfer against account deletion scheduling', async () => {
+      const owner = await createUser(`channel-race-owner-${Date.now()}`);
+      const target = await createUser(`channel-race-target-${Date.now()}`);
+      const ownerToken = await signToken(owner.id, owner.email);
+      const targetToken = await signToken(target.id, target.email);
+
+      const workspace = await prisma.workspace.create({
+        data: {
+          name: `Channel Race ${Date.now()}`,
+          slug: `channel-race-${Date.now()}`,
+          ownerId: owner.id,
+        },
+      });
+      await prisma.workspaceMember.create({
+        data: {
+          workspaceId: workspace.id,
+          userId: owner.id,
+          role: 'OWNER',
+        },
+      });
+      await prisma.workspaceMember.create({
+        data: {
+          workspaceId: workspace.id,
+          userId: target.id,
+          role: 'MEMBER',
+        },
+      });
+      const channel = await prisma.channel.create({
+        data: {
+          workspaceId: workspace.id,
+          name: 'Race Channel',
+          slug: 'race-channel',
+          type: 'PUBLIC',
+          createdById: owner.id,
+          members: {
+            create: [
+              { userId: owner.id, role: 'OWNER' },
+              { userId: target.id, role: 'MEMBER' },
+            ],
+          },
+        },
+        include: {
+          members: {
+            where: { deletedAt: null },
+            select: { id: true, userId: true, role: true },
+          },
+        },
+      });
+      const targetMember = channel.members.find(
+        (m) => m.userId === target.id && m.role === 'MEMBER',
+      );
+      expect(targetMember).toBeDefined();
+
+      await Promise.allSettled([
+        request(app.getHttpServer())
+          .post('/auth/account-deletion/request')
+          .set('Authorization', `Bearer ${targetToken}`)
+          .set('Idempotency-Key', randomUUID())
+          .send({
+            currentPassword: target.password,
+            confirmationPhrase: 'DELETE MY ACCOUNT',
+          }),
+        request(app.getHttpServer())
+          .post(
+            `/workspaces/${workspace.id}/channels/${channel.id}/transfer-ownership`,
+          )
+          .set('Authorization', `Bearer ${ownerToken}`)
+          .send({ memberId: targetMember!.id }),
+      ]);
+
+      const transferResult = await request(app.getHttpServer())
+        .post(
+          `/workspaces/${workspace.id}/channels/${channel.id}/transfer-ownership`,
+        )
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({ memberId: targetMember!.id });
+
+      const finalTarget = await prisma.user.findUnique({
+        where: { id: target.id },
+      });
+      if (finalTarget?.status === 'PENDING_DELETION') {
+        expect(transferResult.status).toBe(409);
+      }
+      expect(
+        finalTarget?.status === 'ACTIVE' ||
+          finalTarget?.status === 'PENDING_DELETION',
+      ).toBe(true);
+
+      await prisma.channelMember.deleteMany({
+        where: { channelId: channel.id },
+      });
+      await prisma.channel.delete({ where: { id: channel.id } });
+      await prisma.workspaceMember.deleteMany({
+        where: { workspaceId: workspace.id },
+      });
+      await prisma.workspace.delete({ where: { id: workspace.id } });
+      await prisma.user.deleteMany({
+        where: { id: { in: [owner.id, target.id] } },
+      });
+    });
+
     it('retries avatar cleanup after a failed first finalizer run', async () => {
       const avatarUpload = app.get(AvatarUploadService);
       const deleteAll = jest
@@ -1279,6 +1684,86 @@ describe('AccountDeletion E2E', () => {
       } finally {
         await emailApp.close();
       }
+    });
+
+    it('does not leak reporter or moderator audit data in data export', async () => {
+      const reporter = await createUser(`export-reporter-${Date.now()}`);
+      const moderator = await createUser(`export-moderator-${Date.now()}`);
+      const secretReason = 'VERY_SECRET_REPORT_REASON';
+      const secretAdminNote = 'VERY_SECRET_ADMIN_NOTE';
+
+      const report = await prisma.userReport.create({
+        data: {
+          reporterId: reporter.id,
+          reportedUserId: user.id,
+          reason: secretReason,
+          details: 'report details',
+          status: 'OPEN',
+        },
+      });
+
+      await prisma.auditLog.createMany({
+        data: [
+          {
+            actorId: reporter.id,
+            targetUserId: user.id,
+            action: 'report.created',
+            entityType: 'user_report',
+            entityId: report.id,
+            severity: 'warning',
+            metadata: { reason: secretReason, messageId: null },
+          },
+          {
+            actorId: moderator.id,
+            targetUserId: user.id,
+            action: 'report.updated',
+            entityType: 'user_report',
+            entityId: report.id,
+            severity: 'warning',
+            metadata: {
+              oldStatus: 'OPEN',
+              newStatus: 'RESOLVED',
+              adminNote: secretAdminNote,
+            },
+          },
+        ],
+      });
+
+      const res = await request(app.getHttpServer())
+        .post('/auth/data-export')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ currentPassword: user.password })
+        .expect(200);
+
+      const serialized = res.text;
+      expect(serialized).not.toContain(secretReason);
+      expect(serialized).not.toContain(secretAdminNote);
+      expect(serialized).not.toContain(reporter.id);
+      expect(serialized).not.toContain(moderator.id);
+
+      const payload = JSON.parse(serialized) as { auditLogs?: unknown[] };
+      expect(payload.auditLogs).toBeDefined();
+      const leakedReporterAudit = (payload.auditLogs ?? []).find((log) => {
+        const l = log as {
+          actorId?: string;
+          metadata?: { adminNote?: string; reason?: string };
+        };
+        return (
+          l.actorId === reporter.id ||
+          l.actorId === moderator.id ||
+          l.metadata?.adminNote === secretAdminNote ||
+          l.metadata?.reason === secretReason
+        );
+      });
+      expect(leakedReporterAudit).toBeUndefined();
+
+      await prisma.auditLog.deleteMany({
+        where: { entityId: report.id, entityType: 'user_report' },
+      });
+      await prisma.userReport.deleteMany({ where: { id: report.id } });
+      await prisma.user.deleteMany({
+        where: { id: { in: [reporter.id, moderator.id] } },
+      });
     });
   });
 });

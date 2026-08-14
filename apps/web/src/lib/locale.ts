@@ -130,6 +130,7 @@ export type TranslationKey =
   | "profile.deleteAccountOwnershipBlockers"
   | "profile.deleteAccountOwnedWorkspaces"
   | "profile.deleteAccountOwnedGroups"
+  | "profile.deleteAccountOwnedChannels"
   | "profile.deleteAccountPasswordLabel"
   | "profile.deleteAccountConfirmationPhraseLabel"
   | "profile.deleteAccountConfirmationPhraseHint"
@@ -1872,9 +1873,10 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.deleteAccountGracePeriod": "After confirmation your account enters a 7-day grace period. You can cancel deletion using the link sent by email during this time.",
     "profile.deleteAccountMessagesRetained": "Your messages, replies and reactions will remain in conversations under “Deleted user” to keep discussion history intact.",
     "profile.deleteAccountAttachmentsRemoved": "Your attachments will be removed and eventually deleted from storage.",
-    "profile.deleteAccountOwnershipBlockers": "Transfer ownership of the workspaces or groups listed below before you can delete your account.",
+    "profile.deleteAccountOwnershipBlockers": "Transfer ownership of the workspaces, groups or channels listed below before you can delete your account.",
     "profile.deleteAccountOwnedWorkspaces": "Workspaces you own",
     "profile.deleteAccountOwnedGroups": "Groups you are the sole owner of",
+    "profile.deleteAccountOwnedChannels": "Channels you own",
     "profile.deleteAccountPasswordLabel": "Current password",
     "profile.deleteAccountConfirmationPhraseLabel": "Confirmation",
     "profile.deleteAccountConfirmationPhraseHint": "Type DELETE MY ACCOUNT to confirm.",
@@ -2840,9 +2842,10 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.deleteAccountGracePeriod": "Після підтвердження ваш акаунт переходить у 7-денний період очікування. Ви можете скасувати видалення за посиланням у листі протягом цього часу.",
     "profile.deleteAccountMessagesRetained": "Ваші повідомлення, відповіді та реакції залишаться в розмовах під ім’ям «Видалений користувач», щоб зберегти історію обговорень.",
     "profile.deleteAccountAttachmentsRemoved": "Ваші вкладення будуть позначені для видалення та згодом видалені зі сховища.",
-    "profile.deleteAccountOwnershipBlockers": "Перед видаленням передайте власника робочих просторів або груп, перелічених нижче.",
+    "profile.deleteAccountOwnershipBlockers": "Перед видаленням передайте власника робочих просторів, груп або каналів, перелічених нижче.",
     "profile.deleteAccountOwnedWorkspaces": "Робочі простори, якими ви володієте",
     "profile.deleteAccountOwnedGroups": "Групи, в яких ви єдиний власник",
+    "profile.deleteAccountOwnedChannels": "Канали, якими ви володієте",
     "profile.deleteAccountPasswordLabel": "Поточний пароль",
     "profile.deleteAccountConfirmationPhraseLabel": "Підтвердження",
     "profile.deleteAccountConfirmationPhraseHint": "Введіть DELETE MY ACCOUNT для підтвердження.",
@@ -3808,9 +3811,10 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string | ((name: string)
     "profile.deleteAccountGracePeriod": "После подтверждения ваш аккаунт переходит в 7-дневный период ожидания. Вы можете отменить удаление по ссылке в письме в течение этого времени.",
     "profile.deleteAccountMessagesRetained": "Ваши сообщения, ответы и реакции останутся в переписках под именем «Удалённый пользователь», чтобы сохранить историю обсуждений.",
     "profile.deleteAccountAttachmentsRemoved": "Ваши вложения будут помечены для удаления и со временем удалены из хранилища.",
-    "profile.deleteAccountOwnershipBlockers": "Перед удалением передайте владение рабочими пространствами или группами, перечисленными ниже.",
+    "profile.deleteAccountOwnershipBlockers": "Перед удалением передайте владение рабочими пространствами, группами или каналами, перечисленными ниже.",
     "profile.deleteAccountOwnedWorkspaces": "Рабочие пространства, которыми вы владеете",
     "profile.deleteAccountOwnedGroups": "Группы, в которых вы единственный владелец",
+    "profile.deleteAccountOwnedChannels": "Каналы, которыми вы владеете",
     "profile.deleteAccountPasswordLabel": "Текущий пароль",
     "profile.deleteAccountConfirmationPhraseLabel": "Подтверждение",
     "profile.deleteAccountConfirmationPhraseHint": "Введите DELETE MY ACCOUNT для подтверждения.",

@@ -6,6 +6,13 @@ export type TranslateFn = (key: TranslationKey, ...args: string[]) => string;
 export interface AccountDeletionBlockers {
   workspaces: Array<{ id: string; name: string; slug: string }>;
   groups: Array<{ id: string; name: string; memberId: string }>;
+  channels: Array<{
+    id: string;
+    workspaceId: string;
+    name: string;
+    slug: string;
+    memberId: string;
+  }>;
 }
 
 export interface ApiErrorBody {
@@ -153,6 +160,7 @@ function isBlockers(value: unknown): value is AccountDeletionBlockers {
   return (
     Array.isArray(b.workspaces) &&
     Array.isArray(b.groups) &&
+    Array.isArray(b.channels) &&
     b.workspaces.every(
       (item) =>
         typeof item === "object" &&
@@ -167,6 +175,16 @@ function isBlockers(value: unknown): value is AccountDeletionBlockers {
         item !== null &&
         typeof (item as Record<string, unknown>).id === "string" &&
         typeof (item as Record<string, unknown>).name === "string" &&
+        typeof (item as Record<string, unknown>).memberId === "string",
+    ) &&
+    b.channels.every(
+      (item) =>
+        typeof item === "object" &&
+        item !== null &&
+        typeof (item as Record<string, unknown>).id === "string" &&
+        typeof (item as Record<string, unknown>).workspaceId === "string" &&
+        typeof (item as Record<string, unknown>).name === "string" &&
+        typeof (item as Record<string, unknown>).slug === "string" &&
         typeof (item as Record<string, unknown>).memberId === "string",
     )
   );

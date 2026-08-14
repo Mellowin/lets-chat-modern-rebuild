@@ -39,6 +39,7 @@ export const AuditAction = {
   CHANNEL_DELETED: 'channel.deleted',
   CHANNEL_MEMBER_ADDED: 'channel.member.added',
   CHANNEL_MEMBER_REMOVED: 'channel.member.removed',
+  CHANNEL_OWNERSHIP_TRANSFERRED: 'channel.ownership.transferred',
   CHANNEL_INVITE_CREATED: 'channel.invite.created',
   CHANNEL_INVITE_ACCEPTED: 'channel.invite.accepted',
   CHANNEL_INVITE_REVOKED: 'channel.invite.revoked',

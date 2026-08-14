@@ -662,9 +662,7 @@ export class GroupsService {
 
     const targetUser = await this.users.findById(targetMember.userId);
     if (!targetUser || targetUser.status !== 'ACTIVE') {
-      throw new ForbiddenException(
-        'Cannot transfer ownership to a user with pending or deleted account',
-      );
+      throw new ConflictException('Ownership state changed');
     }
 
     try {

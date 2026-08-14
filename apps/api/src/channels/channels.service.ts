@@ -14,7 +14,9 @@ import { ChannelsRepository } from './channels.repository';
 import { CreateChannelDto } from './dto/create-channel.dto';
 import { slugify } from '../common/transliterate';
 import { UpdateChannelDto } from './dto/update-channel.dto';
+import { TransferChannelOwnershipDto } from './dto/transfer-channel-ownership.dto';
 import { AuditService } from '../audit/audit.service';
+import { mapAuthorResponse } from '../common/deleted-user-mapper';
 import {
   AuditAction,
   AuditEntityType,
@@ -227,12 +229,13 @@ export class ChannelsService {
       channelId: member.channelId,
       role: member.role,
       joinedAt: member.createdAt,
-      user: {
+      user: mapAuthorResponse({
         id: member.user.id,
         username: member.user.username,
         displayName: member.user.displayName,
         avatarUrl: member.user.avatarUrl,
-      },
+        status: member.user.status,
+      }),
     }));
   }
 
@@ -278,10 +281,9 @@ export class ChannelsService {
     }
 
     const identifier = dto.identifier.trim();
-    let targetUser = await this.users.findByUsername(identifier);
-    if (!targetUser) {
-      targetUser = await this.users.findByEmail(identifier);
-    }
+    const targetUser =
+      (await this.users.findActiveByUsername(identifier)) ??
+      (await this.users.findActiveByEmail(identifier));
     if (!targetUser) {
       throw new NotFoundException('User not found');
     }
@@ -326,12 +328,13 @@ export class ChannelsService {
         channelId: member.channelId,
         role: member.role,
         joinedAt: member.createdAt,
-        user: {
+        user: mapAuthorResponse({
           id: member.user.id,
           username: member.user.username,
           displayName: member.user.displayName,
           avatarUrl: member.user.avatarUrl,
-        },
+          status: member.user.status,
+        }),
       };
     } catch (error) {
       if (
@@ -339,6 +342,100 @@ export class ChannelsService {
         error.code === 'P2002'
       ) {
         throw new ConflictException('User is already a channel member');
+      }
+      throw error;
+    }
+  }
+
+  async transferChannelOwnership(
+    workspaceId: string,
+    channelId: string,
+    userId: string,
+    dto: TransferChannelOwnershipDto,
+  ) {
+    const wsRole = await this.workspaces.findMemberRole(workspaceId, userId);
+    if (!wsRole) {
+      throw new NotFoundException('Workspace not found');
+    }
+
+    const channel = await this.channels.findActiveById(channelId);
+    if (!channel || channel.workspaceId !== workspaceId) {
+      throw new NotFoundException('Channel not found');
+    }
+
+    const requesterChRole = await this.channels.findChannelMemberRole(
+      channelId,
+      userId,
+    );
+    if (requesterChRole !== 'OWNER') {
+      throw new ForbiddenException('Only owner can transfer channel ownership');
+    }
+
+    const currentOwnerMember =
+      await this.channels.findActiveChannelMemberByUserId(channelId, userId);
+    if (!currentOwnerMember) {
+      throw new NotFoundException('Channel not found');
+    }
+
+    const targetMember = await this.channels.findActiveChannelMemberById(
+      channelId,
+      dto.memberId,
+    );
+    if (!targetMember) {
+      throw new NotFoundException('Member not found');
+    }
+    if (targetMember.role === 'OWNER') {
+      throw new BadRequestException('Target member is already the owner');
+    }
+    if (targetMember.userId === userId) {
+      throw new BadRequestException('Cannot transfer ownership to yourself');
+    }
+    if (targetMember.user.status !== 'ACTIVE') {
+      throw new ConflictException('Ownership state changed');
+    }
+
+    try {
+      const result = await this.channels.transferOwnership({
+        channelId,
+        currentOwnerMemberId: currentOwnerMember.id,
+        currentOwnerUserId: userId,
+        targetMemberId: targetMember.id,
+        targetUserId: targetMember.user.id,
+      });
+
+      await this.audit?.record({
+        actorId: userId,
+        action: AuditAction.CHANNEL_OWNERSHIP_TRANSFERRED,
+        entityType: AuditEntityType.CHANNEL,
+        entityId: channelId,
+        workspaceId,
+        channelId,
+        severity: AuditSeverity.INFO,
+        metadata: {
+          oldOwnerUserId: userId,
+          oldOwnerMemberId: currentOwnerMember.id,
+          newOwnerUserId: targetMember.user.id,
+          newOwnerMemberId: targetMember.id,
+          previousTargetRole: targetMember.role,
+          oldOwnerNewRole: 'ADMIN',
+        },
+      });
+
+      return result;
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        (error.message === 'OWNERSHIP_STATE_CHANGED' ||
+          error.message === 'TARGET_STATE_CHANGED' ||
+          error.message === 'TARGET_USER_NOT_ACTIVE')
+      ) {
+        throw new ConflictException('Ownership state changed');
+      }
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('Ownership state changed');
       }
       throw error;
     }

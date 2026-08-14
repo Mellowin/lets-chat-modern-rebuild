@@ -410,6 +410,13 @@ export class UsersRepository {
         type: 'blockers';
         workspaces: Array<{ id: string; name: string; slug: string }>;
         groups: Array<{ id: string; name: string; memberId: string }>;
+        channels: Array<{
+          id: string;
+          workspaceId: string;
+          name: string;
+          slug: string;
+          memberId: string;
+        }>;
       }
     | { type: 'not_active' }
   > {
@@ -465,11 +472,46 @@ export class UsersRepository {
             memberId: group.members.find((m) => m.userId === userId)!.id,
           }));
 
-        if (ownedWorkspaces.length > 0 || soleOwnedGroups.length > 0) {
+        const ownedChannels = await tx.channelMember.findMany({
+          where: {
+            userId,
+            role: 'OWNER',
+            deletedAt: null,
+            channel: {
+              deletedAt: null,
+              permanentlyDeletedAt: null,
+            },
+          },
+          include: {
+            channel: {
+              select: {
+                id: true,
+                workspaceId: true,
+                name: true,
+                slug: true,
+              },
+            },
+          },
+        });
+
+        const channelBlockers = ownedChannels.map((membership) => ({
+          id: membership.channel.id,
+          workspaceId: membership.channel.workspaceId,
+          name: membership.channel.name,
+          slug: membership.channel.slug,
+          memberId: membership.id,
+        }));
+
+        if (
+          ownedWorkspaces.length > 0 ||
+          soleOwnedGroups.length > 0 ||
+          channelBlockers.length > 0
+        ) {
           return {
             type: 'blockers',
             workspaces: ownedWorkspaces,
             groups: soleOwnedGroups,
+            channels: channelBlockers,
           };
         }
 

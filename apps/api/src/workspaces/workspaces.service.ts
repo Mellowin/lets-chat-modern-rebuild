@@ -17,6 +17,7 @@ import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
 import { TransferOwnershipDto } from './dto/transfer-ownership.dto';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction, AuditEntityType } from '../audit/audit.constants';
+import { mapAuthorResponse } from '../common/deleted-user-mapper';
 
 @Injectable()
 export class WorkspacesService {
@@ -241,12 +242,13 @@ export class WorkspacesService {
       workspaceId: updated.workspaceId,
       role: updated.role,
       joinedAt: updated.createdAt,
-      user: {
+      user: mapAuthorResponse({
         id: updated.user.id,
         username: updated.user.username,
         displayName: updated.user.displayName,
         avatarUrl: updated.user.avatarUrl,
-      },
+        status: updated.user.status,
+      }),
     };
   }
 
@@ -450,12 +452,13 @@ export class WorkspacesService {
       workspaceId: member.workspaceId,
       role: member.role,
       joinedAt: member.createdAt,
-      user: {
+      user: mapAuthorResponse({
         id: member.user.id,
         username: member.user.username,
         displayName: member.user.displayName,
         avatarUrl: member.user.avatarUrl,
-      },
+        status: member.user.status,
+      }),
     }));
   }
 
@@ -529,12 +532,13 @@ export class WorkspacesService {
         workspaceId: member.workspaceId,
         role: member.role,
         joinedAt: member.createdAt,
-        user: {
+        user: mapAuthorResponse({
           id: member.user.id,
           username: member.user.username,
           displayName: member.user.displayName,
           avatarUrl: member.user.avatarUrl,
-        },
+          status: member.user.status,
+        }),
       };
     } catch (error) {
       if (

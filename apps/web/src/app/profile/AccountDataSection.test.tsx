@@ -82,10 +82,19 @@ describe("AccountDataSection", () => {
       new ApiError(
         403,
         "ACCOUNT_DELETION_OWNERSHIP_BLOCKED",
-        "Transfer workspace and group ownership before deleting your account",
+        "Transfer workspace, group and channel ownership before deleting your account",
         {
           workspaces: [{ id: "ws-1", name: "Blocked Workspace", slug: "blocked-ws" }],
           groups: [{ id: "grp-1", name: "Blocked Group", memberId: "m-1" }],
+          channels: [
+            {
+              id: "ch-1",
+              workspaceId: "ws-1",
+              name: "Blocked Channel",
+              slug: "blocked-channel",
+              memberId: "cm-1",
+            },
+          ],
         },
       ),
     );
@@ -102,5 +111,6 @@ describe("AccountDataSection", () => {
     });
     expect(screen.getByText("Blocked Workspace")).toBeInTheDocument();
     expect(screen.getByText("Blocked Group")).toBeInTheDocument();
+    expect(screen.getByText("Blocked Channel")).toBeInTheDocument();
   });
 });

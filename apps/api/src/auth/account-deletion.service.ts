@@ -25,6 +25,13 @@ import { AccountDeletionIdempotencyService } from './account-deletion-idempotenc
 export interface AccountDeletionBlockers {
   workspaces: Array<{ id: string; name: string; slug: string }>;
   groups: Array<{ id: string; name: string; memberId: string }>;
+  channels: Array<{
+    id: string;
+    workspaceId: string;
+    name: string;
+    slug: string;
+    memberId: string;
+  }>;
 }
 
 export interface RequestAccountDeletionResult {
@@ -123,11 +130,12 @@ export class AccountDeletionService {
     if (scheduleResult.type === 'blockers') {
       throw new ForbiddenException({
         message:
-          'Transfer workspace and group ownership before deleting your account',
+          'Transfer workspace, group and channel ownership before deleting your account',
         code: 'ACCOUNT_DELETION_OWNERSHIP_BLOCKED',
         blockers: {
           workspaces: scheduleResult.workspaces,
           groups: scheduleResult.groups,
+          channels: scheduleResult.channels,
         },
       });
     }

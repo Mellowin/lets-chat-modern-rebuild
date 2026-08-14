@@ -209,7 +209,13 @@ describe('ChannelInvitesService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
       deletedAt: null,
-      user: { id: targetUserId, username: 'bob', avatarUrl: null },
+      user: {
+        id: targetUserId,
+        username: 'bob',
+        displayName: null,
+        avatarUrl: null,
+        status: 'ACTIVE' as const,
+      },
       ...overrides,
     };
   }
@@ -225,7 +231,13 @@ describe('ChannelInvitesService', () => {
       createdAt: new Date(),
       updatedAt: new Date(),
       deletedAt: null,
-      user: { id: targetUserId, username: 'bob', avatarUrl: null },
+      user: {
+        id: targetUserId,
+        username: 'bob',
+        displayName: null,
+        avatarUrl: null,
+        status: 'ACTIVE' as const,
+      },
       ...overrides,
     };
   }
